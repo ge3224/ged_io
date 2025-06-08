@@ -2,6 +2,10 @@
 
 A **GEDCOM parser** for Rust 🦀
 
+[![Crates.io](https://img.shields.io/crates/v/ged_io.svg)](https://crates.io/crates/ged_io)
+[![Documentation](https://docs.rs/ged_io/badge.svg)](https://docs.rs/ged_io)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 ## About This Project
 
 **`ged_io`** is a Rust crate for working with GEDCOM files, the standard format for exchanging genealogical data. It currently focuses on parsing existing GEDCOM files, with plans to add writing capabilities in the future.
