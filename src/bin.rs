@@ -4,7 +4,7 @@ use std::env;
 use std::fs;
 use std::path::PathBuf;
 
-use ged_io::{GedcomData, GedcomDocument};
+use ged_io::{GedcomData, GedcomSource};
 
 fn main() {
     let args: Vec<String> = env::args().collect();
@@ -23,7 +23,7 @@ fn main() {
     let data: GedcomData;
 
     if let Ok(contents) = read_relative(filename) {
-        let mut doc = GedcomDocument::new(contents.chars());
+        let mut doc = GedcomSource::new(contents.chars());
         data = doc.parse_document();
 
         println!("Parsing complete!");

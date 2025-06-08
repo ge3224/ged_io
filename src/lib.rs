@@ -1,18 +1,36 @@
-/*! A parser for GEDCOM files
+/*!
+**ged_io** is a Rust crate for parsing GEDCOM files, which are used to exchange genealogical data
+between family history applications. It provides a structured way to load, navigate, and extract
+information from GEDCOM documents.
+
+GEDCOM (GEnealogical Data Communication) is a file format for storing and sharing family tree data.
+It's a text-based format that most genealogy software can read and write, making it useful for
+transferring data between different applications.
+
+Features:
+
+- Parse GEDCOM files into structured, navigable data
+- Access individuals, families, and other genealogical records
+- Display statistics about file contents
+- Optional JSON serialization support
+
+Writing GEDCOM files is planned for future development.
+
+Basic example:
 
 ```rust
-// the parser takes the gedcom file contents as a chars iterator
-use ged_io::GedcomDocument;
-let gedcom_source = std::fs::read_to_string("./tests/fixtures/sample.ged").unwrap();
+use ged_io::GedcomSource;
 
-let mut doc = GedcomDocument::new(gedcom_source.chars());
+// Parse a GEDCOM file
+let gedcom_source = std::fs::read_to_string("./tests/fixtures/sample.ged").unwrap();
+let mut doc = GedcomSource::new(gedcom_source.chars());
 let gedcom_data = doc.parse_document();
 
-// output some stats on the gedcom contents
+// Display file statistics
 gedcom_data.stats();
 ```
 
-This crate contains an optional `"json"` feature that implements serialization & deserialization to json with [`serde`](https://serde.rs).
+This crate contains an optional `"json"` feature that implements serialization and deserialization to json with [`serde`](https://serde.rs).
 */
 
 #![deny(clippy::pedantic)]
@@ -35,43 +53,64 @@ use types::{
     UserDefinedTag,
 };
 
-/// The GedcomDocument can convert the token list into a data structure. The order of the Dataset
-/// should be as follows: the HEAD must come first and TRLR must be last, with any RECORDs in
-/// between.
-pub struct GedcomDocument<'a> {
+/// A GEDCOM tokenizer wrapper that provides an entry point for parsing. Parsing expects a valid
+/// GEDCOM file format with a header (HEAD) record at the beginning, a trailer (TRLR) record at the
+/// end, and genealogical records (individuals, families, sources, etc.) in between.
+pub struct GedcomSource<'a> {
     tokenizer: Tokenizer<'a>,
 }
 
-impl<'a> GedcomDocument<'a> {
-    /// Creates a parser state machine for parsing a gedcom file as a chars iterator
+impl<'a> GedcomSource<'a> {
+    /// Creates a new GEDCOM document parser from a character iterator. The parser initializes its
+    /// internal tokenizer and positions it at the first token, ready to begin parsing. The input
+    /// should be the complete contents of a GEDCOM file.
     #[must_use]
-    pub fn new(chars: Chars<'a>) -> GedcomDocument<'a> {
+    pub fn new(chars: Chars<'a>) -> GedcomSource<'a> {
         let mut tokenizer = Tokenizer::new(chars);
         tokenizer.next_token();
-        GedcomDocument { tokenizer }
+        GedcomSource { tokenizer }
     }
 
-    /// Does the actual parsing of the record.
+    /// Parses the GEDCOM document and returns the structured genealogical data. This method
+    /// consumes the tokenized input and builds a comprehensive representation of the GEDCOM file's
+    /// contents, including individuals, families, sources, and other records.
     pub fn parse_document(&mut self) -> GedcomData {
         GedcomData::new(&mut self.tokenizer, 0)
     }
 }
 
-/// The Parser trait converts a subset of a token list into a type's data structure.
+/// A trait for parsing GEDCOM records from a tokenized stream. The `Parser` trait defines the
+/// interface for converting GEDCOM tokens into structured data types. Each implementation handles
+/// parsing a specific type of GEDCOM record (such as individuals, families, or sources) by
+/// consuming tokens at the appropriate hierarchical level.
+///
+/// GEDCOM uses a hierarchical structure where each line has a level number (0, 1, 2, etc.)
+/// indicating its depth in the record tree. Parsers are responsible for consuming tokens
+/// at their expected level and any deeper nested levels that belong to their record.
 pub trait Parser {
-    /// parse does the actual parsing of a subset of a token list
+    /// Parses a GEDCOM record from the token stream starting at the specified level. This method
+    /// should consume all tokens that belong to the current record, including any nested
+    /// sub-records at deeper levels. Parsing continues until a token is encountered at a level
+    /// equal to or less than the starting level, which indicates the end of the current record.
     fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8);
 }
 
+/// Parses GEDCOM file content into structured genealogical data. This is a helper function that
+/// combines document creation and parsing into a single step.
 #[must_use]
-/// Helper function for converting GEDCOM file content stream to parsed data.
 pub fn parse_ged(content: std::str::Chars) -> GedcomData {
-    let mut p = GedcomDocument::new(content);
+    let mut p = GedcomSource::new(content);
     p.parse_document()
 }
 
-/// parse_subset is a helper function that handles some boilerplate code involved in implementing
-/// the Parser trait. It returns a Vector of any UserDefinedData.
+/// Parses a subset of GEDCOM tokens within a specific hierarchical level. This helper function
+/// reduces boilerplate when implementing the `Parser` trait by handling the common pattern of
+/// iterating through tokens at a given level and dispatching to appropriate handlers. It processes
+/// standard GEDCOM tags through a provided handler function and automatically collects any
+/// custom/non-standard tags into a vector.
+///
+/// The function continues parsing until it encounters a token at the same level or shallower
+/// than the starting level, which indicates the end of the current record section.
 pub fn parse_subset<F>(
     tokenizer: &mut Tokenizer,
     level: u8,
@@ -100,7 +139,6 @@ where
                     level + 1,
                     &tag_clone,
                 )));
-                // custom_data.push(parse_custom_tag(tokenizer, tag_clone));
             }
             Token::Level(_) => tokenizer.next_token(),
             _ => panic!(
@@ -113,16 +151,18 @@ where
     non_standard_dataset
 }
 
-/// Complete representation of a GEDCOM file's data structure.
-///
-/// This struct contains all the parsed data from a GEDCOM file, organized into
-/// their respective collections according to the GEDCOM 5.5.1 specification.
-/// The structure maintains the hierarchical relationships between different
+/// A comprehensive representation of a GEDCOM file's data structure. This struct contains the
+/// parsed data from a GEDCOM file, organized into their respective collections according to the
+/// GEDCOM specification. The structure maintains the hierarchical relationships between different
 /// record types while providing efficient access to each category.
 ///
-/// # GEDCOM File Structure
+/// Supported GEDCOM Versions:
+///
+/// - **GEDCOM 5.5.1**: Full support for all standard record types and structures
+/// - **GEDCOM 7.0**: Planned support for the updated specification (future release)
 ///
 /// A valid GEDCOM file follows this order:
+///
 /// 1. Header record (HEAD) - file metadata and configuration
 /// 2. Data records (SUBM, SUBN, INDI, FAM, REPO, SOUR, OBJE) - genealogical data
 /// 3. Trailer record (TRLR) - end-of-file marker
@@ -152,9 +192,11 @@ pub struct GedcomData {
     pub custom_data: Vec<Box<UserDefinedTag>>,
 }
 
-// should maybe store these by xref if available?
 impl GedcomData {
-    /// contructor for GedcomData
+    /// Creates a new `GedcomData` instance by parsing tokens from the given tokenizer. This
+    /// constructor initializes an empty `GedcomData` structure and then parses the complete GEDCOM
+    /// document from the tokenizer, populating all record types (individuals, families, sources,
+    /// etc.) according to the GEDCOM specification.
     #[must_use]
     pub fn new(tokenizer: &mut Tokenizer, level: u8) -> GedcomData {
         let mut data = GedcomData::default();
@@ -162,47 +204,61 @@ impl GedcomData {
         data
     }
 
-    /// Adds a `Family` (a relationship between individuals) to the tree
+    /// Adds a family record to the genealogical data. Family records represent relationships
+    /// between individuals, typically marriages and parent-child relationships.
     pub fn add_family(&mut self, family: Family) {
         self.families.push(family);
     }
 
-    /// Adds an `Individual` to the tree
+    /// Adds a record for an individual to the genealogical data. Individual records contain
+    /// personal information such as names, dates, places, and events for a single person.
     pub fn add_individual(&mut self, individual: Individual) {
         self.individuals.push(individual);
     }
 
-    /// Adds a data `Repository` to the tree
+    /// Adds a repository record to the genealogical data. Repository records describe institutions
+    /// or locations where genealogical sources are stored, such as libraries, archives, or
+    /// courthouses.
     pub fn add_repository(&mut self, repo: Repository) {
         self.repositories.push(repo);
     }
 
-    /// Adds a `Source` to the tree
+    /// Adds a source record to the genealogical data. Source records describe the origins of
+    /// genealogical information, such as documents, books, or other evidence.
     pub fn add_source(&mut self, source: Source) {
         self.sources.push(source);
     }
 
-    /// Add a `Submission` to the tree
+    /// Adds a submission record to the genealogical data. Submission records contain information
+    /// about the submission of the GEDCOM file itself, including submission dates and related
+    /// details.
     pub fn add_submission(&mut self, submission: Submission) {
         self.submissions.push(submission);
     }
 
-    /// Adds a `Submitter` to the tree
+    /// Adds a submitter record to the genealogical data. Submitter records contain information
+    /// about individuals or organizations responsible for submitting the genealogical data.
     pub fn add_submitter(&mut self, submitter: Submitter) {
         self.submitters.push(submitter);
     }
 
-    /// Adds a `Multimedia` to the tree
+    /// Adds a multimedia record to the genealogical data. Multimedia records reference external
+    /// files such as photos, documents, audio recordings, or videos related to individuals or
+    /// events.
     pub fn add_multimedia(&mut self, multimedia: MultimediaRecord) {
         self.multimedia.push(multimedia);
     }
 
-    /// Adds a `UserDefinedData` to the tree
+    /// Adds a custom (user-defined) tag to the genealogical data. Custom tags represent
+    /// non-standard GEDCOM extensions that are not part of the official specification but may be
+    /// used by specific genealogy software.
     pub fn add_custom_data(&mut self, non_standard_data: UserDefinedTag) {
         self.custom_data.push(Box::new(non_standard_data));
     }
 
-    /// Outputs a summary of data contained in the tree to stdout
+    /// Prints a summary of the genealogical data to standard output. This method displays a
+    /// formatted table showing the count of each type of record contained in the dataset,
+    /// providing a quick overview of the GEDCOM file's contents.
     pub fn stats(&self) {
         println!("----------------------");
         println!("| Gedcom Data Stats: |");
@@ -219,7 +275,18 @@ impl GedcomData {
 }
 
 impl Parser for GedcomData {
-    /// Does the actual parsing of the record.
+    /// Parses a complete GEDCOM document from the token stream. This implementation handles the
+    /// top-level structure of a GEDCOM file, processing each record type according to the GEDCOM
+    /// specification. The parser expects to encounter records in the standard order: header (HEAD)
+    /// first, followed by genealogical records (individuals, families, sources, etc.), and ending
+    /// with a trailer (TRLR) record.
+    ///
+    /// The parser processes each top-level record by:
+    /// 1. Reading the level number and advancing to the next token
+    /// 2. Checking for an optional cross-reference pointer (XREF)
+    /// 3. Identifying the record type by its tag
+    /// 4. Delegating to the appropriate record parser
+    /// 5. Continuing until the TRLR (trailer) tag is encountered
     fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) {
         loop {
             let current_level = match tokenizer.current_token {
@@ -262,7 +329,6 @@ impl Parser for GedcomData {
             } else if let Token::CustomTag(tag) = &tokenizer.current_token {
                 let tag_clone = tag.clone();
                 self.add_custom_data(UserDefinedTag::new(tokenizer, level + 1, &tag_clone));
-                // self.add_custom_data(parse_custom_tag(tokenizer, tag_clone));
                 while tokenizer.current_token != Token::Level(level) {
                     tokenizer.next_token();
                 }
@@ -290,7 +356,7 @@ mod tests {
            2 VERS 5.5\n\
            0 TRLR";
 
-        let mut doc = GedcomDocument::new(sample.chars());
+        let mut doc = GedcomSource::new(sample.chars());
         let data = doc.parse_document();
 
         let head = data.header.unwrap();
@@ -313,7 +379,7 @@ mod tests {
             0 _MYOWNTAG This is a non-standard tag. Not recommended but allowed\n\
             0 TRLR";
 
-        let mut doc = GedcomDocument::new(sample.chars());
+        let mut doc = GedcomSource::new(sample.chars());
         let data = doc.parse_document();
 
         assert_eq!(data.submitters.len(), 1);
