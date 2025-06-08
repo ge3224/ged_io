@@ -93,7 +93,7 @@ The included `parse_gedcom` binary provides a convenient way to test and analyze
 cargo install ged_io
 
 # Parse and analyze a GEDCOM file
-parse_gedcom ./tests/fixtures/sample.ged
+ged_io ./tests/fixtures/sample.ged
 ```
 
 **Example output:**
