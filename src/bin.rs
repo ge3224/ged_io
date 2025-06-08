@@ -4,7 +4,7 @@ use std::env;
 use std::fs;
 use std::path::PathBuf;
 
-use gedcom::{GedcomData, GedcomDocument};
+use ged_io::{GedcomData, GedcomDocument};
 
 fn main() {
     let args: Vec<String> = env::args().collect();

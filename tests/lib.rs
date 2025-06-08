@@ -11,8 +11,8 @@ pub mod util {
 #[cfg(test)]
 mod tests {
     use super::util::read_relative;
-    use gedcom::GedcomDocument;
-    use gedcom::types::event::HasEvents;
+    use ged_io::types::event::HasEvents;
+    use ged_io::GedcomDocument;
 
     #[test]
     fn parses_basic_gedcom() {
@@ -29,10 +29,7 @@ mod tests {
         let header = data.header.unwrap();
 
         // header
-        assert_eq!(
-            header.encoding.unwrap().value.unwrap().as_str(),
-            "ASCII"
-        );
+        assert_eq!(header.encoding.unwrap().value.unwrap().as_str(), "ASCII");
         assert_eq!(header.submitter_tag.unwrap().as_str(), "@SUBMITTER@");
         assert_eq!(header.gedcom.unwrap().version.unwrap(), "5.5");
 
@@ -64,7 +61,10 @@ mod tests {
         let events = data.families[0].events();
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].event.to_string(), "Marriage");
-        assert_eq!(events[0].date.as_ref().unwrap().value.as_ref().unwrap(), "1 APR 1950");
+        assert_eq!(
+            events[0].date.as_ref().unwrap().value.as_ref().unwrap(),
+            "1 APR 1950"
+        );
     }
 
     #[test]
@@ -81,10 +81,7 @@ mod tests {
         let header = data.header.unwrap();
 
         // header
-        assert_eq!(
-            header.encoding.unwrap().value.unwrap().as_str(),
-            "UTF-8"
-        );
+        assert_eq!(header.encoding.unwrap().value.unwrap().as_str(), "UTF-8");
         // assert_eq!(header.submitter_tag.unwrap().as_str(), "@SUBMITTER@");
         assert_eq!(header.gedcom.unwrap().version.unwrap(), "5.5.1");
 
@@ -104,6 +101,9 @@ mod tests {
         let events = data.families[0].events();
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].event.to_string(), "Marriage");
-        assert_eq!(events[0].date.as_ref().unwrap().value.as_ref().unwrap(), "6 MAR 1730");
+        assert_eq!(
+            events[0].date.as_ref().unwrap().value.as_ref().unwrap(),
+            "6 MAR 1730"
+        );
     }
 }

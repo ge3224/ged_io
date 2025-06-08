@@ -1,10 +1,10 @@
-# ged-io
+# ged_io
 
 A **GEDCOM parser** for Rust 🦀
 
 ## About This Project
 
-**`ged-io`** is a Rust crate for working with GEDCOM files, the standard format for exchanging genealogical data. It currently focuses on parsing existing GEDCOM files, with plans to add writing capabilities in the future.
+**`ged_io`** is a Rust crate for working with GEDCOM files, the standard format for exchanging genealogical data. It currently focuses on parsing existing GEDCOM files, with plans to add writing capabilities in the future.
 
 Originally forked from `pirtleshell/rust-gedcom`, this project aims to:
 
@@ -30,14 +30,14 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-ged-io = "0.1.0"  # Replace with actual version
+ged_io = "0.1.0"  # Replace with actual version
 ```
 
 For JSON serialization support:
 
 ```toml
 [dependencies]
-ged-io = { version = "0.1.0", features = ["json"] }
+ged_io = { version = "0.1.0", features = ["json"] }
 ```
 
 ## Quick Start
@@ -84,7 +84,7 @@ The included `parse_gedcom` binary provides a convenient way to test and analyze
 
 ```bash
 # Install the CLI tool
-cargo install ged-io
+cargo install ged_io
 
 # Parse and analyze a GEDCOM file
 parse_gedcom ./tests/fixtures/sample.ged

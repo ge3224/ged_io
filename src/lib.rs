@@ -2,7 +2,7 @@
 
 ```rust
 // the parser takes the gedcom file contents as a chars iterator
-use gedcom::GedcomDocument;
+use ged_io::GedcomDocument;
 let gedcom_source = std::fs::read_to_string("./tests/fixtures/sample.ged").unwrap();
 
 let mut doc = GedcomDocument::new(gedcom_source.chars());
