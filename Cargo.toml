@@ -1,12 +1,12 @@
 [package]
-name = "gedcom"
-version = "0.2.2"
-authors = ["Robert Pirtle <astropirtle@gmail.com>"]
+name = "ged-io"
+version = "0.1.0"
+authors = ["Robert Pirtle <astropirtle@gmail.com>", "Jacob Benison <ge3224@gmail.com>"]
 description = "A parser for GEDCOM files"
 keywords = ["genealogy", "gedcom", "parser", "gedcom-parser", "family-trees"]
 license = "MIT"
 readme = "readme.md"
-repository = "https://github.com/pirtleshell/rust-gedcom/"
+repository = "https://github.com/ge3224/ged-io"
 edition = "2018"
 include = ["Cargo.toml", "src/**/*.rs"]
 
@@ -22,9 +22,9 @@ serde_json = { version = "1.0", optional = true }
 serde_test = "1.0.123"
 
 [lib]
-name = "gedcom"
+name = "ged-io"
 path = "src/lib.rs"
 
 [[bin]]
-name = "parse_gedcom"
+name = "ged-bin"
 path = "src/bin.rs"
