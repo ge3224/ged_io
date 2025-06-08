@@ -5,6 +5,7 @@ A **GEDCOM parser** for Rust 🦀
 [![Crates.io](https://img.shields.io/crates/v/ged_io.svg)](https://crates.io/crates/ged_io)
 [![Documentation](https://docs.rs/ged_io/badge.svg)](https://docs.rs/ged_io)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Tests](https://github.com/ge3224/ged_io/actions/workflows/ci.yml/badge.svg)](https://github.com/ge3224/ged_io/actions/workflows/ci.yml)
 
 ## About This Project
 
