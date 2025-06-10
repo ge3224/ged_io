@@ -1,20 +1,9 @@
 /*!
-**ged_io** is a Rust crate for parsing GEDCOM files, which are used to exchange genealogical data
-between family history applications. It provides a structured way to load, navigate, and extract
-information from GEDCOM documents.
+ged_io is a Rust crate for parsing GEDCOM files.
 
-GEDCOM (GEnealogical Data Communication) is a file format for storing and sharing family tree data.
-It's a text-based format that most genealogy software can read and write, making it useful for
-transferring data between different applications.
-
-Features:
-
-- Parse GEDCOM files into structured, navigable data
-- Access individuals, families, and other genealogical records
-- Display statistics about file contents
-- Optional JSON serialization support
-
-Writing GEDCOM files is planned for future development.
+A text-based format, GEDCOM (GEnealogical Data Communication) is widely supported by genealogy
+software for storing and exchanging family tree data. ged_io provides a structured interface for
+parsing and navigating GEDCOM data.
 
 Basic example:
 
