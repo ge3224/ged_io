@@ -14,7 +14,7 @@ use crate::{
 ///
 /// The change and creation dates should be for the OBJE record itself, not the underlying files.
 ///
-/// See https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#MULTIMEDIA_RECORD.
+/// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#MULTIMEDIA_RECORD>.
 #[derive(Clone, Debug, Default)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct MultimediaRecord {
@@ -152,7 +152,7 @@ impl Parser for MultimediaFileRef {
 /// data.
 ///
 /// NOTE: The 5.5 spec lists the following seven formats [ bmp | gif | jpg | ole | pcx | tif | wav ].
-/// However, we're leaving this open for emerging formats, Option<String>.
+/// However, we're leaving this open for emerging formats, `Option<String>`.
 #[derive(Clone, Debug, Default)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct MultimediaFormat {

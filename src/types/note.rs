@@ -38,11 +38,11 @@ pub struct Note {
     pub translation: Option<Translation>,
     /// tag: SOUR, a citation indicating that the pointed-to source record supports the claims made
     /// in the superstructure. See
-    /// https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#SOURCE_CITATION
+    /// <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#SOURCE_CITATION>.
     pub citation: Option<Source>,
     /// tag: LANG, The primary human language of the superstructure. The primary language in which
     /// the Text-typed payloads of the superstructure and its substructures appear. See
-    /// https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#LANG
+    /// <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#LANG>.
     pub language: Option<String>,
 }
 
