@@ -42,17 +42,16 @@ use types::{
     UserDefinedTag,
 };
 
-/// A GEDCOM tokenizer wrapper that provides an entry point for parsing. Parsing expects a valid
-/// GEDCOM file format with a header (HEAD) record at the beginning, a trailer (TRLR) record at the
-/// end, and genealogical records (individuals, families, sources, etc.) in between.
+/// The main interface for parsing GEDCOM files into structured Rust data types.
+///
+/// `Gedcom` accepts a character iterator and provides a method to parse the data according to the
+/// GEDCOM specification, producing a [`GedcomData`] structure.
 pub struct Gedcom<'a> {
     tokenizer: Tokenizer<'a>,
 }
 
 impl<'a> Gedcom<'a> {
-    /// Creates a new GEDCOM document parser from a character iterator. The parser initializes its
-    /// internal tokenizer and positions it at the first token, ready to begin parsing. The input
-    /// should be the complete contents of a GEDCOM file.
+    /// Creates a new [`Gedcom`] parser from a character iterator.
     #[must_use]
     pub fn new(chars: Chars<'a>) -> Gedcom<'a> {
         let mut tokenizer = Tokenizer::new(chars);
@@ -60,9 +59,10 @@ impl<'a> Gedcom<'a> {
         Gedcom { tokenizer }
     }
 
-    /// Parses the GEDCOM document and returns the structured genealogical data. This method
-    /// consumes the tokenized input and builds a comprehensive representation of the GEDCOM file's
-    /// contents, including individuals, families, sources, and other records.
+    /// Parses the GEDCOM data and returns a structured representation.
+    ///
+    /// Processes the character data to produce a [`GedcomData`] object containing the parsed
+    /// genealogical information.
     pub fn parse(&mut self) -> GedcomData {
         GedcomData::new(&mut self.tokenizer, 0)
     }
