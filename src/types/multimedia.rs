@@ -242,7 +242,7 @@ mod tests {
             0 TRLR";
 
         let mut doc = Gedcom::new(sample.chars());
-        let data = doc.parse_document();
+        let data = doc.parse();
 
         assert_eq!(data.multimedia.len(), 1);
         let obje = &data.multimedia[0];
@@ -276,7 +276,7 @@ mod tests {
             0 TRLR";
 
         let mut record = Gedcom::new(sample.chars());
-        let data = record.parse_document();
+        let data = record.parse();
         assert_eq!(data.multimedia.len(), 1);
 
         let obje = &data.multimedia[0];
@@ -303,7 +303,7 @@ mod tests {
              0 TRLR";
 
         let mut doc = Gedcom::new(sample.chars());
-        let data = doc.parse_document();
+        let data = doc.parse();
         assert_eq!(data.multimedia.len(), 1);
 
         let file = data.multimedia[0].file.as_ref().unwrap();
@@ -332,7 +332,7 @@ mod tests {
             0 TRLR";
 
         let mut doc = Gedcom::new(sample.chars());
-        let data = doc.parse_document();
+        let data = doc.parse();
         assert_eq!(data.multimedia.len(), 1);
 
         let file = data.multimedia[0].file.as_ref().unwrap();
@@ -356,7 +356,7 @@ mod tests {
             0 TRLR";
 
         let mut doc = Gedcom::new(sample.chars());
-        let data = doc.parse_document();
+        let data = doc.parse();
         assert_eq!(data.multimedia.len(), 1);
 
         let user_ref = data.multimedia[0].user_reference_number.as_ref().unwrap();

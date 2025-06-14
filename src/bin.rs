@@ -24,7 +24,7 @@ fn main() {
 
     if let Ok(contents) = read_relative(filename) {
         let mut doc = Gedcom::new(contents.chars());
-        data = doc.parse_document();
+        data = doc.parse();
 
         println!("Parsing complete!");
         // println!("\n\n{:#?}", data);

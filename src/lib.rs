@@ -1,8 +1,8 @@
 /*!
-ged_io is a Rust crate for parsing GEDCOM files.
+`ged_io` is a Rust crate for parsing GEDCOM files.
 
 A text-based format, GEDCOM (GEnealogical Data Communication) is widely supported by genealogy
-software for storing and exchanging family tree data. ged_io provides a structured interface for
+software for storing and exchanging family tree data. `ged_io` provides a structured interface for
 parsing and navigating GEDCOM data.
 
 Basic example:
@@ -11,9 +11,9 @@ Basic example:
 use ged_io::Gedcom;
 
 // Parse a GEDCOM file
-let gedcom_source = std::fs::read_to_string("./tests/fixtures/sample.ged").unwrap();
-let mut doc = Gedcom::new(gedcom_source.chars());
-let gedcom_data = doc.parse_document();
+let source = std::fs::read_to_string("./tests/fixtures/sample.ged").unwrap();
+let mut gedcom = Gedcom::new(source.chars());
+let gedcom_data = gedcom.parse();
 
 // Display file statistics
 gedcom_data.stats();
@@ -63,7 +63,7 @@ impl<'a> Gedcom<'a> {
     /// Parses the GEDCOM document and returns the structured genealogical data. This method
     /// consumes the tokenized input and builds a comprehensive representation of the GEDCOM file's
     /// contents, including individuals, families, sources, and other records.
-    pub fn parse_document(&mut self) -> GedcomData {
+    pub fn parse(&mut self) -> GedcomData {
         GedcomData::new(&mut self.tokenizer, 0)
     }
 }
@@ -89,7 +89,7 @@ pub trait Parser {
 #[must_use]
 pub fn parse_ged(content: std::str::Chars) -> GedcomData {
     let mut p = Gedcom::new(content);
-    p.parse_document()
+    p.parse()
 }
 
 /// Parses a subset of GEDCOM tokens within a specific hierarchical level. This helper function
@@ -346,7 +346,7 @@ mod tests {
            0 TRLR";
 
         let mut doc = Gedcom::new(sample.chars());
-        let data = doc.parse_document();
+        let data = doc.parse();
 
         let head = data.header.unwrap();
         let gedc = head.gedcom.unwrap();
@@ -369,7 +369,7 @@ mod tests {
             0 TRLR";
 
         let mut doc = Gedcom::new(sample.chars());
-        let data = doc.parse_document();
+        let data = doc.parse();
 
         assert_eq!(data.submitters.len(), 1);
         assert_eq!(data.submitters[0].xref.as_ref().unwrap(), "@SUBMITTER@");

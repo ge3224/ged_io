@@ -324,7 +324,7 @@ mod tests {
             0 TRLR";
 
         let mut doc = Gedcom::new(sample.chars());
-        let data = doc.parse_document();
+        let data = doc.parse();
         let header = data.header.unwrap();
 
         let dest = header.destination.unwrap();
@@ -353,7 +353,7 @@ mod tests {
             0 TRLR";
 
         let mut ged = Gedcom::new(sample.chars());
-        let data = ged.parse_document();
+        let data = ged.parse();
 
         let head_gedc = data.header.unwrap().gedcom.unwrap();
         assert_eq!(head_gedc.version.unwrap(), "5.5");
@@ -371,7 +371,7 @@ mod tests {
             0 TRLR";
 
         let mut doc = Gedcom::new(sample.chars());
-        let data = doc.parse_document();
+        let data = doc.parse();
 
         let h_char = data.header.unwrap().encoding.unwrap();
         assert_eq!(h_char.value.unwrap(), "ASCII");
@@ -393,7 +393,7 @@ mod tests {
             0 TRLR";
 
         let mut doc = Gedcom::new(sample.chars());
-        let data = doc.parse_document();
+        let data = doc.parse();
 
         let sour = data.header.unwrap().source.unwrap();
         assert_eq!(sour.value.unwrap(), "SOURCE_NAME");
@@ -418,7 +418,7 @@ mod tests {
             0 TRLR";
 
         let mut doc = Gedcom::new(sample.chars());
-        let data = doc.parse_document();
+        let data = doc.parse();
 
         let sour = data.header.unwrap().source.unwrap();
         assert_eq!(sour.value.unwrap(), "SOURCE_NAME");
@@ -440,7 +440,7 @@ mod tests {
             0 TRLR";
 
         let mut doc = Gedcom::new(sample.chars());
-        let data = doc.parse_document();
+        let data = doc.parse();
 
         let h_plac = data.header.unwrap().place.unwrap();
         assert_eq!(h_plac.form[0], "City");
