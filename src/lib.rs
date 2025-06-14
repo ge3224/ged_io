@@ -19,11 +19,11 @@ Writing GEDCOM files is planned for future development.
 Basic example:
 
 ```rust
-use ged_io::GedcomSource;
+use ged_io::Gedcom;
 
 // Parse a GEDCOM file
 let gedcom_source = std::fs::read_to_string("./tests/fixtures/sample.ged").unwrap();
-let mut doc = GedcomSource::new(gedcom_source.chars());
+let mut doc = Gedcom::new(gedcom_source.chars());
 let gedcom_data = doc.parse_document();
 
 // Display file statistics
@@ -56,19 +56,19 @@ use types::{
 /// A GEDCOM tokenizer wrapper that provides an entry point for parsing. Parsing expects a valid
 /// GEDCOM file format with a header (HEAD) record at the beginning, a trailer (TRLR) record at the
 /// end, and genealogical records (individuals, families, sources, etc.) in between.
-pub struct GedcomSource<'a> {
+pub struct Gedcom<'a> {
     tokenizer: Tokenizer<'a>,
 }
 
-impl<'a> GedcomSource<'a> {
+impl<'a> Gedcom<'a> {
     /// Creates a new GEDCOM document parser from a character iterator. The parser initializes its
     /// internal tokenizer and positions it at the first token, ready to begin parsing. The input
     /// should be the complete contents of a GEDCOM file.
     #[must_use]
-    pub fn new(chars: Chars<'a>) -> GedcomSource<'a> {
+    pub fn new(chars: Chars<'a>) -> Gedcom<'a> {
         let mut tokenizer = Tokenizer::new(chars);
         tokenizer.next_token();
-        GedcomSource { tokenizer }
+        Gedcom { tokenizer }
     }
 
     /// Parses the GEDCOM document and returns the structured genealogical data. This method
@@ -99,7 +99,7 @@ pub trait Parser {
 /// combines document creation and parsing into a single step.
 #[must_use]
 pub fn parse_ged(content: std::str::Chars) -> GedcomData {
-    let mut p = GedcomSource::new(content);
+    let mut p = Gedcom::new(content);
     p.parse_document()
 }
 
@@ -356,7 +356,7 @@ mod tests {
            2 VERS 5.5\n\
            0 TRLR";
 
-        let mut doc = GedcomSource::new(sample.chars());
+        let mut doc = Gedcom::new(sample.chars());
         let data = doc.parse_document();
 
         let head = data.header.unwrap();
@@ -379,7 +379,7 @@ mod tests {
             0 _MYOWNTAG This is a non-standard tag. Not recommended but allowed\n\
             0 TRLR";
 
-        let mut doc = GedcomSource::new(sample.chars());
+        let mut doc = Gedcom::new(sample.chars());
         let data = doc.parse_document();
 
         assert_eq!(data.submitters.len(), 1);
