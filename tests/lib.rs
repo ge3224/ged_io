@@ -21,7 +21,7 @@ mod tests {
         assert!(simple_ged.len() > 0);
 
         let mut doc = Gedcom::new(simple_ged.chars());
-        let data = doc.parse_document();
+        let data = doc.parse();
         assert_eq!(data.individuals.len(), 3);
         assert_eq!(data.families.len(), 1);
         assert_eq!(data.submitters.len(), 1);
@@ -73,7 +73,7 @@ mod tests {
         assert!(simple_ged.len() > 0);
 
         let mut doc = Gedcom::new(simple_ged.chars());
-        let data = doc.parse_document();
+        let data = doc.parse();
         assert_eq!(data.individuals.len(), 538);
         assert_eq!(data.families.len(), 278);
         // assert_eq!(data.submitters.len(), 0);
