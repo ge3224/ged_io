@@ -1,9 +1,9 @@
 /*!
 `ged_io` is a Rust crate for parsing GEDCOM files.
 
-A text-based format, GEDCOM (GEnealogical Data Communication) is widely supported by genealogy
-software for storing and exchanging family tree data. `ged_io` provides a structured interface for
-parsing and navigating GEDCOM data.
+The library works with GEDCOM (GEnealogical Data Communication), a text-based format widely
+supported by genealogy software for storing and exchanging family history data. `ged_io` transforms
+this text format into workable Rust data structures.
 
 Basic example:
 
@@ -19,7 +19,7 @@ let gedcom_data = gedcom.parse();
 gedcom_data.stats();
 ```
 
-This crate contains an optional `"json"` feature that implements serialization and deserialization to json with [`serde`](https://serde.rs).
+This crate contains an optional `"json"` feature that implements serialization and deserialization to JSON with [`serde`](https://serde.rs).
 */
 
 #![deny(clippy::pedantic)]
