@@ -226,7 +226,7 @@ impl Parser for UserReferenceNumber {
 
 #[cfg(test)]
 mod tests {
-    use crate::GedcomDocument;
+    use crate::Gedcom;
 
     #[test]
     fn test_parse_multimedia_record() {
@@ -241,7 +241,7 @@ mod tests {
             1 RIN Automated Id\n\
             0 TRLR";
 
-        let mut doc = GedcomDocument::new(sample.chars());
+        let mut doc = Gedcom::new(sample.chars());
         let data = doc.parse_document();
 
         assert_eq!(data.multimedia.len(), 1);
@@ -275,7 +275,7 @@ mod tests {
             1 TITL In Prague\n\
             0 TRLR";
 
-        let mut record = GedcomDocument::new(sample.chars());
+        let mut record = Gedcom::new(sample.chars());
         let data = record.parse_document();
         assert_eq!(data.multimedia.len(), 1);
 
@@ -302,7 +302,7 @@ mod tests {
              2 TITL A Bitmap\n\
              0 TRLR";
 
-        let mut doc = GedcomDocument::new(sample.chars());
+        let mut doc = Gedcom::new(sample.chars());
         let data = doc.parse_document();
         assert_eq!(data.multimedia.len(), 1);
 
@@ -331,7 +331,7 @@ mod tests {
             3 TYPE photo
             0 TRLR";
 
-        let mut doc = GedcomDocument::new(sample.chars());
+        let mut doc = Gedcom::new(sample.chars());
         let data = doc.parse_document();
         assert_eq!(data.multimedia.len(), 1);
 
@@ -355,7 +355,7 @@ mod tests {
             2 TYPE User Reference Type\n\
             0 TRLR";
 
-        let mut doc = GedcomDocument::new(sample.chars());
+        let mut doc = Gedcom::new(sample.chars());
         let data = doc.parse_document();
         assert_eq!(data.multimedia.len(), 1);
 

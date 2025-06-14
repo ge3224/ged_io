@@ -301,7 +301,7 @@ impl Parser for FamilyEventDetail {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::GedcomDocument;
+    use crate::Gedcom;
 
     #[test]
     fn test_parse_person_event() {
@@ -329,7 +329,7 @@ mod tests {
            3 CONC ST should not be broken!\n\
            0 TRLR";
 
-        let mut doc = GedcomDocument::new(sample.chars());
+        let mut doc = Gedcom::new(sample.chars());
         let data = doc.parse_document();
 
         let event = data.individuals[0].events[0].event.to_string();
@@ -366,7 +366,7 @@ mod tests {
            3 AGE 42y 6m
            0 TRLR";
 
-        let mut doc = GedcomDocument::new(sample.chars());
+        let mut doc = Gedcom::new(sample.chars());
         let data = doc.parse_document();
 
         let anul = &data.families[0].events;

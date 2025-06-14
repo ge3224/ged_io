@@ -545,7 +545,7 @@ impl Parser for AttributeDetail {
 
 #[cfg(test)]
 mod tests {
-    use crate::GedcomDocument;
+    use crate::Gedcom;
 
     #[test]
     fn test_parse_individual_record() {
@@ -558,7 +558,7 @@ mod tests {
            1 SEX M\n\
            0 TRLR";
 
-        let mut doc = GedcomDocument::new(sample.chars());
+        let mut doc = Gedcom::new(sample.chars());
         let data = doc.parse_document();
 
         let indi = &data.individuals[0];
@@ -586,7 +586,7 @@ mod tests {
             3 _MYOWNTAG This is a non-standard tag. Not recommended but allowed
             0 TRLR";
 
-        let mut doc = GedcomDocument::new(sample.chars());
+        let mut doc = Gedcom::new(sample.chars());
         let data = doc.parse_document();
 
         let sex = data.individuals[0].sex.as_ref().unwrap();
@@ -616,7 +616,7 @@ mod tests {
            3 STAT proven
            0 TRLR";
 
-        let mut doc = GedcomDocument::new(sample.chars());
+        let mut doc = Gedcom::new(sample.chars());
         let data = doc.parse_document();
 
         let famc = data.individuals[0].events[0].family_link.as_ref().unwrap();
@@ -643,7 +643,7 @@ mod tests {
            1 NAME John Doe\n\
            0 TRLR";
 
-        let mut doc = GedcomDocument::new(sample.chars());
+        let mut doc = Gedcom::new(sample.chars());
         let data = doc.parse_document();
 
         let indi = &data.individuals[0];
@@ -680,7 +680,7 @@ mod tests {
            3 CONC ST should not be broken!\n\
            0 TRLR";
 
-        let mut doc = GedcomDocument::new(sample.chars());
+        let mut doc = Gedcom::new(sample.chars());
         let data = doc.parse_document();
 
         assert_eq!(data.individuals.len(), 1);

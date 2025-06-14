@@ -80,7 +80,7 @@ impl Parser for UserDefinedTag {
 
 #[cfg(test)]
 mod tests {
-    use crate::GedcomDocument;
+    use crate::Gedcom;
 
     #[test]
     fn test_parse_user_defined_record() {
@@ -98,7 +98,7 @@ mod tests {
             3 PAGE New York State Archives; Albany, New York; Collection: New York, New York National Guard Service Cards, 1917-1954; Series: Xxxxx; Film Number: Xx\n\
             0 TRLR";
 
-        let mut doc = GedcomDocument::new(sample.chars());
+        let mut doc = Gedcom::new(sample.chars());
         let data = doc.parse_document();
 
         let custom = &data.individuals[0].custom_data;

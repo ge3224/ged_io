@@ -329,7 +329,7 @@ impl Parser for CertaintyAssessment {
 
 #[cfg(test)]
 mod tests {
-    use crate::GedcomDocument;
+    use crate::Gedcom;
 
     #[test]
     fn test_parse_source_citation_record() {
@@ -343,7 +343,7 @@ mod tests {
             2 PAGE 42\n\
             0 TRLR";
 
-        let mut ged = GedcomDocument::new(sample.chars());
+        let mut ged = Gedcom::new(sample.chars());
         let data = ged.parse_document();
 
         assert_eq!(data.individuals[0].source[0].xref, "@SOURCE1@");
@@ -363,7 +363,7 @@ mod tests {
             3 DATE BEF 1 JAN 1900\n\
             0 TRLR";
 
-        let mut ged = GedcomDocument::new(sample.chars());
+        let mut ged = Gedcom::new(sample.chars());
         let data = ged.parse_document();
         let citation_data = data.individuals[0].source[0].data.as_ref().unwrap();
 
@@ -390,7 +390,7 @@ mod tests {
             4 CONC ST should not be broken!\n\
             0 TRLR";
 
-        let mut ged = GedcomDocument::new(sample.chars());
+        let mut ged = Gedcom::new(sample.chars());
         let data = ged.parse_document();
         let citation_data = data.individuals[0].source[0].data.as_ref().unwrap();
 
@@ -413,7 +413,7 @@ mod tests {
             2 QUAY 1\n\
             0 TRLR";
 
-        let mut ged = GedcomDocument::new(sample.chars());
+        let mut ged = Gedcom::new(sample.chars());
         let data = ged.parse_document();
         let quay = data.individuals[0].source[0]
             .certainty_assessment

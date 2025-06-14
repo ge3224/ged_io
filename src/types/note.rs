@@ -71,7 +71,7 @@ impl Parser for Note {
 
 #[cfg(test)]
 mod tests {
-    use crate::GedcomDocument;
+    use crate::Gedcom;
 
     #[test]
     fn test_parse_note_struct() {
@@ -99,7 +99,7 @@ mod tests {
             2 CONC ST should not be broken!\n\
             0 TRLR";
 
-        let mut doc = GedcomDocument::new(sample.chars());
+        let mut doc = Gedcom::new(sample.chars());
         let data = doc.parse_document();
 
         let note = data.header.unwrap().note.unwrap();

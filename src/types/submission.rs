@@ -109,7 +109,7 @@ impl Parser for Submission {
 
 #[cfg(test)]
 mod tests {
-    use crate::{types::Submission, GedcomDocument};
+    use crate::{types::Submission, Gedcom};
 
     #[test]
     fn test_parse_submission_record() {
@@ -132,7 +132,7 @@ mod tests {
            1 _ANOTHER_TAG Another piece of custom data\n\
            0 TRLR";
 
-        let mut doc = GedcomDocument::new(sample.chars());
+        let mut doc = Gedcom::new(sample.chars());
         let data = doc.parse_document();
 
         let mut submissions = data.submissions;

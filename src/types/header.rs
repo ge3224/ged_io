@@ -308,7 +308,7 @@ impl Parser for HeadPlac {
 
 #[cfg(test)]
 mod tests {
-    use crate::GedcomDocument;
+    use crate::Gedcom;
 
     #[test]
     fn test_parse_header_record() {
@@ -323,7 +323,7 @@ mod tests {
             1 LANG language\n\
             0 TRLR";
 
-        let mut doc = GedcomDocument::new(sample.chars());
+        let mut doc = Gedcom::new(sample.chars());
         let data = doc.parse_document();
         let header = data.header.unwrap();
 
@@ -352,7 +352,7 @@ mod tests {
             2 FORM LINEAGE-LINKED\n\
             0 TRLR";
 
-        let mut ged = GedcomDocument::new(sample.chars());
+        let mut ged = Gedcom::new(sample.chars());
         let data = ged.parse_document();
 
         let head_gedc = data.header.unwrap().gedcom.unwrap();
@@ -370,7 +370,7 @@ mod tests {
             2 VERS Version number of ASCII (whatever it means)\n\
             0 TRLR";
 
-        let mut doc = GedcomDocument::new(sample.chars());
+        let mut doc = Gedcom::new(sample.chars());
         let data = doc.parse_document();
 
         let h_char = data.header.unwrap().encoding.unwrap();
@@ -392,7 +392,7 @@ mod tests {
             2 NAME Name of source-program\n\
             0 TRLR";
 
-        let mut doc = GedcomDocument::new(sample.chars());
+        let mut doc = Gedcom::new(sample.chars());
         let data = doc.parse_document();
 
         let sour = data.header.unwrap().source.unwrap();
@@ -417,7 +417,7 @@ mod tests {
             3 COPR Copyright of source data\n\
             0 TRLR";
 
-        let mut doc = GedcomDocument::new(sample.chars());
+        let mut doc = Gedcom::new(sample.chars());
         let data = doc.parse_document();
 
         let sour = data.header.unwrap().source.unwrap();
@@ -439,7 +439,7 @@ mod tests {
             2 FORM City, County, State, Country\n\
             0 TRLR";
 
-        let mut doc = GedcomDocument::new(sample.chars());
+        let mut doc = Gedcom::new(sample.chars());
         let data = doc.parse_document();
 
         let h_plac = data.header.unwrap().place.unwrap();

@@ -2,10 +2,10 @@
 
 ```rust
 // the parser takes the gedcom file contents as a chars iterator
-use ged_io::GedcomDocument;
+use ged_io::Gedcom;
 let gedcom_source = std::fs::read_to_string("./tests/fixtures/sample.ged").unwrap();
 
-let mut doc = GedcomDocument::new(gedcom_source.chars());
+let mut doc = Gedcom::new(gedcom_source.chars());
 let gedcom_data = doc.parse_document();
 
 // output some stats on the gedcom contents
@@ -38,17 +38,17 @@ use types::{
 /// The GedcomDocument can convert the token list into a data structure. The order of the Dataset
 /// should be as follows: the HEAD must come first and TRLR must be last, with any RECORDs in
 /// between.
-pub struct GedcomDocument<'a> {
+pub struct Gedcom<'a> {
     tokenizer: Tokenizer<'a>,
 }
 
-impl<'a> GedcomDocument<'a> {
+impl<'a> Gedcom<'a> {
     /// Creates a parser state machine for parsing a gedcom file as a chars iterator
     #[must_use]
-    pub fn new(chars: Chars<'a>) -> GedcomDocument<'a> {
+    pub fn new(chars: Chars<'a>) -> Gedcom<'a> {
         let mut tokenizer = Tokenizer::new(chars);
         tokenizer.next_token();
-        GedcomDocument { tokenizer }
+        Gedcom { tokenizer }
     }
 
     /// Does the actual parsing of the record.
@@ -66,7 +66,7 @@ pub trait Parser {
 #[must_use]
 /// Helper function for converting GEDCOM file content stream to parsed data.
 pub fn parse_ged(content: std::str::Chars) -> GedcomData {
-    let mut p = GedcomDocument::new(content);
+    let mut p = Gedcom::new(content);
     p.parse_document()
 }
 
@@ -290,7 +290,7 @@ mod tests {
            2 VERS 5.5\n\
            0 TRLR";
 
-        let mut doc = GedcomDocument::new(sample.chars());
+        let mut doc = Gedcom::new(sample.chars());
         let data = doc.parse_document();
 
         let head = data.header.unwrap();
@@ -313,7 +313,7 @@ mod tests {
             0 _MYOWNTAG This is a non-standard tag. Not recommended but allowed\n\
             0 TRLR";
 
-        let mut doc = GedcomDocument::new(sample.chars());
+        let mut doc = Gedcom::new(sample.chars());
         let data = doc.parse_document();
 
         assert_eq!(data.submitters.len(), 1);

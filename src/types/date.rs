@@ -93,7 +93,7 @@ impl Parser for ChangeDate {
 
 #[cfg(test)]
 mod tests {
-    use crate::GedcomDocument;
+    use crate::Gedcom;
 
     #[test]
     fn test_parse_date_record() {
@@ -112,7 +112,7 @@ mod tests {
             2 DATE from 1900 to 1905\n\
             0 TRLR";
 
-        let mut doc = GedcomDocument::new(sample.chars());
+        let mut doc = Gedcom::new(sample.chars());
         let data = doc.parse_document();
 
         let head_date = data.header.unwrap().date.unwrap();
@@ -140,7 +140,7 @@ mod tests {
             2 NOTE A note\n\
             0 TRLR";
 
-        let mut doc = GedcomDocument::new(sample.chars());
+        let mut doc = Gedcom::new(sample.chars());
         let data = doc.parse_document();
         assert_eq!(data.multimedia.len(), 1);
 

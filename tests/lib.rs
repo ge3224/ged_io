@@ -12,7 +12,7 @@ pub mod util {
 mod tests {
     use super::util::read_relative;
     use ged_io::types::event::HasEvents;
-    use ged_io::GedcomDocument;
+    use ged_io::Gedcom;
 
     #[test]
     fn parses_basic_gedcom() {
@@ -20,7 +20,7 @@ mod tests {
         // let simple_ged: String = read_relative("./tests/fixtures/allged.ged");
         assert!(simple_ged.len() > 0);
 
-        let mut doc = GedcomDocument::new(simple_ged.chars());
+        let mut doc = Gedcom::new(simple_ged.chars());
         let data = doc.parse_document();
         assert_eq!(data.individuals.len(), 3);
         assert_eq!(data.families.len(), 1);
@@ -72,7 +72,7 @@ mod tests {
         let simple_ged: String = read_relative("./tests/fixtures/washington.ged");
         assert!(simple_ged.len() > 0);
 
-        let mut doc = GedcomDocument::new(simple_ged.chars());
+        let mut doc = Gedcom::new(simple_ged.chars());
         let data = doc.parse_document();
         assert_eq!(data.individuals.len(), 538);
         assert_eq!(data.families.len(), 278);
