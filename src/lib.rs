@@ -67,15 +67,16 @@ use types::{
     UserDefinedTag,
 };
 
-/// The GedcomDocument can convert the token list into a data structure. The order of the Dataset
-/// should be as follows: the HEAD must come first and TRLR must be last, with any RECORDs in
-/// between.
+/// The main interface for parsing GEDCOM files into structured Rust data types.
+///
+/// `Gedcom` accepts a character iterator and provides a method to parse the data according to the
+/// GEDCOM specification, producing a [`GedcomData`] structure.
 pub struct Gedcom<'a> {
     tokenizer: Tokenizer<'a>,
 }
 
 impl<'a> Gedcom<'a> {
-    /// Creates a parser state machine for parsing a gedcom file as a chars iterator
+    /// Creates a new [`Gedcom`] parser from a character iterator.
     #[must_use]
     pub fn new(chars: Chars<'a>) -> Gedcom<'a> {
         let mut tokenizer = Tokenizer::new(chars);
@@ -83,7 +84,10 @@ impl<'a> Gedcom<'a> {
         Gedcom { tokenizer }
     }
 
-    /// Does the actual parsing of the record.
+    /// Parses the GEDCOM data and returns a structured representation.
+    ///
+    /// Processes the character data to produce a [`GedcomData`] object containing the parsed
+    /// genealogical information.
     pub fn parse(&mut self) -> GedcomData {
         GedcomData::new(&mut self.tokenizer, 0)
     }
