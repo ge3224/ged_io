@@ -133,7 +133,7 @@ mod tests {
            0 TRLR";
 
         let mut doc = Gedcom::new(sample.chars());
-        let data = doc.parse_document();
+        let data = doc.parse();
 
         let mut submissions = data.submissions;
         assert_eq!(submissions.len() > 0, true);

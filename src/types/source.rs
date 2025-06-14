@@ -344,7 +344,7 @@ mod tests {
             0 TRLR";
 
         let mut ged = Gedcom::new(sample.chars());
-        let data = ged.parse_document();
+        let data = ged.parse();
 
         assert_eq!(data.individuals[0].source[0].xref, "@SOURCE1@");
         assert_eq!(data.individuals[0].source[0].page.as_ref().unwrap(), "42");
@@ -364,7 +364,7 @@ mod tests {
             0 TRLR";
 
         let mut ged = Gedcom::new(sample.chars());
-        let data = ged.parse_document();
+        let data = ged.parse();
         let citation_data = data.individuals[0].source[0].data.as_ref().unwrap();
 
         assert_eq!(
@@ -391,7 +391,7 @@ mod tests {
             0 TRLR";
 
         let mut ged = Gedcom::new(sample.chars());
-        let data = ged.parse_document();
+        let data = ged.parse();
         let citation_data = data.individuals[0].source[0].data.as_ref().unwrap();
 
         assert_eq!(
@@ -414,7 +414,7 @@ mod tests {
             0 TRLR";
 
         let mut ged = Gedcom::new(sample.chars());
-        let data = ged.parse_document();
+        let data = ged.parse();
         let quay = data.individuals[0].source[0]
             .certainty_assessment
             .as_ref()

@@ -330,7 +330,7 @@ mod tests {
            0 TRLR";
 
         let mut doc = Gedcom::new(sample.chars());
-        let data = doc.parse_document();
+        let data = doc.parse();
 
         let event = data.individuals[0].events[0].event.to_string();
         assert_eq!(event, "Census");
@@ -367,7 +367,7 @@ mod tests {
            0 TRLR";
 
         let mut doc = Gedcom::new(sample.chars());
-        let data = doc.parse_document();
+        let data = doc.parse();
 
         let anul = &data.families[0].events;
         assert_eq!(anul.len(), 1);

@@ -113,7 +113,7 @@ mod tests {
             0 TRLR";
 
         let mut doc = Gedcom::new(sample.chars());
-        let data = doc.parse_document();
+        let data = doc.parse();
 
         let head_date = data.header.unwrap().date.unwrap();
         assert_eq!(head_date.value.unwrap(), "2 Oct 2019");
@@ -141,7 +141,7 @@ mod tests {
             0 TRLR";
 
         let mut doc = Gedcom::new(sample.chars());
-        let data = doc.parse_document();
+        let data = doc.parse();
         assert_eq!(data.multimedia.len(), 1);
 
         let obje = &data.multimedia[0];

@@ -6,7 +6,7 @@ use ged_io::Gedcom;
 let gedcom_source = std::fs::read_to_string("./tests/fixtures/sample.ged").unwrap();
 
 let mut doc = Gedcom::new(gedcom_source.chars());
-let gedcom_data = doc.parse_document();
+let gedcom_data = doc.parse();
 
 // output some stats on the gedcom contents
 gedcom_data.stats();
@@ -52,7 +52,7 @@ impl<'a> Gedcom<'a> {
     }
 
     /// Does the actual parsing of the record.
-    pub fn parse_document(&mut self) -> GedcomData {
+    pub fn parse(&mut self) -> GedcomData {
         GedcomData::new(&mut self.tokenizer, 0)
     }
 }
@@ -67,7 +67,7 @@ pub trait Parser {
 /// Helper function for converting GEDCOM file content stream to parsed data.
 pub fn parse_ged(content: std::str::Chars) -> GedcomData {
     let mut p = Gedcom::new(content);
-    p.parse_document()
+    p.parse()
 }
 
 /// parse_subset is a helper function that handles some boilerplate code involved in implementing
@@ -291,7 +291,7 @@ mod tests {
            0 TRLR";
 
         let mut doc = Gedcom::new(sample.chars());
-        let data = doc.parse_document();
+        let data = doc.parse();
 
         let head = data.header.unwrap();
         let gedc = head.gedcom.unwrap();
@@ -314,7 +314,7 @@ mod tests {
             0 TRLR";
 
         let mut doc = Gedcom::new(sample.chars());
-        let data = doc.parse_document();
+        let data = doc.parse();
 
         assert_eq!(data.submitters.len(), 1);
         assert_eq!(data.submitters[0].xref.as_ref().unwrap(), "@SUBMITTER@");
