@@ -58,7 +58,7 @@ use serde::{Deserialize, Serialize};
 #[macro_use]
 mod util;
 
-pub mod tokenizer;
+pub(crate) mod tokenizer;
 use tokenizer::{Token, Tokenizer};
 
 pub mod types;
@@ -93,9 +93,9 @@ impl<'a> Gedcom<'a> {
     }
 }
 
-/// The Parser trait converts a subset of a token list into a type's data structure.
+/// Defines shared parsing functionality for GEDCOM records.
 pub trait Parser {
-    /// parse does the actual parsing of a subset of a token list
+    /// Parses GEDCOM data at the specified hierarchical level.
     fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8);
 }
 
