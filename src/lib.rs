@@ -9,7 +9,6 @@ Basic example:
 
 ```rust
 use ged_io::Gedcom;
-let gedcom_source = std::fs::read_to_string("./tests/fixtures/sample.ged").unwrap();
 
 // Parse a GEDCOM file
 let source = std::fs::read_to_string("./tests/fixtures/sample.ged").unwrap();
