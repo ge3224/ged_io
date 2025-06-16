@@ -55,8 +55,9 @@ use ged_io::GedcomData;
 use std::fs;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let gedcom_content = fs::read_to_string("family.ged")?;
-    let gedcom_data = ged_io::parse(&gedcom_content)?;
+    let source = fs::read_to_string("./tests/fixtures/sample.ged").unwrap();
+    let mut gedcom = Gedcom::new(source.chars());
+    let gedcom_data = gedcom.parse();
     
     println!("Parsed {} individuals", gedcom_data.individuals.len());
     println!("Parsed {} families", gedcom_data.families.len());
@@ -73,12 +74,13 @@ use std::fs;
 
 #[cfg(feature = "json")]
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let gedcom_content = fs::read_to_string("family.ged")?;
-    let gedcom_data = ged_io::parse(&gedcom_content)?;
-    
-    // Convert to JSON
-    let json = serde_json::to_string_pretty(&gedcom_data)?;
-    fs::write("family.json", json)?;
+    let source = std::fs::read_to_string("./tests/fixtures/sample.ged").unwrap();
+    let mut gedcom = Gedcom::new(source.chars());
+    let gedcom_data = gedcom.parse();
+
+    // Serialize to JSON
+    let json_output = serde_json::to_string_pretty(&gedcom_data).unwrap();
+    println!("{}", json_output);
     
     Ok(())
 }
@@ -86,7 +88,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## Command Line Tool
 
-The included `parse_gedcom` binary provides a convenient way to test and analyze GEDCOM files:
+The included `parse_ged` binary provides a convenient way to test and analyze GEDCOM files:
 
 ```bash
 # Install the CLI tool
