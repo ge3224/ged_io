@@ -7,18 +7,22 @@ A **GEDCOM parser** for Rust 🦀
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![GitHub branch check runs](https://img.shields.io/github/check-runs/ge3224/ged_io/main)](https://img.shields.io/github/check-runs/ge3224/ged_io/main)
 
-
 ## About This Project
 
 **`ged_io`** is a Rust crate for working with GEDCOM files, the standard format
 for exchanging genealogical data. It currently focuses on parsing existing
 GEDCOM files, with plans to add writing capabilities in the future.
 
-Originally forked from [`pirtleshell/rust-gedcom`](https://github.com/pirtleshell/rust-gedcom), this project aims to:
+Originally forked from
+[`pirtleshell/rust-gedcom`](https://github.com/pirtleshell/rust-gedcom), this
+project aims to:
 
-* **GEDCOM 5.5.1 Specification Support:** Work towards accurate parsing of the [GEDCOM 5.5.1 specification](https://gedcom.io/specifications/ged551.pdf)
-* **GEDCOM 7.0 Specification Support:** Eventual support for the newer [GEDCOM 7.0 specification](https://gedcom.io/specifications/FamilySearchGEDCOMv7.pdf)
-* **Write-to-File Functionality:** Future capability to write `GedcomData` objects back to GEDCOM files
+* **GEDCOM 5.5.1 Specification Support:** Work towards accurate parsing of the
+  [GEDCOM 5.5.1 specification](https://gedcom.io/specifications/ged551.pdf)
+* **GEDCOM 7.0 Specification Support:** Eventual support for the newer [GEDCOM
+  7.0 specification](https://gedcom.io/specifications/FamilySearchGEDCOMv7.pdf)
+* **Write-to-File Functionality:** Future capability to write `GedcomData`
+  objects back to GEDCOM files
 * **Practical Reliability:** Handle real-world GEDCOM files with proper error handling
 
 This crate is a work in progress. If you need a GEDCOM parser for Rust, it may
@@ -103,7 +107,8 @@ ged_io ./tests/fixtures/sample.ged
 ```
 
 **Example output:**
-```
+
+```plaintext
 ----------------------
 | Gedcom Data Stats: |
 ----------------------
@@ -121,24 +126,25 @@ ged_io ./tests/fixtures/sample.ged
 
 This is a work-in-progress project. Current capabilities include:
 
-- ✅ Basic GEDCOM 5.5.1 parsing
-- ✅ Structured data representation
-- ✅ JSON serialization support
-- ✅ Command-line utilities
-- ✅ Error handling for common cases
+* ✅ Basic GEDCOM 5.5.1 parsing
+* ✅ Structured data representation
+* ✅ JSON serialization support
+* ✅ Command-line utilities
+* ✅ Error handling for common cases
 
 Planned features:
-- 🚧 **Complete GEDCOM 5.5.1 Support** - Full specification compliance
-- 🚧 **GEDCOM 7.0 Support** - Modern specification compatibility
-- 🚧 **Write Functionality** - Generate GEDCOM files from data structures
-- 🚧 **Enhanced Validation** - Better error reporting and validation
+
+* 🚧 **Complete GEDCOM 5.5.1 Support** - Full specification compliance
+* 🚧 **GEDCOM 7.0 Support** - Modern specification compatibility
+* 🚧 **Write Functionality** - Generate GEDCOM files from data structures
+* 🚧 **Enhanced Validation** - Better error reporting and validation
 
 Expect breaking changes as development continues.
 
 ## Testing
 
 The crate is tested against various GEDCOM files, including some complex
-examples like [Heiner Eichmann's `allged` test
+examples like [Heiner Eichmann's test
 suite](http://heiner-eichmann.de/gedcom/allged.htm). However, testing is
 ongoing and more comprehensive coverage is needed.
 
@@ -156,11 +162,11 @@ This project is under active development. Contributions are welcome, but please
 keep in mind that the API may change as the project evolves. Areas where help
 would be appreciated:
 
-- GEDCOM 7.0 specification implementation
-- Write functionality development
-- Test case contributions
-- Documentation improvements
-- Bug reports and feature requests
+* GEDCOM 7.0 specification implementation
+* Write functionality development
+* Test case contributions
+* Documentation improvements
+* Bug reports and feature requests
 
 Please feel free to open issues or submit pull requests.
 
