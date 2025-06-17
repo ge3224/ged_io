@@ -10,16 +10,19 @@ A **GEDCOM parser** for Rust 🦀
 
 ## About This Project
 
-**`ged_io`** is a Rust crate for working with GEDCOM files, the standard format for exchanging genealogical data. It currently focuses on parsing existing GEDCOM files, with plans to add writing capabilities in the future.
+**`ged_io`** is a Rust crate for working with GEDCOM files, the standard format
+for exchanging genealogical data. It currently focuses on parsing existing
+GEDCOM files, with plans to add writing capabilities in the future.
 
-Originally forked from `pirtleshell/rust-gedcom`, this project aims to:
+Originally forked from [`pirtleshell/rust-gedcom`](https://github.com/pirtleshell/rust-gedcom), this project aims to:
 
-* **GEDCOM 5.5.1 Specification Support:** Work towards accurate parsing of the [GEDCOM 5.5.1 specification](https://edge.fscdn.org/assets/img/documents/ged551-5bac5e57fe88dd37df0e153d9c515335.pdf)
-* **GEDCOM 7.0 Specification Support:** Eventual support for the newer [GEDCOM 7.0 specification](https://gedcom.io/specifications/FamilySearchGEDCOMv7.html)
+* **GEDCOM 5.5.1 Specification Support:** Work towards accurate parsing of the [GEDCOM 5.5.1 specification](https://gedcom.io/specifications/ged551.pdf)
+* **GEDCOM 7.0 Specification Support:** Eventual support for the newer [GEDCOM 7.0 specification](https://gedcom.io/specifications/FamilySearchGEDCOMv7.pdf)
 * **Write-to-File Functionality:** Future capability to write `GedcomData` objects back to GEDCOM files
 * **Practical Reliability:** Handle real-world GEDCOM files with proper error handling
 
-This crate is a work in progress. If you need a GEDCOM parser for Rust, it may be useful, but expect ongoing development and potential breaking changes.
+This crate is a work in progress. If you need a GEDCOM parser for Rust, it may
+be useful, but expect ongoing development and potential breaking changes.
 
 ## Features
 
@@ -88,7 +91,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 ## Command Line Tool
 
-The included `parse_ged` binary provides a convenient way to test and analyze GEDCOM files:
+The included `ged_io` binary provides a convenient way to test and analyze
+GEDCOM files:
 
 ```bash
 # Install the CLI tool
@@ -133,7 +137,10 @@ Expect breaking changes as development continues.
 
 ## Testing
 
-The crate is tested against various GEDCOM files, including some complex examples like parts of Heiner Eichmann's test suite. However, testing is ongoing and more comprehensive coverage is needed.
+The crate is tested against various GEDCOM files, including some complex
+examples like [Heiner Eichmann's `allged` test
+suite](http://heiner-eichmann.de/gedcom/allged.htm). However, testing is
+ongoing and more comprehensive coverage is needed.
 
 ```bash
 # Run the test suite
@@ -145,7 +152,9 @@ cargo test --all-features
 
 ## Contributing
 
-This project is under active development. Contributions are welcome, but please keep in mind that the API may change as the project evolves. Areas where help would be appreciated:
+This project is under active development. Contributions are welcome, but please
+keep in mind that the API may change as the project evolves. Areas where help
+would be appreciated:
 
 - GEDCOM 7.0 specification implementation
 - Write functionality development
