@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 /// Individual (tag: INDI) represents a compilation of facts or hypothesized facts about an
 /// individual. These facts may come from multiple sources. Source citations and notes allow
 /// documentation of the source where each of the facts were discovered. See
-/// https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#INDIVIDUAL_RECORD.
+/// <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#INDIVIDUAL_RECORD>.
 #[derive(Debug, Default)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Individual {
@@ -113,7 +113,7 @@ impl Parser for Individual {
 }
 
 /// GenderType is a set of enumerated values that indicate the sex of an individual at birth. See
-/// 5.5 specification, p. 61; https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#SEX
+/// 5.5 specification, p. 61; <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#SEX>.
 #[derive(Debug)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub enum GenderType {
@@ -136,7 +136,7 @@ impl ToString for GenderType {
 /// Gender (tag: SEX); This can describe an individual’s reproductive or sexual anatomy at birth.
 /// Related concepts of gender identity or sexual preference are not currently given their own tag.
 /// Cultural or personal gender preference may be indicated using the FACT tag. See
-/// https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#SEX
+/// <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#SEX>.
 #[derive(Debug)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Gender {
@@ -366,7 +366,7 @@ impl Parser for FamilyLink {
 /// it is recommended that all name parts in PERSONAL_NAME_PIECES appear within the PersonalName
 /// payload in some form, possibly adjusted for gender-specific suffixes or the like. It is
 /// permitted for the payload to contain information not present in any name piece substructure.
-/// See https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#PERSONAL_NAME_STRUCTURE
+/// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#PERSONAL_NAME_STRUCTURE>.
 #[derive(Debug)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Name {
