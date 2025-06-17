@@ -1,9 +1,7 @@
 use crate::{
     parse_subset,
     tokenizer::{Token, Tokenizer},
-    types::{
-        ChangeDate, Date, EventDetail, MultimediaRecord, Note, RepoCitation, UserDefinedTag, Xref,
-    },
+    types::{ChangeDate, Date, EventDetail, Multimedia, Note, RepoCitation, UserDefinedTag, Xref},
     Parser,
 };
 
@@ -22,7 +20,7 @@ pub struct Source {
     pub publication_facts: Option<String>,
     pub citation_from_source: Option<String>,
     pub change_date: Option<Box<ChangeDate>>,
-    pub multimedia: Vec<MultimediaRecord>,
+    pub multimedia: Vec<Multimedia>,
     pub notes: Vec<Note>,
     pub repo_citations: Vec<RepoCitation>,
     /// handles "RFN" tag; found in Ancestry.com export
@@ -39,7 +37,7 @@ impl Source {
         sour
     }
 
-    pub fn add_multimedia(&mut self, media: MultimediaRecord) {
+    pub fn add_multimedia(&mut self, media: Multimedia) {
         self.multimedia.push(media);
     }
 
@@ -80,7 +78,7 @@ impl Parser for Source {
                 "TEXT" => {
                     self.citation_from_source = Some(tokenizer.take_continued_text(level + 1))
                 }
-                "OBJE" => self.add_multimedia(MultimediaRecord::new(tokenizer, level + 1, pointer)),
+                "OBJE" => self.add_multimedia(Multimedia::new(tokenizer, level + 1, pointer)),
                 "NOTE" => self.add_note(Note::new(tokenizer, level + 1)),
                 "REPO" => self.add_repo_citation(RepoCitation::new(tokenizer, level + 1)),
                 "RFN" => self.submitter_registered_rfn = Some(tokenizer.take_line_value()),
@@ -119,7 +117,7 @@ pub struct SourceCitation {
     pub certainty_assessment: Option<CertaintyAssessment>,
     /// handles "RFN" tag; found in Ancestry.com export
     pub submitter_registered_rfn: Option<String>,
-    pub multimedia: Vec<MultimediaRecord>,
+    pub multimedia: Vec<Multimedia>,
     pub custom_data: Vec<Box<UserDefinedTag>>,
 }
 
@@ -140,7 +138,7 @@ impl SourceCitation {
         citation
     }
 
-    pub fn add_multimedia(&mut self, m: MultimediaRecord) {
+    pub fn add_multimedia(&mut self, m: Multimedia) {
         self.multimedia.push(m);
     }
 }
@@ -163,7 +161,7 @@ impl Parser for SourceCitation {
                     self.certainty_assessment = Some(CertaintyAssessment::new(tokenizer, level + 1))
                 }
                 "RFN" => self.submitter_registered_rfn = Some(tokenizer.take_line_value()),
-                "OBJE" => self.add_multimedia(MultimediaRecord::new(tokenizer, level + 1, pointer)),
+                "OBJE" => self.add_multimedia(Multimedia::new(tokenizer, level + 1, pointer)),
                 _ => panic!(
                     "{} Unhandled SourceCitation Tag: {}",
                     tokenizer.debug(),

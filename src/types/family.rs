@@ -2,7 +2,7 @@ use crate::{
     parse_subset,
     tokenizer::{Token, Tokenizer},
     types::{
-        event::HasEvents, ChangeDate, EventDetail, MultimediaRecord, Note, SourceCitation,
+        event::HasEvents, ChangeDate, EventDetail, Multimedia, Note, SourceCitation,
         UserDefinedTag, Xref,
     },
     Parser,
@@ -27,7 +27,7 @@ pub struct Family {
     pub change_date: Option<ChangeDate>,
     pub events: Vec<EventDetail>,
     pub sources: Vec<SourceCitation>,
-    pub multimedia: Vec<MultimediaRecord>,
+    pub multimedia: Vec<Multimedia>,
     pub notes: Vec<Note>,
     pub custom_data: Vec<Box<UserDefinedTag>>,
 }
@@ -73,7 +73,7 @@ impl Family {
         self.sources.push(sour);
     }
 
-    pub fn add_multimedia(&mut self, media: MultimediaRecord) {
+    pub fn add_multimedia(&mut self, media: Multimedia) {
         self.multimedia.push(media);
     }
 
@@ -107,7 +107,7 @@ impl Parser for Family {
                 "CHAN" => self.change_date = Some(ChangeDate::new(tokenizer, level + 1)),
                 "SOUR" => self.add_source(SourceCitation::new(tokenizer, level + 1)),
                 "NOTE" => self.add_note(Note::new(tokenizer, level + 1)),
-                "OBJE" => self.add_multimedia(MultimediaRecord::new(tokenizer, level + 1, pointer)),
+                "OBJE" => self.add_multimedia(Multimedia::new(tokenizer, level + 1, pointer)),
                 _ => panic!("{} Unhandled Family Tag: {}", tokenizer.debug(), tag),
             }
         };

@@ -1,7 +1,7 @@
 use crate::{
     parse_subset,
     tokenizer::{Token, Tokenizer},
-    types::{Date, FamilyLink, MultimediaRecord, Note, SourceCitation},
+    types::{Date, FamilyLink, Multimedia, Note, SourceCitation},
     Parser,
 };
 
@@ -79,7 +79,7 @@ pub struct EventDetail {
     /// FACT tags are used. T. See GEDCOM 5.5 spec, page 35 and 49.
     pub event_type: Option<String>,
     pub citations: Vec<SourceCitation>,
-    pub multimedia: Vec<MultimediaRecord>,
+    pub multimedia: Vec<Multimedia>,
 }
 
 impl EventDetail {
@@ -154,7 +154,7 @@ impl EventDetail {
         self.family_event_details.push(detail);
     }
 
-    pub fn add_multimedia_record(&mut self, m: MultimediaRecord) {
+    pub fn add_multimedia_record(&mut self, m: Multimedia) {
         self.multimedia.push(m);
     }
 
@@ -229,7 +229,7 @@ impl Parser for EventDetail {
                 "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)),
                 "TYPE" => self.event_type = Some(tokenizer.take_line_value()),
                 "OBJE" => {
-                    self.add_multimedia_record(MultimediaRecord::new(tokenizer, level + 1, pointer))
+                    self.add_multimedia_record(Multimedia::new(tokenizer, level + 1, pointer))
                 }
                 _ => panic!("{} Unhandled Event Tag: {}", tokenizer.debug(), tag),
             }

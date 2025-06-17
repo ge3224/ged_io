@@ -2,7 +2,7 @@ use crate::{
     parse_subset,
     tokenizer::{Token, Tokenizer},
     types::{
-        event::HasEvents, ChangeDate, Date, EventDetail, MultimediaRecord, Note, SourceCitation,
+        event::HasEvents, ChangeDate, Date, EventDetail, Multimedia, Note, SourceCitation,
         UserDefinedTag, Xref,
     },
     Parser,
@@ -25,7 +25,7 @@ pub struct Individual {
     pub attributes: Vec<AttributeDetail>,
     pub source: Vec<SourceCitation>,
     pub events: Vec<EventDetail>,
-    pub multimedia: Vec<MultimediaRecord>,
+    pub multimedia: Vec<Multimedia>,
     pub last_updated: Option<String>,
     pub note: Option<Note>,
     pub change_date: Option<ChangeDate>,
@@ -58,7 +58,7 @@ impl Individual {
         self.source.push(sour);
     }
 
-    pub fn add_multimedia(&mut self, multimedia: MultimediaRecord) {
+    pub fn add_multimedia(&mut self, multimedia: Multimedia) {
         self.multimedia.push(multimedia);
     }
 
@@ -103,7 +103,7 @@ impl Parser for Individual {
             "SOUR" => {
                 self.add_source_citation(SourceCitation::new(tokenizer, level + 1));
             }
-            "OBJE" => self.add_multimedia(MultimediaRecord::new(tokenizer, level + 1, None)),
+            "OBJE" => self.add_multimedia(Multimedia::new(tokenizer, level + 1, None)),
             "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)),
             _ => panic!("{} Unhandled Individual Tag: {}", tokenizer.debug(), tag),
         };

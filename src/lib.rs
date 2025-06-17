@@ -62,7 +62,7 @@ use tokenizer::{Token, Tokenizer};
 
 pub mod types;
 use types::{
-    Family, Header, Individual, MultimediaRecord, Repository, Source, Submission, Submitter,
+    Family, Header, Individual, Multimedia, Repository, Source, Submission, Submitter,
     UserDefinedTag,
 };
 
@@ -179,7 +179,7 @@ pub struct GedcomData {
     /// Sources of facts. _ie._ book, document, census, etc.
     pub sources: Vec<Source>,
     /// A multimedia asset linked to a fact
-    pub multimedia: Vec<MultimediaRecord>,
+    pub multimedia: Vec<Multimedia>,
     /// Applications requiring the use of nonstandard tags should define them with a leading underscore
     /// so that they will not conflict with future GEDCOM standard tags. Systems that read
     /// user-defined tags must consider that they have meaning only with respect to a system
@@ -227,8 +227,8 @@ impl GedcomData {
         self.submitters.push(submitter);
     }
 
-    /// Adds a `Multimedia` to the tree
-    pub fn add_multimedia(&mut self, multimedia: MultimediaRecord) {
+    /// Adds a [`Multimedia`] record to the genealogy data.
+    pub fn add_multimedia(&mut self, multimedia: Multimedia) {
         self.multimedia.push(multimedia);
     }
 
@@ -287,7 +287,7 @@ impl Parser for GedcomData {
                     "SOUR" => self.add_source(Source::new(tokenizer, current_level, pointer)),
                     "SUBN" => self.add_submission(Submission::new(tokenizer, level, pointer)),
                     "SUBM" => self.add_submitter(Submitter::new(tokenizer, level, pointer)),
-                    "OBJE" => self.add_multimedia(MultimediaRecord::new(tokenizer, level, pointer)),
+                    "OBJE" => self.add_multimedia(Multimedia::new(tokenizer, level, pointer)),
                     "TRLR" => break,
                     _ => {
                         println!("{} Unhandled tag {}", tokenizer.debug(), tag);

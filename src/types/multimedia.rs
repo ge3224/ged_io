@@ -17,7 +17,7 @@ use crate::{
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#MULTIMEDIA_RECORD>.
 #[derive(Clone, Debug, Default)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
-pub struct MultimediaRecord {
+pub struct Multimedia {
     /// Optional reference to link to this submitter
     pub xref: Option<Xref>,
     pub file: Option<MultimediaFileRef>,
@@ -34,17 +34,17 @@ pub struct MultimediaRecord {
     pub note_structure: Option<Note>,
 }
 
-impl MultimediaRecord {
+impl Multimedia {
     #[must_use]
-    pub fn new(tokenizer: &mut Tokenizer, level: u8, xref: Option<Xref>) -> MultimediaRecord {
-        let mut obje = MultimediaRecord::default();
+    pub fn new(tokenizer: &mut Tokenizer, level: u8, xref: Option<Xref>) -> Multimedia {
+        let mut obje = Multimedia::default();
         obje.xref = xref;
         obje.parse(tokenizer, level);
         obje
     }
 }
 
-impl Parser for MultimediaRecord {
+impl Parser for Multimedia {
     fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) {
         // skip current line
         tokenizer.next_token();
