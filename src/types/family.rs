@@ -1,5 +1,5 @@
 use crate::{
-    parse_subset,
+    parser::parse_subset,
     tokenizer::{Token, Tokenizer},
     types::{
         event::HasEvents, ChangeDate, EventDetail, Multimedia, Note, SourceCitation,

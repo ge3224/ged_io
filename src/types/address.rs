@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 
 use crate::{
-    parse_subset,
+    parser::parse_subset,
     tokenizer::{Token, Tokenizer},
     types::UserDefinedTag,
     Parser,

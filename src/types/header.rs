@@ -1,5 +1,5 @@
 use crate::{
-    parse_subset,
+    parser::parse_subset,
     tokenizer::Tokenizer,
     types::{Corporation, Date, Note},
     Parser,

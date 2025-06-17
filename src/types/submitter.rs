@@ -1,5 +1,5 @@
 use crate::{
-    parse_subset,
+    parser::parse_subset,
     tokenizer::{Token, Tokenizer},
     types::{Address, ChangeDate, MultimediaLink, Note, UserDefinedTag, Xref},
     Parser,
