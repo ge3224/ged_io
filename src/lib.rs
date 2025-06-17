@@ -98,17 +98,6 @@ pub trait Parser {
     fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8);
 }
 
-#[must_use]
-/// Parses GEDCOM genealogy file content into structured data.
-///
-/// Takes a character iterator from GEDCOM file content and returns a parsed
-/// `GedcomData` structure containing individuals, families, and other genealogical
-/// records in a queryable format.
-pub fn parse_ged(content: std::str::Chars) -> GedcomData {
-    let mut p = Gedcom::new(content);
-    p.parse()
-}
-
 /// Parses GEDCOM tokens at a specific hierarchical level, handling both standard and custom tags.
 ///
 /// This function processes tokens from the tokenizer until it encounters a token at or below
