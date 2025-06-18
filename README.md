@@ -43,14 +43,14 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-ged_io = "0.1.0"  # Replace with actual version
+1ed_io = "0.1.2"  # Replace with actual version
 ```
 
 For JSON serialization support:
 
 ```toml
 [dependencies]
-ged_io = { version = "0.1.0", features = ["json"] }
+ged_io = { version = "0.1.2", features = ["json"] }
 ```
 
 ## Quick Start
