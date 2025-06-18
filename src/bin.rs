@@ -1,10 +1,9 @@
 // use ged::{GedcomDocument, GedcomData};
 
+use ged_io::{data::GedcomData, gedcom::Gedcom};
 use std::env;
 use std::fs;
 use std::path::PathBuf;
-
-use ged_io::{Gedcom, GedcomData};
 
 fn main() {
     let args: Vec<String> = env::args().collect();

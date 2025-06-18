@@ -1,11 +1,11 @@
 use crate::{
     parser::parse_subset,
+    parser::Parser,
     tokenizer::{Token, Tokenizer},
     types::{
         event::HasEvents, ChangeDate, EventDetail, Multimedia, Note, SourceCitation,
         UserDefinedTag, Xref,
     },
-    Parser,
 };
 
 #[cfg(feature = "json")]

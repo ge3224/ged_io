@@ -1,7 +1,7 @@
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 
-use crate::{parser::parse_subset, tokenizer::Tokenizer, Parser};
+use crate::{parser::parse_subset, parser::Parser, tokenizer::Tokenizer};
 
 /// Translation (tag:TRAN) is a type of TRAN for unstructured human-readable text, such as
 /// is found in NOTE and SNOTE payloads. Each NOTE-TRAN must have either a LANG substructure or a

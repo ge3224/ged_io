@@ -1,8 +1,7 @@
 use crate::{
-    parser::parse_subset,
+    parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{Corporation, Date, Note},
-    Parser,
 };
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
@@ -309,7 +308,7 @@ impl Parser for HeadPlac {
 
 #[cfg(test)]
 mod tests {
-    use crate::Gedcom;
+    use crate::gedcom::Gedcom;
 
     #[test]
     fn test_parse_header_record() {

@@ -1,8 +1,7 @@
 use crate::{
-    parser::parse_subset,
+    parser::{parse_subset, Parser},
     tokenizer::{Token, Tokenizer},
     types::{ChangeDate, Date, EventDetail, Multimedia, Note, RepoCitation, UserDefinedTag, Xref},
-    Parser,
 };
 
 #[cfg(feature = "json")]
@@ -327,7 +326,7 @@ impl Parser for CertaintyAssessment {
 
 #[cfg(test)]
 mod tests {
-    use crate::Gedcom;
+    use crate::gedcom::Gedcom;
 
     #[test]
     fn test_parse_source_citation_record() {

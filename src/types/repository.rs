@@ -1,4 +1,4 @@
-use crate::{parser::parse_subset, tokenizer::Tokenizer, Parser};
+use crate::{parser::parse_subset, parser::Parser, tokenizer::Tokenizer};
 
 use super::{Address, Xref};
 

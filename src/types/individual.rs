@@ -1,11 +1,10 @@
 use crate::{
-    parser::parse_subset,
+    parser::{parse_subset, Parser},
     tokenizer::{Token, Tokenizer},
     types::{
         event::HasEvents, ChangeDate, Date, EventDetail, Multimedia, Note, SourceCitation,
         UserDefinedTag, Xref,
     },
-    Parser,
 };
 
 #[cfg(feature = "json")]
@@ -545,7 +544,7 @@ impl Parser for AttributeDetail {
 
 #[cfg(test)]
 mod tests {
-    use crate::Gedcom;
+    use crate::gedcom::Gedcom;
 
     #[test]
     fn test_parse_individual_record() {

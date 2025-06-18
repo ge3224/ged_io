@@ -1,4 +1,4 @@
-use crate::{parser::parse_subset, tokenizer::Tokenizer, types::Note, Parser};
+use crate::{parser::parse_subset, parser::Parser, tokenizer::Tokenizer, types::Note};
 
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
@@ -93,7 +93,7 @@ impl Parser for ChangeDate {
 
 #[cfg(test)]
 mod tests {
-    use crate::Gedcom;
+    use crate::gedcom::Gedcom;
 
     #[test]
     fn test_parse_date_record() {

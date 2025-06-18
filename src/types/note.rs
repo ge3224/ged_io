@@ -1,8 +1,7 @@
 use crate::{
-    parser::parse_subset,
+    parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{Source, Translation},
-    Parser,
 };
 
 #[cfg(feature = "json")]
@@ -71,7 +70,7 @@ impl Parser for Note {
 
 #[cfg(test)]
 mod tests {
-    use crate::Gedcom;
+    use crate::gedcom::Gedcom;
 
     #[test]
     fn test_parse_note_struct() {

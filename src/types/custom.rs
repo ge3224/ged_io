@@ -1,6 +1,6 @@
 use crate::{
+    parser::Parser,
     tokenizer::{Token, Tokenizer},
-    Parser,
 };
 
 /// Handles a user-defined tag that is contained in the GEDCOM current transmission. This tag must
@@ -80,7 +80,7 @@ impl Parser for UserDefinedTag {
 
 #[cfg(test)]
 mod tests {
-    use crate::Gedcom;
+    use crate::gedcom::Gedcom;
 
     #[test]
     fn test_parse_user_defined_record() {

@@ -1,8 +1,7 @@
 use crate::{
-    parser::parse_subset,
+    parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{ChangeDate, Note, SourceCitation, Xref},
-    Parser,
 };
 
 /// MultimediaRecord refers to 1 or more external digital files, and may provide some
@@ -226,7 +225,7 @@ impl Parser for UserReferenceNumber {
 
 #[cfg(test)]
 mod tests {
-    use crate::Gedcom;
+    use crate::gedcom::Gedcom;
 
     #[test]
     fn test_parse_multimedia_record() {

@@ -1,8 +1,8 @@
 use crate::{
     parser::parse_subset,
+    parser::Parser,
     tokenizer::{Token, Tokenizer},
     types::{Date, FamilyLink, Multimedia, Note, SourceCitation},
-    Parser,
 };
 
 #[cfg(feature = "json")]
@@ -301,7 +301,7 @@ impl Parser for FamilyEventDetail {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Gedcom;
+    use crate::gedcom::Gedcom;
 
     #[test]
     fn test_parse_person_event() {

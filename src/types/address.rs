@@ -4,9 +4,9 @@ use std::fmt;
 
 use crate::{
     parser::parse_subset,
+    parser::Parser,
     tokenizer::{Token, Tokenizer},
     types::UserDefinedTag,
-    Parser,
 };
 
 /// Physical address at which a fact occurs
