@@ -1,11 +1,36 @@
-//! Root data structure for parsed GEDCOM files.
+//! Data structures representing the parsed contents of a GEDCOM file.
+
+#![allow(missing_docs)]
+
+#[cfg(feature = "json")]
+use serde::{Deserialize, Serialize};
+
+type Xref = String;
+
+pub mod address;
+pub mod corporation;
+pub mod custom;
+pub mod date;
+pub mod event;
+pub mod family;
+pub mod header;
+pub mod individual;
+pub mod multimedia;
+pub mod note;
+pub mod place;
+pub mod repository;
+pub mod source;
+pub mod submission;
+pub mod submitter;
+pub mod translation;
 
 use crate::{
     parser::Parser,
     tokenizer::{Token, Tokenizer},
     types::{
-        Family, Header, Individual, Multimedia, Repository, Source, Submission, Submitter,
-        UserDefinedTag,
+        custom::UserDefinedTag, family::Family, header::Header, individual::Individual,
+        multimedia::Multimedia, repository::Repository, source::Source, submission::Submission,
+        submitter::Submitter,
     },
 };
 

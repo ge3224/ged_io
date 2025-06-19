@@ -1,7 +1,7 @@
 use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
-    types::{Source, Translation},
+    types::{source::Source, translation::Translation},
 };
 
 #[cfg(feature = "json")]

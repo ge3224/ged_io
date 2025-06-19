@@ -1,7 +1,7 @@
 use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
-    types::{ChangeDate, Note, SourceCitation, Xref},
+    types::{date::ChangeDate, note::Note, source::SourceCitation, Xref},
 };
 
 /// MultimediaRecord refers to 1 or more external digital files, and may provide some

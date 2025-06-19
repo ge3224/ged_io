@@ -1,10 +1,14 @@
 use crate::{
-    parser::parse_subset,
-    parser::Parser,
+    parser::{parse_subset, Parser},
     tokenizer::{Token, Tokenizer},
     types::{
-        event::HasEvents, ChangeDate, EventDetail, Multimedia, Note, SourceCitation,
-        UserDefinedTag, Xref,
+        custom::UserDefinedTag,
+        date::ChangeDate,
+        event::{EventDetail, HasEvents},
+        multimedia::Multimedia,
+        note::Note,
+        source::SourceCitation,
+        Xref,
     },
 };
 
@@ -79,6 +83,10 @@ impl Family {
 
     pub fn add_note(&mut self, note: Note) {
         self.notes.push(note);
+    }
+
+    pub fn events(&self) -> &[EventDetail] {
+        &self.events
     }
 }
 

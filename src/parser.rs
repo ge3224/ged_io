@@ -2,7 +2,7 @@
 
 use crate::{
     tokenizer::{Token, Tokenizer},
-    types::UserDefinedTag,
+    types::custom::UserDefinedTag,
 };
 
 /// Defines shared parsing functionality for GEDCOM records.

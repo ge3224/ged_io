@@ -1,7 +1,7 @@
 use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
-    types::{Corporation, Date, Note},
+    types::{corporation::Corporation, date::Date, note::Note},
 };
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};

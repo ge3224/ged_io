@@ -2,8 +2,13 @@ use crate::{
     parser::{parse_subset, Parser},
     tokenizer::{Token, Tokenizer},
     types::{
-        event::HasEvents, ChangeDate, Date, EventDetail, Multimedia, Note, SourceCitation,
-        UserDefinedTag, Xref,
+        custom::UserDefinedTag,
+        date::{ChangeDate, Date},
+        event::{EventDetail, HasEvents},
+        multimedia::Multimedia,
+        note::Note,
+        source::SourceCitation,
+        Xref,
     },
 };
 

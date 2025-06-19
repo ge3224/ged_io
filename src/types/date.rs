@@ -1,4 +1,8 @@
-use crate::{parser::parse_subset, parser::Parser, tokenizer::Tokenizer, types::Note};
+use crate::{
+    parser::{parse_subset, Parser},
+    tokenizer::Tokenizer,
+    types::note::Note,
+};
 
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};

@@ -1,7 +1,15 @@
 use crate::{
     parser::{parse_subset, Parser},
     tokenizer::{Token, Tokenizer},
-    types::{ChangeDate, Date, EventDetail, Multimedia, Note, RepoCitation, UserDefinedTag, Xref},
+    types::{
+        custom::UserDefinedTag,
+        date::{ChangeDate, Date},
+        event::EventDetail,
+        multimedia::Multimedia,
+        note::Note,
+        repository::RepoCitation,
+        Xref,
+    },
 };
 
 #[cfg(feature = "json")]

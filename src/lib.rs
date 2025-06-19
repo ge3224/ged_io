@@ -54,7 +54,6 @@ use serde::{Deserialize, Serialize};
 
 #[macro_use]
 mod util;
-pub mod data;
 pub mod gedcom;
 pub mod parser;
 pub mod tokenizer;

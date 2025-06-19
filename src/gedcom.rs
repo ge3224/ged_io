@@ -2,7 +2,7 @@
 
 use std::str::Chars;
 
-use crate::{data::GedcomData, tokenizer::Tokenizer};
+use crate::{tokenizer::Tokenizer, types::GedcomData};
 
 /// The main interface for parsing GEDCOM files into structured Rust data types.
 pub struct Gedcom<'a> {

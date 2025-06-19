@@ -1,6 +1,8 @@
-use crate::{parser::parse_subset, parser::Parser, tokenizer::Tokenizer};
-
-use super::{Address, Xref};
+use crate::{
+    parser::{parse_subset, Parser},
+    tokenizer::Tokenizer,
+    types::{address::Address, Xref},
+};
 
 /// Data repository, the `REPO` tag
 #[derive(Debug, Default)]
