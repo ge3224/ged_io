@@ -1,5 +1,5 @@
 /*!
-`ged_io` is a Rust crate for parsing GEDCOM files.
+`ged_io` is a Rust crate for parsing GEDCOM formatted text.
 
 The library works with GEDCOM (GEnealogical Data Communication), a text-based format widely
 supported by genealogy software for storing and exchanging family history data. `ged_io` transforms

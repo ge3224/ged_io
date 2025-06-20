@@ -1,4 +1,4 @@
-//! Handles the tokenization of a GEDCOM file
+//! Processes character streams into tokens.
 use std::str::Chars;
 
 /// The base enum of Token types making use of [GEDCOM Standard Release
