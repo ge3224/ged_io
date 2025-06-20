@@ -36,7 +36,7 @@ pub struct Header {
     /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#HEAD-LANG>.
     pub language: Option<String>,
     /// tag: FILE, the name of the GEDCOM transmission file. If the file name includes a file
-    /// extension it must be shown in the form (filename.ext). See Gedcom 5.5.1 specification, p. 50.
+    /// extension it must be shown in the form (filename.ext). See GEDCOM 5.5.1 specification, p. 50.
     pub filename: Option<String>,
     /// tag: NOTE
     pub note: Option<Note>,
@@ -127,7 +127,7 @@ impl Parser for GedcomMeta {
 }
 
 /// Encoding (tag: CHAR) is a code value that represents the character set to be used to
-/// interpret this data. See Gedcom 5.5.1 specification, p. 44
+/// interpret this data. See GEDCOM 5.5.1 specification, p. 44
 #[derive(Debug, Default)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Encoding {
@@ -158,7 +158,7 @@ impl Parser for Encoding {
     }
 }
 
-/// HeadSource (tag: SOUR) is an identifier for the product producing the gedcom data. A
+/// HeadSource (tag: SOUR) is an identifier for the product producing the GEDCOM data. A
 /// registration process for these identifiers existed for a time, but no longer does. If an
 /// existing identifier is known, it should be used. Otherwise, a URI owned by the product should
 /// be used instead. See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#HEAD-SOUR>.
@@ -260,7 +260,7 @@ impl HeadPlac {
     }
 
     // Adhering to "lowest to highest jurisdiction" is the responsibility of the
-    // Gedcom author, but methods for reordering elements might still be useful.
+    // GEDCOM author, but methods for reordering elements might still be useful.
     pub fn insert_jurisdictional_title(&mut self, index: usize, title: String) {
         self.form.insert(index, title);
     }

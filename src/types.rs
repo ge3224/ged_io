@@ -117,7 +117,7 @@ impl GedcomData {
     /// Prints a summary of record counts to stdout.
     pub fn stats(&self) {
         println!("----------------------");
-        println!("| Gedcom Data Stats: |");
+        println!("| GEDCOM Data Stats: |");
         println!("----------------------");
         println!("  submissions: {}", self.submissions.len());
         println!("  submitters: {}", self.submitters.len());

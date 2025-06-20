@@ -1,10 +1,9 @@
 //! Handles the tokenization of a GEDCOM file
 use std::str::Chars;
 
-/// The base enum of Token types making use of
-/// [GEDCOM Standard Release 5.5.1](https://edge.fscdn.org/assets/img/documents/ged551-5bac5e57fe88dd37df0e153d9c515335.pdf),
-/// p.11 `gedcom_line: level + delim + [optional_xref_ID] + tag + [optional_line_value] +
-/// terminator`
+/// The base enum of Token types making use of [GEDCOM Standard Release
+/// 5.5.1](https://gedcom.io/specifications/ged551.pdf), p.11 `gedcom_line: level + delim +
+/// [optional_xref_ID] + tag + [optional_line_value] + terminator`
 #[derive(Clone, Debug, PartialEq)]
 pub enum Token {
     /// The `level`, denoting the depth within the tree
@@ -23,20 +22,20 @@ pub enum Token {
     None,
 }
 
-/// The tokenizer that turns the gedcom characters into a list of tokens
+/// The tokenizer that turns the GEDCOM characters into a list of tokens
 pub struct Tokenizer<'a> {
     /// The active token type
     pub current_token: Token,
     /// Current character tokenizer is parsing
     current_char: char,
-    /// An iterator of charaters of the Gedcom file contents
+    /// An iterator of charaters of the GEDCOM file contents
     chars: Chars<'a>,
     /// The current line number of the file we are parsing
     pub line: u32,
 }
 
 impl<'a> Tokenizer<'a> {
-    /// Creates a new tokenizer for a char interator of gedcom file contents
+    /// Creates a new tokenizer for a char interator of GEDCOM file contents
     #[must_use]
     pub fn new(chars: Chars<'a>) -> Tokenizer<'a> {
         Tokenizer {

@@ -48,7 +48,6 @@ std::fs::write("family.json", json_output).unwrap();
 
 #![deny(clippy::pedantic)]
 #![warn(missing_docs)]
-
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 
