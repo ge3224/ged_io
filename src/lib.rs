@@ -25,7 +25,7 @@ JSON serialization example:
 
 ```rust
 #[cfg(feature = "json")]
-use ged_io::Gedcom;
+use ged_io::gedcom::Gedcom;
 # #[cfg(feature = "json")]
 # fn main() {
 
@@ -39,7 +39,7 @@ let json_output = serde_json::to_string_pretty(&gedcom_data).unwrap();
 println!("{}", json_output);
 
 // Or save to file
-std::fs::write("family.json", json_output).unwrap();
+std::fs::write("./target/tmp/family.json", json_output).unwrap();
 # }
 # #[cfg(not(feature = "json"))]
 # fn main() {}
@@ -48,11 +48,9 @@ std::fs::write("family.json", json_output).unwrap();
 
 #![deny(clippy::pedantic)]
 #![warn(missing_docs)]
-#[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
 
 #[macro_use]
-mod util;
+pub(crate) mod util;
 pub mod gedcom;
 pub mod parser;
 pub mod tokenizer;

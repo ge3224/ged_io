@@ -8,7 +8,7 @@ use crate::{parser::parse_subset, parser::Parser, tokenizer::Tokenizer};
 /// MIME substructure or both. If either is missing, it is assumed to have the same value as the
 /// superstructure. See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#NOTE-TRAN>.
 #[derive(Clone, Debug, Default)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize, PartialEq))]
 pub struct Translation {
     pub value: Option<String>,
     /// tag:MIME

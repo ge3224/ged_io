@@ -3,6 +3,8 @@ use crate::{
     tokenizer::Tokenizer,
     types::{date::ChangeDate, note::Note, source::SourceCitation, Xref},
 };
+#[cfg(feature = "json")]
+use serde::{Deserialize, Serialize};
 
 /// MultimediaRecord refers to 1 or more external digital files, and may provide some
 /// additional information about the files and the media they encode.
@@ -15,7 +17,7 @@ use crate::{
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#MULTIMEDIA_RECORD>.
 #[derive(Clone, Debug, Default)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize, PartialEq))]
 pub struct Multimedia {
     /// Optional reference to link to this submitter
     pub xref: Option<Xref>,
@@ -113,7 +115,7 @@ impl Parser for MultimediaLink {
 /// linked to the GEDCOM context. Remote reference would include a network address where the
 /// multimedia data may be obtained.
 #[derive(Clone, Debug, Default)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize, PartialEq))]
 pub struct MultimediaFileRef {
     pub value: Option<String>,
     pub title: Option<String>,
@@ -153,7 +155,7 @@ impl Parser for MultimediaFileRef {
 /// NOTE: The 5.5 spec lists the following seven formats [ bmp | gif | jpg | ole | pcx | tif | wav ].
 /// However, we're leaving this open for emerging formats, `Option<String>`.
 #[derive(Clone, Debug, Default)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize, PartialEq))]
 pub struct MultimediaFormat {
     pub value: Option<String>,
     pub source_media_type: Option<String>,
@@ -184,13 +186,12 @@ impl Parser for MultimediaFormat {
     }
 }
 
-#[derive(Debug, Default)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
-
 /// UserReferenceNumber is a user-defined number or text that the submitter uses to identify this
 /// record. For instance, it may be a record number within the submitter's automated or manual
 /// system, or it may be a page and position number on a pedigree chart.
-#[derive(Clone)]
+#[derive(Clone, Debug, Default)]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize, PartialEq))]
+
 pub struct UserReferenceNumber {
     /// line value
     pub value: Option<String>,

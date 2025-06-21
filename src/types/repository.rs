@@ -3,6 +3,8 @@ use crate::{
     tokenizer::Tokenizer,
     types::{address::Address, Xref},
 };
+#[cfg(feature = "json")]
+use serde::{Deserialize, Serialize};
 
 /// Data repository, the `REPO` tag
 #[derive(Debug, Default)]
@@ -43,7 +45,7 @@ impl Parser for Repository {
 
 /// Citation linking a `Source` to a data `Repository`
 #[derive(Clone, Debug, Default)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize, PartialEq))]
 pub struct RepoCitation {
     /// Reference to the `Repository`
     pub xref: Xref,

@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 
 /// Source for genealogy facts
 #[derive(Clone, Debug, Default)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize, PartialEq))]
 pub struct Source {
     pub xref: Option<String>,
     pub data: SourceData,
@@ -98,7 +98,7 @@ impl Parser for Source {
 
 #[allow(clippy::module_name_repetitions)]
 #[derive(Clone, Debug, Default)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize, PartialEq))]
 pub struct SourceData {
     events: Vec<EventDetail>,
     pub agency: Option<String>,
@@ -113,7 +113,7 @@ impl SourceData {
 /// The data provided in the `SourceCitation` structure is source-related information specific to
 /// the data being cited. (See GEDCOM 5.5 Specification page 39.)
 #[derive(Clone, Debug)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize, PartialEq))]
 pub struct SourceCitation {
     /// Reference to the `Source`
     pub xref: Xref,
@@ -185,7 +185,7 @@ impl Parser for SourceCitation {
 /// actually recorded in the source, or significant notes written by the recorder, or an applicable
 /// sentence from a letter. This is stored in the SOUR.DATA.TEXT context.
 #[derive(Clone, Debug, Default)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize, PartialEq))]
 pub struct SourceCitationData {
     pub date: Option<Date>,
     pub text: Option<TextFromSource>,
@@ -225,7 +225,7 @@ impl Parser for SourceCitationData {
 /// as opposed to the researcher's interpretation. The word TEXT, in this case, means from the text
 /// which appeared in the source record including labels.
 #[derive(Clone, Debug, Default)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize, PartialEq))]
 pub struct TextFromSource {
     pub value: Option<String>,
 }
@@ -273,6 +273,7 @@ impl Parser for TextFromSource {
 /// 2 = Secondary evidence, data officially recorded sometime after event
 /// 3 = Direct and primary evidence used, or by dominance of the evidence
 #[derive(Clone, Debug)]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize, PartialEq))]
 pub enum CertaintyAssessment {
     Unreliable,
     Questionable,

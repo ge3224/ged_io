@@ -2,6 +2,8 @@ use crate::{
     parser::Parser,
     tokenizer::{Token, Tokenizer},
 };
+#[cfg(feature = "json")]
+use serde::{Deserialize, Serialize};
 
 /// Handles a user-defined tag that is contained in the GEDCOM current transmission. This tag must
 /// begin with an underscore (_) and should only be interpreted in the context of the sending
@@ -9,7 +11,7 @@ use crate::{
 ///
 /// See <https://gedcom.io/specifications/ged55.pdf> (page 49).
 #[derive(Clone, Debug)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize, PartialEq))]
 pub struct UserDefinedTag {
     pub tag: String,
     pub value: Option<String>,

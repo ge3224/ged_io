@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 /// Date encompasses a number of date formats, e.g. approximated, period, phrase and range.
 #[derive(Clone, Debug, Default)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize, PartialEq))]
 pub struct Date {
     pub value: Option<String>,
     pub time: Option<String>,
@@ -67,7 +67,7 @@ impl Parser for Date {
 /// [GEDCOM 5.5.1 specification, page 31](https://gedcom.io/specifications/ged551.pdf)
 /// [GEDCOM 7.0 Specification, page 44](gedcom.io/specifications/FamilySearchGEDCOMv7.html)
 #[derive(Clone, Debug, Default)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize, PartialEq))]
 pub struct ChangeDate {
     pub date: Option<Date>,
     pub note: Option<Note>,

@@ -25,7 +25,7 @@ use serde::{Deserialize, Serialize};
 /// See: <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#NOTE>
 /// See: <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#NOTE_STRUCTURE>
 #[derive(Clone, Debug, Default)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize, PartialEq))]
 pub struct Note {
     pub value: Option<String>,
     /// tag: MIME, indicates the media type of the payload of the superstructure, as defined by BCP

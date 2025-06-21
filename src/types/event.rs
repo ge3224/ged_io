@@ -67,7 +67,7 @@ impl ToString for Event {
 /// specification. The event indicated by this general EVEN tag is defined by the value of the
 /// subordinate TYPE tag (event_type).
 #[derive(Clone)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize, PartialEq))]
 pub struct EventDetail {
     pub event: Event,
     pub value: Option<String>,
@@ -246,6 +246,7 @@ impl Parser for EventDetail {
 
 /// Spouse in a family that experiences an event.
 #[derive(Clone, Debug)]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize, PartialEq))]
 pub enum Spouse {
     Spouse1,
     Spouse2,
@@ -259,6 +260,7 @@ impl ToString for Spouse {
 
 /// FamilyEventDetail defines an additional dataset found in certain events.
 #[derive(Clone)]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize, PartialEq))]
 pub struct FamilyEventDetail {
     pub member: Spouse,
     pub age: Option<String>,

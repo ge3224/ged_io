@@ -200,7 +200,7 @@ impl Parser for Gender {
 /// where this person is a child (FAMC tag), or it is pointer to a family where this person is a
 /// spouse or parent (FAMS tag). See GEDCOM 5.5 spec, page 26.
 #[derive(Clone, Debug)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize, PartialEq))]
 pub enum FamilyLinkType {
     Spouse,
     Child,
@@ -215,7 +215,7 @@ impl ToString for FamilyLinkType {
 /// Pedigree is a code used to indicate the child to family relationship for pedigree navigation
 /// purposes. See GEDCOM 5.5 spec, page 57.
 #[derive(Clone, Debug)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize, PartialEq))]
 pub enum Pedigree {
     /// Adopted indicates adoptive parents.
     Adopted,
@@ -236,7 +236,7 @@ impl ToString for Pedigree {
 /// ChildLinkStatus is a A status code that allows passing on the users opinion of the status of a
 /// child to family link. See GEDCOM 5.5 spec, page 44.
 #[derive(Clone, Debug)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize, PartialEq))]
 pub enum ChildLinkStatus {
     /// Challenged indicates linking this child to this family is suspect, but the linkage has been
     /// neither proven nor disproven.
@@ -258,7 +258,7 @@ impl ToString for ChildLinkStatus {
 /// AdoptedByWhichParent is a code which shows which parent in the associated family record adopted
 /// this person. See GEDCOM 5.5 spec, page 42.
 #[derive(Clone, Debug)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize, PartialEq))]
 pub enum AdoptedByWhichParent {
     /// The HUSBand in the associated family adopted this person.
     Husband,
@@ -279,7 +279,7 @@ impl ToString for AdoptedByWhichParent {
 /// family where this person is a child. The FAMS tag provides a pointer to a family where this
 /// person is a spouse or parent. See GEDCOM 5.5 spec, page 26.
 #[derive(Clone, Debug)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize, PartialEq))]
 pub struct FamilyLink {
     pub xref: Xref,
     pub family_link_type: FamilyLinkType,
@@ -372,7 +372,7 @@ impl Parser for FamilyLink {
 /// permitted for the payload to contain information not present in any name piece substructure.
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#PERSONAL_NAME_STRUCTURE>.
 #[derive(Debug)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize, PartialEq))]
 pub struct Name {
     pub value: Option<String>,
     pub given: Option<String>,
