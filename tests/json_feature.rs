@@ -20,7 +20,7 @@ mod json_feature_tests {
             note: None,
             source: Vec::new(),
         };
-        println!("{}", serde_json::to_string_pretty(&name).unwrap());
+
         assert_tokens(
             &name,
             &[
