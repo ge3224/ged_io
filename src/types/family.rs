@@ -3,11 +3,11 @@ use crate::{
     tokenizer::{Token, Tokenizer},
     types::{
         custom::UserDefinedTag,
-        date::ChangeDate,
-        event::{EventDetail, HasEvents},
+        date::change_date::ChangeDate,
+        event::{detail::Detail, util::HasEvents},
         multimedia::Multimedia,
         note::Note,
-        source::SourceCitation,
+        source::citation::Citation,
         Xref,
     },
 };
@@ -25,12 +25,12 @@ pub struct Family {
     pub xref: Option<Xref>,
     pub individual1: Option<Xref>, // mapped from HUSB
     pub individual2: Option<Xref>, // mapped from WIFE
-    pub family_event: Vec<EventDetail>,
+    pub family_event: Vec<Detail>,
     pub children: Vec<Xref>,
     pub num_children: Option<String>,
     pub change_date: Option<ChangeDate>,
-    pub events: Vec<EventDetail>,
-    pub sources: Vec<SourceCitation>,
+    pub events: Vec<Detail>,
+    pub sources: Vec<Citation>,
     pub multimedia: Vec<Multimedia>,
     pub notes: Vec<Note>,
     pub custom_data: Vec<Box<UserDefinedTag>>,
@@ -69,11 +69,11 @@ impl Family {
         self.children.push(xref);
     }
 
-    pub fn add_event(&mut self, family_event: EventDetail) {
+    pub fn add_event(&mut self, family_event: Detail) {
         self.events.push(family_event);
     }
 
-    pub fn add_source(&mut self, sour: SourceCitation) {
+    pub fn add_source(&mut self, sour: Citation) {
         self.sources.push(sour);
     }
 
@@ -85,7 +85,7 @@ impl Family {
         self.notes.push(note);
     }
 
-    pub fn events(&self) -> &[EventDetail] {
+    pub fn events(&self) -> &[Detail] {
         &self.events
     }
 }
@@ -106,14 +106,14 @@ impl Parser for Family {
             match tag {
                 "MARR" | "ANUL" | "CENS" | "DIV" | "DIVF" | "ENGA" | "MARB" | "MARC" | "MARL"
                 | "MARS" | "RESI" | "EVEN" => {
-                    self.add_event(EventDetail::new(tokenizer, level + 1, tag));
+                    self.add_event(Detail::new(tokenizer, level + 1, tag));
                 }
                 "HUSB" => self.set_individual1(tokenizer.take_line_value()),
                 "WIFE" => self.set_individual2(tokenizer.take_line_value()),
                 "CHIL" => self.add_child(tokenizer.take_line_value()),
                 "NCHI" => self.num_children = Some(tokenizer.take_line_value()),
                 "CHAN" => self.change_date = Some(ChangeDate::new(tokenizer, level + 1)),
-                "SOUR" => self.add_source(SourceCitation::new(tokenizer, level + 1)),
+                "SOUR" => self.add_source(Citation::new(tokenizer, level + 1)),
                 "NOTE" => self.add_note(Note::new(tokenizer, level + 1)),
                 "OBJE" => self.add_multimedia(Multimedia::new(tokenizer, level + 1, pointer)),
                 _ => panic!("{} Unhandled Family Tag: {}", tokenizer.debug(), tag),
@@ -125,7 +125,7 @@ impl Parser for Family {
 }
 
 impl HasEvents for Family {
-    fn add_event(&mut self, event: EventDetail) -> () {
+    fn add_event(&mut self, event: Detail) -> () {
         let event_type = &event.event;
         for e in &self.events {
             if &e.event == event_type {
@@ -134,7 +134,7 @@ impl HasEvents for Family {
         }
         self.events.push(event);
     }
-    fn events(&self) -> Vec<EventDetail> {
+    fn events(&self) -> Vec<Detail> {
         self.events.clone()
     }
 }

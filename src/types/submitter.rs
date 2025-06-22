@@ -2,8 +2,8 @@ use crate::{
     parser::{parse_subset, Parser},
     tokenizer::{Token, Tokenizer},
     types::{
-        address::Address, custom::UserDefinedTag, date::ChangeDate, multimedia::MultimediaLink,
-        note::Note, Xref,
+        address::Address, custom::UserDefinedTag, date::change_date::ChangeDate,
+        multimedia::link::Link, note::Note, Xref,
     },
 };
 
@@ -24,7 +24,7 @@ pub struct Submitter {
     /// Physical address of the submitter
     pub address: Option<Address>,
     /// A multimedia asset linked to a fact
-    pub multimedia: Vec<MultimediaLink>,
+    pub multimedia: Vec<Link>,
     /// Language preference
     pub language: Option<String>,
     /// A registered number of a submitter of Ancestral File data. This number is used in
@@ -54,7 +54,7 @@ impl Submitter {
     }
 
     /// Adds a `Multimedia` to the tree
-    pub fn add_multimedia(&mut self, multimedia: MultimediaLink) {
+    pub fn add_multimedia(&mut self, multimedia: Link) {
         self.multimedia.push(multimedia);
     }
 }
@@ -74,7 +74,7 @@ impl Parser for Submitter {
             match tag {
                 "NAME" => self.name = Some(tokenizer.take_line_value()),
                 "ADDR" => self.address = Some(Address::new(tokenizer, level + 1)),
-                "OBJE" => self.add_multimedia(MultimediaLink::new(tokenizer, level + 1, pointer)),
+                "OBJE" => self.add_multimedia(Link::new(tokenizer, level + 1, pointer)),
                 "LANG" => self.language = Some(tokenizer.take_line_value()),
                 "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)),
                 "CHAN" => self.change_date = Some(ChangeDate::new(tokenizer, level + 1)),

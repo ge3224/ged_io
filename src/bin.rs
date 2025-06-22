@@ -1,7 +1,7 @@
 // use ged::{GedcomDocument, GedcomData};
 
-use ged_io::gedcom::Gedcom;
 use ged_io::types::GedcomData;
+use ged_io::Gedcom;
 use std::env;
 use std::fs;
 use std::path::PathBuf;

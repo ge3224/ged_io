@@ -1,7 +1,7 @@
 use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
-    types::{custom::UserDefinedTag, date::ChangeDate, note::Note, Xref},
+    types::{custom::UserDefinedTag, date::change_date::ChangeDate, note::Note, Xref},
 };
 
 #[cfg(feature = "json")]
@@ -108,7 +108,7 @@ impl Parser for Submission {
 
 #[cfg(test)]
 mod tests {
-    use crate::{gedcom::Gedcom, types::Submission};
+    use crate::{types::Submission, Gedcom};
 
     #[test]
     fn test_parse_submission_record() {

@@ -82,7 +82,7 @@ impl Parser for UserDefinedTag {
 
 #[cfg(test)]
 mod tests {
-    use crate::gedcom::Gedcom;
+    use crate::Gedcom;
 
     #[test]
     fn test_parse_user_defined_record() {

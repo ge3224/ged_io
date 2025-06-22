@@ -70,7 +70,7 @@ impl Parser for Note {
 
 #[cfg(test)]
 mod tests {
-    use crate::gedcom::Gedcom;
+    use crate::Gedcom;
 
     #[test]
     fn test_parse_note_struct() {

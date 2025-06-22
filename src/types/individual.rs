@@ -1,13 +1,21 @@
+pub mod attribute;
+pub mod family_link;
+pub mod gender;
+pub mod name;
+
 use crate::{
     parser::{parse_subset, Parser},
-    tokenizer::{Token, Tokenizer},
+    tokenizer::Tokenizer,
     types::{
         custom::UserDefinedTag,
-        date::{ChangeDate, Date},
-        event::{EventDetail, HasEvents},
+        date::change_date::ChangeDate,
+        event::{detail::Detail, util::HasEvents},
+        individual::{
+            attribute::detail::AttributeDetail, family_link::FamilyLink, gender::Gender, name::Name,
+        },
         multimedia::Multimedia,
         note::Note,
-        source::SourceCitation,
+        source::citation::Citation,
         Xref,
     },
 };
@@ -27,8 +35,8 @@ pub struct Individual {
     pub sex: Option<Gender>,
     pub families: Vec<FamilyLink>,
     pub attributes: Vec<AttributeDetail>,
-    pub source: Vec<SourceCitation>,
-    pub events: Vec<EventDetail>,
+    pub source: Vec<Citation>,
+    pub events: Vec<Detail>,
     pub multimedia: Vec<Multimedia>,
     pub last_updated: Option<String>,
     pub note: Option<Note>,
@@ -58,7 +66,7 @@ impl Individual {
         }
     }
 
-    pub fn add_source_citation(&mut self, sour: SourceCitation) {
+    pub fn add_source_citation(&mut self, sour: Citation) {
         self.source.push(sour);
     }
 
@@ -69,13 +77,17 @@ impl Individual {
     pub fn add_attribute(&mut self, attribute: AttributeDetail) {
         self.attributes.push(attribute);
     }
+
+    pub fn families(&self) -> &[FamilyLink] {
+        &self.families
+    }
 }
 
 impl HasEvents for Individual {
-    fn add_event(&mut self, event: EventDetail) -> () {
+    fn add_event(&mut self, event: Detail) -> () {
         self.events.push(event);
     }
-    fn events(&self) -> Vec<EventDetail> {
+    fn events(&self) -> Vec<Detail> {
         self.events.clone()
     }
 }
@@ -93,7 +105,7 @@ impl Parser for Individual {
             "ADOP" | "BIRT" | "BAPM" | "BARM" | "BASM" | "BLES" | "BURI" | "CENS" | "CHR"
             | "CHRA" | "CONF" | "CREM" | "DEAT" | "EMIG" | "FCOM" | "GRAD" | "IMMI" | "NATU"
             | "ORDN" | "RETI" | "RESI" | "PROB" | "WILL" | "EVEN" | "MARR" => {
-                self.add_event(EventDetail::new(tokenizer, level + 1, tag));
+                self.add_event(Detail::new(tokenizer, level + 1, tag));
             }
             "CAST" | "DSCR" | "EDUC" | "IDNO" | "NATI" | "NCHI" | "NMR" | "OCCU" | "PROP"
             | "RELI" | "SSN" | "TITL" | "FACT" => {
@@ -105,7 +117,7 @@ impl Parser for Individual {
             }
             "CHAN" => self.change_date = Some(ChangeDate::new(tokenizer, level + 1)),
             "SOUR" => {
-                self.add_source_citation(SourceCitation::new(tokenizer, level + 1));
+                self.add_source_citation(Citation::new(tokenizer, level + 1));
             }
             "OBJE" => self.add_multimedia(Multimedia::new(tokenizer, level + 1, None)),
             "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)),
@@ -116,440 +128,9 @@ impl Parser for Individual {
     }
 }
 
-/// GenderType is a set of enumerated values that indicate the sex of an individual at birth. See
-/// 5.5 specification, p. 61; <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#SEX>.
-#[derive(Debug)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
-pub enum GenderType {
-    /// Tag 'M'
-    Male,
-    /// TAG 'F'
-    Female,
-    /// Tag 'X'; "Does not fit the typical definition of only Male or only Female"
-    Nonbinary,
-    /// Tag 'U'; "Cannot be determined from available sources"
-    Unknown,
-}
-
-impl ToString for GenderType {
-    fn to_string(&self) -> String {
-        format!("{:?}", self)
-    }
-}
-
-/// Gender (tag: SEX); This can describe an individual’s reproductive or sexual anatomy at birth.
-/// Related concepts of gender identity or sexual preference are not currently given their own tag.
-/// Cultural or personal gender preference may be indicated using the FACT tag. See
-/// <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#SEX>.
-#[derive(Debug)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
-pub struct Gender {
-    pub value: GenderType,
-    pub fact: Option<String>,
-    pub sources: Vec<SourceCitation>,
-    pub custom_data: Vec<Box<UserDefinedTag>>,
-}
-
-impl Gender {
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Gender {
-        let mut sex = Gender {
-            value: GenderType::Unknown,
-            fact: None,
-            sources: Vec::new(),
-            custom_data: Vec::new(),
-        };
-        sex.parse(tokenizer, level);
-        sex
-    }
-
-    pub fn add_source_citation(&mut self, sour: SourceCitation) {
-        self.sources.push(sour);
-    }
-}
-
-impl Parser for Gender {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) {
-        tokenizer.next_token();
-
-        if let Token::LineValue(gender_string) = &tokenizer.current_token {
-            self.value = match gender_string.as_str() {
-                "M" => GenderType::Male,
-                "F" => GenderType::Female,
-                "X" => GenderType::Nonbinary,
-                "U" => GenderType::Unknown,
-                _ => panic!(
-                    "{} Unknown gender value {} ({})",
-                    tokenizer.debug(),
-                    gender_string,
-                    level
-                ),
-            };
-            tokenizer.next_token();
-        }
-
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| match tag {
-            "FACT" => self.fact = Some(tokenizer.take_continued_text(level + 1)),
-            "SOUR" => self.add_source_citation(SourceCitation::new(tokenizer, level + 1)),
-            _ => panic!("{}, Unhandled Gender tag: {}", tokenizer.debug(), tag),
-        };
-        self.custom_data = parse_subset(tokenizer, level, handle_subset);
-    }
-}
-
-/// FamilyLinkType is a code used to indicates whether a family link is a pointer to a family
-/// where this person is a child (FAMC tag), or it is pointer to a family where this person is a
-/// spouse or parent (FAMS tag). See GEDCOM 5.5 spec, page 26.
-#[derive(Clone, Debug)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize, PartialEq))]
-pub enum FamilyLinkType {
-    Spouse,
-    Child,
-}
-
-impl ToString for FamilyLinkType {
-    fn to_string(&self) -> String {
-        format!("{:?}", self)
-    }
-}
-
-/// Pedigree is a code used to indicate the child to family relationship for pedigree navigation
-/// purposes. See GEDCOM 5.5 spec, page 57.
-#[derive(Clone, Debug)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize, PartialEq))]
-pub enum Pedigree {
-    /// Adopted indicates adoptive parents.
-    Adopted,
-    /// Birth indicates birth parents.
-    Birth,
-    /// Foster indicates child was included in a foster or guardian family.
-    Foster,
-    /// Sealing indicates child was sealed to parents other than birth parents.
-    Sealing,
-}
-
-impl ToString for Pedigree {
-    fn to_string(&self) -> String {
-        format!("{:?}", self)
-    }
-}
-
-/// ChildLinkStatus is a A status code that allows passing on the users opinion of the status of a
-/// child to family link. See GEDCOM 5.5 spec, page 44.
-#[derive(Clone, Debug)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize, PartialEq))]
-pub enum ChildLinkStatus {
-    /// Challenged indicates linking this child to this family is suspect, but the linkage has been
-    /// neither proven nor disproven.
-    Challenged,
-    /// Disproven indicates there has been a claim by some that this child belongs to this family,
-    /// but the linkage has been disproven.
-    Disproven,
-    /// Proven indicates there has been a claim by some that this child does not belong to this
-    /// family, but the linkage has been proven.
-    Proven,
-}
-
-impl ToString for ChildLinkStatus {
-    fn to_string(&self) -> String {
-        format!("{:?}", self)
-    }
-}
-
-/// AdoptedByWhichParent is a code which shows which parent in the associated family record adopted
-/// this person. See GEDCOM 5.5 spec, page 42.
-#[derive(Clone, Debug)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize, PartialEq))]
-pub enum AdoptedByWhichParent {
-    /// The HUSBand in the associated family adopted this person.
-    Husband,
-    /// The WIFE in the associated family adopted this person.
-    Wife,
-    /// Both HUSBand and WIFE adopted this person.
-    Both,
-}
-
-impl ToString for AdoptedByWhichParent {
-    fn to_string(&self) -> String {
-        format!("{:?}", self)
-    }
-}
-
-/// FamilyLink indicates the normal lineage links through the use of pointers from the individual
-/// to a family through either the FAMC tag or the FAMS tag. The FAMC tag provides a pointer to a
-/// family where this person is a child. The FAMS tag provides a pointer to a family where this
-/// person is a spouse or parent. See GEDCOM 5.5 spec, page 26.
-#[derive(Clone, Debug)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize, PartialEq))]
-pub struct FamilyLink {
-    pub xref: Xref,
-    pub family_link_type: FamilyLinkType,
-    pub pedigree_linkage_type: Option<Pedigree>,
-    pub child_linkage_status: Option<ChildLinkStatus>,
-    pub adopted_by: Option<AdoptedByWhichParent>,
-    pub note: Option<Note>,
-    pub custom_data: Vec<Box<UserDefinedTag>>,
-}
-
-impl FamilyLink {
-    #[must_use]
-    pub fn new(tokenizer: &mut Tokenizer, level: u8, tag: &str) -> FamilyLink {
-        let xref = tokenizer.take_line_value();
-        let link_type = match tag {
-            "FAMC" => FamilyLinkType::Child,
-            "FAMS" => FamilyLinkType::Spouse,
-            _ => panic!("Unrecognized family type tag: {}", tag),
-        };
-        let mut family_link = FamilyLink {
-            xref,
-            family_link_type: link_type,
-            pedigree_linkage_type: None,
-            child_linkage_status: None,
-            adopted_by: None,
-            note: None,
-            custom_data: Vec::new(),
-        };
-        family_link.parse(tokenizer, level);
-        family_link
-    }
-
-    pub fn set_pedigree(&mut self, pedigree_text: &str) {
-        self.pedigree_linkage_type = match pedigree_text.to_lowercase().as_str() {
-            "adopted" => Some(Pedigree::Adopted),
-            "birth" => Some(Pedigree::Birth),
-            "foster" => Some(Pedigree::Foster),
-            "sealing" => Some(Pedigree::Sealing),
-            _ => panic!("Unrecognized FamilyLink.pedigree code: {}", pedigree_text),
-        };
-    }
-
-    pub fn set_child_linkage_status(&mut self, status_text: &str) {
-        self.child_linkage_status = match status_text.to_lowercase().as_str() {
-            "challenged" => Some(ChildLinkStatus::Challenged),
-            "disproven" => Some(ChildLinkStatus::Disproven),
-            "proven" => Some(ChildLinkStatus::Proven),
-            _ => panic!(
-                "Unrecognized FamilyLink.child_linkage_status code: {}",
-                status_text
-            ),
-        }
-    }
-
-    pub fn set_adopted_by_which_parent(&mut self, adopted_by_text: &str) {
-        self.adopted_by = match adopted_by_text.to_lowercase().as_str() {
-            "husb" => Some(AdoptedByWhichParent::Husband),
-            "wife" => Some(AdoptedByWhichParent::Wife),
-            "both" => Some(AdoptedByWhichParent::Both),
-            _ => panic!(
-                "Unrecognized FamilyLink.adopted_by code: {}",
-                adopted_by_text
-            ),
-        }
-    }
-}
-
-impl Parser for FamilyLink {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) {
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| match tag {
-            "PEDI" => self.set_pedigree(tokenizer.take_line_value().as_str()),
-            "STAT" => self.set_child_linkage_status(&tokenizer.take_line_value().as_str()),
-            "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)),
-            "ADOP" => self.set_adopted_by_which_parent(&tokenizer.take_line_value().as_str()),
-            _ => panic!("{} Unhandled FamilyLink Tag: {}", tokenizer.debug(), tag),
-        };
-        self.custom_data = parse_subset(tokenizer, level, handle_subset);
-    }
-}
-
-/// Name (tag: NAME) refers to the names of individuals, which are represented in the manner the
-/// name is normally spoken, with the family name, surname, or nearest cultural parallel thereunto
-/// separated by slashes (U+002F /). Based on the dynamic nature or unknown compositions of naming
-/// conventions, it is difficult to provide a more detailed name piece structure to handle every
-/// case. The PERSONAL_NAME_PIECES are provided optionally for systems that cannot operate
-/// effectively with less structured information. The Personal Name payload shall be seen as the
-/// primary name representation, with name pieces as optional auxiliary information; in particular
-/// it is recommended that all name parts in PERSONAL_NAME_PIECES appear within the PersonalName
-/// payload in some form, possibly adjusted for gender-specific suffixes or the like. It is
-/// permitted for the payload to contain information not present in any name piece substructure.
-/// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#PERSONAL_NAME_STRUCTURE>.
-#[derive(Debug)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize, PartialEq))]
-pub struct Name {
-    pub value: Option<String>,
-    pub given: Option<String>,
-    pub surname: Option<String>,
-    pub prefix: Option<String>,
-    pub surname_prefix: Option<String>,
-    pub note: Option<Note>,
-    pub suffix: Option<String>,
-    pub source: Vec<SourceCitation>,
-}
-
-impl Name {
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Name {
-        let mut name = Name {
-            value: None,
-            given: None,
-            surname: None,
-            prefix: None,
-            surname_prefix: None,
-            note: None,
-            suffix: None,
-            source: Vec::new(),
-        };
-        name.parse(tokenizer, level);
-        name
-    }
-
-    pub fn add_source_citation(&mut self, sour: SourceCitation) {
-        self.source.push(sour);
-    }
-}
-
-impl Parser for Name {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) {
-        self.value = Some(tokenizer.take_line_value());
-
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| match tag {
-            "GIVN" => self.given = Some(tokenizer.take_line_value()),
-            "NPFX" => self.prefix = Some(tokenizer.take_line_value()),
-            "NSFX" => self.suffix = Some(tokenizer.take_line_value()),
-            "SPFX" => self.surname_prefix = Some(tokenizer.take_line_value()),
-            "SURN" => self.surname = Some(tokenizer.take_line_value()),
-            "SOUR" => self.add_source_citation(SourceCitation::new(tokenizer, level + 1)),
-            "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)),
-            _ => panic!("{} Unhandled Name Tag: {}", tokenizer.debug(), tag),
-        };
-        parse_subset(tokenizer, level, handle_subset);
-    }
-}
-
-/// IndividualAttribute indicates other attributes or facts are used to describe an individual's
-/// actions, physical description, employment, education, places of residence, etc. These are not
-/// generally thought of as events. However, they are often described like events because they were
-/// observed at a particular time and/or place. See GEDCOM 5.5 spec, page
-/// 33.
-#[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
-pub enum IndividualAttribute {
-    CastName,
-    PhysicalDescription,
-    ScholasticAchievement,
-    NationalIDNumber,
-    NationalOrTribalOrigin,
-    CountOfChildren,
-    CountOfMarriages,
-    Occupation,
-    Possessions,
-    ReligiousAffiliation,
-    ResidesAt,
-    SocialSecurityNumber,
-    NobilityTypeTitle,
-    Fact,
-}
-
-impl ToString for IndividualAttribute {
-    fn to_string(&self) -> String {
-        format!("{:?}", self)
-    }
-}
-
-/// AttributeDetail indicates other attributes or facts are used to describe an individual's
-/// actions, physical description, employment, education, places of residence, etc. GEDCOM 5.x
-/// allows them to be recorded in the same way as events. The attribute definition allows a value
-/// on the same line as the attribute tag. In addition, it allows a subordinate date period, place
-/// and/or address, etc. to be transmitted, just as the events are. Previous versions, which
-/// handled just a tag and value, can be read as usual by handling the subordinate attribute detail
-/// as an exception. . See GEDCOM 5.5 spec, page 69.
-#[derive(Clone, Debug)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
-pub struct AttributeDetail {
-    pub attribute: IndividualAttribute,
-    pub value: Option<String>,
-    pub place: Option<String>,
-    pub date: Option<Date>,
-    pub sources: Vec<SourceCitation>,
-    pub note: Option<Note>,
-    /// attribute_type handles the TYPE tag, a descriptive word or phrase used to further classify the
-    /// parent event or attribute tag. This should be used to define what kind of identification
-    /// number or fact classification is being defined.
-    pub attribute_type: Option<String>,
-}
-
-impl AttributeDetail {
-    #[must_use]
-    pub fn new(tokenizer: &mut Tokenizer, level: u8, tag: &str) -> AttributeDetail {
-        let mut attribute = AttributeDetail {
-            attribute: Self::from_tag(tag),
-            place: None,
-            value: None,
-            date: None,
-            sources: Vec::new(),
-            note: None,
-            attribute_type: None,
-        };
-        attribute.parse(tokenizer, level);
-        attribute
-    }
-
-    pub fn from_tag(tag: &str) -> IndividualAttribute {
-        match tag {
-            "CAST" => IndividualAttribute::CastName,
-            "DSCR" => IndividualAttribute::PhysicalDescription,
-            "EDUC" => IndividualAttribute::ScholasticAchievement,
-            "IDNO" => IndividualAttribute::NationalIDNumber,
-            "NATI" => IndividualAttribute::NationalOrTribalOrigin,
-            "NCHI" => IndividualAttribute::CountOfChildren,
-            "NMR" => IndividualAttribute::CountOfMarriages,
-            "OCCU" => IndividualAttribute::Occupation,
-            "PROP" => IndividualAttribute::Possessions,
-            "RELI" => IndividualAttribute::ReligiousAffiliation,
-            "RESI" => IndividualAttribute::ResidesAt,
-            "SSN" => IndividualAttribute::SocialSecurityNumber,
-            "TITL" => IndividualAttribute::NobilityTypeTitle,
-            "FACT" => IndividualAttribute::Fact,
-            _ => panic!("Unrecognized IndividualAttribute tag: {}", tag),
-        }
-    }
-
-    pub fn add_source_citation(&mut self, sour: SourceCitation) {
-        self.sources.push(sour);
-    }
-}
-
-impl Parser for AttributeDetail {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) {
-        tokenizer.next_token();
-
-        let mut value = String::new();
-
-        if let Token::LineValue(val) = &tokenizer.current_token {
-            value.push_str(&val);
-            tokenizer.next_token();
-        }
-
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| match tag {
-            "DATE" => self.date = Some(Date::new(tokenizer, level + 1)),
-            "SOUR" => self.add_source_citation(SourceCitation::new(tokenizer, level + 1)),
-            "PLAC" => self.place = Some(tokenizer.take_line_value()),
-            "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)),
-            "TYPE" => self.attribute_type = Some(tokenizer.take_continued_text(level + 1)),
-            _ => panic!(
-                "{}, Unhandled AttributeDetail tag: {}",
-                tokenizer.debug(),
-                tag
-            ),
-        };
-        parse_subset(tokenizer, level, handle_subset);
-
-        if &value != "" {
-            self.value = Some(value);
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use crate::gedcom::Gedcom;
+    use crate::Gedcom;
 
     #[test]
     fn test_parse_individual_record() {

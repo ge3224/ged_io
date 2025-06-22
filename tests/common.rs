@@ -11,7 +11,7 @@ pub mod util {
 #[cfg(test)]
 mod tests {
     use super::util::read_relative;
-    use ged_io::gedcom::Gedcom;
+    use ged_io::Gedcom;
 
     #[test]
     fn parses_basic_gedcom() {

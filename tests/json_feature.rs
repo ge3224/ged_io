@@ -4,7 +4,7 @@ mod common;
 #[cfg(feature = "json")]
 mod json_feature_tests {
     use crate::common::util::read_relative;
-    use ged_io::{gedcom::Gedcom, types::individual::Name};
+    use ged_io::{types::individual::name::Name, Gedcom};
     use serde_json;
     use serde_test::{assert_tokens, Token};
 
