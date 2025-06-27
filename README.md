@@ -43,7 +43,7 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-1ed_io = "0.1.4"  # Replace with actual version
+ged_io = "0.1.4"
 ```
 
 For JSON serialization support:
@@ -62,13 +62,20 @@ use ged_io::Gedcom;
 use std::fs;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let source = fs::read_to_string("./tests/fixtures/sample.ged").unwrap();
+    let source = fs::read_to_string("./tests/fixtures/sample.ged")?;
     let mut gedcom = Gedcom::new(source.chars());
-    let gedcom_data = gedcom.parse();
-    
-    println!("Parsed {} individuals", gedcom_data.individuals.len());
-    println!("Parsed {} families", gedcom_data.families.len());
-    
+    let data = gedcom.parse();
+
+    println!("Individuals found:");
+    for individual in data.individuals {
+        if let Some(name) = individual.name {
+            // The name value is a string like "Given Name /Surname/"
+            // We'll clean it up for display.
+            let cleaned_name = name.value.unwrap_or_default().replace('/', " ").trim().to_string();
+            println!("- {}", cleaned_name);
+        }
+    }
+
     Ok(())
 }
 ```
@@ -96,7 +103,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ## Command Line Tool
 
 The included `ged_io` binary provides a convenient way to test and analyze
-GEDCOM files:
+GEDCOM files. It is primarily intended for development and testing purposes,
+while the main product is the library crate itself.
 
 ```bash
 # Install the CLI tool
