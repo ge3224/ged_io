@@ -83,7 +83,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### With JSON Export
 
 ```rust
-use ged_io::GedcomData;
+use ged_io::Gedcom;
 use std::fs;
 
 #[cfg(feature = "json")]
