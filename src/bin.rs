@@ -6,7 +6,7 @@ use std::env;
 use std::fs;
 use std::path::PathBuf;
 
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args: Vec<String> = env::args().collect();
     match args.len() {
         1 => usage("Missing filename."),
@@ -23,15 +23,16 @@ fn main() {
     let data: GedcomData;
 
     if let Ok(contents) = read_relative(filename) {
-        let mut doc = Gedcom::new(contents.chars());
-        data = doc.parse();
+        let mut doc = Gedcom::new(contents.chars())?;
+        data = doc.parse_data()?;
 
         println!("Parsing complete!");
-        // println!("\n\n{:#?}", data);
+        // println!("\n\n{:#?}\n", data);
         data.stats();
     } else {
         exit_with_error(&format!("File '{}' not found.", filename));
     }
+    Ok(())
 }
 
 fn read_relative(path: &str) -> Result<String, std::io::Error> {

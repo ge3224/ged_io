@@ -73,8 +73,8 @@ mod tests {
             2 DATE from 1900 to 1905\n\
             0 TRLR";
 
-        let mut doc = Gedcom::new(sample.chars());
-        let data = doc.parse();
+        let mut doc = Gedcom::new(sample.chars()).unwrap();
+        let data = doc.parse_data().unwrap();
 
         let head_date = data.header.unwrap().date.unwrap();
         assert_eq!(head_date.value.unwrap(), "2 Oct 2019");
@@ -101,8 +101,8 @@ mod tests {
             2 NOTE A note\n\
             0 TRLR";
 
-        let mut doc = Gedcom::new(sample.chars());
-        let data = doc.parse();
+        let mut doc = Gedcom::new(sample.chars()).unwrap();
+        let data = doc.parse_data().unwrap();
         assert_eq!(data.multimedia.len(), 1);
 
         let obje = &data.multimedia[0];

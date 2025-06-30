@@ -12,8 +12,8 @@ use ged_io::Gedcom;
 
 // Parse a GEDCOM file
 let source = std::fs::read_to_string("./tests/fixtures/sample.ged").unwrap();
-let mut gedcom = Gedcom::new(source.chars());
-let gedcom_data = gedcom.parse();
+let mut gedcom = Gedcom::new(source.chars()).unwrap();
+let gedcom_data = gedcom.parse_data().unwrap();
 
 // Display file statistics
 gedcom_data.stats();
@@ -31,8 +31,8 @@ use ged_io::Gedcom;
 
 // Parse a GEDCOM file
 let source = std::fs::read_to_string("./tests/fixtures/sample.ged").unwrap();
-let mut gedcom = Gedcom::new(source.chars());
-let gedcom_data = gedcom.parse();
+let mut gedcom = Gedcom::new(source.chars()).unwrap();
+let gedcom_data = gedcom.parse_data().unwrap();
 
 // Serialize to JSON
 let json_output = serde_json::to_string_pretty(&gedcom_data).unwrap();
@@ -51,9 +51,12 @@ std::fs::write("./target/tmp/family.json", json_output).unwrap();
 
 #[macro_use]
 mod util;
+/// Error types for the ged_io crate.
+pub mod error;
 pub mod parser;
 pub mod tokenizer;
 pub mod types;
+pub use error::GedcomError;
 
 use crate::{tokenizer::Tokenizer, types::GedcomData};
 use std::str::Chars;
@@ -66,16 +69,16 @@ pub struct Gedcom<'a> {
 impl<'a> Gedcom<'a> {
     /// Creates a new `Gedcom` parser from a character iterator.
     #[must_use]
-    pub fn new(chars: Chars<'a>) -> Gedcom<'a> {
+    pub fn new(chars: Chars<'a>) -> Result<Gedcom<'a>, GedcomError> {
         let mut tokenizer = Tokenizer::new(chars);
         tokenizer.next_token();
-        Gedcom { tokenizer }
+        Ok(Gedcom { tokenizer })
     }
 
     /// Processes the character data to produce a [`GedcomData`] object containing the parsed
     /// genealogical information.
-    pub fn parse(&mut self) -> GedcomData {
-        GedcomData::new(&mut self.tokenizer, 0)
+    pub fn parse_data(&mut self) -> Result<GedcomData, GedcomError> {
+        Ok(GedcomData::new(&mut self.tokenizer, 0))
     }
 }
 
@@ -91,8 +94,8 @@ mod tests {
            2 VERS 5.5\n\
            0 TRLR";
 
-        let mut doc = Gedcom::new(sample.chars());
-        let data = doc.parse();
+        let mut doc = Gedcom::new(sample.chars()).unwrap();
+        let data = doc.parse_data().unwrap();
 
         let head = data.header.unwrap();
         let gedc = head.gedcom.unwrap();
@@ -114,8 +117,8 @@ mod tests {
             0 _MYOWNTAG This is a non-standard tag. Not recommended but allowed\n\
             0 TRLR";
 
-        let mut doc = Gedcom::new(sample.chars());
-        let data = doc.parse();
+        let mut doc = Gedcom::new(sample.chars()).unwrap();
+        let data = doc.parse_data().unwrap();
 
         assert_eq!(data.submitters.len(), 1);
         assert_eq!(data.submitters[0].xref.as_ref().unwrap(), "@SUBMITTER@");

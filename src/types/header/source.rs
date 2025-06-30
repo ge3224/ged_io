@@ -67,8 +67,8 @@ mod tests {
             2 NAME Name of source-program\n\
             0 TRLR";
 
-        let mut doc = Gedcom::new(sample.chars());
-        let data = doc.parse();
+        let mut doc = Gedcom::new(sample.chars()).unwrap();
+        let data = doc.parse_data().unwrap();
 
         let sour = data.header.unwrap().source.unwrap();
         assert_eq!(sour.value.unwrap(), "SOURCE_NAME");

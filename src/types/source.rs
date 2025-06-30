@@ -112,8 +112,8 @@ mod tests {
             2 PAGE 42\n\
             0 TRLR";
 
-        let mut ged = Gedcom::new(sample.chars());
-        let data = ged.parse();
+        let mut ged = Gedcom::new(sample.chars()).unwrap();
+        let data = ged.parse_data().unwrap();
 
         assert_eq!(data.individuals[0].source[0].xref, "@SOURCE1@");
         assert_eq!(data.individuals[0].source[0].page.as_ref().unwrap(), "42");
@@ -132,8 +132,8 @@ mod tests {
             3 DATE BEF 1 JAN 1900\n\
             0 TRLR";
 
-        let mut ged = Gedcom::new(sample.chars());
-        let data = ged.parse();
+        let mut ged = Gedcom::new(sample.chars()).unwrap();
+        let data = ged.parse_data().unwrap();
         let citation_data = data.individuals[0].source[0].data.as_ref().unwrap();
 
         assert_eq!(
@@ -159,8 +159,8 @@ mod tests {
             4 CONC ST should not be broken!\n\
             0 TRLR";
 
-        let mut ged = Gedcom::new(sample.chars());
-        let data = ged.parse();
+        let mut ged = Gedcom::new(sample.chars()).unwrap();
+        let data = ged.parse_data().unwrap();
         let citation_data = data.individuals[0].source[0].data.as_ref().unwrap();
 
         assert_eq!(
@@ -182,8 +182,8 @@ mod tests {
             2 QUAY 1\n\
             0 TRLR";
 
-        let mut ged = Gedcom::new(sample.chars());
-        let data = ged.parse();
+        let mut ged = Gedcom::new(sample.chars()).unwrap();
+        let data = ged.parse_data().unwrap();
         let quay = data.individuals[0].source[0]
             .certainty_assessment
             .as_ref()

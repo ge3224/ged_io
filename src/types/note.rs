@@ -98,8 +98,8 @@ mod tests {
             2 CONC ST should not be broken!\n\
             0 TRLR";
 
-        let mut doc = Gedcom::new(sample.chars());
-        let data = doc.parse();
+        let mut doc = Gedcom::new(sample.chars()).unwrap();
+        let data = doc.parse_data().unwrap();
 
         let note = data.header.unwrap().note.unwrap();
         assert_eq!(note.value.unwrap().chars().count(), 1441);

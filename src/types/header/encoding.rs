@@ -51,8 +51,8 @@ mod tests {
             2 VERS Version number of ASCII (whatever it means)\n\
             0 TRLR";
 
-        let mut doc = Gedcom::new(sample.chars());
-        let data = doc.parse();
+        let mut doc = Gedcom::new(sample.chars()).unwrap();
+        let data = doc.parse_data().unwrap();
 
         let h_char = data.header.unwrap().encoding.unwrap();
         assert_eq!(h_char.value.unwrap(), "ASCII");

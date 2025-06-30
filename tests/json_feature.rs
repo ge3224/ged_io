@@ -56,8 +56,8 @@ mod json_feature_tests {
     #[test]
     fn serde_entire_gedcom_tree() {
         let gedcom_content: String = read_relative("./tests/fixtures/simple.ged");
-        let mut parser = Gedcom::new(gedcom_content.chars());
-        let data = parser.parse();
+        let mut parser = Gedcom::new(gedcom_content.chars()).unwrap();
+        let data = parser.parse_data().unwrap();
 
         assert_eq!(
             serde_json::to_string_pretty(&data.header).unwrap(),
