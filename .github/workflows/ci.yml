@@ -127,20 +127,20 @@ jobs:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            artifact_name: your-cli-tool
-            asset_name: your-cli-tool-linux-x86_64
+            artifact_name: ged_io
+            asset_name: ged_io-linux-x86_64
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            artifact_name: your-cli-tool.exe
-            asset_name: your-cli-tool-windows-x86_64.exe
+            artifact_name: ged_io.exe
+            asset_name: ged_io-windows-x86_64.exe
           - os: macos-latest
             target: x86_64-apple-darwin
-            artifact_name: your-cli-tool
-            asset_name: your-cli-tool-macos-x86_64
+            artifact_name: ged_io
+            asset_name: ged_io-macos-x86_64
           - os: macos-latest
             target: aarch64-apple-darwin
-            artifact_name: your-cli-tool
-            asset_name: your-cli-tool-macos-aarch64
+            artifact_name: ged_io
+            asset_name: ged_io-macos-aarch64
     
     steps:
     - uses: actions/checkout@v4
