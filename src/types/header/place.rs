@@ -83,8 +83,8 @@ mod tests {
             2 FORM City, County, State, Country\n\
             0 TRLR";
 
-        let mut doc = Gedcom::new(sample.chars());
-        let data = doc.parse();
+        let mut doc = Gedcom::new(sample.chars()).unwrap();
+        let data = doc.parse_data().unwrap();
 
         let h_plac = data.header.unwrap().place.unwrap();
         assert_eq!(h_plac.form[0], "City");

@@ -84,8 +84,8 @@ mod tests {
            3 CONC ST should not be broken!\n\
            0 TRLR";
 
-        let mut doc = Gedcom::new(sample.chars());
-        let data = doc.parse();
+        let mut doc = Gedcom::new(sample.chars()).unwrap();
+        let data = doc.parse_data().unwrap();
 
         let event = data.individuals[0].events[0].event.to_string();
         assert_eq!(event, "Census");
@@ -121,8 +121,8 @@ mod tests {
            3 AGE 42y 6m
            0 TRLR";
 
-        let mut doc = Gedcom::new(sample.chars());
-        let data = doc.parse();
+        let mut doc = Gedcom::new(sample.chars()).unwrap();
+        let data = doc.parse_data().unwrap();
 
         let anul = &data.families[0].events;
         assert_eq!(anul.len(), 1);

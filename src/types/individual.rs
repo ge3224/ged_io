@@ -151,8 +151,8 @@ mod tests {
            1 SEX M\n\
            0 TRLR";
 
-        let mut doc = Gedcom::new(sample.chars());
-        let data = doc.parse();
+        let mut doc = Gedcom::new(sample.chars()).unwrap();
+        let data = doc.parse_data().unwrap();
 
         let indi = &data.individuals[0];
         assert_eq!(indi.xref.as_ref().unwrap(), "@PERSON1@");
@@ -179,8 +179,8 @@ mod tests {
             3 _MYOWNTAG This is a non-standard tag. Not recommended but allowed
             0 TRLR";
 
-        let mut doc = Gedcom::new(sample.chars());
-        let data = doc.parse();
+        let mut doc = Gedcom::new(sample.chars()).unwrap();
+        let data = doc.parse_data().unwrap();
 
         let sex = data.individuals[0].sex.as_ref().unwrap();
         assert_eq!(sex.value.to_string(), "Male");
@@ -209,8 +209,8 @@ mod tests {
            3 STAT proven
            0 TRLR";
 
-        let mut doc = Gedcom::new(sample.chars());
-        let data = doc.parse();
+        let mut doc = Gedcom::new(sample.chars()).unwrap();
+        let data = doc.parse_data().unwrap();
 
         let famc = data.individuals[0].events[0].family_link.as_ref().unwrap();
         assert_eq!(famc.xref, "@ADOPTIVE_PARENTS@");
@@ -236,8 +236,8 @@ mod tests {
            1 NAME John Doe\n\
            0 TRLR";
 
-        let mut doc = Gedcom::new(sample.chars());
-        let data = doc.parse();
+        let mut doc = Gedcom::new(sample.chars()).unwrap();
+        let data = doc.parse_data().unwrap();
 
         let indi = &data.individuals[0];
         assert_eq!(indi.xref.as_ref().unwrap(), "@PERSON1@");
@@ -273,8 +273,8 @@ mod tests {
            3 CONC ST should not be broken!\n\
            0 TRLR";
 
-        let mut doc = Gedcom::new(sample.chars());
-        let data = doc.parse();
+        let mut doc = Gedcom::new(sample.chars()).unwrap();
+        let data = doc.parse_data().unwrap();
 
         assert_eq!(data.individuals.len(), 1);
 

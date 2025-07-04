@@ -138,8 +138,8 @@ mod tests {
            1 _ANOTHER_TAG Another piece of custom data\n\
            0 TRLR";
 
-        let mut doc = Gedcom::new(sample.chars());
-        let gedcom_data = doc.parse();
+        let mut doc = Gedcom::new(sample.chars()).unwrap();
+        let gedcom_data = doc.parse_data().unwrap();
 
         let mut submissions = gedcom_data.submissions;
         assert!(!submissions.is_empty());

@@ -105,8 +105,8 @@ mod tests {
             1 LANG language\n\
             0 TRLR";
 
-        let mut doc = Gedcom::new(sample.chars());
-        let data = doc.parse();
+        let mut doc = Gedcom::new(sample.chars()).unwrap();
+        let data = doc.parse_data().unwrap();
         let header = data.header.unwrap();
 
         let dest = header.destination.unwrap();

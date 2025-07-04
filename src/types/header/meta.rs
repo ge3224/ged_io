@@ -63,8 +63,8 @@ mod tests {
             2 FORM LINEAGE-LINKED\n\
             0 TRLR";
 
-        let mut ged = Gedcom::new(sample.chars());
-        let data = ged.parse();
+        let mut ged = Gedcom::new(sample.chars()).unwrap();
+        let data = ged.parse_data().unwrap();
 
         let head_gedc = data.header.unwrap().gedcom.unwrap();
         assert_eq!(head_gedc.version.unwrap(), "5.5");

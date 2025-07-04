@@ -14,6 +14,7 @@ use crate::{
         Xref,
     },
 };
+
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 
@@ -102,8 +103,8 @@ mod tests {
             1 RIN Automated Id\n\
             0 TRLR";
 
-        let mut doc = Gedcom::new(sample.chars());
-        let data = doc.parse();
+        let mut doc = Gedcom::new(sample.chars()).unwrap();
+        let data = doc.parse_data().unwrap();
 
         assert_eq!(data.multimedia.len(), 1);
         let obje = &data.multimedia[0];
@@ -136,8 +137,8 @@ mod tests {
             1 TITL In Prague\n\
             0 TRLR";
 
-        let mut record = Gedcom::new(sample.chars());
-        let data = record.parse();
+        let mut record = Gedcom::new(sample.chars()).unwrap();
+        let data = record.parse_data().unwrap();
         assert_eq!(data.multimedia.len(), 1);
 
         let obje = &data.multimedia[0];
@@ -163,8 +164,8 @@ mod tests {
              2 TITL A Bitmap\n\
              0 TRLR";
 
-        let mut doc = Gedcom::new(sample.chars());
-        let data = doc.parse();
+        let mut doc = Gedcom::new(sample.chars()).unwrap();
+        let data = doc.parse_data().unwrap();
         assert_eq!(data.multimedia.len(), 1);
 
         let file = data.multimedia[0].file.as_ref().unwrap();
@@ -192,8 +193,8 @@ mod tests {
             3 TYPE photo
             0 TRLR";
 
-        let mut doc = Gedcom::new(sample.chars());
-        let data = doc.parse();
+        let mut doc = Gedcom::new(sample.chars()).unwrap();
+        let data = doc.parse_data().unwrap();
         assert_eq!(data.multimedia.len(), 1);
 
         let file = data.multimedia[0].file.as_ref().unwrap();
@@ -216,8 +217,8 @@ mod tests {
             2 TYPE User Reference Type\n\
             0 TRLR";
 
-        let mut doc = Gedcom::new(sample.chars());
-        let data = doc.parse();
+        let mut doc = Gedcom::new(sample.chars()).unwrap();
+        let data = doc.parse_data().unwrap();
         assert_eq!(data.multimedia.len(), 1);
 
         let user_ref = data.multimedia[0].user_reference_number.as_ref().unwrap();
