@@ -43,7 +43,7 @@ impl Parser for Address {
 
         // handle value on ADDR line
         if let Token::LineValue(addr) = &tokenizer.current_token {
-            value.push_str(&addr);
+            value.push_str(addr);
             tokenizer.next_token();
         }
 
@@ -63,7 +63,7 @@ impl Parser for Address {
         };
         self.custom_data = parse_subset(tokenizer, level, handle_subset);
 
-        if &value != "" {
+        if !value.is_empty() {
             self.value = Some(value);
         }
     }
@@ -82,6 +82,6 @@ impl fmt::Debug for Address {
         fmt_optional_value!(debug, "post", &self.post);
         fmt_optional_value!(debug, "country", &self.country);
 
-        debug.finish()
+        debug.finish_non_exhaustive()
     }
 }

@@ -9,7 +9,7 @@ use crate::{
     types::{corporation::Corporation, header::source::data::HeadSourData},
 };
 
-/// HeadSource (tag: SOUR) is an identifier for the product producing the GEDCOM data. A
+/// `HeadSource` (tag: SOUR) is an identifier for the product producing the GEDCOM data. A
 /// registration process for these identifiers existed for a time, but no longer does. If an
 /// existing identifier is known, it should be used. Otherwise, a URI owned by the product should
 /// be used instead. See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#HEAD-SOUR>.

@@ -1,7 +1,7 @@
 /*!
 `ged_io` is a Rust crate for parsing GEDCOM formatted text.
 
-The library works with GEDCOM (GEnealogical Data Communication), a text-based format widely
+The library works with GEDCOM (Genealogical Data Communication), a text-based format widely
 supported by genealogy software for storing and exchanging family history data. `ged_io` transforms
 this text format into workable Rust data structures.
 
@@ -51,7 +51,7 @@ std::fs::write("./target/tmp/family.json", json_output).unwrap();
 
 #[macro_use]
 mod util;
-/// Error types for the ged_io crate.
+/// Error types for the `ged_io` crate.
 pub mod error;
 pub mod parser;
 pub mod tokenizer;
@@ -68,7 +68,10 @@ pub struct Gedcom<'a> {
 
 impl<'a> Gedcom<'a> {
     /// Creates a new `Gedcom` parser from a character iterator.
-    #[must_use]
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the GEDCOM data is malformed.
     pub fn new(chars: Chars<'a>) -> Result<Gedcom<'a>, GedcomError> {
         let mut tokenizer = Tokenizer::new(chars);
         tokenizer.next_token();
@@ -77,6 +80,10 @@ impl<'a> Gedcom<'a> {
 
     /// Processes the character data to produce a [`GedcomData`] object containing the parsed
     /// genealogical information.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the GEDCOM data is malformed.
     pub fn parse_data(&mut self) -> Result<GedcomData, GedcomError> {
         Ok(GedcomData::new(&mut self.tokenizer, 0))
     }

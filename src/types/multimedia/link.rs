@@ -10,7 +10,11 @@ use crate::{
     },
 };
 
-/// MultimediaLink... TODO
+/// Represents a multimedia link that connects GEDCOM records to external files or resources.
+///
+/// A multimedia link provides a way to associate digital media (images, audio, video, documents)
+/// with genealogical records. This can include photographs, scanned documents, audio recordings,
+/// or any other digital content that supplements the genealogical data.
 #[derive(Debug, Default)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Link {

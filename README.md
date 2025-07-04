@@ -43,14 +43,14 @@ Add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-ged_io = "0.1.4"
+ged_io = "0.1.8"
 ```
 
 For JSON serialization support:
 
 ```toml
 [dependencies]
-ged_io = { version = "0.1.4", features = ["json"] }
+ged_io = { version = "0.1.8", features = ["json"] }
 ```
 
 ## Quick Start
@@ -162,6 +162,9 @@ cargo test
 
 # Run with all features
 cargo test --all-features
+
+# Linting
+cargo clippy --all-targets --all-features -- -D warnings
 ```
 
 ## Contributing

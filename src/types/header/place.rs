@@ -5,8 +5,8 @@ use crate::{
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 
-/// HeadPlace (tag: PLAC) is is a placeholder for providing a default PLAC.FORM, and must not have
-/// a payload. See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#HEAD-PLAC>.
+/// `HeadPlace` (tag: PLAC) is is a placeholder for providing a default PLAC.FORM, and must not
+/// have a payload. See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#HEAD-PLAC>.
 #[derive(Debug, Default)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct HeadPlac {
@@ -52,7 +52,7 @@ impl Parser for HeadPlac {
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| match tag {
             "FORM" => {
                 let form = tokenizer.take_line_value();
-                let jurisdictional_titles = form.split(",");
+                let jurisdictional_titles = form.split(',');
 
                 for t in jurisdictional_titles {
                     let v = t.trim();

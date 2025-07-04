@@ -5,7 +5,7 @@ use crate::{
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 
-/// GedcomMeta (tag: GEDC) is a container for information about the entire document. It is
+/// `GedcomMeta` (tag: GEDC) is a container for information about the entire document. It is
 /// recommended that applications write GEDC with its required subrecord VERS as the first
 /// substructure of a HEAD. See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#GEDC>.
 #[derive(Debug, Default)]
@@ -39,8 +39,7 @@ impl Parser for GedcomMeta {
                 let form = tokenizer.take_line_value();
                 if &form.to_uppercase() != "LINEAGE-LINKED" {
                     println!(
-                        "WARNING: Unrecognized GEDCOM form. Expected LINEAGE-LINKED, found {}",
-                        form
+                        "WARNING: Unrecognized GEDCOM form. Expected LINEAGE-LINKED, found {form}"
                     );
                 }
                 self.form = Some(form);

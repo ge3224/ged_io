@@ -17,6 +17,10 @@ pub trait Parser {
 /// the specified level, effectively parsing all child elements of a GEDCOM structure.
 /// Standard tags are handled by the provided callback, while custom/non-standard tags
 /// are collected and returned.
+///
+/// # Panics
+///
+/// Panics when encountering an unhandled token
 pub fn parse_subset<F>(
     tokenizer: &mut Tokenizer,
     level: u8,

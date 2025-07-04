@@ -6,7 +6,7 @@ use crate::{
     tokenizer::Tokenizer,
 };
 
-/// MultimediaFormat indicates the format of the multimedia data associated with the specific
+/// `MultimediaFormat` indicates the format of the multimedia data associated with the specific
 /// GEDCOM context. This allows processors to determine whether they can process the data object.
 /// Any linked files should contain the data required, in the indicated format, to process the file
 /// data.

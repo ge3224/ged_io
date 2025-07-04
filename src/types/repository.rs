@@ -22,9 +22,16 @@ pub struct Repository {
 
 impl Repository {
     #[must_use]
+    fn with_xref(xref: Option<Xref>) -> Self {
+        Self {
+            xref,
+            ..Default::default()
+        }
+    }
+
+    #[must_use]
     pub fn new(tokenizer: &mut Tokenizer, level: u8, xref: Option<String>) -> Repository {
-        let mut repo = Repository::default();
-        repo.xref = xref;
+        let mut repo = Repository::with_xref(xref);
         repo.parse(tokenizer, level);
         repo
     }

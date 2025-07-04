@@ -52,16 +52,10 @@ impl Parser for UserDefinedTag {
             }
 
             match &tokenizer.current_token {
-                Token::Tag(tag) => {
+                Token::Tag(tag) | Token::CustomTag(tag) => {
                     if has_child {
                         let tag_clone = tag.clone();
-                        self.add_child(UserDefinedTag::new(tokenizer, level + 1, &tag_clone))
-                    }
-                }
-                Token::CustomTag(tag) => {
-                    if has_child {
-                        let tag_clone = tag.clone();
-                        self.add_child(UserDefinedTag::new(tokenizer, level + 1, &tag_clone))
+                        self.add_child(UserDefinedTag::new(tokenizer, level + 1, &tag_clone));
                     }
                 }
                 Token::LineValue(val) => {

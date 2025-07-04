@@ -9,8 +9,8 @@ pub enum Spouse {
     Spouse2,
 }
 
-impl ToString for Spouse {
-    fn to_string(&self) -> String {
-        format!("{:?}", self)
+impl std::fmt::Display for Spouse {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{self:?}")
     }
 }

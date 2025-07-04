@@ -12,8 +12,8 @@ use serde::{Deserialize, Serialize};
 
 /// The submitter record identifies an individual or organization that contributed information
 /// contained in the GEDCOM transmission. All records in the transmission are assumed to be
-/// submitted by the SUBMITTER referenced in the HEADer, unless a SUBMitter reference inside a
-/// specific record points at a different SUBMITTER record.
+/// submitted by the `SUBMITTER` referenced in the `HEADER`, unless a `SUBMITTER` reference inside a
+/// specific record points at a different `SUBMITTER` record.
 #[derive(Debug, Default)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Submitter {
@@ -44,11 +44,18 @@ pub struct Submitter {
 }
 
 impl Submitter {
+    #[must_use]
+    fn with_xref(xref: Option<Xref>) -> Self {
+        Self {
+            xref,
+            ..Default::default()
+        }
+    }
+
     /// Shorthand for creating a `Submitter` from its `xref`
     #[must_use]
     pub fn new(tokenizer: &mut Tokenizer, level: u8, xref: Option<Xref>) -> Submitter {
-        let mut subm = Submitter::default();
-        subm.xref = xref;
+        let mut subm = Submitter::with_xref(xref);
         subm.parse(tokenizer, level);
         subm
     }

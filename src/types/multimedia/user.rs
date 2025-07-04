@@ -6,7 +6,7 @@ use crate::{
     tokenizer::Tokenizer,
 };
 
-/// UserReferenceNumber is a user-defined number or text that the submitter uses to identify this
+/// `UserReferenceNumber` is a user-defined number or text that the submitter uses to identify this
 /// record. For instance, it may be a record number within the submitter's automated or manual
 /// system, or it may be a page and position number on a pedigree chart.
 #[derive(Clone, Debug, Default)]
@@ -14,7 +14,7 @@ use crate::{
 pub struct UserReferenceNumber {
     /// line value
     pub value: Option<String>,
-    /// A user-defined definition of the USER_REFERENCE_NUMBER.
+    /// A user-defined definition of the `USER_REFERENCE_NUMBER`.
     pub user_reference_type: Option<String>,
 }
 

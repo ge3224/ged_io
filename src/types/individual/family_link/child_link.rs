@@ -1,8 +1,8 @@
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 
-/// ChildLinkStatus is a A status code that allows passing on the users opinion of the status of a
-/// child to family link. See GEDCOM 5.5 spec, page 44.
+/// `ChildLinkStatus` is a A status code that allows passing on the users opinion of the status of
+/// a child to family link. See GEDCOM 5.5 spec, page 44.
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize, PartialEq))]
 pub enum ChildLinkStatus {
@@ -17,8 +17,8 @@ pub enum ChildLinkStatus {
     Proven,
 }
 
-impl ToString for ChildLinkStatus {
-    fn to_string(&self) -> String {
-        format!("{:?}", self)
+impl std::fmt::Display for ChildLinkStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{self:?}")
     }
 }

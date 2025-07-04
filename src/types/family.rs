@@ -38,9 +38,16 @@ pub struct Family {
 
 impl Family {
     #[must_use]
+    fn with_xref(xref: Option<Xref>) -> Self {
+        Self {
+            xref,
+            ..Default::default()
+        }
+    }
+
+    #[must_use]
     pub fn new(tokenizer: &mut Tokenizer, level: u8, xref: Option<Xref>) -> Family {
-        let mut fam = Family::default();
-        fam.xref = xref;
+        let mut fam = Family::with_xref(xref);
         fam.children = Vec::new();
         fam.events = Vec::new();
         fam.sources = Vec::new();
@@ -51,18 +58,24 @@ impl Family {
         fam
     }
 
+    /// # Panics
+    ///
+    /// Panics if individual already exists in family.
     pub fn set_individual1(&mut self, xref: Xref) {
         match self.individual1 {
             Some(_) => panic!("First individual of family already exists."),
             None => self.individual1 = Some(xref),
-        };
+        }
     }
 
+    /// # Panics
+    ///
+    /// Panics if individual already exists in family.
     pub fn set_individual2(&mut self, xref: Xref) {
         match self.individual2 {
             Some(_) => panic!("Second individual of family already exists."),
             None => self.individual2 = Some(xref),
-        };
+        }
     }
 
     pub fn add_child(&mut self, xref: Xref) {
@@ -85,6 +98,7 @@ impl Family {
         self.notes.push(note);
     }
 
+    #[must_use]
     pub fn events(&self) -> &[Detail] {
         &self.events
     }
@@ -125,12 +139,14 @@ impl Parser for Family {
 }
 
 impl HasEvents for Family {
-    fn add_event(&mut self, event: Detail) -> () {
+    fn add_event(&mut self, event: Detail) {
         let event_type = &event.event;
         for e in &self.events {
-            if &e.event == event_type {
-                panic!("Family already has a {:?} event", e.event);
-            }
+            assert!(
+                &e.event == event_type,
+                "Family already has a {:?} event",
+                e.event
+            );
         }
         self.events.push(event);
     }

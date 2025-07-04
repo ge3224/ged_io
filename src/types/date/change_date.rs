@@ -7,7 +7,7 @@ use crate::{
     types::{date::Date, note::Note},
 };
 
-/// Represents a GEDCOM CHANGE_DATE structure (`CHAN` tag).
+/// Represents a GEDCOM `CHANGE_DATE` structure (`CHAN` tag).
 ///
 /// This structure is used to record the last modification date of a record within the GEDCOM file.
 ///

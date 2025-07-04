@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 /// software.
 ///
 /// While the GEDCOM 5.5.1 specification highlights its original use for LDS internal processing
-/// (e.g., "TempleReady", "Temple Code", "Ordinance Process Flag"), for general genealogical use,
+/// (e.g., `TempleReady`, "Temple Code", "Ordinance Process Flag"), for general genealogical use,
 /// many fields (like `TEMP`, `ORDI`) are often ignored or left blank by non-LDS software.
 ///
 /// Its primary value for non-LDS users is identifying the data's origin (via the `SUBMITTER`) and
@@ -34,7 +34,7 @@ pub struct Submission {
     /// Tag: `FAMF`
     pub family_file_name: Option<String>,
     /// Temple code indicating which temple should receive the records
-    /// Used by TempleReady to route cleared records appropriately
+    /// Used by `TempleReady` to route cleared records appropriately
     /// Tag: `TEMP`
     pub temple_code: Option<String>,
     /// Reference to who is submitting this data (optional)
@@ -61,8 +61,8 @@ pub struct Submission {
     /// Can contain multiple notes with various details about the submission
     /// Tag: `NOTE`
     pub note: Option<Note>,
-    /// When this submission record was last changed (optional)  
-    /// Helps track the history of modifications to your submission
+    /// When this submission record was last changed (optional) Helps track the history of
+    /// modifications to your submission
     /// Tag: `CHAN`
     pub change_date: Option<ChangeDate>,
     /// Custom user-defined tags not part of the standard GEDCOM specification.
@@ -74,9 +74,16 @@ pub struct Submission {
 
 impl Submission {
     #[must_use]
+    fn with_xref(xref: Option<Xref>) -> Self {
+        Self {
+            xref,
+            ..Default::default()
+        }
+    }
+
+    #[must_use]
     pub fn new(tokenizer: &mut Tokenizer, level: u8, xref: Option<Xref>) -> Submission {
-        let mut subn = Submission::default();
-        subn.xref = xref;
+        let mut subn = Submission::with_xref(xref);
         subn.parse(tokenizer, level);
         subn
     }
@@ -132,10 +139,10 @@ mod tests {
            0 TRLR";
 
         let mut doc = Gedcom::new(sample.chars()).unwrap();
-        let data = doc.parse_data().unwrap();
+        let gedcom_data = doc.parse_data().unwrap();
 
-        let mut submissions = data.submissions;
-        assert_eq!(submissions.len() > 0, true);
+        let mut submissions = gedcom_data.submissions;
+        assert!(!submissions.is_empty());
 
         let first_submission = submissions.remove(0);
 
@@ -166,13 +173,13 @@ mod tests {
 
         assert_eq!(custom[0].tag, "_MYCUSTOMTAG");
         assert_eq!(custom[0].value.as_ref().unwrap(), "Some custom data here");
-        assert_eq!(custom[0].children.len() < 1, true);
+        assert!(custom[0].children.is_empty());
 
         assert_eq!(custom[1].tag, "_ANOTHER_TAG");
         assert_eq!(
             custom[1].value.as_ref().unwrap(),
             "Another piece of custom data"
         );
-        assert_eq!(custom[1].children.len() < 1, true);
+        assert!(custom[1].children.is_empty());
     }
 }

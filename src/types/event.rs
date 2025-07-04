@@ -5,7 +5,6 @@ pub mod util;
 
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
-use std::string::ToString;
 
 #[allow(clippy::module_name_repetitions)]
 #[derive(Clone, Debug, PartialEq)]
@@ -49,15 +48,14 @@ pub enum Event {
     SourceData(String),
 }
 
-impl ToString for Event {
-    fn to_string(&self) -> String {
-        format!("{:?}", self)
+impl std::fmt::Display for Event {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{self:?}")
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::Gedcom;
 
     #[test]

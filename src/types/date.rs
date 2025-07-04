@@ -25,13 +25,18 @@ impl Date {
     }
 
     /// datetime returns Date and Date.time in a single string.
+    ///
+    /// # Panics
+    ///
+    /// Panics when encountering a None value
+    #[must_use]
     pub fn datetime(&self) -> Option<String> {
         match &self.time {
             Some(time) => {
                 let mut dt = String::new();
                 dt.push_str(self.value.as_ref().unwrap().as_str());
-                dt.push_str(" ");
-                dt.push_str(&time);
+                dt.push(' ');
+                dt.push_str(time);
                 Some(dt)
             }
             None => None,
@@ -102,12 +107,12 @@ mod tests {
             0 TRLR";
 
         let mut doc = Gedcom::new(sample.chars()).unwrap();
-        let data = doc.parse_data().unwrap();
-        assert_eq!(data.multimedia.len(), 1);
+        let gedcom_data = doc.parse_data().unwrap();
+        assert_eq!(gedcom_data.multimedia.len(), 1);
 
-        let obje = &data.multimedia[0];
+        let object = &gedcom_data.multimedia[0];
 
-        let chan = obje.change_date.as_ref().unwrap();
+        let chan = object.change_date.as_ref().unwrap();
         let date = chan.date.as_ref().unwrap();
         assert_eq!(date.value.as_ref().unwrap(), "1 APR 1998");
         assert_eq!(date.time.as_ref().unwrap(), "12:34:56.789");

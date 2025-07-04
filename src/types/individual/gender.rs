@@ -7,7 +7,7 @@ use crate::{
     types::{custom::UserDefinedTag, source::citation::Citation},
 };
 
-/// GenderType is a set of enumerated values that indicate the sex of an individual at birth. See
+/// `GenderType` is a set of enumerated values that indicate the sex of an individual at birth. See
 /// 5.5 specification, p. 61; <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#SEX>.
 #[derive(Debug)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
@@ -22,9 +22,9 @@ pub enum GenderType {
     Unknown,
 }
 
-impl ToString for GenderType {
-    fn to_string(&self) -> String {
-        format!("{:?}", self)
+impl std::fmt::Display for GenderType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{self:?}")
     }
 }
 

@@ -112,11 +112,11 @@ mod tests {
         let dest = header.destination.unwrap();
         assert_eq!(dest, "Destination of transmission");
 
-        let subn = header.submitter_tag.unwrap();
-        assert_eq!(subn, "@SUBMITTER@");
+        let submitter = header.submitter_tag.unwrap();
+        assert_eq!(submitter, "@SUBMITTER@");
 
-        let subm = header.submission_tag.unwrap();
-        assert_eq!(subm, "@SUBMISSION@");
+        let submission = header.submission_tag.unwrap();
+        assert_eq!(submission, "@SUBMISSION@");
 
         let lang = header.language.unwrap();
         assert_eq!(lang.as_str(), "language");

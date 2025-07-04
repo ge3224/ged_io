@@ -30,7 +30,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // println!("\n\n{:#?}\n", data);
         data.stats();
     } else {
-        exit_with_error(&format!("File '{}' not found.", filename));
+        exit_with_error(&format!("File '{filename}' not found."));
     }
     Ok(())
 }
@@ -43,13 +43,13 @@ fn read_relative(path: &str) -> Result<String, std::io::Error> {
 
 fn usage(msg: &str) {
     if !msg.is_empty() {
-        println!("{}", msg);
+        println!("{msg}");
     }
     println!("Usage: parse_gedcom ./path/to/gedcom.ged");
     std::process::exit(0x0100);
 }
 
 fn exit_with_error(msg: &str) {
-    println!("Error! {}", msg);
+    println!("Error! {msg}");
     std::process::exit(0x1);
 }
