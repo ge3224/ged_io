@@ -42,7 +42,7 @@ impl Citation {
     /// This function will return an error if parsing fails.
     pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<Citation, GedcomError> {
         let mut citation = Citation {
-            xref: tokenizer.take_line_value(),
+            xref: tokenizer.take_line_value()?,
             page: None,
             data: None,
             note: None,
@@ -62,23 +62,23 @@ impl Citation {
 
 impl Parser for Citation {
     fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
-        tokenizer.next_token();
+        tokenizer.next_token()?;
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
             let mut pointer: Option<String> = None;
             if let Token::Pointer(xref) = &tokenizer.current_token {
                 pointer = Some(xref.to_string());
-                tokenizer.next_token();
+                tokenizer.next_token()?;
             }
             match tag {
-                "PAGE" => self.page = Some(tokenizer.take_continued_text(level + 1)),
+                "PAGE" => self.page = Some(tokenizer.take_continued_text(level + 1)?),
                 "DATA" => self.data = Some(SourceCitationData::new(tokenizer, level + 1)?),
                 "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
                 "QUAY" => {
                     self.certainty_assessment =
                         Some(CertaintyAssessment::new(tokenizer, level + 1)?);
                 }
-                "RFN" => self.submitter_registered_rfn = Some(tokenizer.take_line_value()),
+                "RFN" => self.submitter_registered_rfn = Some(tokenizer.take_line_value()?),
                 "OBJE" => self.add_multimedia(Multimedia::new(tokenizer, level + 1, pointer)?),
                 _ => {
                     return Err(GedcomError::ParseError {

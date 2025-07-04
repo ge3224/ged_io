@@ -55,7 +55,7 @@ where
                     &tag_clone,
                 )?));
             }
-            Token::Level(_) => tokenizer.next_token(),
+            Token::Level(_) => tokenizer.next_token()?,
             _ => {
                 return Err(GedcomError::ParseError {
                     line: tokenizer.line,

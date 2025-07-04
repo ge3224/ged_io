@@ -55,13 +55,13 @@ impl Link {
 impl Parser for Link {
     fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
         // skip current line
-        tokenizer.next_token();
+        tokenizer.next_token()?;
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
             match tag {
                 "FILE" => self.file = Some(Reference::new(tokenizer, level + 1)?),
                 "FORM" => self.form = Some(Format::new(tokenizer, level + 1)?),
-                "TITL" => self.title = Some(tokenizer.take_line_value()),
+                "TITL" => self.title = Some(tokenizer.take_line_value()?),
                 _ => {
                     return Err(GedcomError::ParseError {
                         line: tokenizer.line,

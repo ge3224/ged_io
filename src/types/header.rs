@@ -72,20 +72,20 @@ impl Parser for Header {
     /// <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#HEADER>.
     fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
         // skip over HEAD tag name
-        tokenizer.next_token();
+        tokenizer.next_token()?;
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
             match tag {
                 "GEDC" => self.gedcom = Some(HeadMeta::new(tokenizer, level + 1)?),
                 "SOUR" => self.source = Some(HeadSour::new(tokenizer, level + 1)?),
-                "DEST" => self.destination = Some(tokenizer.take_line_value()),
+                "DEST" => self.destination = Some(tokenizer.take_line_value()?),
                 "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
-                "SUBM" => self.submitter_tag = Some(tokenizer.take_line_value()),
-                "SUBN" => self.submission_tag = Some(tokenizer.take_line_value()),
-                "FILE" => self.filename = Some(tokenizer.take_line_value()),
-                "COPR" => self.copyright = Some(tokenizer.take_continued_text(level + 1)),
+                "SUBM" => self.submitter_tag = Some(tokenizer.take_line_value()?),
+                "SUBN" => self.submission_tag = Some(tokenizer.take_line_value()?),
+                "FILE" => self.filename = Some(tokenizer.take_line_value()?),
+                "COPR" => self.copyright = Some(tokenizer.take_continued_text(level + 1)?),
                 "CHAR" => self.encoding = Some(Encoding::new(tokenizer, level + 1)?),
-                "LANG" => self.language = Some(tokenizer.take_line_value()),
+                "LANG" => self.language = Some(tokenizer.take_line_value()?),
                 "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
                 "PLAC" => self.place = Some(HeadPlac::new(tokenizer, level + 1)?),
                 _ => {

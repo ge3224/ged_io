@@ -62,12 +62,12 @@ impl Note {
 impl Parser for Note {
     /// parse handles the NOTE tag
     fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
-        self.value = Some(tokenizer.take_continued_text(level));
+        self.value = Some(tokenizer.take_continued_text(level)?);
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
             match tag {
-                "MIME" => self.mime = Some(tokenizer.take_line_value()),
+                "MIME" => self.mime = Some(tokenizer.take_line_value()?),
                 "TRANS" => self.translation = Some(Translation::new(tokenizer, level + 1)?),
-                "LANG" => self.language = Some(tokenizer.take_line_value()),
+                "LANG" => self.language = Some(tokenizer.take_line_value()?),
                 _ => {
                     return Err(GedcomError::ParseError {
                         line: tokenizer.line,

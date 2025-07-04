@@ -79,22 +79,22 @@ impl Parser for Submitter {
     /// Parse handles SUBM top-level tag
     fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
         // skip over SUBM tag name
-        tokenizer.next_token();
+        tokenizer.next_token()?;
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
             let mut pointer: Option<String> = None;
             if let Token::Pointer(xref) = &tokenizer.current_token {
                 pointer = Some(xref.to_string());
-                tokenizer.next_token();
+                tokenizer.next_token()?;
             }
             match tag {
-                "NAME" => self.name = Some(tokenizer.take_line_value()),
+                "NAME" => self.name = Some(tokenizer.take_line_value()?),
                 "ADDR" => self.address = Some(Address::new(tokenizer, level + 1)?),
                 "OBJE" => self.add_multimedia(Link::new(tokenizer, level + 1, pointer)?),
-                "LANG" => self.language = Some(tokenizer.take_line_value()),
+                "LANG" => self.language = Some(tokenizer.take_line_value()?),
                 "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
                 "CHAN" => self.change_date = Some(ChangeDate::new(tokenizer, level + 1)?),
-                "PHON" => self.phone = Some(tokenizer.take_line_value()),
+                "PHON" => self.phone = Some(tokenizer.take_line_value()?),
                 _ => {
                     return Err(GedcomError::ParseError {
                         line: tokenizer.line,

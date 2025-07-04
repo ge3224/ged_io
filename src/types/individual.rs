@@ -117,7 +117,7 @@ impl Parser for Individual {
         level: u8,
     ) -> Result<(), GedcomError> {
         // skip over INDI tag name
-        tokenizer.next_token();
+        tokenizer.next_token()?;
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
             match tag {

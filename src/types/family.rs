@@ -68,24 +68,36 @@ impl Family {
         Ok(fam)
     }
 
-    /// # Panics
+    /// Sets the first individual (e.g., husband) of the family.
     ///
-    /// Panics if individual already exists in family.
-    pub fn set_individual1(&mut self, xref: Xref) {
-        match self.individual1 {
-            Some(_) => panic!("First individual of family already exists."),
-            None => self.individual1 = Some(xref),
+    /// # Errors
+    ///
+    /// Returns a `GedcomError::ParseError` if the individual already exists.
+    pub fn set_individual1(&mut self, xref: Xref, line: u32) -> Result<(), GedcomError> {
+        if self.individual1.is_some() {
+            return Err(GedcomError::ParseError {
+                line,
+                message: "First individual of family already exists.".to_string(),
+            });
         }
+        self.individual1 = Some(xref);
+        Ok(())
     }
 
-    /// # Panics
+    /// Sets the second individual (e.g., wife) of the family.
     ///
-    /// Panics if individual already exists in family.
-    pub fn set_individual2(&mut self, xref: Xref) {
-        match self.individual2 {
-            Some(_) => panic!("Second individual of family already exists."),
-            None => self.individual2 = Some(xref),
+    /// # Errors
+    ///
+    /// Returns a `GedcomError::ParseError` if the individual already exists.
+    pub fn set_individual2(&mut self, xref: Xref, line: u32) -> Result<(), GedcomError> {
+        if self.individual2.is_some() {
+            return Err(GedcomError::ParseError {
+                line,
+                message: "Second individual of family already exists.".to_string(),
+            });
         }
+        self.individual2 = Some(xref);
+        Ok(())
     }
 
     pub fn add_child(&mut self, xref: Xref) {
@@ -118,13 +130,13 @@ impl Parser for Family {
     /// parse handles FAM top-level tag
     fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
         // skip over FAM tag name
-        tokenizer.next_token();
+        tokenizer.next_token()?;
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
             let mut pointer: Option<String> = None;
             if let Token::Pointer(xref) = &tokenizer.current_token {
                 pointer = Some(xref.to_string());
-                tokenizer.next_token();
+                tokenizer.next_token()?;
             }
 
             match tag {
@@ -132,10 +144,10 @@ impl Parser for Family {
                 | "MARS" | "RESI" | "EVEN" => {
                     self.add_event(Detail::new(tokenizer, level + 1, tag)?);
                 }
-                "HUSB" => self.set_individual1(tokenizer.take_line_value()),
-                "WIFE" => self.set_individual2(tokenizer.take_line_value()),
-                "CHIL" => self.add_child(tokenizer.take_line_value()),
-                "NCHI" => self.num_children = Some(tokenizer.take_line_value()),
+                "HUSB" => self.set_individual1(tokenizer.take_line_value()?, tokenizer.line)?,
+                "WIFE" => self.set_individual2(tokenizer.take_line_value()?, tokenizer.line)?,
+                "CHIL" => self.add_child(tokenizer.take_line_value()?),
+                "NCHI" => self.num_children = Some(tokenizer.take_line_value()?),
                 "CHAN" => self.change_date = Some(ChangeDate::new(tokenizer, level + 1)?),
                 "SOUR" => self.add_source(Citation::new(tokenizer, level + 1)?),
                 "NOTE" => self.add_note(Note::new(tokenizer, level + 1)?),

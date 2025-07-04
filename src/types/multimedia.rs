@@ -76,18 +76,18 @@ impl Multimedia {
 impl Parser for Multimedia {
     fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
         // skip current line
-        tokenizer.next_token();
+        tokenizer.next_token()?;
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
             match tag {
                 "FILE" => self.file = Some(Reference::new(tokenizer, level + 1)?),
                 "FORM" => self.form = Some(Format::new(tokenizer, level + 1)?),
-                "TITL" => self.title = Some(tokenizer.take_line_value()),
+                "TITL" => self.title = Some(tokenizer.take_line_value()?),
                 "REFN" => {
                     self.user_reference_number =
                         Some(UserReferenceNumber::new(tokenizer, level + 1)?);
                 }
-                "RIN" => self.automated_record_id = Some(tokenizer.take_line_value()),
+                "RIN" => self.automated_record_id = Some(tokenizer.take_line_value()?),
                 "NOTE" => self.note_structure = Some(Note::new(tokenizer, level + 1)?),
                 "SOUR" => self.source_citation = Some(Citation::new(tokenizer, level + 1)?),
                 "CHAN" => self.change_date = Some(ChangeDate::new(tokenizer, level + 1)?),

@@ -60,15 +60,15 @@ impl Name {
 
 impl Parser for Name {
     fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
-        self.value = Some(tokenizer.take_line_value());
+        self.value = Some(tokenizer.take_line_value()?);
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
             match tag {
-                "GIVN" => self.given = Some(tokenizer.take_line_value()),
-                "NPFX" => self.prefix = Some(tokenizer.take_line_value()),
-                "NSFX" => self.suffix = Some(tokenizer.take_line_value()),
-                "SPFX" => self.surname_prefix = Some(tokenizer.take_line_value()),
-                "SURN" => self.surname = Some(tokenizer.take_line_value()),
+                "GIVN" => self.given = Some(tokenizer.take_line_value()?),
+                "NPFX" => self.prefix = Some(tokenizer.take_line_value()?),
+                "NSFX" => self.suffix = Some(tokenizer.take_line_value()?),
+                "SPFX" => self.surname_prefix = Some(tokenizer.take_line_value()?),
+                "SURN" => self.surname = Some(tokenizer.take_line_value()?),
                 "SOUR" => self.add_source_citation(Citation::new(tokenizer, level + 1)?),
                 "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
                 _ => {

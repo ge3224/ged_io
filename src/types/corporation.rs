@@ -42,15 +42,15 @@ impl Corporation {
 impl Parser for Corporation {
     /// parse is for a CORP tag within the SOUR tag of a HEADER
     fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
-        self.value = Some(tokenizer.take_line_value());
+        self.value = Some(tokenizer.take_line_value()?);
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
             match tag {
                 "ADDR" => self.address = Some(Address::new(tokenizer, level + 1)?),
-                "PHON" => self.phone = Some(tokenizer.take_line_value()),
-                "EMAIL" => self.email = Some(tokenizer.take_line_value()),
-                "FAX" => self.fax = Some(tokenizer.take_line_value()),
-                "WWW" => self.website = Some(tokenizer.take_line_value()),
+                "PHON" => self.phone = Some(tokenizer.take_line_value()?),
+                "EMAIL" => self.email = Some(tokenizer.take_line_value()?),
+                "FAX" => self.fax = Some(tokenizer.take_line_value()?),
+                "WWW" => self.website = Some(tokenizer.take_line_value()?),
                 _ => {
                     return Err(GedcomError::ParseError {
                         line: tokenizer.line,

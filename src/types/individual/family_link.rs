@@ -58,7 +58,7 @@ impl FamilyLink {
     ///
     /// This function will return an error if parsing fails.
     pub fn new(tokenizer: &mut Tokenizer, level: u8, tag: &str) -> Result<FamilyLink, GedcomError> {
-        let xref = tokenizer.take_line_value();
+        let xref = tokenizer.take_line_value()?;
         let link_type = match tag {
             "FAMC" => FamilyLinkType::Child,
             "FAMS" => FamilyLinkType::Spouse,
@@ -82,41 +82,75 @@ impl FamilyLink {
         Ok(family_link)
     }
 
-    /// # Panics
+    /// Sets the pedigree linkage type.
     ///
-    /// Will panic when encountering an unrecognized code.
-    pub fn set_pedigree(&mut self, pedigree_text: &str) {
+    /// # Errors
+    ///
+    /// This function will return an error if the pedigree text is unrecognized.
+    pub fn set_pedigree(&mut self, pedigree_text: &str, line: u32) -> Result<(), GedcomError> {
         self.pedigree_linkage_type = match pedigree_text.to_lowercase().as_str() {
             "adopted" => Some(Pedigree::Adopted),
             "birth" => Some(Pedigree::Birth),
             "foster" => Some(Pedigree::Foster),
             "sealing" => Some(Pedigree::Sealing),
-            _ => panic!("Unrecognized FamilyLink.pedigree code: {pedigree_text}"),
+            _ => {
+                return Err(GedcomError::ParseError {
+                    line,
+                    message: format!("Unrecognized FamilyLink.pedigree code: {pedigree_text}"),
+                })
+            }
         };
+        Ok(())
     }
 
-    /// # Panics
+    /// Sets the child linkage status.
     ///
-    /// Will panic when encountering a unrecognized status code
-    pub fn set_child_linkage_status(&mut self, status_text: &str) {
+    /// # Errors
+    ///
+    /// This function will return an error if the status text is unrecognized.
+    pub fn set_child_linkage_status(
+        &mut self,
+        status_text: &str,
+        line: u32,
+    ) -> Result<(), GedcomError> {
         self.child_linkage_status = match status_text.to_lowercase().as_str() {
             "challenged" => Some(ChildLinkStatus::Challenged),
             "disproven" => Some(ChildLinkStatus::Disproven),
             "proven" => Some(ChildLinkStatus::Proven),
-            _ => panic!("Unrecognized FamilyLink.child_linkage_status code: {status_text}"),
-        }
+            _ => {
+                return Err(GedcomError::ParseError {
+                    line,
+                    message: format!(
+                        "Unrecognized FamilyLink.child_linkage_status code: {status_text}"
+                    ),
+                })
+            }
+        };
+        Ok(())
     }
 
-    /// # Panics
+    /// Sets the adopted by which parent.
     ///
-    /// Will panic for unrecognized adoption code
-    pub fn set_adopted_by_which_parent(&mut self, adopted_by_text: &str) {
+    /// # Errors
+    ///
+    /// This function will return an error if the adopted by text is unrecognized.
+    pub fn set_adopted_by_which_parent(
+        &mut self,
+        adopted_by_text: &str,
+        line: u32,
+    ) -> Result<(), GedcomError> {
         self.adopted_by = match adopted_by_text.to_lowercase().as_str() {
             "husb" => Some(AdoptedByWhichParent::Husband),
             "wife" => Some(AdoptedByWhichParent::Wife),
             "both" => Some(AdoptedByWhichParent::Both),
-            _ => panic!("Unrecognized FamilyLink.adopted_by code: {adopted_by_text}"),
-        }
+            _ => {
+                return Err(GedcomError::ParseError {
+                    line,
+                    message: format!("Unrecognized FamilyLink.adopted_by code: {adopted_by_text}"),
+                })
+            }
+        };
+        Ok(())
     }
 
     #[must_use]
@@ -129,10 +163,18 @@ impl Parser for FamilyLink {
     fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
             match tag {
-                "PEDI" => self.set_pedigree(tokenizer.take_line_value().as_str()),
-                "STAT" => self.set_child_linkage_status(tokenizer.take_line_value().as_str()),
+                "PEDI" => {
+                    self.set_pedigree(tokenizer.take_line_value()?.as_str(), tokenizer.line)?;
+                }
+                "STAT" => self.set_child_linkage_status(
+                    tokenizer.take_line_value()?.as_str(),
+                    tokenizer.line,
+                )?,
                 "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
-                "ADOP" => self.set_adopted_by_which_parent(tokenizer.take_line_value().as_str()),
+                "ADOP" => self.set_adopted_by_which_parent(
+                    tokenizer.take_line_value()?.as_str(),
+                    tokenizer.line,
+                )?,
                 _ => {
                     return Err(GedcomError::ParseError {
                         line: tokenizer.line,

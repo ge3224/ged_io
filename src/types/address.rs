@@ -41,29 +41,29 @@ impl Parser for Address {
     /// parse handles ADDR tag
     fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
         // skip ADDR tag
-        tokenizer.next_token();
+        tokenizer.next_token()?;
 
         let mut value = String::new();
 
         // handle value on ADDR line
         if let Token::LineValue(addr) = &tokenizer.current_token {
             value.push_str(addr);
-            tokenizer.next_token();
+            tokenizer.next_token()?;
         }
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
             match tag {
                 "CONT" | "CONC" => {
                     value.push('\n');
-                    value.push_str(&tokenizer.take_line_value());
+                    value.push_str(&tokenizer.take_line_value()?);
                 }
-                "ADR1" => self.adr1 = Some(tokenizer.take_line_value()),
-                "ADR2" => self.adr2 = Some(tokenizer.take_line_value()),
-                "ADR3" => self.adr3 = Some(tokenizer.take_line_value()),
-                "CITY" => self.city = Some(tokenizer.take_line_value()),
-                "STAE" => self.state = Some(tokenizer.take_line_value()),
-                "POST" => self.post = Some(tokenizer.take_line_value()),
-                "CTRY" => self.country = Some(tokenizer.take_line_value()),
+                "ADR1" => self.adr1 = Some(tokenizer.take_line_value()?),
+                "ADR2" => self.adr2 = Some(tokenizer.take_line_value()?),
+                "ADR3" => self.adr3 = Some(tokenizer.take_line_value()?),
+                "CITY" => self.city = Some(tokenizer.take_line_value()?),
+                "STAE" => self.state = Some(tokenizer.take_line_value()?),
+                "POST" => self.post = Some(tokenizer.take_line_value()?),
+                "CTRY" => self.country = Some(tokenizer.take_line_value()?),
                 _ => {
                     return Err(GedcomError::ParseError {
                         line: tokenizer.line,

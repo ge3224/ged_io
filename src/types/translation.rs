@@ -38,12 +38,12 @@ impl Translation {
 impl Parser for Translation {
     ///parse handles the TRAN tag
     fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
-        self.value = Some(tokenizer.take_line_value());
+        self.value = Some(tokenizer.take_line_value()?);
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
             match tag {
-                "MIME" => self.mime = Some(tokenizer.take_line_value()),
-                "LANG" => self.language = Some(tokenizer.take_line_value()),
+                "MIME" => self.mime = Some(tokenizer.take_line_value()?),
+                "LANG" => self.language = Some(tokenizer.take_line_value()?),
                 _ => {
                     return Err(GedcomError::ParseError {
                         line: tokenizer.line,

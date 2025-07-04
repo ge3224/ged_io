@@ -38,7 +38,7 @@ impl SourceCitationData {
 impl Parser for SourceCitationData {
     fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
         // skip because this DATA tag should have now line value
-        tokenizer.next_token();
+        tokenizer.next_token()?;
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
             match tag {
                 "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),

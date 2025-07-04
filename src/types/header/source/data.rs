@@ -38,12 +38,12 @@ impl HeadSourData {
 impl Parser for HeadSourData {
     /// parse parses the DATA tag
     fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
-        self.value = Some(tokenizer.take_line_value());
+        self.value = Some(tokenizer.take_line_value()?);
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
             match tag {
                 "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
-                "COPR" => self.copyright = Some(tokenizer.take_continued_text(level + 1)),
+                "COPR" => self.copyright = Some(tokenizer.take_continued_text(level + 1)?),
                 _ => {
                     return Err(GedcomError::ParseError {
                         line: tokenizer.line,

@@ -45,7 +45,7 @@ impl AttributeDetail {
         tag: &str,
     ) -> Result<AttributeDetail, GedcomError> {
         let mut attribute = AttributeDetail {
-            attribute: Self::from_tag(tag),
+            attribute: Self::from_tag(tag, tokenizer.line)?,
             place: None,
             value: None,
             date: None,
@@ -60,9 +60,13 @@ impl AttributeDetail {
     /// # Panics
     ///
     /// Will panic when encountering an unrecognized tag
-    #[must_use]
-    pub fn from_tag(tag: &str) -> IndividualAttribute {
-        match tag {
+    /// Creates a new `IndividualAttribute` from a tag.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if the tag is unrecognized.
+    pub fn from_tag(tag: &str, line_number: u32) -> Result<IndividualAttribute, GedcomError> {
+        let attribute = match tag {
             "CAST" => IndividualAttribute::CastName,
             "DSCR" => IndividualAttribute::PhysicalDescription,
             "EDUC" => IndividualAttribute::ScholasticAchievement,
@@ -77,8 +81,16 @@ impl AttributeDetail {
             "SSN" => IndividualAttribute::SocialSecurityNumber,
             "TITL" => IndividualAttribute::NobilityTypeTitle,
             "FACT" => IndividualAttribute::Fact,
-            _ => panic!("Unrecognized IndividualAttribute tag: {tag}"),
-        }
+            // _ => panic!("Unrecognized IndividualAttribute tag: {tag}"),
+            _ => {
+                return Err(GedcomError::ParseError {
+                    line: line_number,
+                    message: format!("Unhandled IndividualAttribute Tag: {tag}"),
+                })
+            }
+        };
+
+        Ok(attribute)
     }
 
     pub fn add_source_citation(&mut self, sour: Citation) {
@@ -88,22 +100,22 @@ impl AttributeDetail {
 
 impl Parser for AttributeDetail {
     fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
-        tokenizer.next_token();
+        tokenizer.next_token()?;
 
         let mut value = String::new();
 
         if let Token::LineValue(val) = &tokenizer.current_token {
             value.push_str(val);
-            tokenizer.next_token();
+            tokenizer.next_token()?;
         }
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
             match tag {
                 "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
                 "SOUR" => self.add_source_citation(Citation::new(tokenizer, level + 1)?),
-                "PLAC" => self.place = Some(tokenizer.take_line_value()),
+                "PLAC" => self.place = Some(tokenizer.take_line_value()?),
                 "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
-                "TYPE" => self.attribute_type = Some(tokenizer.take_continued_text(level + 1)),
+                "TYPE" => self.attribute_type = Some(tokenizer.take_continued_text(level + 1)?),
                 _ => {
                     return Err(GedcomError::ParseError {
                         line: tokenizer.line,

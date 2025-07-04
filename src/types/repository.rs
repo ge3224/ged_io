@@ -54,11 +54,11 @@ impl Parser for Repository {
         level: u8,
     ) -> Result<(), GedcomError> {
         // skip REPO tag
-        tokenizer.next_token();
+        tokenizer.next_token()?;
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
             match tag {
-                "NAME" => self.name = Some(tokenizer.take_line_value()),
+                "NAME" => self.name = Some(tokenizer.take_line_value()?),
                 "ADDR" => self.address = Some(Address::new(tokenizer, level + 1)?),
                 _ => {
                     return Err(GedcomError::ParseError {

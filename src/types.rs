@@ -149,12 +149,12 @@ impl Parser for GedcomData {
                 });
             };
 
-            tokenizer.next_token();
+            tokenizer.next_token()?;
 
             let mut pointer: Option<String> = None;
             if let Token::Pointer(xref) = &tokenizer.current_token {
                 pointer = Some(xref.to_string());
-                tokenizer.next_token();
+                tokenizer.next_token()?;
             }
 
             if let Token::Tag(tag) = &tokenizer.current_token {
@@ -173,8 +173,10 @@ impl Parser for GedcomData {
                     "OBJE" => self.add_multimedia(Multimedia::new(tokenizer, level, pointer)?),
                     "TRLR" => break,
                     _ => {
-                        println!("{} Unhandled tag {}", tokenizer.debug(), tag);
-                        tokenizer.next_token();
+                        return Err(GedcomError::ParseError {
+                            line: tokenizer.line,
+                            message: format!("Unhandled tag {tag}"),
+                        })
                     }
                 }
             } else if let Token::CustomTag(tag) = &tokenizer.current_token {
@@ -182,7 +184,7 @@ impl Parser for GedcomData {
                 self.add_custom_data(UserDefinedTag::new(tokenizer, level + 1, &tag_clone)?);
                 // self.add_custom_data(parse_custom_tag(tokenizer, tag_clone));
                 while tokenizer.current_token != Token::Level(level) {
-                    tokenizer.next_token();
+                    tokenizer.next_token()?;
                 }
             } else {
                 return Err(GedcomError::ParseError {
