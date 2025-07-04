@@ -42,10 +42,7 @@ fn test_parse_error_display() {
         line: 10,
         message: "Unexpected token".to_string(),
     };
-    assert_eq!(
-        format!("{err}"),
-        "Parse error at line 10: Unexpected token"
-    );
+    assert_eq!(format!("{err}"), "Parse error at line 10: Unexpected token");
 }
 
 #[test]
