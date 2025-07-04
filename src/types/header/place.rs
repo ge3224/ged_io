@@ -52,12 +52,12 @@ impl Parser for HeadPlac {
     fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
         // In the header, PLAC should have no payload. See
         // https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#HEAD-PLAC
-        tokenizer.next_token();
+        tokenizer.next_token()?;
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
             match tag {
                 "FORM" => {
-                    let form = tokenizer.take_line_value();
+                    let form = tokenizer.take_line_value()?;
                     let jurisdictional_titles = form.split(',');
 
                     for t in jurisdictional_titles {

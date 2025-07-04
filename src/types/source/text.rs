@@ -35,14 +35,14 @@ impl Text {
 impl Parser for Text {
     fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
         let mut value = String::new();
-        value.push_str(&tokenizer.take_line_value());
+        value.push_str(&tokenizer.take_line_value()?);
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
             match tag {
-                "CONC" => value.push_str(&tokenizer.take_line_value()),
+                "CONC" => value.push_str(&tokenizer.take_line_value()?),
                 "CONT" => {
                     value.push('\n');
-                    value.push_str(&tokenizer.take_line_value());
+                    value.push_str(&tokenizer.take_line_value()?);
                 }
                 _ => {
                     return Err(GedcomError::ParseError {

@@ -78,36 +78,36 @@ impl Source {
 impl Parser for Source {
     fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
         // skip SOUR tag
-        tokenizer.next_token();
+        tokenizer.next_token()?;
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
             let mut pointer: Option<String> = None;
             if let Token::Pointer(xref) = &tokenizer.current_token {
                 pointer = Some(xref.to_string());
-                tokenizer.next_token();
+                tokenizer.next_token()?;
             }
             match tag {
-                "DATA" => tokenizer.next_token(),
+                "DATA" => tokenizer.next_token()?,
                 "EVEN" => {
-                    let events_recorded = tokenizer.take_line_value();
+                    let events_recorded = tokenizer.take_line_value()?;
                     let mut event = Detail::new(tokenizer, level + 2, "OTHER")?;
                     event.with_source_data(events_recorded);
                     self.data.add_event(event);
                     return Ok(());
                 }
-                "AGNC" => self.data.agency = Some(tokenizer.take_line_value()),
-                "ABBR" => self.abbreviation = Some(tokenizer.take_continued_text(level + 1)),
+                "AGNC" => self.data.agency = Some(tokenizer.take_line_value()?),
+                "ABBR" => self.abbreviation = Some(tokenizer.take_continued_text(level + 1)?),
                 "CHAN" => self.change_date = Some(Box::new(ChangeDate::new(tokenizer, level + 1)?)),
-                "TITL" => self.title = Some(tokenizer.take_continued_text(level + 1)),
-                "AUTH" => self.author = Some(tokenizer.take_continued_text(level + 1)),
-                "PUBL" => self.publication_facts = Some(tokenizer.take_continued_text(level + 1)),
+                "TITL" => self.title = Some(tokenizer.take_continued_text(level + 1)?),
+                "AUTH" => self.author = Some(tokenizer.take_continued_text(level + 1)?),
+                "PUBL" => self.publication_facts = Some(tokenizer.take_continued_text(level + 1)?),
                 "TEXT" => {
-                    self.citation_from_source = Some(tokenizer.take_continued_text(level + 1));
+                    self.citation_from_source = Some(tokenizer.take_continued_text(level + 1)?);
                 }
                 "OBJE" => self.add_multimedia(Multimedia::new(tokenizer, level + 1, pointer)?),
                 "NOTE" => self.add_note(Note::new(tokenizer, level + 1)?),
                 "REPO" => self.add_repo_citation(Citation::new(tokenizer, level + 1)?),
-                "RFN" => self.submitter_registered_rfn = Some(tokenizer.take_line_value()),
+                "RFN" => self.submitter_registered_rfn = Some(tokenizer.take_line_value()?),
                 _ => {
                     return Err(GedcomError::ParseError {
                         line: tokenizer.line,

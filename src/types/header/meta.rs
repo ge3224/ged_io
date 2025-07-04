@@ -35,18 +35,20 @@ impl Parser for HeadMeta {
     /// parse handles parsing GEDC tag
     fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
         // skip GEDC tag
-        tokenizer.next_token();
+        tokenizer.next_token()?;
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
             match tag {
-                "VERS" => self.version = Some(tokenizer.take_line_value()),
-                // this is the only value that makes sense. warn them otherwise.
+                "VERS" => self.version = Some(tokenizer.take_line_value()?),
                 "FORM" => {
-                    let form = tokenizer.take_line_value();
-                    if &form.to_uppercase() != "LINEAGE-LINKED" {
-                        println!(
-                        "WARNING: Unrecognized GEDCOM form. Expected LINEAGE-LINKED, found {form}"
-                    );
+                    let form = tokenizer.take_line_value()?;
+                    if form.to_uppercase() != "LINEAGE-LINKED" {
+                        return Err(GedcomError::ParseError {
+                            line: tokenizer.line,
+                            message: format!(
+                                "Unrecognized GEDCOM form. Expected LINEAGE-LINKED, found {form}"
+                            ),
+                        });
                     }
                     self.form = Some(form);
                 }

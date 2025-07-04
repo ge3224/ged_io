@@ -66,7 +66,7 @@ impl Gender {
 
 impl Parser for Gender {
     fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
-        tokenizer.next_token();
+        tokenizer.next_token()?;
 
         if let Token::LineValue(gender_string) = &tokenizer.current_token {
             self.value = match gender_string.as_str() {
@@ -74,19 +74,19 @@ impl Parser for Gender {
                 "F" => GenderType::Female,
                 "X" => GenderType::Nonbinary,
                 "U" => GenderType::Unknown,
-                _ => panic!(
-                    "{} Unknown gender value {} ({})",
-                    tokenizer.debug(),
-                    gender_string,
-                    level
-                ),
+                _ => {
+                    return Err(GedcomError::ParseError {
+                        line: tokenizer.line,
+                        message: format!("Unknown gender value {gender_string}"),
+                    })
+                }
             };
-            tokenizer.next_token();
+            tokenizer.next_token()?;
         }
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
             match tag {
-                "FACT" => self.fact = Some(tokenizer.take_continued_text(level + 1)),
+                "FACT" => self.fact = Some(tokenizer.take_continued_text(level + 1)?),
                 "SOUR" => self.add_source_citation(Citation::new(tokenizer, level + 1)?),
                 _ => {
                     return Err(GedcomError::ParseError {

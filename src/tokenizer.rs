@@ -1,4 +1,5 @@
 //! Processes character streams into tokens.
+use crate::GedcomError;
 use std::str::Chars;
 
 /// The base enum of Token types making use of [GEDCOM Standard Release
@@ -54,13 +55,13 @@ impl<'a> Tokenizer<'a> {
 
     /// Loads the next token into state
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// Panics when encountering a tokenization error
-    pub fn next_token(&mut self) {
+    /// Returns a `GedcomError` if tokenization fails.
+    pub fn next_token(&mut self) -> Result<(), GedcomError> {
         if self.current_char == '\0' {
             self.current_token = Token::EOF;
-            return;
+            return Ok(());
         }
 
         // level number is at the start of each line.
@@ -70,17 +71,17 @@ impl<'a> Tokenizer<'a> {
         if self.current_char == '\n' {
             self.next_char();
 
-            self.current_token = Token::Level(self.extract_number());
+            self.current_token = Token::Level(self.extract_number()?);
             self.line += 1;
-            return;
+            return Ok(());
         }
 
         self.skip_whitespace();
 
         // handle tag with trailing whitespace
         if self.current_char == '\n' {
-            self.next_token();
-            return;
+            self.next_token()?;
+            return Ok(());
         }
 
         self.current_token = match self.current_token {
@@ -95,25 +96,32 @@ impl<'a> Tokenizer<'a> {
             }
             Token::Pointer(_) => Token::Tag(self.extract_word()),
             Token::Tag(_) | Token::CustomTag(_) => Token::LineValue(self.extract_value()),
-            _ => panic!(
-                "line {}: Tokenization error! {:?}",
-                self.line, self.current_token
-            ),
+            _ => {
+                return Err(GedcomError::ParseError {
+                    line: self.line,
+                    message: format!("Tokenization error! {:?}", self.current_token),
+                })
+            }
         };
+        Ok(())
     }
 
     /// Like `next_token`, but returns a clone of the token you are popping.
-    pub fn take_token(&mut self) -> Token {
+    ///
+    /// # Errors
+    ///
+    /// Returns a `GedcomError` if tokenization fails.
+    pub fn take_token(&mut self) -> Result<Token, GedcomError> {
         let current_token = self.current_token.clone();
-        self.next_token();
-        current_token
+        self.next_token()?;
+        Ok(current_token)
     }
 
     fn next_char(&mut self) {
         self.current_char = self.chars.next().unwrap_or('\0');
     }
 
-    fn extract_number(&mut self) -> u8 {
+    fn extract_number(&mut self) -> Result<u8, GedcomError> {
         self.skip_whitespace();
         let mut digits: Vec<char> = Vec::new();
         while self.current_char.is_ascii_digit() {
@@ -121,7 +129,14 @@ impl<'a> Tokenizer<'a> {
             self.next_char();
         }
 
-        digits.iter().collect::<String>().parse::<u8>().unwrap()
+        digits
+            .iter()
+            .collect::<String>()
+            .parse::<u8>()
+            .map_err(|e| GedcomError::ParseError {
+                line: self.line,
+                message: format!("Failed to parse number: {e}"),
+            })
     }
 
     fn extract_word(&mut self) -> String {
@@ -164,37 +179,38 @@ impl<'a> Tokenizer<'a> {
 
     /// Grabs and returns to the end of the current line as a String
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// Panics when encountering an unexpected line value
-    pub fn take_line_value(&mut self) -> String {
+    /// Returns a `GedcomError` if an unexpected line value is encountered.
+    pub fn take_line_value(&mut self) -> Result<String, GedcomError> {
         let mut value = String::new();
-        self.next_token();
+        self.next_token()?;
 
         match &self.current_token {
             Token::LineValue(val) => {
                 value = val.to_string();
-                self.next_token();
+                self.next_token()?;
             }
             // gracefully handle an attempt to take a value from a valueless line
             Token::Level(_) => (),
-            _ => panic!(
-                "{} Expected LineValue, found {:?}",
-                self.debug(),
-                self.current_token
-            ),
+            _ => {
+                return Err(GedcomError::ParseError {
+                    line: self.line,
+                    message: format!("Expected LineValue, found {:?}", self.current_token),
+                })
+            }
         }
-        value
+        Ok(value)
     }
 
     /// Takes the value of the current line including handling
     /// multi-line values from CONT & CONC tags.
     ///
-    /// # Panics
+    /// # Errors
     ///
-    /// Panics when encountering an unhandled tag
-    pub fn take_continued_text(&mut self, level: u8) -> String {
-        let mut value = self.take_line_value();
+    /// Returns a `GedcomError` if an unhandled tag or token is encountered.
+    pub fn take_continued_text(&mut self, level: u8) -> Result<String, GedcomError> {
+        let mut value = self.take_line_value()?;
 
         loop {
             if let Token::Level(cur_level) = self.current_token {
@@ -206,22 +222,28 @@ impl<'a> Tokenizer<'a> {
                 Token::Tag(tag) => match tag.as_str() {
                     "CONT" => {
                         value.push('\n');
-                        value.push_str(&self.take_line_value());
+                        value.push_str(&self.take_line_value()?);
                     }
                     "CONC" => {
                         // value.push(' ');
-                        value.push_str(&self.take_line_value());
+                        value.push_str(&self.take_line_value()?);
                     }
-                    _ => panic!("{} Unhandled Continuation Tag: {}", self.debug(), tag),
+                    _ => {
+                        return Err(GedcomError::ParseError {
+                            line: self.line,
+                            message: format!("Unhandled Continuation Tag: {tag}"),
+                        })
+                    }
                 },
-                Token::Level(_) => self.next_token(),
-                _ => panic!(
-                    "{} Unhandled Continuation Token: {:?}",
-                    self.debug(),
-                    self.current_token
-                ),
+                Token::Level(_) => self.next_token()?,
+                _ => {
+                    return Err(GedcomError::ParseError {
+                        line: self.line,
+                        message: format!("Unhandled Continuation Token: {:?}", self.current_token),
+                    })
+                }
             }
         }
-        value
+        Ok(value)
     }
 }

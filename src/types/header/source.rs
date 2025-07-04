@@ -44,12 +44,12 @@ impl HeadSour {
 impl Parser for HeadSour {
     /// parse handles the SOUR tag in a header
     fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
-        self.value = Some(tokenizer.take_line_value());
+        self.value = Some(tokenizer.take_line_value()?);
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
             match tag {
-                "VERS" => self.version = Some(tokenizer.take_line_value()),
-                "NAME" => self.name = Some(tokenizer.take_line_value()),
+                "VERS" => self.version = Some(tokenizer.take_line_value()?),
+                "NAME" => self.name = Some(tokenizer.take_line_value()?),
                 "CORP" => self.corporation = Some(Corporation::new(tokenizer, level + 1)?),
                 "DATA" => self.data = Some(HeadSourData::new(tokenizer, level + 1)?),
                 _ => {

@@ -52,11 +52,11 @@ impl Date {
 impl Parser for Date {
     /// parse handles the DATE tag
     fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
-        self.value = Some(tokenizer.take_line_value());
+        self.value = Some(tokenizer.take_line_value()?);
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
             match tag {
-                "TIME" => self.time = Some(tokenizer.take_line_value()),
+                "TIME" => self.time = Some(tokenizer.take_line_value()?),
                 _ => {
                     return Err(GedcomError::ParseError {
                         line: tokenizer.line,

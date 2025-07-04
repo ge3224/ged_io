@@ -145,25 +145,25 @@ impl std::fmt::Debug for Detail {
 
 impl Parser for Detail {
     fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
-        tokenizer.next_token();
+        tokenizer.next_token()?;
 
         // handle value on event line
         let mut value = String::new();
 
         if let Token::LineValue(val) = &tokenizer.current_token {
             value.push_str(val);
-            tokenizer.next_token();
+            tokenizer.next_token()?;
         }
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
             let mut pointer: Option<String> = None;
             if let Token::Pointer(xref) = &tokenizer.current_token {
                 pointer = Some(xref.to_string());
-                tokenizer.next_token();
+                tokenizer.next_token()?;
             }
             match tag {
                 "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
-                "PLAC" => self.place = Some(tokenizer.take_line_value()),
+                "PLAC" => self.place = Some(tokenizer.take_line_value()?),
                 "SOUR" => self.add_citation(Citation::new(tokenizer, level + 1)?),
                 "FAMC" => self.family_link = Some(FamilyLink::new(tokenizer, level + 1, tag)?),
                 "HUSB" | "WIFE" => {
@@ -174,7 +174,7 @@ impl Parser for Detail {
                     )?);
                 }
                 "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
-                "TYPE" => self.event_type = Some(tokenizer.take_line_value()),
+                "TYPE" => self.event_type = Some(tokenizer.take_line_value()?),
                 "OBJE" => {
                     self.add_multimedia_record(Multimedia::new(tokenizer, level + 1, pointer)?);
                 }

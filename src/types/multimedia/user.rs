@@ -34,11 +34,11 @@ impl UserReferenceNumber {
 
 impl Parser for UserReferenceNumber {
     fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
-        self.value = Some(tokenizer.take_line_value());
+        self.value = Some(tokenizer.take_line_value()?);
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
             match tag {
-                "TYPE" => self.user_reference_type = Some(tokenizer.take_line_value()),
+                "TYPE" => self.user_reference_type = Some(tokenizer.take_line_value()?),
                 _ => {
                     return Err(GedcomError::ParseError {
                         line: tokenizer.line,

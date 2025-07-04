@@ -83,7 +83,7 @@ impl<'a> Gedcom<'a> {
     /// Returns an error if the GEDCOM data is malformed.
     pub fn new(chars: Chars<'a>) -> Result<Gedcom<'a>, GedcomError> {
         let mut tokenizer = Tokenizer::new(chars);
-        tokenizer.next_token();
+        tokenizer.next_token()?;
         Ok(Gedcom { tokenizer })
     }
 

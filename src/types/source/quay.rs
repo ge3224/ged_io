@@ -59,7 +59,7 @@ impl std::fmt::Display for CertaintyAssessment {
 
 impl Parser for CertaintyAssessment {
     fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
-        tokenizer.next_token();
+        tokenizer.next_token()?;
         if let Token::LineValue(val) = &tokenizer.current_token {
             *self = match val.as_str() {
                 "0" => CertaintyAssessment::Unreliable,
@@ -84,7 +84,7 @@ impl Parser for CertaintyAssessment {
                 ),
             });
         }
-        tokenizer.next_token();
+        tokenizer.next_token()?;
 
         Ok(())
     }

@@ -32,7 +32,7 @@ impl Citation {
     ///
     /// This function will return an error if parsing fails.
     pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<Citation, GedcomError> {
-        let xref = tokenizer.take_line_value();
+        let xref = tokenizer.take_line_value()?;
         let mut rc = Citation::with_xref(xref);
         rc.parse(tokenizer, level)?;
         Ok(rc)
@@ -43,7 +43,7 @@ impl Parser for Citation {
     fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
             match tag {
-                "CALN" => self.call_number = Some(tokenizer.take_line_value()),
+                "CALN" => self.call_number = Some(tokenizer.take_line_value()?),
                 _ => {
                     return Err(GedcomError::ParseError {
                         line: tokenizer.line,

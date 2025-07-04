@@ -47,7 +47,7 @@ impl UserDefinedTag {
 impl Parser for UserDefinedTag {
     fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
         // skip ahead of initial tag
-        tokenizer.next_token();
+        tokenizer.next_token()?;
 
         let mut has_child = false;
         loop {
@@ -69,9 +69,9 @@ impl Parser for UserDefinedTag {
                 }
                 Token::LineValue(val) => {
                     self.value = Some(val.to_string());
-                    tokenizer.next_token();
+                    tokenizer.next_token()?;
                 }
-                Token::Level(_) => tokenizer.next_token(),
+                Token::Level(_) => tokenizer.next_token()?,
                 Token::EOF => break,
                 _ => {
                     return Err(GedcomError::ParseError {
