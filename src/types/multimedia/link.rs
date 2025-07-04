@@ -8,6 +8,7 @@ use crate::{
         multimedia::{Format, Reference},
         Xref,
     },
+    GedcomError,
 };
 
 /// Represents a multimedia link that connects GEDCOM records to external files or resources.
@@ -30,30 +31,49 @@ pub struct Link {
 }
 
 impl Link {
-    #[must_use]
-    pub fn new(tokenizer: &mut Tokenizer, level: u8, xref: Option<Xref>) -> Link {
+    /// Creates a new `Link` from a `Tokenizer`.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if parsing fails.
+    pub fn new(
+        tokenizer: &mut Tokenizer,
+        level: u8,
+        xref: Option<Xref>,
+    ) -> Result<Link, GedcomError> {
         let mut obje = Link {
             xref,
             file: None,
             form: None,
             title: None,
         };
-        obje.parse(tokenizer, level);
-        obje
+        obje.parse(tokenizer, level)?;
+        Ok(obje)
     }
 }
 
 impl Parser for Link {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) {
+    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
         // skip current line
         tokenizer.next_token();
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| match tag {
-            "FILE" => self.file = Some(Reference::new(tokenizer, level + 1)),
-            "FORM" => self.form = Some(Format::new(tokenizer, level + 1)),
-            "TITL" => self.title = Some(tokenizer.take_line_value()),
-            _ => panic!("{} Unhandled Multimedia Tag: {}", tokenizer.debug(), tag),
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+            match tag {
+                "FILE" => self.file = Some(Reference::new(tokenizer, level + 1)?),
+                "FORM" => self.form = Some(Format::new(tokenizer, level + 1)?),
+                "TITL" => self.title = Some(tokenizer.take_line_value()),
+                _ => {
+                    return Err(GedcomError::ParseError {
+                        line: tokenizer.line,
+                        message: format!("Unhandled Link Tag: {tag}"),
+                    })
+                }
+            }
+            Ok(())
         };
-        parse_subset(tokenizer, level, handle_subset);
+
+        parse_subset(tokenizer, level, handle_subset)?;
+
+        Ok(())
     }
 }

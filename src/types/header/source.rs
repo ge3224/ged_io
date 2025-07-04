@@ -7,6 +7,7 @@ use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{corporation::Corporation, header::source::data::HeadSourData},
+    GedcomError,
 };
 
 /// `HeadSource` (tag: SOUR) is an identifier for the product producing the GEDCOM data. A
@@ -28,27 +29,42 @@ pub struct HeadSour {
 }
 
 impl HeadSour {
-    #[must_use]
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> HeadSour {
+    /// Creates a new `HeadSour` from a `Tokenizer`.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if parsing fails.
+    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<HeadSour, GedcomError> {
         let mut head_sour = HeadSour::default();
-        head_sour.parse(tokenizer, level);
-        head_sour
+        head_sour.parse(tokenizer, level)?;
+        Ok(head_sour)
     }
 }
 
 impl Parser for HeadSour {
     /// parse handles the SOUR tag in a header
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) {
+    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
         self.value = Some(tokenizer.take_line_value());
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| match tag {
-            "VERS" => self.version = Some(tokenizer.take_line_value()),
-            "NAME" => self.name = Some(tokenizer.take_line_value()),
-            "CORP" => self.corporation = Some(Corporation::new(tokenizer, level + 1)),
-            "DATA" => self.data = Some(HeadSourData::new(tokenizer, level + 1)),
-            _ => panic!("{} Unhandled CHAR Tag: {}", tokenizer.debug(), tag),
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+            match tag {
+                "VERS" => self.version = Some(tokenizer.take_line_value()),
+                "NAME" => self.name = Some(tokenizer.take_line_value()),
+                "CORP" => self.corporation = Some(Corporation::new(tokenizer, level + 1)?),
+                "DATA" => self.data = Some(HeadSourData::new(tokenizer, level + 1)?),
+                _ => {
+                    return Err(GedcomError::ParseError {
+                        line: tokenizer.line,
+                        message: format!("Unhandled HeadSour Tag: {tag}"),
+                    })
+                }
+            }
+            Ok(())
         };
-        parse_subset(tokenizer, level, handle_subset);
+
+        parse_subset(tokenizer, level, handle_subset)?;
+
+        Ok(())
     }
 }
 

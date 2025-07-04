@@ -2,6 +2,7 @@ use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{source::Source, translation::Translation},
+    GedcomError,
 };
 
 #[cfg(feature = "json")]
@@ -46,25 +47,40 @@ pub struct Note {
 }
 
 impl Note {
-    #[must_use]
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Note {
+    /// Creates a new `Note` from a `Tokenizer`.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if parsing fails.
+    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<Note, GedcomError> {
         let mut note = Note::default();
-        note.parse(tokenizer, level);
-        note
+        note.parse(tokenizer, level)?;
+        Ok(note)
     }
 }
 
 impl Parser for Note {
     /// parse handles the NOTE tag
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) {
+    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
         self.value = Some(tokenizer.take_continued_text(level));
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| match tag {
-            "MIME" => self.mime = Some(tokenizer.take_line_value()),
-            "TRANS" => self.translation = Some(Translation::new(tokenizer, level + 1)),
-            "LANG" => self.language = Some(tokenizer.take_line_value()),
-            _ => panic!("{} unhandled NOTE tag: {}", tokenizer.debug(), tag),
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+            match tag {
+                "MIME" => self.mime = Some(tokenizer.take_line_value()),
+                "TRANS" => self.translation = Some(Translation::new(tokenizer, level + 1)?),
+                "LANG" => self.language = Some(tokenizer.take_line_value()),
+                _ => {
+                    return Err(GedcomError::ParseError {
+                        line: tokenizer.line,
+                        message: format!("Unhandled Note Tag: {tag}"),
+                    })
+                }
+            }
+
+            Ok(())
         };
-        parse_subset(tokenizer, level, handle_subset);
+        parse_subset(tokenizer, level, handle_subset)?;
+
+        Ok(())
     }
 }
 

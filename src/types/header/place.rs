@@ -1,6 +1,7 @@
 use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
+    GedcomError,
 };
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
@@ -34,38 +35,48 @@ impl HeadPlac {
 }
 
 impl HeadPlac {
-    #[must_use]
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> HeadPlac {
+    /// Creates a new `HeadPlac` from a `Tokenizer`.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if parsing fails.
+    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<HeadPlac, GedcomError> {
         let mut head_plac = HeadPlac::default();
-        head_plac.parse(tokenizer, level);
-        head_plac
+        head_plac.parse(tokenizer, level)?;
+        Ok(head_plac)
     }
 }
 
 impl Parser for HeadPlac {
     /// parse handles the PLAC tag when present in header
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) {
+    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
         // In the header, PLAC should have no payload. See
         // https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#HEAD-PLAC
         tokenizer.next_token();
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| match tag {
-            "FORM" => {
-                let form = tokenizer.take_line_value();
-                let jurisdictional_titles = form.split(',');
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+            match tag {
+                "FORM" => {
+                    let form = tokenizer.take_line_value();
+                    let jurisdictional_titles = form.split(',');
 
-                for t in jurisdictional_titles {
-                    let v = t.trim();
-                    self.push_jurisdictional_title(v.to_string());
+                    for t in jurisdictional_titles {
+                        let v = t.trim();
+                        self.push_jurisdictional_title(v.to_string());
+                    }
+                }
+                _ => {
+                    return Err(GedcomError::ParseError {
+                        line: tokenizer.line,
+                        message: format!("Unhandled HeadPlace Tag: {tag}"),
+                    })
                 }
             }
-            _ => panic!(
-                "{} Unhandled PLAC tag in header: {}",
-                tokenizer.debug(),
-                tag
-            ),
+            Ok(())
         };
-        parse_subset(tokenizer, level, handle_subset);
+        parse_subset(tokenizer, level, handle_subset)?;
+
+        Ok(())
     }
 }
 

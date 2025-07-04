@@ -10,9 +10,10 @@ use crate::{
         custom::UserDefinedTag,
         multimedia::Multimedia,
         note::Note,
-        source::{citation::data::Data, quay::CertaintyAssessment},
+        source::{citation::data::SourceCitationData, quay::CertaintyAssessment},
         Xref,
     },
+    GedcomError,
 };
 
 /// The data provided in the `SourceCitation` structure is source-related information specific to
@@ -24,7 +25,7 @@ pub struct Citation {
     pub xref: Xref,
     /// Page number of source
     pub page: Option<String>,
-    pub data: Option<Data>,
+    pub data: Option<SourceCitationData>,
     pub note: Option<Note>,
     pub certainty_assessment: Option<CertaintyAssessment>,
     /// handles "RFN" tag; found in Ancestry.com export
@@ -34,8 +35,12 @@ pub struct Citation {
 }
 
 impl Citation {
-    #[must_use]
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Citation {
+    /// Creates a new `Citation` from a `Tokenizer`.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if parsing fails.
+    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<Citation, GedcomError> {
         let mut citation = Citation {
             xref: tokenizer.take_line_value(),
             page: None,
@@ -46,8 +51,8 @@ impl Citation {
             custom_data: Vec::new(),
             submitter_registered_rfn: None,
         };
-        citation.parse(tokenizer, level);
-        citation
+        citation.parse(tokenizer, level)?;
+        Ok(citation)
     }
 
     pub fn add_multimedia(&mut self, m: Multimedia) {
@@ -56,10 +61,10 @@ impl Citation {
 }
 
 impl Parser for Citation {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) {
+    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
         tokenizer.next_token();
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| {
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
             let mut pointer: Option<String> = None;
             if let Token::Pointer(xref) = &tokenizer.current_token {
                 pointer = Some(xref.to_string());
@@ -67,21 +72,26 @@ impl Parser for Citation {
             }
             match tag {
                 "PAGE" => self.page = Some(tokenizer.take_continued_text(level + 1)),
-                "DATA" => self.data = Some(Data::new(tokenizer, level + 1)),
-                "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)),
+                "DATA" => self.data = Some(SourceCitationData::new(tokenizer, level + 1)?),
+                "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
                 "QUAY" => {
                     self.certainty_assessment =
-                        Some(CertaintyAssessment::new(tokenizer, level + 1));
+                        Some(CertaintyAssessment::new(tokenizer, level + 1)?);
                 }
                 "RFN" => self.submitter_registered_rfn = Some(tokenizer.take_line_value()),
-                "OBJE" => self.add_multimedia(Multimedia::new(tokenizer, level + 1, pointer)),
-                _ => panic!(
-                    "{} Unhandled SourceCitation Tag: {}",
-                    tokenizer.debug(),
-                    tag
-                ),
+                "OBJE" => self.add_multimedia(Multimedia::new(tokenizer, level + 1, pointer)?),
+                _ => {
+                    return Err(GedcomError::ParseError {
+                        line: tokenizer.line,
+                        message: format!("Unhandled SourceCitation Tag: {tag}"),
+                    })
+                }
             }
+
+            Ok(())
         };
-        self.custom_data = parse_subset(tokenizer, level, handle_subset);
+        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
+
+        Ok(())
     }
 }

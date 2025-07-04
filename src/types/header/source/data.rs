@@ -5,6 +5,7 @@ use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::date::Date,
+    GedcomError,
 };
 
 /// The electronic data source or digital repository from which this dataset was exported. The
@@ -22,29 +23,40 @@ pub struct HeadSourData {
 }
 
 impl HeadSourData {
-    #[must_use]
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> HeadSourData {
+    /// Creates a new `HeadSourData` from a `Tokenizer`.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if parsing fails.
+    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<HeadSourData, GedcomError> {
         let mut head_sour_data = HeadSourData::default();
-        head_sour_data.parse(tokenizer, level);
-        head_sour_data
+        head_sour_data.parse(tokenizer, level)?;
+        Ok(head_sour_data)
     }
 }
 
 impl Parser for HeadSourData {
     /// parse parses the DATA tag
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) {
+    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
         self.value = Some(tokenizer.take_line_value());
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| match tag {
-            "DATE" => self.date = Some(Date::new(tokenizer, level + 1)),
-            "COPR" => self.copyright = Some(tokenizer.take_continued_text(level + 1)),
-            _ => panic!(
-                "{} unhandled DATA tag in header: {}",
-                tokenizer.debug(),
-                tag
-            ),
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+            match tag {
+                "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
+                "COPR" => self.copyright = Some(tokenizer.take_continued_text(level + 1)),
+                _ => {
+                    return Err(GedcomError::ParseError {
+                        line: tokenizer.line,
+                        message: format!("Unhandled HeadSourData Tag: {tag}"),
+                    })
+                }
+            }
+            Ok(())
         };
-        parse_subset(tokenizer, level, handle_subset);
+
+        parse_subset(tokenizer, level, handle_subset)?;
+
+        Ok(())
     }
 }
 

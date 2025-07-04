@@ -4,6 +4,7 @@ use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{address::Address, Xref},
+    GedcomError,
 };
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
@@ -29,25 +30,49 @@ impl Repository {
         }
     }
 
-    #[must_use]
-    pub fn new(tokenizer: &mut Tokenizer, level: u8, xref: Option<String>) -> Repository {
+    /// Creates a new `Repository` from a `Tokenizer`.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if parsing fails.
+    pub fn new(
+        tokenizer: &mut Tokenizer,
+        level: u8,
+        xref: Option<String>,
+    ) -> Result<Repository, GedcomError> {
         let mut repo = Repository::with_xref(xref);
-        repo.parse(tokenizer, level);
-        repo
+        repo.parse(tokenizer, level)?;
+        Ok(repo)
     }
 }
 
 impl Parser for Repository {
     /// Parses REPO top-level tag.
-    fn parse(&mut self, tokenizer: &mut crate::tokenizer::Tokenizer, level: u8) {
+    fn parse(
+        &mut self,
+        tokenizer: &mut crate::tokenizer::Tokenizer,
+        level: u8,
+    ) -> Result<(), GedcomError> {
         // skip REPO tag
         tokenizer.next_token();
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| match tag {
-            "NAME" => self.name = Some(tokenizer.take_line_value()),
-            "ADDR" => self.address = Some(Address::new(tokenizer, level + 1)),
-            _ => panic!("{} Unhandled Repository Tag: {}", tokenizer.debug(), tag),
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+            match tag {
+                "NAME" => self.name = Some(tokenizer.take_line_value()),
+                "ADDR" => self.address = Some(Address::new(tokenizer, level + 1)?),
+                _ => {
+                    return Err(GedcomError::ParseError {
+                        line: tokenizer.line,
+                        message: format!("Unhandled Repository Tag: {tag}"),
+                    })
+                }
+            }
+
+            Ok(())
         };
-        parse_subset(tokenizer, level, handle_subset);
+
+        parse_subset(tokenizer, level, handle_subset)?;
+
+        Ok(())
     }
 }

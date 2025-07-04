@@ -16,6 +16,7 @@ use crate::{
         note::Note,
         Xref,
     },
+    GedcomError,
 };
 
 /// `FamilyLinkType` is a code used to indicates whether a family link is a pointer to a family
@@ -51,16 +52,22 @@ pub struct FamilyLink {
 }
 
 impl FamilyLink {
-    #[must_use]
-    /// # Panics
+    /// Creates a new `FamilyLink` from a `Tokenizer`.
     ///
-    /// Will panic when encountering an unrecognized tag
-    pub fn new(tokenizer: &mut Tokenizer, level: u8, tag: &str) -> FamilyLink {
+    /// # Errors
+    ///
+    /// This function will return an error if parsing fails.
+    pub fn new(tokenizer: &mut Tokenizer, level: u8, tag: &str) -> Result<FamilyLink, GedcomError> {
         let xref = tokenizer.take_line_value();
         let link_type = match tag {
             "FAMC" => FamilyLinkType::Child,
             "FAMS" => FamilyLinkType::Spouse,
-            _ => panic!("Unrecognized family type tag: {tag}"),
+            _ => {
+                return Err(GedcomError::ParseError {
+                    line: tokenizer.line,
+                    message: format!("Unhandled FamilyLinkType Tag: {tag}"),
+                })
+            }
         };
         let mut family_link = FamilyLink {
             xref,
@@ -71,8 +78,8 @@ impl FamilyLink {
             note: None,
             custom_data: Vec::new(),
         };
-        family_link.parse(tokenizer, level);
-        family_link
+        family_link.parse(tokenizer, level)?;
+        Ok(family_link)
     }
 
     /// # Panics
@@ -119,14 +126,25 @@ impl FamilyLink {
 }
 
 impl Parser for FamilyLink {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) {
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| match tag {
-            "PEDI" => self.set_pedigree(tokenizer.take_line_value().as_str()),
-            "STAT" => self.set_child_linkage_status(tokenizer.take_line_value().as_str()),
-            "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)),
-            "ADOP" => self.set_adopted_by_which_parent(tokenizer.take_line_value().as_str()),
-            _ => panic!("{} Unhandled FamilyLink Tag: {}", tokenizer.debug(), tag),
+    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+            match tag {
+                "PEDI" => self.set_pedigree(tokenizer.take_line_value().as_str()),
+                "STAT" => self.set_child_linkage_status(tokenizer.take_line_value().as_str()),
+                "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
+                "ADOP" => self.set_adopted_by_which_parent(tokenizer.take_line_value().as_str()),
+                _ => {
+                    return Err(GedcomError::ParseError {
+                        line: tokenizer.line,
+                        message: format!("Unhandled FamilyLink Tag: {tag}"),
+                    })
+                }
+            }
+            Ok(())
         };
-        self.custom_data = parse_subset(tokenizer, level, handle_subset);
+
+        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
+
+        Ok(())
     }
 }

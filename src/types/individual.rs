@@ -18,6 +18,7 @@ use crate::{
         source::citation::Citation,
         Xref,
     },
+    GedcomError,
 };
 
 #[cfg(feature = "json")]
@@ -53,11 +54,19 @@ impl Individual {
         }
     }
 
-    #[must_use]
-    pub fn new(tokenizer: &mut Tokenizer, level: u8, xref: Option<Xref>) -> Individual {
+    /// Creates a new `Individual` from a `Tokenizer`.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if parsing fails.
+    pub fn new(
+        tokenizer: &mut Tokenizer,
+        level: u8,
+        xref: Option<Xref>,
+    ) -> Result<Individual, GedcomError> {
         let mut indi = Individual::with_xref(xref);
-        indi.parse(tokenizer, level);
-        indi
+        indi.parse(tokenizer, level)?;
+        Ok(indi)
     }
 
     pub fn add_family(&mut self, link: FamilyLink) {
@@ -102,37 +111,52 @@ impl HasEvents for Individual {
 
 impl Parser for Individual {
     /// parse handles the INDI top-level tag
-    fn parse(&mut self, tokenizer: &mut crate::tokenizer::Tokenizer, level: u8) {
+    fn parse(
+        &mut self,
+        tokenizer: &mut crate::tokenizer::Tokenizer,
+        level: u8,
+    ) -> Result<(), GedcomError> {
         // skip over INDI tag name
         tokenizer.next_token();
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| match tag {
-            // TODO handle xref
-            "NAME" => self.name = Some(Name::new(tokenizer, level + 1)),
-            "SEX" => self.sex = Some(Gender::new(tokenizer, level + 1)),
-            "ADOP" | "BIRT" | "BAPM" | "BARM" | "BASM" | "BLES" | "BURI" | "CENS" | "CHR"
-            | "CHRA" | "CONF" | "CREM" | "DEAT" | "EMIG" | "FCOM" | "GRAD" | "IMMI" | "NATU"
-            | "ORDN" | "RETI" | "RESI" | "PROB" | "WILL" | "EVEN" | "MARR" => {
-                self.add_event(Detail::new(tokenizer, level + 1, tag));
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+            match tag {
+                // TODO handle xref
+                "NAME" => self.name = Some(Name::new(tokenizer, level + 1)?),
+                "SEX" => self.sex = Some(Gender::new(tokenizer, level + 1)?),
+                "ADOP" | "BIRT" | "BAPM" | "BARM" | "BASM" | "BLES" | "BURI" | "CENS" | "CHR"
+                | "CHRA" | "CONF" | "CREM" | "DEAT" | "EMIG" | "FCOM" | "GRAD" | "IMMI"
+                | "NATU" | "ORDN" | "RETI" | "RESI" | "PROB" | "WILL" | "EVEN" | "MARR" => {
+                    self.add_event(Detail::new(tokenizer, level + 1, tag)?);
+                }
+                "CAST" | "DSCR" | "EDUC" | "IDNO" | "NATI" | "NCHI" | "NMR" | "OCCU" | "PROP"
+                | "RELI" | "SSN" | "TITL" | "FACT" => {
+                    // RESI should be an attribute or an event?
+                    self.add_attribute(AttributeDetail::new(tokenizer, level + 1, tag)?);
+                }
+                "FAMC" | "FAMS" => {
+                    self.add_family(FamilyLink::new(tokenizer, level + 1, tag)?);
+                }
+                "CHAN" => self.change_date = Some(ChangeDate::new(tokenizer, level + 1)?),
+                "SOUR" => {
+                    self.add_source_citation(Citation::new(tokenizer, level + 1)?);
+                }
+                "OBJE" => self.add_multimedia(Multimedia::new(tokenizer, level + 1, None)?),
+                "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
+                _ => {
+                    return Err(GedcomError::ParseError {
+                        line: tokenizer.line,
+                        message: format!("Unhandled Individual Tag: {tag}"),
+                    })
+                }
             }
-            "CAST" | "DSCR" | "EDUC" | "IDNO" | "NATI" | "NCHI" | "NMR" | "OCCU" | "PROP"
-            | "RELI" | "SSN" | "TITL" | "FACT" => {
-                // RESI should be an attribute or an event?
-                self.add_attribute(AttributeDetail::new(tokenizer, level + 1, tag));
-            }
-            "FAMC" | "FAMS" => {
-                self.add_family(FamilyLink::new(tokenizer, level + 1, tag));
-            }
-            "CHAN" => self.change_date = Some(ChangeDate::new(tokenizer, level + 1)),
-            "SOUR" => {
-                self.add_source_citation(Citation::new(tokenizer, level + 1));
-            }
-            "OBJE" => self.add_multimedia(Multimedia::new(tokenizer, level + 1, None)),
-            "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)),
-            _ => panic!("{} Unhandled Individual Tag: {}", tokenizer.debug(), tag),
+
+            Ok(())
         };
 
-        self.custom_data = parse_subset(tokenizer, level, handle_subset);
+        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
+
+        Ok(())
     }
 }
 

@@ -13,6 +13,7 @@ use crate::{
         note::Note,
         source::citation::Citation,
     },
+    GedcomError,
 };
 
 /// `EventDetail` is a thing that happens on a specific date. Use the date form 'BET date AND date'
@@ -41,8 +42,12 @@ pub struct Detail {
 }
 
 impl Detail {
-    #[must_use]
-    pub fn new(tokenizer: &mut Tokenizer, level: u8, tag: &str) -> Detail {
+    /// Creates a new `Detail` from a `Tokenizer`.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if parsing fails.
+    pub fn new(tokenizer: &mut Tokenizer, level: u8, tag: &str) -> Result<Detail, GedcomError> {
         let mut event = Detail {
             event: Self::from_tag(tag),
             value: None,
@@ -55,8 +60,8 @@ impl Detail {
             citations: Vec::new(),
             multimedia: Vec::new(),
         };
-        event.parse(tokenizer, level);
-        event
+        event.parse(tokenizer, level)?;
+        Ok(event)
     }
 
     /** converts an event to be of type `SourceData` with `value` as the data */
@@ -139,7 +144,7 @@ impl std::fmt::Debug for Detail {
 }
 
 impl Parser for Detail {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) {
+    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
         tokenizer.next_token();
 
         // handle value on event line
@@ -150,32 +155,45 @@ impl Parser for Detail {
             tokenizer.next_token();
         }
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| {
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
             let mut pointer: Option<String> = None;
             if let Token::Pointer(xref) = &tokenizer.current_token {
                 pointer = Some(xref.to_string());
                 tokenizer.next_token();
             }
             match tag {
-                "DATE" => self.date = Some(Date::new(tokenizer, level + 1)),
+                "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
                 "PLAC" => self.place = Some(tokenizer.take_line_value()),
-                "SOUR" => self.add_citation(Citation::new(tokenizer, level + 1)),
-                "FAMC" => self.family_link = Some(FamilyLink::new(tokenizer, level + 1, tag)),
+                "SOUR" => self.add_citation(Citation::new(tokenizer, level + 1)?),
+                "FAMC" => self.family_link = Some(FamilyLink::new(tokenizer, level + 1, tag)?),
                 "HUSB" | "WIFE" => {
-                    self.add_family_event_detail(FamilyEventDetail::new(tokenizer, level + 1, tag));
+                    self.add_family_event_detail(FamilyEventDetail::new(
+                        tokenizer,
+                        level + 1,
+                        tag,
+                    )?);
                 }
-                "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)),
+                "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
                 "TYPE" => self.event_type = Some(tokenizer.take_line_value()),
                 "OBJE" => {
-                    self.add_multimedia_record(Multimedia::new(tokenizer, level + 1, pointer));
+                    self.add_multimedia_record(Multimedia::new(tokenizer, level + 1, pointer)?);
                 }
-                _ => panic!("{} Unhandled Event Tag: {}", tokenizer.debug(), tag),
+                _ => {
+                    return Err(GedcomError::ParseError {
+                        line: tokenizer.line,
+                        message: format!("Unhandled Detail Tag: {tag}"),
+                    })
+                }
             }
+            Ok(())
         };
-        parse_subset(tokenizer, level, handle_subset);
+
+        parse_subset(tokenizer, level, handle_subset)?;
 
         if !value.is_empty() {
             self.value = Some(value);
         }
+
+        Ok(())
     }
 }

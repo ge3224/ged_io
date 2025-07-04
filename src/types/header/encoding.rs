@@ -1,6 +1,7 @@
 use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
+    GedcomError,
 };
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
@@ -16,24 +17,39 @@ pub struct Encoding {
 }
 
 impl Encoding {
-    #[must_use]
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Encoding {
+    /// Creates a new `Encoding` from a `Tokenizer`.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if parsing fails.
+    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<Encoding, GedcomError> {
         let mut chars = Encoding::default();
-        chars.parse(tokenizer, level);
-        chars
+        chars.parse(tokenizer, level)?;
+        Ok(chars)
     }
 }
 
 impl Parser for Encoding {
     /// parse handles the parsing of the CHARS tag
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) {
+    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
         self.value = Some(tokenizer.take_line_value());
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| match tag {
-            "VERS" => self.version = Some(tokenizer.take_line_value()),
-            _ => panic!("{} Unhandled CHAR Tag: {}", tokenizer.debug(), tag),
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+            match tag {
+                "VERS" => self.version = Some(tokenizer.take_line_value()),
+                _ => {
+                    return Err(GedcomError::ParseError {
+                        line: tokenizer.line,
+                        message: format!("Unhandled Encoding Tag: {tag}"),
+                    })
+                }
+            }
+            Ok(())
         };
-        parse_subset(tokenizer, level, handle_subset);
+
+        parse_subset(tokenizer, level, handle_subset)?;
+
+        Ok(())
     }
 }
 

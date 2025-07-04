@@ -10,6 +10,7 @@ use crate::{
         source::citation::Citation,
         Xref,
     },
+    GedcomError,
 };
 
 #[cfg(feature = "json")]
@@ -45,8 +46,17 @@ impl Family {
         }
     }
 
-    #[must_use]
-    pub fn new(tokenizer: &mut Tokenizer, level: u8, xref: Option<Xref>) -> Family {
+    /// Creates a new `Family` from a `Tokenizer`.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if parsing fails.
+    #[allow(clippy::double_must_use)]
+    pub fn new(
+        tokenizer: &mut Tokenizer,
+        level: u8,
+        xref: Option<Xref>,
+    ) -> Result<Family, GedcomError> {
         let mut fam = Family::with_xref(xref);
         fam.children = Vec::new();
         fam.events = Vec::new();
@@ -54,8 +64,8 @@ impl Family {
         fam.multimedia = Vec::new();
         fam.notes = Vec::new();
         fam.custom_data = Vec::new();
-        fam.parse(tokenizer, level);
-        fam
+        fam.parse(tokenizer, level)?;
+        Ok(fam)
     }
 
     /// # Panics
@@ -106,11 +116,11 @@ impl Family {
 
 impl Parser for Family {
     /// parse handles FAM top-level tag
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) {
+    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
         // skip over FAM tag name
         tokenizer.next_token();
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| {
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
             let mut pointer: Option<String> = None;
             if let Token::Pointer(xref) = &tokenizer.current_token {
                 pointer = Some(xref.to_string());
@@ -120,21 +130,30 @@ impl Parser for Family {
             match tag {
                 "MARR" | "ANUL" | "CENS" | "DIV" | "DIVF" | "ENGA" | "MARB" | "MARC" | "MARL"
                 | "MARS" | "RESI" | "EVEN" => {
-                    self.add_event(Detail::new(tokenizer, level + 1, tag));
+                    self.add_event(Detail::new(tokenizer, level + 1, tag)?);
                 }
                 "HUSB" => self.set_individual1(tokenizer.take_line_value()),
                 "WIFE" => self.set_individual2(tokenizer.take_line_value()),
                 "CHIL" => self.add_child(tokenizer.take_line_value()),
                 "NCHI" => self.num_children = Some(tokenizer.take_line_value()),
-                "CHAN" => self.change_date = Some(ChangeDate::new(tokenizer, level + 1)),
-                "SOUR" => self.add_source(Citation::new(tokenizer, level + 1)),
-                "NOTE" => self.add_note(Note::new(tokenizer, level + 1)),
-                "OBJE" => self.add_multimedia(Multimedia::new(tokenizer, level + 1, pointer)),
-                _ => panic!("{} Unhandled Family Tag: {}", tokenizer.debug(), tag),
+                "CHAN" => self.change_date = Some(ChangeDate::new(tokenizer, level + 1)?),
+                "SOUR" => self.add_source(Citation::new(tokenizer, level + 1)?),
+                "NOTE" => self.add_note(Note::new(tokenizer, level + 1)?),
+                "OBJE" => self.add_multimedia(Multimedia::new(tokenizer, level + 1, pointer)?),
+                _ => {
+                    return Err(GedcomError::ParseError {
+                        line: tokenizer.line,
+                        message: format!("Unhandled Family Tag: {tag}"),
+                    })
+                }
             }
+
+            Ok(())
         };
 
-        self.custom_data = parse_subset(tokenizer, level, handle_subset);
+        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
+
+        Ok(())
     }
 }
 

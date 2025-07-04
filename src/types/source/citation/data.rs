@@ -5,6 +5,7 @@ use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{date::Date, source::text::Text},
+    GedcomError,
 };
 
 /// `SourceCitationData` is a substructure of `SourceCitation`, associated with the SOUR.DATA tag.
@@ -13,35 +14,47 @@ use crate::{
 /// sentence from a letter. This is stored in the SOUR.DATA.TEXT context.
 #[derive(Clone, Debug, Default)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize, PartialEq))]
-pub struct Data {
+pub struct SourceCitationData {
     pub date: Option<Date>,
     pub text: Option<Text>,
 }
 
-impl Data {
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Data {
-        let mut data = Data {
+impl SourceCitationData {
+    /// Creates a new `SourceCitationData` from a `Tokenizer`.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if parsing fails.
+    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<SourceCitationData, GedcomError> {
+        let mut data = SourceCitationData {
             date: None,
             text: None,
         };
-        data.parse(tokenizer, level);
-        data
+        data.parse(tokenizer, level)?;
+        Ok(data)
     }
 }
 
-impl Parser for Data {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) {
+impl Parser for SourceCitationData {
+    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
         // skip because this DATA tag should have now line value
         tokenizer.next_token();
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| match tag {
-            "DATE" => self.date = Some(Date::new(tokenizer, level + 1)),
-            "TEXT" => self.text = Some(Text::new(tokenizer, level + 1)),
-            _ => panic!(
-                "{} unhandled SourceCitationData tag: {}",
-                tokenizer.debug(),
-                tag
-            ),
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+            match tag {
+                "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
+                "TEXT" => self.text = Some(Text::new(tokenizer, level + 1)?),
+                _ => {
+                    return Err(GedcomError::ParseError {
+                        line: tokenizer.line,
+                        message: format!("Unhandled SourceCitationData Tag: {tag}"),
+                    })
+                }
+            }
+            Ok(())
         };
-        parse_subset(tokenizer, level, handle_subset);
+
+        parse_subset(tokenizer, level, handle_subset)?;
+
+        Ok(())
     }
 }

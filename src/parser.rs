@@ -3,12 +3,17 @@
 use crate::{
     tokenizer::{Token, Tokenizer},
     types::custom::UserDefinedTag,
+    GedcomError,
 };
 
 /// Defines shared parsing functionality for GEDCOM records.
 pub trait Parser {
-    /// Parses GEDCOM data at the specified hierarchical level.
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8);
+    /// Parses GEDCOM tokens into the data structure.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if parsing fails.
+    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError>;
 }
 
 /// Parses GEDCOM tokens at a specific hierarchical level, handling both standard and custom tags.
@@ -18,16 +23,16 @@ pub trait Parser {
 /// Standard tags are handled by the provided callback, while custom/non-standard tags
 /// are collected and returned.
 ///
-/// # Panics
+/// # Errors
 ///
-/// Panics when encountering an unhandled token
+/// Returns a `GedcomError` if an unhandled token is encountered or if `UserDefinedTag::new` fails.
 pub fn parse_subset<F>(
     tokenizer: &mut Tokenizer,
     level: u8,
     mut tag_handler: F,
-) -> Vec<Box<UserDefinedTag>>
+) -> Result<Vec<Box<UserDefinedTag>>, GedcomError>
 where
-    F: FnMut(&str, &mut Tokenizer),
+    F: FnMut(&str, &mut Tokenizer) -> Result<(), GedcomError>,
 {
     let mut non_standard_dataset = Vec::new();
     loop {
@@ -40,7 +45,7 @@ where
         match &tokenizer.current_token {
             Token::Tag(tag) => {
                 let tag_clone = tag.clone();
-                tag_handler(tag_clone.as_str(), tokenizer);
+                tag_handler(tag_clone.as_str(), tokenizer)?;
             }
             Token::CustomTag(tag) => {
                 let tag_clone = tag.clone();
@@ -48,15 +53,16 @@ where
                     tokenizer,
                     level + 1,
                     &tag_clone,
-                )));
+                )?));
             }
             Token::Level(_) => tokenizer.next_token(),
-            _ => panic!(
-                "{}, Unhandled Token: {:?}",
-                tokenizer.debug(),
-                tokenizer.current_token
-            ),
+            _ => {
+                return Err(GedcomError::ParseError {
+                    line: tokenizer.line,
+                    message: format!("Unhandled Token: {:?}", tokenizer.current_token),
+                })
+            }
         }
     }
-    non_standard_dataset
+    Ok(non_standard_dataset)
 }

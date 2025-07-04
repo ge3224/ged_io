@@ -3,6 +3,7 @@ pub mod change_date;
 use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
+    GedcomError,
 };
 
 #[cfg(feature = "json")]
@@ -17,11 +18,15 @@ pub struct Date {
 }
 
 impl Date {
-    #[must_use]
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Date {
+    /// Creates a new `Date` from a `Tokenizer`.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if parsing fails.
+    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<Date, GedcomError> {
         let mut date = Date::default();
-        date.parse(tokenizer, level);
-        date
+        date.parse(tokenizer, level)?;
+        Ok(date)
     }
 
     /// datetime returns Date and Date.time in a single string.
@@ -46,14 +51,23 @@ impl Date {
 
 impl Parser for Date {
     /// parse handles the DATE tag
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) {
+    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
         self.value = Some(tokenizer.take_line_value());
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| match tag {
-            "TIME" => self.time = Some(tokenizer.take_line_value()),
-            _ => panic!("{} unhandled DATE tag: {}", tokenizer.debug(), tag),
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+            match tag {
+                "TIME" => self.time = Some(tokenizer.take_line_value()),
+                _ => {
+                    return Err(GedcomError::ParseError {
+                        line: tokenizer.line,
+                        message: format!("Unhandled Date Tag: {tag}"),
+                    })
+                }
+            }
+            Ok(())
         };
-        parse_subset(tokenizer, level, handle_subset);
+        parse_subset(tokenizer, level, handle_subset)?;
+        Ok(())
     }
 }
 

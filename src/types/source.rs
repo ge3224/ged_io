@@ -11,6 +11,7 @@ use crate::{
         multimedia::Multimedia, note::Note, repository::citation::Citation, source::data::Data,
         Xref,
     },
+    GedcomError,
 };
 
 #[cfg(feature = "json")]
@@ -45,11 +46,20 @@ impl Source {
         }
     }
 
-    #[must_use]
-    pub fn new(tokenizer: &mut Tokenizer, level: u8, xref: Option<String>) -> Source {
+    /// Creates a new `Source` from a `Tokenizer`.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if parsing fails.
+    #[allow(clippy::double_must_use)]
+    pub fn new(
+        tokenizer: &mut Tokenizer,
+        level: u8,
+        xref: Option<String>,
+    ) -> Result<Source, GedcomError> {
         let mut sour = Source::with_xref(xref);
-        sour.parse(tokenizer, level);
-        sour
+        sour.parse(tokenizer, level)?;
+        Ok(sour)
     }
 
     pub fn add_multimedia(&mut self, media: Multimedia) {
@@ -66,11 +76,11 @@ impl Source {
 }
 
 impl Parser for Source {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) {
+    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
         // skip SOUR tag
         tokenizer.next_token();
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| {
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
             let mut pointer: Option<String> = None;
             if let Token::Pointer(xref) = &tokenizer.current_token {
                 pointer = Some(xref.to_string());
@@ -80,27 +90,38 @@ impl Parser for Source {
                 "DATA" => tokenizer.next_token(),
                 "EVEN" => {
                     let events_recorded = tokenizer.take_line_value();
-                    let mut event = Detail::new(tokenizer, level + 2, "OTHER");
+                    let mut event = Detail::new(tokenizer, level + 2, "OTHER")?;
                     event.with_source_data(events_recorded);
                     self.data.add_event(event);
+                    return Ok(());
                 }
                 "AGNC" => self.data.agency = Some(tokenizer.take_line_value()),
                 "ABBR" => self.abbreviation = Some(tokenizer.take_continued_text(level + 1)),
-                "CHAN" => self.change_date = Some(Box::new(ChangeDate::new(tokenizer, level + 1))),
+                "CHAN" => self.change_date = Some(Box::new(ChangeDate::new(tokenizer, level + 1)?)),
                 "TITL" => self.title = Some(tokenizer.take_continued_text(level + 1)),
                 "AUTH" => self.author = Some(tokenizer.take_continued_text(level + 1)),
                 "PUBL" => self.publication_facts = Some(tokenizer.take_continued_text(level + 1)),
                 "TEXT" => {
                     self.citation_from_source = Some(tokenizer.take_continued_text(level + 1));
                 }
-                "OBJE" => self.add_multimedia(Multimedia::new(tokenizer, level + 1, pointer)),
-                "NOTE" => self.add_note(Note::new(tokenizer, level + 1)),
-                "REPO" => self.add_repo_citation(Citation::new(tokenizer, level + 1)),
+                "OBJE" => self.add_multimedia(Multimedia::new(tokenizer, level + 1, pointer)?),
+                "NOTE" => self.add_note(Note::new(tokenizer, level + 1)?),
+                "REPO" => self.add_repo_citation(Citation::new(tokenizer, level + 1)?),
                 "RFN" => self.submitter_registered_rfn = Some(tokenizer.take_line_value()),
-                _ => panic!("{} Unhandled Source Tag: {}", tokenizer.debug(), tag),
+                _ => {
+                    return Err(GedcomError::ParseError {
+                        line: tokenizer.line,
+                        message: format!("Unhandled Source Tag: {tag}"),
+                    })
+                }
             }
+
+            Ok(())
         };
-        self.custom_data = parse_subset(tokenizer, level, handle_subset);
+
+        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
+
+        Ok(())
     }
 }
 

@@ -1,6 +1,7 @@
 use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
+    GedcomError,
 };
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
@@ -10,43 +11,60 @@ use serde::{Deserialize, Serialize};
 /// substructure of a HEAD. See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#GEDC>.
 #[derive(Debug, Default)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
-pub struct GedcomMeta {
+pub struct HeadMeta {
     /// tag: VERS
     pub version: Option<String>,
     /// tag: FORM; see Gedcom 5.5.1 specification, p. 50
     pub form: Option<String>,
 }
 
-impl GedcomMeta {
-    #[must_use]
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> GedcomMeta {
-        let mut gedc = GedcomMeta::default();
-        gedc.parse(tokenizer, level);
-        gedc
+impl HeadMeta {
+    /// Creates a new `HeadMeta` from a `Tokenizer`.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if parsing fails.
+    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<HeadMeta, GedcomError> {
+        let mut gedc = HeadMeta::default();
+        gedc.parse(tokenizer, level)?;
+        Ok(gedc)
     }
 }
 
-impl Parser for GedcomMeta {
+impl Parser for HeadMeta {
     /// parse handles parsing GEDC tag
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) {
+    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
         // skip GEDC tag
         tokenizer.next_token();
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| match tag {
-            "VERS" => self.version = Some(tokenizer.take_line_value()),
-            // this is the only value that makes sense. warn them otherwise.
-            "FORM" => {
-                let form = tokenizer.take_line_value();
-                if &form.to_uppercase() != "LINEAGE-LINKED" {
-                    println!(
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+            match tag {
+                "VERS" => self.version = Some(tokenizer.take_line_value()),
+                // this is the only value that makes sense. warn them otherwise.
+                "FORM" => {
+                    let form = tokenizer.take_line_value();
+                    if &form.to_uppercase() != "LINEAGE-LINKED" {
+                        println!(
                         "WARNING: Unrecognized GEDCOM form. Expected LINEAGE-LINKED, found {form}"
                     );
+                    }
+                    self.form = Some(form);
                 }
-                self.form = Some(form);
+                // _ => panic!("{} Unhandled GEDC Tag: {}", tokenizer.debug(), tag),
+                _ => {
+                    return Err(GedcomError::ParseError {
+                        line: tokenizer.line,
+                        message: format!("Unhandled HeadMeta Tag: {tag}"),
+                    })
+                }
             }
-            _ => panic!("{} Unhandled GEDC Tag: {}", tokenizer.debug(), tag),
+
+            Ok(())
         };
-        parse_subset(tokenizer, level, handle_subset);
+
+        parse_subset(tokenizer, level, handle_subset)?;
+
+        Ok(())
     }
 }
 

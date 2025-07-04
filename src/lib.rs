@@ -94,7 +94,7 @@ impl<'a> Gedcom<'a> {
     ///
     /// Returns an error if the GEDCOM data is malformed.
     pub fn parse_data(&mut self) -> Result<GedcomData, GedcomError> {
-        Ok(GedcomData::new(&mut self.tokenizer, 0))
+        GedcomData::new(&mut self.tokenizer, 0)
     }
 }
 

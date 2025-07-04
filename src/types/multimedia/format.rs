@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
+    GedcomError,
 };
 
 /// `MultimediaFormat` indicates the format of the multimedia data associated with the specific
@@ -21,26 +22,37 @@ pub struct Format {
 }
 
 impl Format {
-    #[must_use]
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Format {
+    /// Creates a new `Format` from a `Tokenizer`.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if parsing fails.
+    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<Format, GedcomError> {
         let mut form = Format::default();
-        form.parse(tokenizer, level);
-        form
+        form.parse(tokenizer, level)?;
+        Ok(form)
     }
 }
 
 impl Parser for Format {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) {
+    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
         self.value = Some(tokenizer.take_line_value());
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| match tag {
-            "TYPE" => self.source_media_type = Some(tokenizer.take_line_value()),
-            _ => panic!(
-                "{} Unhandled MultimediaFormat Tag: {}",
-                tokenizer.debug(),
-                tag
-            ),
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+            match tag {
+                "TYPE" => self.source_media_type = Some(tokenizer.take_line_value()),
+                _ => {
+                    return Err(GedcomError::ParseError {
+                        line: tokenizer.line,
+                        message: format!("Unhandled MultimediaFormat Tag: {tag}"),
+                    })
+                }
+            }
+            Ok(())
         };
-        parse_subset(tokenizer, level, handle_subset);
+
+        parse_subset(tokenizer, level, handle_subset)?;
+
+        Ok(())
     }
 }

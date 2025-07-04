@@ -32,6 +32,7 @@ use crate::{
         multimedia::Multimedia, repository::Repository, source::Source, submission::Submission,
         submitter::Submitter,
     },
+    GedcomError,
 };
 
 /// Represents a complete parsed GEDCOM genealogy file.
@@ -67,11 +68,15 @@ pub struct GedcomData {
 
 impl GedcomData {
     /// Creates a new `GedcomData` by parsing tokens at the specified level.
-    #[must_use]
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> GedcomData {
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if parsing fails.
+    #[allow(clippy::double_must_use)]
+    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<GedcomData, GedcomError> {
         let mut data = GedcomData::default();
-        data.parse(tokenizer, level);
-        data
+        data.parse(tokenizer, level)?;
+        Ok(data)
     }
 
     /// Adds a [`Family`] record to the genealogy data.
@@ -132,14 +137,16 @@ impl GedcomData {
 
 impl Parser for GedcomData {
     /// Parses GEDCOM tokens into the data structure.
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) {
+    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
         loop {
             let Token::Level(current_level) = tokenizer.current_token else {
-                panic!(
-                    "{} Expected Level, found {:?}",
-                    tokenizer.debug(),
-                    tokenizer.current_token
-                )
+                return Err(GedcomError::ParseError {
+                    line: tokenizer.line,
+                    message: format!(
+                        "Expected Level, found {token:?}",
+                        token = tokenizer.current_token
+                    ),
+                });
             };
 
             tokenizer.next_token();
@@ -152,18 +159,18 @@ impl Parser for GedcomData {
 
             if let Token::Tag(tag) = &tokenizer.current_token {
                 match tag.as_str() {
-                    "HEAD" => self.header = Some(Header::new(tokenizer, level)),
-                    "FAM" => self.add_family(Family::new(tokenizer, level, pointer)),
+                    "HEAD" => self.header = Some(Header::new(tokenizer, level)?),
+                    "FAM" => self.add_family(Family::new(tokenizer, level, pointer)?),
                     "INDI" => {
-                        self.add_individual(Individual::new(tokenizer, current_level, pointer));
+                        self.add_individual(Individual::new(tokenizer, current_level, pointer)?);
                     }
                     "REPO" => {
-                        self.add_repository(Repository::new(tokenizer, current_level, pointer));
+                        self.add_repository(Repository::new(tokenizer, current_level, pointer)?);
                     }
-                    "SOUR" => self.add_source(Source::new(tokenizer, current_level, pointer)),
-                    "SUBN" => self.add_submission(Submission::new(tokenizer, level, pointer)),
-                    "SUBM" => self.add_submitter(Submitter::new(tokenizer, level, pointer)),
-                    "OBJE" => self.add_multimedia(Multimedia::new(tokenizer, level, pointer)),
+                    "SOUR" => self.add_source(Source::new(tokenizer, current_level, pointer)?),
+                    "SUBN" => self.add_submission(Submission::new(tokenizer, level, pointer)?),
+                    "SUBM" => self.add_submitter(Submitter::new(tokenizer, level, pointer)?),
+                    "OBJE" => self.add_multimedia(Multimedia::new(tokenizer, level, pointer)?),
                     "TRLR" => break,
                     _ => {
                         println!("{} Unhandled tag {}", tokenizer.debug(), tag);
@@ -172,19 +179,18 @@ impl Parser for GedcomData {
                 }
             } else if let Token::CustomTag(tag) = &tokenizer.current_token {
                 let tag_clone = tag.clone();
-                self.add_custom_data(UserDefinedTag::new(tokenizer, level + 1, &tag_clone));
+                self.add_custom_data(UserDefinedTag::new(tokenizer, level + 1, &tag_clone)?);
                 // self.add_custom_data(parse_custom_tag(tokenizer, tag_clone));
                 while tokenizer.current_token != Token::Level(level) {
                     tokenizer.next_token();
                 }
             } else {
-                println!(
-                    "{} Unhandled token {:?}",
-                    tokenizer.debug(),
-                    tokenizer.current_token
-                );
-                tokenizer.next_token();
+                return Err(GedcomError::ParseError {
+                    line: tokenizer.line,
+                    message: format!("Unhandled token {:?}", tokenizer.current_token),
+                });
             }
         }
+        Ok(())
     }
 }
