@@ -5,6 +5,7 @@ use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{note::Note, source::citation::Citation},
+    GedcomError,
 };
 
 /// Name (tag: NAME) refers to the names of individuals, which are represented in the manner the
@@ -32,7 +33,12 @@ pub struct Name {
 }
 
 impl Name {
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Name {
+    /// Creates a new `Name` from a `Tokenizer`.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if parsing fails.
+    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<Name, GedcomError> {
         let mut name = Name {
             value: None,
             given: None,
@@ -43,8 +49,8 @@ impl Name {
             suffix: None,
             source: Vec::new(),
         };
-        name.parse(tokenizer, level);
-        name
+        name.parse(tokenizer, level)?;
+        Ok(name)
     }
 
     pub fn add_source_citation(&mut self, sour: Citation) {
@@ -53,19 +59,29 @@ impl Name {
 }
 
 impl Parser for Name {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) {
+    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
         self.value = Some(tokenizer.take_line_value());
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| match tag {
-            "GIVN" => self.given = Some(tokenizer.take_line_value()),
-            "NPFX" => self.prefix = Some(tokenizer.take_line_value()),
-            "NSFX" => self.suffix = Some(tokenizer.take_line_value()),
-            "SPFX" => self.surname_prefix = Some(tokenizer.take_line_value()),
-            "SURN" => self.surname = Some(tokenizer.take_line_value()),
-            "SOUR" => self.add_source_citation(Citation::new(tokenizer, level + 1)),
-            "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)),
-            _ => panic!("{} Unhandled Name Tag: {}", tokenizer.debug(), tag),
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+            match tag {
+                "GIVN" => self.given = Some(tokenizer.take_line_value()),
+                "NPFX" => self.prefix = Some(tokenizer.take_line_value()),
+                "NSFX" => self.suffix = Some(tokenizer.take_line_value()),
+                "SPFX" => self.surname_prefix = Some(tokenizer.take_line_value()),
+                "SURN" => self.surname = Some(tokenizer.take_line_value()),
+                "SOUR" => self.add_source_citation(Citation::new(tokenizer, level + 1)?),
+                "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
+                _ => {
+                    return Err(GedcomError::ParseError {
+                        line: tokenizer.line,
+                        message: format!("Unhandled Name Tag: {tag}"),
+                    })
+                }
+            }
+            Ok(())
         };
-        parse_subset(tokenizer, level, handle_subset);
+        parse_subset(tokenizer, level, handle_subset)?;
+
+        Ok(())
     }
 }

@@ -5,6 +5,7 @@ use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::event::spouse::Spouse,
+    GedcomError,
 };
 
 /// `FamilyEventDetail` defines an additional dataset found in certain events.
@@ -16,14 +17,22 @@ pub struct FamilyEventDetail {
 }
 
 impl FamilyEventDetail {
-    #[must_use]
-    pub fn new(tokenizer: &mut Tokenizer, level: u8, tag: &str) -> FamilyEventDetail {
+    /// Creates a new `FamilyEventDetail` from a `Tokenizer`.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if parsing fails.
+    pub fn new(
+        tokenizer: &mut Tokenizer,
+        level: u8,
+        tag: &str,
+    ) -> Result<FamilyEventDetail, GedcomError> {
         let mut fe = FamilyEventDetail {
             member: Self::from_tag(tag),
             age: None,
         };
-        fe.parse(tokenizer, level);
-        fe
+        fe.parse(tokenizer, level)?;
+        Ok(fe)
     }
 
     /// # Panics
@@ -40,17 +49,25 @@ impl FamilyEventDetail {
 }
 
 impl Parser for FamilyEventDetail {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) {
+    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
         tokenizer.next_token();
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| match tag {
-            "AGE" => self.age = Some(tokenizer.take_line_value()),
-            _ => panic!(
-                "{}, Unrecognized FamilyEventDetail tag: {}",
-                tokenizer.debug(),
-                tag
-            ),
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+            match tag {
+                "AGE" => self.age = Some(tokenizer.take_line_value()),
+                _ => {
+                    return Err(GedcomError::ParseError {
+                        line: tokenizer.line,
+                        message: format!("Unhandled FamilyEventDetail Tag: {tag}"),
+                    })
+                }
+            }
+
+            Ok(())
         };
-        parse_subset(tokenizer, level, handle_subset);
+
+        parse_subset(tokenizer, level, handle_subset)?;
+
+        Ok(())
     }
 }

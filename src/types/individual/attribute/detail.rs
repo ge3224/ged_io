@@ -8,6 +8,7 @@ use crate::{
         date::Date, individual::attribute::IndividualAttribute, note::Note,
         source::citation::Citation,
     },
+    GedcomError,
 };
 
 /// `AttributeDetail` indicates other attributes or facts are used to describe an individual's
@@ -33,8 +34,16 @@ pub struct AttributeDetail {
 }
 
 impl AttributeDetail {
-    #[must_use]
-    pub fn new(tokenizer: &mut Tokenizer, level: u8, tag: &str) -> AttributeDetail {
+    /// Creates a new `AttributeDetail` from a `Tokenizer`.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if parsing fails.
+    pub fn new(
+        tokenizer: &mut Tokenizer,
+        level: u8,
+        tag: &str,
+    ) -> Result<AttributeDetail, GedcomError> {
         let mut attribute = AttributeDetail {
             attribute: Self::from_tag(tag),
             place: None,
@@ -44,8 +53,8 @@ impl AttributeDetail {
             note: None,
             attribute_type: None,
         };
-        attribute.parse(tokenizer, level);
-        attribute
+        attribute.parse(tokenizer, level)?;
+        Ok(attribute)
     }
 
     /// # Panics
@@ -78,7 +87,7 @@ impl AttributeDetail {
 }
 
 impl Parser for AttributeDetail {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) {
+    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
         tokenizer.next_token();
 
         let mut value = String::new();
@@ -88,22 +97,30 @@ impl Parser for AttributeDetail {
             tokenizer.next_token();
         }
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| match tag {
-            "DATE" => self.date = Some(Date::new(tokenizer, level + 1)),
-            "SOUR" => self.add_source_citation(Citation::new(tokenizer, level + 1)),
-            "PLAC" => self.place = Some(tokenizer.take_line_value()),
-            "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)),
-            "TYPE" => self.attribute_type = Some(tokenizer.take_continued_text(level + 1)),
-            _ => panic!(
-                "{}, Unhandled AttributeDetail tag: {}",
-                tokenizer.debug(),
-                tag
-            ),
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+            match tag {
+                "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
+                "SOUR" => self.add_source_citation(Citation::new(tokenizer, level + 1)?),
+                "PLAC" => self.place = Some(tokenizer.take_line_value()),
+                "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
+                "TYPE" => self.attribute_type = Some(tokenizer.take_continued_text(level + 1)),
+                _ => {
+                    return Err(GedcomError::ParseError {
+                        line: tokenizer.line,
+                        message: format!("Unhandled AttributeDetail Tag: {tag}"),
+                    })
+                }
+            }
+
+            Ok(())
         };
-        parse_subset(tokenizer, level, handle_subset);
+
+        parse_subset(tokenizer, level, handle_subset)?;
 
         if !value.is_empty() {
             self.value = Some(value);
         }
+
+        Ok(())
     }
 }

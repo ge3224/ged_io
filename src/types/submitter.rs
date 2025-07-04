@@ -5,6 +5,7 @@ use crate::{
         address::Address, custom::UserDefinedTag, date::change_date::ChangeDate,
         multimedia::link::Link, note::Note, Xref,
     },
+    GedcomError,
 };
 
 #[cfg(feature = "json")]
@@ -52,12 +53,20 @@ impl Submitter {
         }
     }
 
-    /// Shorthand for creating a `Submitter` from its `xref`
-    #[must_use]
-    pub fn new(tokenizer: &mut Tokenizer, level: u8, xref: Option<Xref>) -> Submitter {
+    /// Creates a new `Submitter` from a `Tokenizer`.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if parsing fails.
+    #[allow(clippy::double_must_use)]
+    pub fn new(
+        tokenizer: &mut Tokenizer,
+        level: u8,
+        xref: Option<Xref>,
+    ) -> Result<Submitter, GedcomError> {
         let mut subm = Submitter::with_xref(xref);
-        subm.parse(tokenizer, level);
-        subm
+        subm.parse(tokenizer, level)?;
+        Ok(subm)
     }
 
     /// Adds a `Multimedia` to the tree
@@ -68,11 +77,11 @@ impl Submitter {
 
 impl Parser for Submitter {
     /// Parse handles SUBM top-level tag
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) {
+    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
         // skip over SUBM tag name
         tokenizer.next_token();
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| {
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
             let mut pointer: Option<String> = None;
             if let Token::Pointer(xref) = &tokenizer.current_token {
                 pointer = Some(xref.to_string());
@@ -80,15 +89,25 @@ impl Parser for Submitter {
             }
             match tag {
                 "NAME" => self.name = Some(tokenizer.take_line_value()),
-                "ADDR" => self.address = Some(Address::new(tokenizer, level + 1)),
-                "OBJE" => self.add_multimedia(Link::new(tokenizer, level + 1, pointer)),
+                "ADDR" => self.address = Some(Address::new(tokenizer, level + 1)?),
+                "OBJE" => self.add_multimedia(Link::new(tokenizer, level + 1, pointer)?),
                 "LANG" => self.language = Some(tokenizer.take_line_value()),
-                "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)),
-                "CHAN" => self.change_date = Some(ChangeDate::new(tokenizer, level + 1)),
+                "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
+                "CHAN" => self.change_date = Some(ChangeDate::new(tokenizer, level + 1)?),
                 "PHON" => self.phone = Some(tokenizer.take_line_value()),
-                _ => panic!("{} Unhandled Submitter Tag: {}", tokenizer.debug(), tag),
+                _ => {
+                    return Err(GedcomError::ParseError {
+                        line: tokenizer.line,
+                        message: format!("Unhandled Submitter Tag: {tag}"),
+                    })
+                }
             }
+
+            Ok(())
         };
-        self.custom_data = parse_subset(tokenizer, level, handle_subset);
+
+        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
+
+        Ok(())
     }
 }

@@ -9,9 +9,10 @@ use crate::{
     tokenizer::Tokenizer,
     types::{
         date::Date,
-        header::{encoding::Encoding, meta::GedcomMeta, place::HeadPlac, source::HeadSour},
+        header::{encoding::Encoding, meta::HeadMeta, place::HeadPlac, source::HeadSour},
         note::Note,
     },
+    GedcomError,
 };
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
@@ -22,7 +23,7 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Header {
     /// tag: GEDC
-    pub gedcom: Option<GedcomMeta>,
+    pub gedcom: Option<HeadMeta>,
     /// tag: CHAR
     pub encoding: Option<Encoding>,
     /// tag: SOUR
@@ -54,37 +55,52 @@ pub struct Header {
 }
 
 impl Header {
-    #[must_use]
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Header {
+    /// Creates a new `Header` from a `Tokenizer`.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if parsing fails.
+    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<Header, GedcomError> {
         let mut header = Header::default();
-        header.parse(tokenizer, level);
-        header
+        header.parse(tokenizer, level)?;
+        Ok(header)
     }
 }
 
 impl Parser for Header {
     /// Parses HEAD top-level tag. See
     /// <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#HEADER>.
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) {
+    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
         // skip over HEAD tag name
         tokenizer.next_token();
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| match tag {
-            "GEDC" => self.gedcom = Some(GedcomMeta::new(tokenizer, level + 1)),
-            "SOUR" => self.source = Some(HeadSour::new(tokenizer, level + 1)),
-            "DEST" => self.destination = Some(tokenizer.take_line_value()),
-            "DATE" => self.date = Some(Date::new(tokenizer, level + 1)),
-            "SUBM" => self.submitter_tag = Some(tokenizer.take_line_value()),
-            "SUBN" => self.submission_tag = Some(tokenizer.take_line_value()),
-            "FILE" => self.filename = Some(tokenizer.take_line_value()),
-            "COPR" => self.copyright = Some(tokenizer.take_continued_text(level + 1)),
-            "CHAR" => self.encoding = Some(Encoding::new(tokenizer, level + 1)),
-            "LANG" => self.language = Some(tokenizer.take_line_value()),
-            "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)),
-            "PLAC" => self.place = Some(HeadPlac::new(tokenizer, level + 1)),
-            _ => panic!("{} Unhandled Header Tag: {}", tokenizer.debug(), tag),
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+            match tag {
+                "GEDC" => self.gedcom = Some(HeadMeta::new(tokenizer, level + 1)?),
+                "SOUR" => self.source = Some(HeadSour::new(tokenizer, level + 1)?),
+                "DEST" => self.destination = Some(tokenizer.take_line_value()),
+                "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
+                "SUBM" => self.submitter_tag = Some(tokenizer.take_line_value()),
+                "SUBN" => self.submission_tag = Some(tokenizer.take_line_value()),
+                "FILE" => self.filename = Some(tokenizer.take_line_value()),
+                "COPR" => self.copyright = Some(tokenizer.take_continued_text(level + 1)),
+                "CHAR" => self.encoding = Some(Encoding::new(tokenizer, level + 1)?),
+                "LANG" => self.language = Some(tokenizer.take_line_value()),
+                "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
+                "PLAC" => self.place = Some(HeadPlac::new(tokenizer, level + 1)?),
+                _ => {
+                    return Err(GedcomError::ParseError {
+                        line: tokenizer.line,
+                        message: format!("Unhandled Header Tag: {tag}"),
+                    })
+                }
+            }
+            Ok(())
         };
-        self.custom_data = parse_subset(tokenizer, level, handle_subset);
+
+        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
+
+        Ok(())
     }
 }
 

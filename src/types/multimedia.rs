@@ -13,6 +13,7 @@ use crate::{
         source::citation::Citation,
         Xref,
     },
+    GedcomError,
 };
 
 #[cfg(feature = "json")]
@@ -56,33 +57,53 @@ impl Multimedia {
         }
     }
 
-    #[must_use]
-    pub fn new(tokenizer: &mut Tokenizer, level: u8, xref: Option<Xref>) -> Multimedia {
+    /// Creates a new `Multimedia` from a `Tokenizer`.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if parsing fails.
+    pub fn new(
+        tokenizer: &mut Tokenizer,
+        level: u8,
+        xref: Option<Xref>,
+    ) -> Result<Multimedia, GedcomError> {
         let mut obje = Multimedia::with_xref(xref);
-        obje.parse(tokenizer, level);
-        obje
+        obje.parse(tokenizer, level)?;
+        Ok(obje)
     }
 }
 
 impl Parser for Multimedia {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) {
+    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
         // skip current line
         tokenizer.next_token();
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| match tag {
-            "FILE" => self.file = Some(Reference::new(tokenizer, level + 1)),
-            "FORM" => self.form = Some(Format::new(tokenizer, level + 1)),
-            "TITL" => self.title = Some(tokenizer.take_line_value()),
-            "REFN" => {
-                self.user_reference_number = Some(UserReferenceNumber::new(tokenizer, level + 1));
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+            match tag {
+                "FILE" => self.file = Some(Reference::new(tokenizer, level + 1)?),
+                "FORM" => self.form = Some(Format::new(tokenizer, level + 1)?),
+                "TITL" => self.title = Some(tokenizer.take_line_value()),
+                "REFN" => {
+                    self.user_reference_number =
+                        Some(UserReferenceNumber::new(tokenizer, level + 1)?);
+                }
+                "RIN" => self.automated_record_id = Some(tokenizer.take_line_value()),
+                "NOTE" => self.note_structure = Some(Note::new(tokenizer, level + 1)?),
+                "SOUR" => self.source_citation = Some(Citation::new(tokenizer, level + 1)?),
+                "CHAN" => self.change_date = Some(ChangeDate::new(tokenizer, level + 1)?),
+                _ => {
+                    return Err(GedcomError::ParseError {
+                        line: tokenizer.line,
+                        message: format!("Unhandled Multimedia Tag: {tag}"),
+                    })
+                }
             }
-            "RIN" => self.automated_record_id = Some(tokenizer.take_line_value()),
-            "NOTE" => self.note_structure = Some(Note::new(tokenizer, level + 1)),
-            "SOUR" => self.source_citation = Some(Citation::new(tokenizer, level + 1)),
-            "CHAN" => self.change_date = Some(ChangeDate::new(tokenizer, level + 1)),
-            _ => panic!("{} Unhandled Multimedia Tag: {}", tokenizer.debug(), tag),
+
+            Ok(())
         };
-        parse_subset(tokenizer, level, handle_subset);
+        parse_subset(tokenizer, level, handle_subset)?;
+
+        Ok(())
     }
 }
 

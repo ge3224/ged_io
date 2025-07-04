@@ -6,7 +6,7 @@ pub enum GedcomError {
     /// A parsing error, with the line number and a message.
     ParseError {
         /// The line number where the error occurred.
-        line: usize,
+        line: u32,
         /// The error message.
         message: String,
     },

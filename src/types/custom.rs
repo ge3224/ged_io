@@ -1,6 +1,7 @@
 use crate::{
     parser::Parser,
     tokenizer::{Token, Tokenizer},
+    GedcomError,
 };
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
@@ -19,15 +20,23 @@ pub struct UserDefinedTag {
 }
 
 impl UserDefinedTag {
-    #[must_use]
-    pub fn new(tokenizer: &mut Tokenizer, level: u8, tag: &str) -> UserDefinedTag {
+    /// Creates a new `UserDefinedTag` from a `Tokenizer`.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if parsing fails.
+    pub fn new(
+        tokenizer: &mut Tokenizer,
+        level: u8,
+        tag: &str,
+    ) -> Result<UserDefinedTag, GedcomError> {
         let mut udd = UserDefinedTag {
             tag: tag.to_string(),
             value: None,
             children: Vec::new(),
         };
-        udd.parse(tokenizer, level);
-        udd
+        udd.parse(tokenizer, level)?;
+        Ok(udd)
     }
 
     pub fn add_child(&mut self, child: UserDefinedTag) {
@@ -36,7 +45,7 @@ impl UserDefinedTag {
 }
 
 impl Parser for UserDefinedTag {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) {
+    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
         // skip ahead of initial tag
         tokenizer.next_token();
 
@@ -55,7 +64,7 @@ impl Parser for UserDefinedTag {
                 Token::Tag(tag) | Token::CustomTag(tag) => {
                     if has_child {
                         let tag_clone = tag.clone();
-                        self.add_child(UserDefinedTag::new(tokenizer, level + 1, &tag_clone));
+                        self.add_child(UserDefinedTag::new(tokenizer, level + 1, &tag_clone)?);
                     }
                 }
                 Token::LineValue(val) => {
@@ -64,13 +73,18 @@ impl Parser for UserDefinedTag {
                 }
                 Token::Level(_) => tokenizer.next_token(),
                 Token::EOF => break,
-                _ => panic!(
-                    "{}, Unhandled Token in UserDefinedDataset: {:?}",
-                    tokenizer.debug(),
-                    tokenizer.current_token
-                ),
+                _ => {
+                    return Err(GedcomError::ParseError {
+                        line: tokenizer.line,
+                        message: format!(
+                            "Unhandled Token in UserDefinedDataset: {:?}",
+                            tokenizer.current_token
+                        ),
+                    })
+                }
             }
         }
+        Ok(())
     }
 }
 

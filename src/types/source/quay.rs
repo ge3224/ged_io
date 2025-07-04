@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     parser::Parser,
     tokenizer::{Token, Tokenizer},
+    GedcomError,
 };
 
 /// The QUAY tag's value conveys the submitter's quantitative evaluation of the credibility of a
@@ -26,11 +27,16 @@ pub enum CertaintyAssessment {
 }
 
 impl CertaintyAssessment {
-    #[must_use]
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> CertaintyAssessment {
+    /// Creates a new `CertaintyAssessment` from a `Tokenizer`.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if parsing fails.
+    #[allow(clippy::double_must_use)]
+    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<CertaintyAssessment, GedcomError> {
         let mut quay = CertaintyAssessment::None;
-        quay.parse(tokenizer, level);
-        quay
+        quay.parse(tokenizer, level)?;
+        Ok(quay)
     }
 
     #[must_use]
@@ -52,7 +58,7 @@ impl std::fmt::Display for CertaintyAssessment {
 }
 
 impl Parser for CertaintyAssessment {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) {
+    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
         tokenizer.next_token();
         if let Token::LineValue(val) = &tokenizer.current_token {
             *self = match val.as_str() {
@@ -60,19 +66,26 @@ impl Parser for CertaintyAssessment {
                 "1" => CertaintyAssessment::Questionable,
                 "2" => CertaintyAssessment::Secondary,
                 "3" => CertaintyAssessment::Direct,
-                _ => panic!(
-                    "{} Unknown CertaintyAssessment value {} ({})",
-                    tokenizer.debug(),
-                    val,
-                    level
-                ),
+                _ => {
+                    return Err(GedcomError::ParseError {
+                        line: tokenizer.line,
+                        message: format!(
+                            "Unknown CertaintyAssessment value: {val}; level: {level}",
+                        ),
+                    })
+                }
             };
         } else {
-            panic!(
-                "Expected CertaintyAssessment LineValue, found {:?}",
-                tokenizer.current_token
-            );
+            return Err(GedcomError::ParseError {
+                line: tokenizer.line,
+                message: format!(
+                    "Expected CertaintyAssessment LineValue, found {:?}",
+                    tokenizer.current_token
+                ),
+            });
         }
         tokenizer.next_token();
+
+        Ok(())
     }
 }
