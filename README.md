@@ -41,8 +41,8 @@ be useful, but expect ongoing development and potential breaking changes.
 
 🚧 **Active Development**
 
-**Phase 1: Error Handling Foundation**: [Phase 1: Error Handling Foundation](https://github.com/ge3224/ged_io/milestone/1)
-**All Progress**: [View milestones →](https://github.com/ge3224/ged_io/milestones)
+* **Phase 1: Error Handling Foundation**: [Phase 1: Error Handling Foundation](https://github.com/ge3224/ged_io/milestone/1)
+* **All Progress**: [View milestones →](https://github.com/ge3224/ged_io/milestones)
 
 ## Installation
 
