@@ -60,13 +60,13 @@ ged_io = { version = "0.1.8", features = ["json"] }
 ```rust
 use ged_io::Gedcom;
 use std::fs;
-use ged_io::GedcomError; // Import GedcomError
+use ged_io::GedcomError;
 
-fn main() -> Result<(), GedcomError> { // Change return type to GedcomError
+fn main() -> Result<(), GedcomError> {
     let source = fs::read_to_string("./tests/fixtures/sample.ged")
-        .map_err(|e| GedcomError::IoError(e))?; // Convert std::io::Error to GedcomError
-    let mut gedcom = Gedcom::new(source.chars())?; // Use ? for Gedcom::new
-    let data = gedcom.parse_data()?; // Use ? for parse_data
+        .map_err(|e| GedcomError::IoError(e))?;
+    let mut gedcom = Gedcom::new(source.chars())?;
+    let data = gedcom.parse_data()?;
 
     println!("Individuals found:");
     for individual in data.individuals {
@@ -87,17 +87,17 @@ fn main() -> Result<(), GedcomError> { // Change return type to GedcomError
 ```rust
 use ged_io::Gedcom;
 use std::fs;
-use ged_io::GedcomError; // Import GedcomError
+use ged_io::GedcomError;
 
 #[cfg(feature = "json")]
-fn main() -> Result<(), Box<dyn std::error::Error>> { // Keep Box<dyn std::error::Error> for serde_json error
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     let source = std::fs::read_to_string("./tests/fixtures/sample.ged")
-        .map_err(|e| GedcomError::IoError(e))?; // Convert std::io::Error to GedcomError
-    let mut gedcom = Gedcom::new(source.chars())?; // Use ? for Gedcom::new
-    let gedcom_data = gedcom.parse_data()?; // Use ? for parse_data
+        .map_err(|e| GedcomError::IoError(e))?;
+    let mut gedcom = Gedcom::new(source.chars())?;
+    let gedcom_data = gedcom.parse_data()?;
 
     // Serialize to JSON
-    let json_output = serde_json::to_string_pretty(&gedcom_data)?; // Use ? for serde_json error
+    let json_output = serde_json::to_string_pretty(&gedcom_data)?;
     println!("{}", json_output);
     
     Ok(())
