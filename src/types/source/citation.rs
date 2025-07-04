@@ -70,7 +70,8 @@ impl Parser for Citation {
                 "DATA" => self.data = Some(Data::new(tokenizer, level + 1)),
                 "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)),
                 "QUAY" => {
-                    self.certainty_assessment = Some(CertaintyAssessment::new(tokenizer, level + 1))
+                    self.certainty_assessment =
+                        Some(CertaintyAssessment::new(tokenizer, level + 1));
                 }
                 "RFN" => self.submitter_registered_rfn = Some(tokenizer.take_line_value()),
                 "OBJE" => self.add_multimedia(Multimedia::new(tokenizer, level + 1, pointer)),

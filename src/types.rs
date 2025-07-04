@@ -134,13 +134,12 @@ impl Parser for GedcomData {
     /// Parses GEDCOM tokens into the data structure.
     fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) {
         loop {
-            let current_level = match tokenizer.current_token {
-                Token::Level(n) => n,
-                _ => panic!(
+            let Token::Level(current_level) = tokenizer.current_token else {
+                panic!(
                     "{} Expected Level, found {:?}",
                     tokenizer.debug(),
                     tokenizer.current_token
-                ),
+                )
             };
 
             tokenizer.next_token();
@@ -156,10 +155,10 @@ impl Parser for GedcomData {
                     "HEAD" => self.header = Some(Header::new(tokenizer, level)),
                     "FAM" => self.add_family(Family::new(tokenizer, level, pointer)),
                     "INDI" => {
-                        self.add_individual(Individual::new(tokenizer, current_level, pointer))
+                        self.add_individual(Individual::new(tokenizer, current_level, pointer));
                     }
                     "REPO" => {
-                        self.add_repository(Repository::new(tokenizer, current_level, pointer))
+                        self.add_repository(Repository::new(tokenizer, current_level, pointer));
                     }
                     "SOUR" => self.add_source(Source::new(tokenizer, current_level, pointer)),
                     "SUBN" => self.add_submission(Submission::new(tokenizer, level, pointer)),
@@ -170,7 +169,7 @@ impl Parser for GedcomData {
                         println!("{} Unhandled tag {}", tokenizer.debug(), tag);
                         tokenizer.next_token();
                     }
-                };
+                }
             } else if let Token::CustomTag(tag) = &tokenizer.current_token {
                 let tag_clone = tag.clone();
                 self.add_custom_data(UserDefinedTag::new(tokenizer, level + 1, &tag_clone));
@@ -185,7 +184,7 @@ impl Parser for GedcomData {
                     tokenizer.current_token
                 );
                 tokenizer.next_token();
-            };
+            }
         }
     }
 }

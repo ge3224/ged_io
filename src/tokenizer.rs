@@ -53,6 +53,10 @@ impl<'a> Tokenizer<'a> {
     }
 
     /// Loads the next token into state
+    ///
+    /// # Panics
+    ///
+    /// Panics when encountering a tokenization error
     pub fn next_token(&mut self) {
         if self.current_char == '\0' {
             self.current_token = Token::EOF;
@@ -102,7 +106,7 @@ impl<'a> Tokenizer<'a> {
     pub fn take_token(&mut self) -> Token {
         let current_token = self.current_token.clone();
         self.next_token();
-        return current_token;
+        current_token
     }
 
     fn next_char(&mut self) {
@@ -112,7 +116,7 @@ impl<'a> Tokenizer<'a> {
     fn extract_number(&mut self) -> u8 {
         self.skip_whitespace();
         let mut digits: Vec<char> = Vec::new();
-        while self.current_char.is_digit(10) {
+        while self.current_char.is_ascii_digit() {
             digits.push(self.current_char);
             self.next_char();
         }
@@ -153,13 +157,18 @@ impl<'a> Tokenizer<'a> {
     }
 
     /// Debug function displaying GEDCOM line number of error message.
+    #[must_use]
     pub fn debug(&self) -> String {
         format!("line {}:", self.line)
     }
 
     /// Grabs and returns to the end of the current line as a String
+    ///
+    /// # Panics
+    ///
+    /// Panics when encountering an unexpected line value
     pub fn take_line_value(&mut self) -> String {
-        let mut value = String::from("");
+        let mut value = String::new();
         self.next_token();
 
         match &self.current_token {
@@ -180,6 +189,10 @@ impl<'a> Tokenizer<'a> {
 
     /// Takes the value of the current line including handling
     /// multi-line values from CONT & CONC tags.
+    ///
+    /// # Panics
+    ///
+    /// Panics when encountering an unhandled tag
     pub fn take_continued_text(&mut self, level: u8) -> String {
         let mut value = self.take_line_value();
 
@@ -193,11 +206,11 @@ impl<'a> Tokenizer<'a> {
                 Token::Tag(tag) => match tag.as_str() {
                     "CONT" => {
                         value.push('\n');
-                        value.push_str(&self.take_line_value())
+                        value.push_str(&self.take_line_value());
                     }
                     "CONC" => {
                         // value.push(' ');
-                        value.push_str(&self.take_line_value())
+                        value.push_str(&self.take_line_value());
                     }
                     _ => panic!("{} Unhandled Continuation Tag: {}", self.debug(), tag),
                 },

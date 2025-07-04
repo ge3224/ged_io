@@ -46,9 +46,16 @@ pub struct Individual {
 
 impl Individual {
     #[must_use]
+    fn with_xref(xref: Option<Xref>) -> Self {
+        Self {
+            xref,
+            ..Default::default()
+        }
+    }
+
+    #[must_use]
     pub fn new(tokenizer: &mut Tokenizer, level: u8, xref: Option<Xref>) -> Individual {
-        let mut indi = Individual::default();
-        indi.xref = xref;
+        let mut indi = Individual::with_xref(xref);
         indi.parse(tokenizer, level);
         indi
     }
@@ -78,13 +85,14 @@ impl Individual {
         self.attributes.push(attribute);
     }
 
+    #[must_use]
     pub fn families(&self) -> &[FamilyLink] {
         &self.families
     }
 }
 
 impl HasEvents for Individual {
-    fn add_event(&mut self, event: Detail) -> () {
+    fn add_event(&mut self, event: Detail) {
         self.events.push(event);
     }
     fn events(&self) -> Vec<Detail> {

@@ -7,7 +7,7 @@ use crate::{
     types::event::spouse::Spouse,
 };
 
-/// FamilyEventDetail defines an additional dataset found in certain events.
+/// `FamilyEventDetail` defines an additional dataset found in certain events.
 #[derive(Clone)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize, PartialEq))]
 pub struct FamilyEventDetail {
@@ -26,11 +26,15 @@ impl FamilyEventDetail {
         fe
     }
 
+    /// # Panics
+    ///
+    /// Panics when encountering an unrecognized tag
+    #[must_use]
     pub fn from_tag(tag: &str) -> Spouse {
         match tag {
             "HUSB" => Spouse::Spouse1,
             "WIFE" => Spouse::Spouse2,
-            _ => panic!("{:?}, Unrecognized FamilyEventMember", tag),
+            _ => panic!("{tag:?}, Unrecognized FamilyEventMember"),
         }
     }
 }

@@ -11,10 +11,10 @@ use crate::{
 /// name is normally spoken, with the family name, surname, or nearest cultural parallel thereunto
 /// separated by slashes (U+002F /). Based on the dynamic nature or unknown compositions of naming
 /// conventions, it is difficult to provide a more detailed name piece structure to handle every
-/// case. The PERSONAL_NAME_PIECES are provided optionally for systems that cannot operate
+/// case. The `PERSONAL_NAME_PIECES` are provided optionally for systems that cannot operate
 /// effectively with less structured information. The Personal Name payload shall be seen as the
 /// primary name representation, with name pieces as optional auxiliary information; in particular
-/// it is recommended that all name parts in PERSONAL_NAME_PIECES appear within the PersonalName
+/// it is recommended that all name parts in `PERSONAL_NAME_PIECES` appear within the `PersonalName`
 /// payload in some form, possibly adjusted for gender-specific suffixes or the like. It is
 /// permitted for the payload to contain information not present in any name piece substructure.
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#PERSONAL_NAME_STRUCTURE>.

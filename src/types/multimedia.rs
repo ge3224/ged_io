@@ -17,7 +17,7 @@ use crate::{
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 
-/// MultimediaRecord refers to 1 or more external digital files, and may provide some
+/// `MultimediaRecord` refers to 1 or more external digital files, and may provide some
 /// additional information about the files and the media they encode.
 ///
 /// The file reference can occur more than once to group multiple files together. Grouped files
@@ -48,9 +48,16 @@ pub struct Multimedia {
 
 impl Multimedia {
     #[must_use]
+    fn with_xref(xref: Option<Xref>) -> Self {
+        Self {
+            xref,
+            ..Default::default()
+        }
+    }
+
+    #[must_use]
     pub fn new(tokenizer: &mut Tokenizer, level: u8, xref: Option<Xref>) -> Multimedia {
-        let mut obje = Multimedia::default();
-        obje.xref = xref;
+        let mut obje = Multimedia::with_xref(xref);
         obje.parse(tokenizer, level);
         obje
     }
@@ -66,7 +73,7 @@ impl Parser for Multimedia {
             "FORM" => self.form = Some(Format::new(tokenizer, level + 1)),
             "TITL" => self.title = Some(tokenizer.take_line_value()),
             "REFN" => {
-                self.user_reference_number = Some(UserReferenceNumber::new(tokenizer, level + 1))
+                self.user_reference_number = Some(UserReferenceNumber::new(tokenizer, level + 1));
             }
             "RIN" => self.automated_record_id = Some(tokenizer.take_line_value()),
             "NOTE" => self.note_structure = Some(Note::new(tokenizer, level + 1)),

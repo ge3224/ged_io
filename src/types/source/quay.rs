@@ -33,6 +33,7 @@ impl CertaintyAssessment {
         quay
     }
 
+    #[must_use]
     pub fn get_int(&self) -> Option<u8> {
         match &self {
             CertaintyAssessment::Unreliable => Some(0),
@@ -44,9 +45,9 @@ impl CertaintyAssessment {
     }
 }
 
-impl ToString for CertaintyAssessment {
-    fn to_string(&self) -> String {
-        format!("{:?}", self)
+impl std::fmt::Display for CertaintyAssessment {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{self:?}")
     }
 }
 

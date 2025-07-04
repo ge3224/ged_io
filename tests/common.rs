@@ -17,7 +17,7 @@ mod tests {
     fn parses_basic_gedcom() {
         let simple_ged: String = read_relative("./tests/fixtures/simple.ged");
         // let simple_ged: String = read_relative("./tests/fixtures/allged.ged");
-        assert!(simple_ged.len() > 0);
+        assert!(!simple_ged.is_empty());
 
         let mut doc = Gedcom::new(simple_ged.chars());
         let data = doc.parse();
@@ -69,7 +69,7 @@ mod tests {
     #[test]
     fn parses_basic_washington_doc() {
         let simple_ged: String = read_relative("./tests/fixtures/washington.ged");
-        assert!(simple_ged.len() > 0);
+        assert!(!simple_ged.is_empty());
 
         let mut doc = Gedcom::new(simple_ged.chars());
         let data = doc.parse();

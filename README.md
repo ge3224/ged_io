@@ -162,6 +162,9 @@ cargo test
 
 # Run with all features
 cargo test --all-features
+
+# Linting
+cargo clippy --all-targets --all-features -- -D warnings
 ```
 
 ## Contributing

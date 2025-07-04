@@ -7,7 +7,7 @@ use crate::{
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 
-/// A NOTE_STRUCTURE containing additional information for understanding the enclosing data.
+/// A `NOTE_STRUCTURE` containing additional information for understanding the enclosing data.
 ///
 /// Notes provide supplementary information submitted by the data contributor to help
 /// clarify or explain the genealogical data they're attached to. They serve as
@@ -21,7 +21,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// # GEDCOM Specification
 ///
-/// Conforms to the GEDCOM NOTE_STRUCTURE specification.
+/// Conforms to the GEDCOM `NOTE_STRUCTURE` specification.
 /// See: <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#NOTE>
 /// See: <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#NOTE_STRUCTURE>
 #[derive(Clone, Debug, Default)]

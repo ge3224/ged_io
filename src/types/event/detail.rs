@@ -15,13 +15,13 @@ use crate::{
     },
 };
 
-/// EventDetail is a thing that happens on a specific date. Use the date form 'BET date AND date'
+/// `EventDetail` is a thing that happens on a specific date. Use the date form 'BET date AND date'
 /// to indicate that an event took place at some time between two dates. Resist the temptation to
 /// use a 'FROM date TO date' form in an event structure. If the subject of your recording occurred
 /// over a period of time, then it is probably not an event, but rather an attribute or fact. The
 /// EVEN tag in this structure is for recording general events that are not specified in the
 /// specification. The event indicated by this general EVEN tag is defined by the value of the
-/// subordinate TYPE tag (event_type).
+/// subordinate TYPE tag (`event_type`).
 #[derive(Clone)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize, PartialEq))]
 pub struct Detail {
@@ -32,9 +32,9 @@ pub struct Detail {
     pub note: Option<Note>,
     pub family_link: Option<FamilyLink>,
     pub family_event_details: Vec<FamilyEventDetail>,
-    /// event_type handles the TYPE tag, a descriptive word or phrase used to further classify the
-    /// parent event or attribute tag. This should be used whenever either of the generic EVEN or
-    /// FACT tags are used. T. See GEDCOM 5.5 spec, page 35 and 49.
+    /// `event_type` handles the TYPE tag, a descriptive word or phrase used to further classify
+    /// the parent event or attribute tag. This should be used whenever either of the generic EVEN
+    /// or FACT tags are used. T. See GEDCOM 5.5 spec, page 35 and 49.
     pub event_type: Option<String>,
     pub citations: Vec<Citation>,
     pub multimedia: Vec<Multimedia>,
@@ -64,6 +64,10 @@ impl Detail {
         self.event = Event::SourceData(value);
     }
 
+    /// # Panics
+    ///
+    /// Panics when encountering an unrecognized tag
+    #[must_use]
     pub fn from_tag(tag: &str) -> Event {
         match tag {
             "ADOP" => Event::Adoption,
@@ -100,12 +104,12 @@ impl Detail {
             "RESI" => Event::Residence,
             "RETI" => Event::Retired,
             "WILL" => Event::Will,
-            _ => panic!("Unrecognized EventType tag: {}", tag),
+            _ => panic!("Unrecognized EventType tag: {tag}"),
         }
     }
 
     pub fn add_citation(&mut self, citation: Citation) {
-        self.citations.push(citation)
+        self.citations.push(citation);
     }
 
     pub fn add_family_event_detail(&mut self, detail: FamilyEventDetail) {
@@ -130,7 +134,7 @@ impl std::fmt::Debug for Detail {
         fmt_optional_value!(debug, "date", &self.date);
         fmt_optional_value!(debug, "place", &self.place);
 
-        debug.finish()
+        debug.finish_non_exhaustive()
     }
 }
 
@@ -142,7 +146,7 @@ impl Parser for Detail {
         let mut value = String::new();
 
         if let Token::LineValue(val) = &tokenizer.current_token {
-            value.push_str(&val);
+            value.push_str(val);
             tokenizer.next_token();
         }
 
@@ -163,14 +167,14 @@ impl Parser for Detail {
                 "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)),
                 "TYPE" => self.event_type = Some(tokenizer.take_line_value()),
                 "OBJE" => {
-                    self.add_multimedia_record(Multimedia::new(tokenizer, level + 1, pointer))
+                    self.add_multimedia_record(Multimedia::new(tokenizer, level + 1, pointer));
                 }
                 _ => panic!("{} Unhandled Event Tag: {}", tokenizer.debug(), tag),
             }
         };
         parse_subset(tokenizer, level, handle_subset);
 
-        if &value != "" {
+        if !value.is_empty() {
             self.value = Some(value);
         }
     }

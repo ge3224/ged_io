@@ -10,7 +10,7 @@ use crate::{
     },
 };
 
-/// AttributeDetail indicates other attributes or facts are used to describe an individual's
+/// `AttributeDetail` indicates other attributes or facts are used to describe an individual's
 /// actions, physical description, employment, education, places of residence, etc. GEDCOM 5.x
 /// allows them to be recorded in the same way as events. The attribute definition allows a value
 /// on the same line as the attribute tag. In addition, it allows a subordinate date period, place
@@ -26,9 +26,9 @@ pub struct AttributeDetail {
     pub date: Option<Date>,
     pub sources: Vec<Citation>,
     pub note: Option<Note>,
-    /// attribute_type handles the TYPE tag, a descriptive word or phrase used to further classify the
-    /// parent event or attribute tag. This should be used to define what kind of identification
-    /// number or fact classification is being defined.
+    /// `attribute_type` handles the TYPE tag, a descriptive word or phrase used to further
+    /// classify the parent event or attribute tag. This should be used to define what kind of
+    /// identification number or fact classification is being defined.
     pub attribute_type: Option<String>,
 }
 
@@ -48,6 +48,10 @@ impl AttributeDetail {
         attribute
     }
 
+    /// # Panics
+    ///
+    /// Will panic when encountering an unrecognized tag
+    #[must_use]
     pub fn from_tag(tag: &str) -> IndividualAttribute {
         match tag {
             "CAST" => IndividualAttribute::CastName,
@@ -64,7 +68,7 @@ impl AttributeDetail {
             "SSN" => IndividualAttribute::SocialSecurityNumber,
             "TITL" => IndividualAttribute::NobilityTypeTitle,
             "FACT" => IndividualAttribute::Fact,
-            _ => panic!("Unrecognized IndividualAttribute tag: {}", tag),
+            _ => panic!("Unrecognized IndividualAttribute tag: {tag}"),
         }
     }
 
@@ -80,7 +84,7 @@ impl Parser for AttributeDetail {
         let mut value = String::new();
 
         if let Token::LineValue(val) = &tokenizer.current_token {
-            value.push_str(&val);
+            value.push_str(val);
             tokenizer.next_token();
         }
 
@@ -98,7 +102,7 @@ impl Parser for AttributeDetail {
         };
         parse_subset(tokenizer, level, handle_subset);
 
-        if &value != "" {
+        if !value.is_empty() {
             self.value = Some(value);
         }
     }

@@ -9,6 +9,7 @@ use crate::{
     types::{
         custom::UserDefinedTag, date::change_date::ChangeDate, event::detail::Detail,
         multimedia::Multimedia, note::Note, repository::citation::Citation, source::data::Data,
+        Xref,
     },
 };
 
@@ -37,9 +38,16 @@ pub struct Source {
 
 impl Source {
     #[must_use]
+    fn with_xref(xref: Option<Xref>) -> Self {
+        Self {
+            xref,
+            ..Default::default()
+        }
+    }
+
+    #[must_use]
     pub fn new(tokenizer: &mut Tokenizer, level: u8, xref: Option<String>) -> Source {
-        let mut sour = Source::default();
-        sour.xref = xref;
+        let mut sour = Source::with_xref(xref);
         sour.parse(tokenizer, level);
         sour
     }
@@ -83,7 +91,7 @@ impl Parser for Source {
                 "AUTH" => self.author = Some(tokenizer.take_continued_text(level + 1)),
                 "PUBL" => self.publication_facts = Some(tokenizer.take_continued_text(level + 1)),
                 "TEXT" => {
-                    self.citation_from_source = Some(tokenizer.take_continued_text(level + 1))
+                    self.citation_from_source = Some(tokenizer.take_continued_text(level + 1));
                 }
                 "OBJE" => self.add_multimedia(Multimedia::new(tokenizer, level + 1, pointer)),
                 "NOTE" => self.add_note(Note::new(tokenizer, level + 1)),

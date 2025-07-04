@@ -18,9 +18,16 @@ pub struct Citation {
 }
 
 impl Citation {
+    #[must_use]
+    fn with_xref(xref: Xref) -> Self {
+        Self {
+            xref,
+            ..Default::default()
+        }
+    }
     pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Citation {
-        let mut rc = Citation::default();
-        rc.xref = tokenizer.take_line_value();
+        let xref = tokenizer.take_line_value();
+        let mut rc = Citation::with_xref(xref);
         rc.parse(tokenizer, level);
         rc
     }

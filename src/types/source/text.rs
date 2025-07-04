@@ -44,7 +44,7 @@ impl Parser for Text {
         };
         parse_subset(tokenizer, level, handle_subset);
 
-        if value != "" {
+        if !value.is_empty() {
             self.value = Some(value);
         }
     }

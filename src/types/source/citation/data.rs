@@ -7,7 +7,7 @@ use crate::{
     types::{date::Date, source::text::Text},
 };
 
-/// SourceCitationData is a substructure of SourceCitation, associated with the SOUR.DATA tag.
+/// `SourceCitationData` is a substructure of `SourceCitation`, associated with the SOUR.DATA tag.
 /// Actual text from the source that was used in making assertions, for example a date phrase as
 /// actually recorded in the source, or significant notes written by the recorder, or an applicable
 /// sentence from a letter. This is stored in the SOUR.DATA.TEXT context.
