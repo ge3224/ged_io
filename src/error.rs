@@ -1,8 +1,5 @@
 use std::fmt;
 
-#[cfg(test)]
-use std::io;
-
 /// Represents errors that can occur during GEDCOM parsing.
 #[derive(Debug)]
 pub enum GedcomError {
@@ -34,32 +31,59 @@ impl fmt::Display for GedcomError {
     }
 }
 
-impl std::error::Error for GedcomError {}
-
-#[test]
-fn test_parse_error_display() {
-    let err = GedcomError::ParseError {
-        line: 10,
-        message: "Unexpected token".to_string(),
-    };
-    assert_eq!(format!("{err}"), "Parse error at line 10: Unexpected token");
+impl From<std::io::Error> for GedcomError {
+    fn from(err: std::io::Error) -> Self {
+        GedcomError::IoError(err)
+    }
 }
 
-#[test]
-fn test_invalid_format_display() {
-    let err = GedcomError::InvalidFormat("Missing header".to_string());
-    assert_eq!(format!("{err}"), "Invalid GEDCOM format: Missing header");
+impl std::error::Error for GedcomError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            GedcomError::IoError(err) => Some(err),
+            _ => None,
+        }
+    }
 }
 
-#[test]
-fn test_io_error_display() {
-    let io_err = io::Error::new(io::ErrorKind::NotFound, "File not found");
-    let err = GedcomError::IoError(io_err);
-    assert_eq!(format!("{err}"), "IO error: File not found");
-}
+#[cfg(test)]
+mod tests {
+    use crate::GedcomError;
+    use std::{error::Error, io};
 
-#[test]
-fn test_encoding_error_display() {
-    let err = GedcomError::EncodingError("Invalid UTF-8 sequence".to_string());
-    assert_eq!(format!("{err}"), "Encoding error: Invalid UTF-8 sequence");
+    #[test]
+    fn test_parse_error_display() {
+        let err = GedcomError::ParseError {
+            line: 10,
+            message: "Unexpected token".to_string(),
+        };
+        assert_eq!(format!("{err}"), "Parse error at line 10: Unexpected token");
+    }
+
+    #[test]
+    fn test_invalid_format_display() {
+        let err = GedcomError::InvalidFormat("Missing header".to_string());
+        assert_eq!(format!("{err}"), "Invalid GEDCOM format: Missing header");
+    }
+
+    #[test]
+    fn test_io_error_display() {
+        let io_err = io::Error::new(io::ErrorKind::NotFound, "File not found");
+        let err = GedcomError::IoError(io_err);
+        assert_eq!(format!("{err}"), "IO error: File not found");
+    }
+
+    #[test]
+    fn test_encoding_error_display() {
+        let err = GedcomError::EncodingError("Invalid UTF-8 sequence".to_string());
+        assert_eq!(format!("{err}"), "Encoding error: Invalid UTF-8 sequence");
+    }
+
+    #[test]
+    fn test_io_error_source() {
+        let io_err = io::Error::new(io::ErrorKind::PermissionDenied, "Access denied");
+        let gedcom_err = GedcomError::from(io_err);
+        assert_eq!(format!("{gedcom_err}"), "IO error: Access denied");
+        assert_eq!(gedcom_err.source().unwrap().to_string(), "Access denied");
+    }
 }
