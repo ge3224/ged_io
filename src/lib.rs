@@ -9,14 +9,19 @@ Basic example:
 
 ```rust
 use ged_io::Gedcom;
+use ged_io::GedcomError;
 
 // Parse a GEDCOM file
-let source = std::fs::read_to_string("./tests/fixtures/sample.ged").unwrap();
-let mut gedcom = Gedcom::new(source.chars()).unwrap();
-let gedcom_data = gedcom.parse_data().unwrap();
+fn main() -> Result<(), GedcomError> {
+    let source = std::fs::read_to_string("./tests/fixtures/sample.ged")
+        .map_err(|e| GedcomError::IoError(e))?;
+    let mut gedcom = Gedcom::new(source.chars())?;
+    let gedcom_data = gedcom.parse_data()?;
 
-// Display file statistics
-gedcom_data.stats();
+    // Display file statistics
+    gedcom_data.stats();
+    Ok(())
+}
 ```
 
 This crate contains an optional `"json"` feature that implements serialization and deserialization to JSON with [`serde`](https://serde.rs).
@@ -26,20 +31,24 @@ JSON serialization example:
 ```rust
 #[cfg(feature = "json")]
 use ged_io::Gedcom;
+#[cfg(feature = "json")]
+use ged_io::GedcomError;
 # #[cfg(feature = "json")]
-# fn main() {
+# fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 // Parse a GEDCOM file
-let source = std::fs::read_to_string("./tests/fixtures/sample.ged").unwrap();
-let mut gedcom = Gedcom::new(source.chars()).unwrap();
-let gedcom_data = gedcom.parse_data().unwrap();
+let source = std::fs::read_to_string("./tests/fixtures/sample.ged")
+    .map_err(|e| GedcomError::IoError(e))?;
+let mut gedcom = Gedcom::new(source.chars())?;
+let gedcom_data = gedcom.parse_data()?;
 
 // Serialize to JSON
-let json_output = serde_json::to_string_pretty(&gedcom_data).unwrap();
+let json_output = serde_json::to_string_pretty(&gedcom_data)?;
 println!("{}", json_output);
 
 // Or save to file
-std::fs::write("./target/tmp/family.json", json_output).unwrap();
+std::fs::write("./target/tmp/family.json", json_output).map_err(|e| GedcomError::IoError(e))?;
+# Ok(())
 # }
 # #[cfg(not(feature = "json"))]
 # fn main() {}
