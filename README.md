@@ -37,13 +37,6 @@ be useful, but expect ongoing development and potential breaking changes.
 * ✅ **JSON Integration** - Optional `serde` support for JSON conversion
 * ✅ **Real-World Testing** - Tested with various GEDCOM files including complex examples
 
-## Project Status
-
-🚧 **Active Development**
-
-* **Phase 1: Error Handling Foundation**: [Phase 1: Error Handling Foundation](https://github.com/ge3224/ged_io/milestone/1)
-* **All Progress**: [View milestones →](https://github.com/ge3224/ged_io/milestones)
-
 ## Installation
 
 Add this to your `Cargo.toml`:
@@ -156,6 +149,11 @@ Planned features:
 * 🚧 **GEDCOM 7.0 Support** - Modern specification compatibility
 * 🚧 **Write Functionality** - Generate GEDCOM files from data structures
 * 🚧 **Enhanced Validation** - Better error reporting and validation
+
+🚧 **Active Development**
+
+* **Current Focus**: [Phase 2. Memory Optimization & Performance](https://github.com/ge3224/ged_io/milestone/2)
+* **All Progress**: [View milestones →](https://github.com/ge3224/ged_io/milestones)
 
 Expect breaking changes as development continues.
 
