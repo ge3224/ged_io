@@ -54,6 +54,40 @@ std::fs::write("./target/tmp/family.json", json_output)?;
 # #[cfg(not(feature = "json"))]
 # fn main() {}
 ```
+
+## Error Handling Example
+
+This example demonstrates how to handle `GedcomError` when parsing a malformed GEDCOM string.
+
+```rust
+use ged_io::Gedcom;
+use ged_io::GedcomError;
+use std::error::Error;
+
+fn main() -> Result<(), Box<dyn Error>> {
+    let malformed_gedcom = "0 HEAD\n1 GEDC\n2 VERS 5.5\n1 INVALID_TAG\n0 TRLR";
+    let mut gedcom = Gedcom::new(malformed_gedcom.chars())?;
+
+    match gedcom.parse_data() {
+        Ok(_) => println!("Parsing successful!"),
+        Err(e) => {
+            eprintln!("Error parsing GEDCOM: {}", e);
+            match e {
+                GedcomError::ParseError { line, message } => {
+                    eprintln!("Specific Parse Error at line {}: {}", line, message);
+                }
+                GedcomError::InvalidFormat(msg) => {
+                    eprintln!("Specific Invalid Format Error: {}", msg);
+                }
+                GedcomError::EncodingError(msg) => {
+                    eprintln!("Specific Encoding Error: {}", msg);
+                }
+            }
+        }
+    }
+    Ok(())
+}
+```
 */
 
 #![deny(clippy::pedantic)]
