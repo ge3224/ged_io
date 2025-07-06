@@ -12,7 +12,7 @@ pub enum GedcomError {
     },
     /// An invalid GEDCOM format error.
     InvalidFormat(String),
-    
+
     /// An encoding error.
     EncodingError(String),
 }
@@ -24,20 +24,17 @@ impl fmt::Display for GedcomError {
                 write!(f, "Parse error at line {line}: {message}")
             }
             GedcomError::InvalidFormat(msg) => write!(f, "Invalid GEDCOM format: {msg}"),
-            
+
             GedcomError::EncodingError(msg) => write!(f, "Encoding error: {msg}"),
         }
     }
 }
-
-
 
 impl std::error::Error for GedcomError {}
 
 #[cfg(test)]
 mod tests {
     use crate::GedcomError;
-    
 
     #[test]
     fn test_parse_error_display() {
@@ -54,13 +51,9 @@ mod tests {
         assert_eq!(format!("{err}"), "Invalid GEDCOM format: Missing header");
     }
 
-    
-
     #[test]
     fn test_encoding_error_display() {
         let err = GedcomError::EncodingError("Invalid UTF-8 sequence".to_string());
         assert_eq!(format!("{err}"), "Encoding error: Invalid UTF-8 sequence");
     }
-
-    
 }
