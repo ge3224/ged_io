@@ -12,8 +12,7 @@ pub enum GedcomError {
     },
     /// An invalid GEDCOM format error.
     InvalidFormat(String),
-    /// An I/O error.
-    IoError(std::io::Error),
+    
     /// An encoding error.
     EncodingError(String),
 }
@@ -25,31 +24,20 @@ impl fmt::Display for GedcomError {
                 write!(f, "Parse error at line {line}: {message}")
             }
             GedcomError::InvalidFormat(msg) => write!(f, "Invalid GEDCOM format: {msg}"),
-            GedcomError::IoError(err) => write!(f, "IO error: {err}"),
+            
             GedcomError::EncodingError(msg) => write!(f, "Encoding error: {msg}"),
         }
     }
 }
 
-impl From<std::io::Error> for GedcomError {
-    fn from(err: std::io::Error) -> Self {
-        GedcomError::IoError(err)
-    }
-}
 
-impl std::error::Error for GedcomError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            GedcomError::IoError(err) => Some(err),
-            _ => None,
-        }
-    }
-}
+
+impl std::error::Error for GedcomError {}
 
 #[cfg(test)]
 mod tests {
     use crate::GedcomError;
-    use std::{error::Error, io};
+    
 
     #[test]
     fn test_parse_error_display() {
@@ -66,12 +54,7 @@ mod tests {
         assert_eq!(format!("{err}"), "Invalid GEDCOM format: Missing header");
     }
 
-    #[test]
-    fn test_io_error_display() {
-        let io_err = io::Error::new(io::ErrorKind::NotFound, "File not found");
-        let err = GedcomError::IoError(io_err);
-        assert_eq!(format!("{err}"), "IO error: File not found");
-    }
+    
 
     #[test]
     fn test_encoding_error_display() {
@@ -79,11 +62,5 @@ mod tests {
         assert_eq!(format!("{err}"), "Encoding error: Invalid UTF-8 sequence");
     }
 
-    #[test]
-    fn test_io_error_source() {
-        let io_err = io::Error::new(io::ErrorKind::PermissionDenied, "Access denied");
-        let gedcom_err = GedcomError::from(io_err);
-        assert_eq!(format!("{gedcom_err}"), "IO error: Access denied");
-        assert_eq!(gedcom_err.source().unwrap().to_string(), "Access denied");
-    }
+    
 }

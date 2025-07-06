@@ -11,10 +11,12 @@ Basic example:
 use ged_io::Gedcom;
 use ged_io::GedcomError;
 
+use std::error::Error;
+use std::fs;
+
 // Parse a GEDCOM file
-fn main() -> Result<(), GedcomError> {
-    let source = std::fs::read_to_string("./tests/fixtures/sample.ged")
-        .map_err(|e| GedcomError::IoError(e))?;
+fn main() -> Result<(), Box<dyn Error>> {
+    let source = fs::read_to_string("./tests/fixtures/sample.ged")?;
     let mut gedcom = Gedcom::new(source.chars())?;
     let gedcom_data = gedcom.parse_data()?;
 
@@ -37,8 +39,7 @@ use ged_io::GedcomError;
 # fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 // Parse a GEDCOM file
-let source = std::fs::read_to_string("./tests/fixtures/sample.ged")
-    .map_err(|e| GedcomError::IoError(e))?;
+let source = std::fs::read_to_string("./tests/fixtures/sample.ged")?;
 let mut gedcom = Gedcom::new(source.chars())?;
 let gedcom_data = gedcom.parse_data()?;
 
@@ -47,7 +48,7 @@ let json_output = serde_json::to_string_pretty(&gedcom_data)?;
 println!("{}", json_output);
 
 // Or save to file
-std::fs::write("./target/tmp/family.json", json_output).map_err(|e| GedcomError::IoError(e))?;
+std::fs::write("./target/tmp/family.json", json_output)?;
 # Ok(())
 # }
 # #[cfg(not(feature = "json"))]
