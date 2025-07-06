@@ -53,7 +53,7 @@ Add this to your `Cargo.toml`:
 ged_io = "0.1.8"
 ```
 
-For JSON serialization support:
+For JSON serialization support, add this to your `Cargo.toml`:
 
 ```toml
 [dependencies]
@@ -69,9 +69,8 @@ use ged_io::Gedcom;
 use std::fs;
 use ged_io::GedcomError;
 
-fn main() -> Result<(), GedcomError> {
-    let source = fs::read_to_string("./tests/fixtures/sample.ged")
-        .map_err(|e| GedcomError::IoError(e))?;
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let source = fs::read_to_string("./tests/fixtures/sample.ged")?;
     let mut gedcom = Gedcom::new(source.chars())?;
     let data = gedcom.parse_data()?;
 
@@ -91,15 +90,15 @@ fn main() -> Result<(), GedcomError> {
 
 ### With JSON Export
 
+(Requires the `json` feature to be enabled in `Cargo.toml`)
+
 ```rust
 use ged_io::Gedcom;
+use std::error::Error;
 use std::fs;
-use ged_io::GedcomError;
 
-#[cfg(feature = "json")]
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let source = std::fs::read_to_string("./tests/fixtures/sample.ged")
-        .map_err(|e| GedcomError::IoError(e))?;
+fn main() -> Result<(), Box<dyn Error>> {
+    let source = fs::read_to_string("./tests/fixtures/sample.ged")?;
     let mut gedcom = Gedcom::new(source.chars())?;
     let gedcom_data = gedcom.parse_data()?;
 
