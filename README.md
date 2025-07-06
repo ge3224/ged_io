@@ -7,60 +7,53 @@ A **GEDCOM parser** for Rust 🦀
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![GitHub branch check runs](https://img.shields.io/github/check-runs/ge3224/ged_io/main)](https://img.shields.io/github/check-runs/ge3224/ged_io/main)
 
-## About This Project
+## About
 
-**`ged_io`** is a Rust crate for working with GEDCOM files, the standard format
-for exchanging genealogical data. It currently focuses on parsing existing
-GEDCOM files, with plans to add writing capabilities in the future.
+`ged_io` is a Rust crate for parsing GEDCOM files, the standard format for
+exchanging genealogical data. It currently supports parsing GEDCOM 5.5.1 files
+into structured Rust data types.
 
-Originally forked from
-[`pirtleshell/rust-gedcom`](https://github.com/pirtleshell/rust-gedcom), this
-project aims to:
+This project is a fork of
+[`pirtleshell/rust-gedcom`](https://github.com/pirtleshell/rust-gedcom) with
+the following goals:
 
-* **GEDCOM 5.5.1 Specification Support:** Work towards accurate parsing of the
-  [GEDCOM 5.5.1 specification](https://gedcom.io/specifications/ged551.pdf)
-* **GEDCOM 7.0 Specification Support:** Eventual support for the newer [GEDCOM
-  7.0 specification](https://gedcom.io/specifications/FamilySearchGEDCOMv7.pdf)
-* **Write-to-File Functionality:** Future capability to write `GedcomData`
-  objects back to GEDCOM files
-* **Practical Reliability:** Handle real-world GEDCOM files with proper error handling
+* Parse GEDCOM 5.5.1 files accurately
+* Add support for GEDCOM 7.0 specification
+* Implement write functionality for GEDCOM files
+* Handle real-world GEDCOM files with proper error handling
 
-This crate is a work in progress. If you need a GEDCOM parser for Rust, it may
-be useful, but expect ongoing development and potential breaking changes.
+**Note:** This crate is under active development. The API may change in future releases.
 
 ## Features
 
-* ✅ **GEDCOM Parsing** - Read GEDCOM files into structured Rust data
-* 🚧 **GEDCOM 5.5.1 Support** - Working towards full specification coverage
-* 🚧 **GEDCOM 7.0 Support** - Planned for future versions
-* 🚧 **Write Capabilities** - Planned ability to generate GEDCOM files
-* ✅ **JSON Integration** - Optional `serde` support for JSON conversion
-* ✅ **Real-World Testing** - Tested with various GEDCOM files including complex examples
+* Parse GEDCOM 5.5.1 files into structured Rust data types
+* Optional `serde` integration for JSON serialization
+* Command-line tool for GEDCOM file inspection
+* Basic error handling for common parsing issues
 
 ## Installation
 
-Add this to your `Cargo.toml`:
+Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
 ged_io = "0.2.0"
 ```
 
-For JSON serialization support, add this to your `Cargo.toml`:
+For JSON serialization support:
 
 ```toml
 [dependencies]
 ged_io = { version = "0.2.0", features = ["json"] }
 ```
 
-## Quick Start
+## Usage
 
 ### Basic Parsing
 
 ```rust
 use ged_io::Gedcom;
 use std::fs;
-use ged_io::GedcomError;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let source = fs::read_to_string("./tests/fixtures/sample.ged")?;
@@ -70,8 +63,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Individuals found:");
     for individual in data.individuals {
         if let Some(name) = individual.name {
-            // The name value is a string like "Given Name /Surname/"
-            // We'll clean it up for display.
             let cleaned_name = name.value.unwrap_or_default().replace('/', " ").trim().to_string();
             println!("- {}", cleaned_name);
         }
@@ -81,9 +72,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-### With JSON Export
+### JSON Export
 
-(Requires the `json` feature to be enabled in `Cargo.toml`)
+Requires the `json` feature:
 
 ```rust
 use ged_io::Gedcom;
@@ -95,7 +86,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut gedcom = Gedcom::new(source.chars())?;
     let gedcom_data = gedcom.parse_data()?;
 
-    // Serialize to JSON
     let json_output = serde_json::to_string_pretty(&gedcom_data)?;
     println!("{}", json_output);
     
@@ -105,19 +95,19 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 ## Command Line Tool
 
-The included `ged_io` binary provides a convenient way to test and analyze
-GEDCOM files. It is primarily intended for development and testing purposes,
-while the main product is the library crate itself.
+Install the CLI tool:
 
 ```bash
-# Install the CLI tool
 cargo install ged_io
+```
 
-# Parse and analyze a GEDCOM file
+Analyze a GEDCOM file:
+
+```bash
 ged_io ./tests/fixtures/sample.ged
 ```
 
-**Example output:**
+Example output:
 
 ```plaintext
 ----------------------
@@ -133,61 +123,46 @@ ged_io ./tests/fixtures/sample.ged
 ----------------------
 ```
 
-## Status
+## Development Status
 
-This is a work-in-progress project. Current capabilities include:
+This project is under active development. The core parsing functionality works
+for many GEDCOM files, but expect breaking changes in future `0.x` releases as
+the API evolves.
 
-* ✅ Basic GEDCOM 5.5.1 parsing
-* ✅ Structured data representation
-* ✅ JSON serialization support
-* ✅ Command-line utilities
-* ✅ Error handling for common cases
+Current limitations:
 
-Planned features:
+* GEDCOM 7.0 support is not implemented
+* Write functionality is not available
+* Not all GEDCOM 5.5.1 features are fully supported
+* Testing coverage needs improvement
 
-* 🚧 **Complete GEDCOM 5.5.1 Support** - Full specification compliance
-* 🚧 **GEDCOM 7.0 Support** - Modern specification compatibility
-* 🚧 **Write Functionality** - Generate GEDCOM files from data structures
-* 🚧 **Enhanced Validation** - Better error reporting and validation
-
-🚧 **Active Development**
-
-* **Current Focus**: [Phase 2. Memory Optimization & Performance](https://github.com/ge3224/ged_io/milestone/2)
-* **All Progress**: [View milestones →](https://github.com/ge3224/ged_io/milestones)
-
-Expect breaking changes as development continues.
+See the [Project Roadmap](ROADMAP.md) and [GitHub
+Milestones](https://github.com/ge3224/ged_io/milestones) for planned features.
 
 ## Testing
 
-The crate is tested against various GEDCOM files, including some complex
-examples like [Heiner Eichmann's test
-suite](http://heiner-eichmann.de/gedcom/allged.htm). However, testing is
-ongoing and more comprehensive coverage is needed.
+Run tests:
 
 ```bash
-# Run the test suite
 cargo test
-
-# Run with all features
 cargo test --all-features
-
-# Linting
 cargo clippy --all-targets --all-features -- -D warnings
 ```
 
+The crate is tested against various GEDCOM files, including examples from
+[Heiner Eichmann's test suite](http://heiner-eichmann.de/gedcom/allged.htm).
+
 ## Contributing
 
-This project is under active development. Contributions are welcome, but please
-keep in mind that the API may change as the project evolves. Areas where help
-would be appreciated:
+Contributions are welcome. Keep in mind that the API may change as the project develops.
+
+Areas where help is needed:
 
 * GEDCOM 7.0 specification implementation
 * Write functionality development
-* Test case contributions
+* Additional test cases
 * Documentation improvements
 * Bug reports and feature requests
-
-Please feel free to open issues or submit pull requests.
 
 ## License
 
@@ -195,4 +170,4 @@ This project is licensed under the [MIT License](LICENSE).
 
 ## Acknowledgments
 
-Originally forked from [`pirtleshell/rust-gedcom`](https://github.com/pirtleshell/rust-gedcom). Thanks to the original contributors for laying the foundation for this project.
+Originally forked from [`pirtleshell/rust-gedcom`](https://github.com/pirtleshell/rust-gedcom).
