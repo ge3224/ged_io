@@ -30,7 +30,7 @@ To enable JSON support, add the feature to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-ged_io = { version = "0.2.0", features = ["json"] }
+ged_io = { version = "0.2.1", features = ["json"] }
 ```
 
 JSON serialization example:

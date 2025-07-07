@@ -1,7 +1,10 @@
 [package]
 name = "ged_io"
-version = "0.2.0"
-authors = ["Robert Pirtle <astropirtle@gmail.com>", "Jacob Benison <ge3224@gmail.com>"]
+version = "0.2.1"
+authors = [
+    "Robert Pirtle <astropirtle@gmail.com>",
+    "Jacob Benison <ge3224@gmail.com>",
+]
 description = "A parser for GEDCOM files"
 keywords = ["genealogy", "gedcom", "parser", "family-trees"]
 categories = ["parser-implementations", "data-structures"]
@@ -16,7 +19,7 @@ default = []
 json = ["serde", "serde_json"]
 
 [dependencies]
-serde = { version = "1.0", features = [ "derive" ], optional = true }
+serde = { version = "1.0", features = ["derive"], optional = true }
 serde_json = { version = "1.0", optional = true }
 
 [dev-dependencies]
