@@ -51,7 +51,6 @@ fn serialize_to_json() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-// This function only exists if the "json" feature is enabled in Cargo.toml
 # #[cfg(feature = "json")]
 # serialize_to_json().unwrap();
 ```
