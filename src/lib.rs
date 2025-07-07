@@ -9,8 +9,6 @@ Basic example:
 
 ```rust
 use ged_io::Gedcom;
-use ged_io::GedcomError;
-
 use std::error::Error;
 use std::fs;
 
@@ -28,31 +26,34 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 This crate contains an optional `"json"` feature that implements serialization and deserialization to JSON with [`serde`](https://serde.rs).
 
+To enable JSON support, add the feature to your `Cargo.toml`:
+
+```toml
+[dependencies]
+ged_io = { version = "0.2.0", features = ["json"] }
+```
+
 JSON serialization example:
 
 ```rust
-#[cfg(feature = "json")]
 use ged_io::Gedcom;
+use std::error::Error;
+
 #[cfg(feature = "json")]
-use ged_io::GedcomError;
+fn serialize_to_json() -> Result<(), Box<dyn Error>> {
+    let source = "0 HEAD\n1 GEDC\n2 VERS 5.5\n0 @I1@ INDI\n1 NAME John /Doe/\n0 TRLR";
+    let mut gedcom = Gedcom::new(source.chars())?;
+    let gedcom_data = gedcom.parse_data()?;
+
+    let json_output = serde_json::to_string_pretty(&gedcom_data)?;
+    println!("GEDCOM as JSON:\n{}", json_output);
+
+    Ok(())
+}
+
+// This function only exists if the "json" feature is enabled in Cargo.toml
 # #[cfg(feature = "json")]
-# fn main() -> Result<(), Box<dyn std::error::Error>> {
-
-// Parse a GEDCOM file
-let source = std::fs::read_to_string("./tests/fixtures/sample.ged")?;
-let mut gedcom = Gedcom::new(source.chars())?;
-let gedcom_data = gedcom.parse_data()?;
-
-// Serialize to JSON
-let json_output = serde_json::to_string_pretty(&gedcom_data)?;
-println!("{}", json_output);
-
-// Or save to file
-std::fs::write("./target/tmp/family.json", json_output)?;
-# Ok(())
-# }
-# #[cfg(not(feature = "json"))]
-# fn main() {}
+# serialize_to_json().unwrap();
 ```
 
 ## Error Handling Example
