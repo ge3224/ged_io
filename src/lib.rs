@@ -94,15 +94,6 @@ fn main() -> Result<(), Box<dyn Error>> {
                         line, tag, value
                     );
                 }
-                // GedcomError::ParseError { line, message } => {
-                //     eprintln!("Specific Parse Error at line {}: {}", line, message);
-                // }
-                // GedcomError::InvalidFormat(msg) => {
-                //     eprintln!("Specific Invalid Format Error: {}", msg);
-                // }
-                // GedcomError::EncodingError(msg) => {
-                //     eprintln!("Specific Encoding Error: {}", msg);
-                // }
             }
         }
     }

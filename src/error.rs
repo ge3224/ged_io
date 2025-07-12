@@ -42,17 +42,6 @@ pub enum GedcomError {
         /// The value that was found with an invalid format.
         value: String,
     },
-    // /// A parsing error, with the line number and a message.
-    // ParseError {
-    //     /// The line number where the error occurred.
-    //     line: u32,
-    //     /// The error message.
-    //     message: String,
-    // },
-    // /// An invalid GEDCOM format error.
-    // InvalidFormat(String),
-    // /// An encoding error.
-    // EncodingError(String),
 }
 
 impl fmt::Display for GedcomError {
@@ -77,40 +66,67 @@ impl fmt::Display for GedcomError {
             }
             GedcomError::InvalidValueFormat { line, tag, value } => {
                 write!(f, "Invalid value format at line {line}: {tag}: {value}")
-            } // GedcomError::ParseError { line, message } => {
-              //     write!(f, "Parse error at line {line}: {message}")
-              // }
-              // GedcomError::InvalidFormat(msg) => write!(f, "Invalid GEDCOM format: {msg}"),
-              //
-              // GedcomError::EncodingError(msg) => write!(f, "Encoding error: {msg}"),
+            }
         }
     }
 }
 
 impl std::error::Error for GedcomError {}
 
-// #[cfg(test)]
-// mod tests {
-//     use crate::GedcomError;
-//
-//     #[test]
-//     fn test_parse_error_display() {
-//         let err = GedcomError::ParseError {
-//             line: 10,
-//             message: "Unexpected token".to_string(),
-//         };
-//         assert_eq!(format!("{err}"), "Parse error at line 10: Unexpected token");
-//     }
-//
-//     #[test]
-//     fn test_invalid_format_display() {
-//         let err = GedcomError::InvalidFormat("Missing header".to_string());
-//         assert_eq!(format!("{err}"), "Invalid GEDCOM format: Missing header");
-//     }
-//
-//     #[test]
-//     fn test_encoding_error_display() {
-//         let err = GedcomError::EncodingError("Invalid UTF-8 sequence".to_string());
-//         assert_eq!(format!("{err}"), "Encoding error: Invalid UTF-8 sequence");
-//     }
-// }
+#[cfg(test)]
+mod tests {
+    use crate::GedcomError;
+
+    #[test]
+    fn test_invalid_tag_display() {
+        let err = GedcomError::InvalidTag {
+            line: 5,
+            tag: "INVALID".to_string(),
+        };
+        assert_eq!(format!("{err}"), "Invalid tag at line 5: INVALID");
+    }
+
+    #[test]
+    fn test_invalid_token_display() {
+        let err = GedcomError::InvalidToken {
+            line: 10,
+            token: "@@".to_string(),
+        };
+        assert_eq!(format!("{err}"), "Invalid token at line 10: @@");
+    }
+
+    #[test]
+    fn test_unexpected_level_display() {
+        let err = GedcomError::UnexpectedLevel {
+            line: 15,
+            expected: 1,
+            found: "2 INDI".to_string(),
+        };
+        assert_eq!(
+            format!("{err}"),
+            "Unexpected level at line 15: expected 1, found 2 INDI"
+        );
+    }
+
+    #[test]
+    fn test_missing_required_value_display() {
+        let err = GedcomError::MissingRequiredValue {
+            line: 20,
+            tag: "NAME".to_string(),
+        };
+        assert_eq!(format!("{err}"), "Missing required value at line 20: NAME");
+    }
+
+    #[test]
+    fn test_invalid_value_format_display() {
+        let err = GedcomError::InvalidValueFormat {
+            line: 25,
+            tag: "DATE".to_string(),
+            value: "not a date".to_string(),
+        };
+        assert_eq!(
+            format!("{err}"),
+            "Invalid value format at line 25: DATE: not a date"
+        );
+    }
+}

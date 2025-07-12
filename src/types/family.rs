@@ -75,9 +75,10 @@ impl Family {
     /// Returns a `GedcomError::ParseError` if the individual already exists.
     pub fn set_individual1(&mut self, xref: Xref, line: u32) -> Result<(), GedcomError> {
         if self.individual1.is_some() {
-            return Err(GedcomError::InvalidTag {
+            return Err(GedcomError::InvalidValueFormat {
                 line,
-                tag: format!("{:?}", self.individual1),
+                tag: "Individual1".to_string(),
+                value: format!("{:?}", self.individual1),
             });
         }
         self.individual1 = Some(xref);
@@ -91,12 +92,10 @@ impl Family {
     /// Returns a `GedcomError::ParseError` if the individual already exists.
     pub fn set_individual2(&mut self, xref: Xref, line: u32) -> Result<(), GedcomError> {
         if self.individual2.is_some() {
-            return Err(GedcomError::InvalidTag {
+            return Err(GedcomError::InvalidValueFormat {
                 line,
-                tag: format!(
-                    "Second individual of family already exists: {:?}",
-                    self.individual2
-                ),
+                tag: "Individual2".to_string(),
+                value: format!("{:?}", self.individual2),
             });
         }
         self.individual2 = Some(xref);

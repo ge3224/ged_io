@@ -97,9 +97,9 @@ impl<'a> Tokenizer<'a> {
             Token::Pointer(_) => Token::Tag(self.extract_word()),
             Token::Tag(_) | Token::CustomTag(_) => Token::LineValue(self.extract_value()),
             _ => {
-                return Err(GedcomError::InvalidTag {
+                return Err(GedcomError::InvalidToken {
                     line: self.line,
-                    tag: format!("{:?}", self.current_token),
+                    token: format!("{:?}", self.current_token),
                 });
             }
         };
@@ -195,9 +195,9 @@ impl<'a> Tokenizer<'a> {
             // gracefully handle an attempt to take a value from a valueless line
             Token::Level(_) => (),
             _ => {
-                return Err(GedcomError::InvalidTag {
+                return Err(GedcomError::InvalidToken {
                     line: self.line,
-                    tag: format!("{:?}", self.current_token),
+                    token: format!("{:?}", self.current_token),
                 });
             }
         }
@@ -230,17 +230,17 @@ impl<'a> Tokenizer<'a> {
                         value.push_str(&self.take_line_value()?);
                     }
                     _ => {
-                        return Err(GedcomError::InvalidTag {
+                        return Err(GedcomError::InvalidToken {
                             line: self.line,
-                            tag: format!("{:?}", self.current_token),
+                            token: format!("{:?}", self.current_token),
                         });
                     }
                 },
                 Token::Level(_) => self.next_token()?,
                 _ => {
-                    return Err(GedcomError::InvalidTag {
+                    return Err(GedcomError::InvalidToken {
                         line: self.line,
-                        tag: format!("{:?}", self.current_token),
+                        token: format!("{:?}", self.current_token),
                     });
                 }
             }
