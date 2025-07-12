@@ -74,13 +74,10 @@ impl Parser for UserDefinedTag {
                 Token::Level(_) => tokenizer.next_token()?,
                 Token::EOF => break,
                 _ => {
-                    return Err(GedcomError::ParseError {
+                    return Err(GedcomError::InvalidTag {
                         line: tokenizer.line,
-                        message: format!(
-                            "Unhandled Token in UserDefinedDataset: {:?}",
-                            tokenizer.current_token
-                        ),
-                    })
+                        tag: format!("{:?}", tokenizer.current_token),
+                    });
                 }
             }
         }

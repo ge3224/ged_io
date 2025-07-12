@@ -52,10 +52,10 @@ impl Parser for Corporation {
                 "FAX" => self.fax = Some(tokenizer.take_line_value()?),
                 "WWW" => self.website = Some(tokenizer.take_line_value()?),
                 _ => {
-                    return Err(GedcomError::ParseError {
+                    return Err(GedcomError::InvalidTag {
                         line: tokenizer.line,
-                        message: format!("Unhandled Corporation Tag: {tag}"),
-                    })
+                        tag: format!("{:?}", tokenizer.current_token),
+                    });
                 }
             }
             Ok(())

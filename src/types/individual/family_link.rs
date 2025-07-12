@@ -63,10 +63,10 @@ impl FamilyLink {
             "FAMC" => FamilyLinkType::Child,
             "FAMS" => FamilyLinkType::Spouse,
             _ => {
-                return Err(GedcomError::ParseError {
+                return Err(GedcomError::InvalidTag {
                     line: tokenizer.line,
-                    message: format!("Unhandled FamilyLinkType Tag: {tag}"),
-                })
+                    tag: tag.to_string(),
+                });
             }
         };
         let mut family_link = FamilyLink {
@@ -94,10 +94,11 @@ impl FamilyLink {
             "foster" => Some(Pedigree::Foster),
             "sealing" => Some(Pedigree::Sealing),
             _ => {
-                return Err(GedcomError::ParseError {
+                return Err(GedcomError::InvalidValueFormat {
                     line,
-                    message: format!("Unrecognized FamilyLink.pedigree code: {pedigree_text}"),
-                })
+                    tag: "PEDI".to_string(),
+                    value: pedigree_text.to_string(),
+                });
             }
         };
         Ok(())
@@ -118,12 +119,11 @@ impl FamilyLink {
             "disproven" => Some(ChildLinkStatus::Disproven),
             "proven" => Some(ChildLinkStatus::Proven),
             _ => {
-                return Err(GedcomError::ParseError {
+                return Err(GedcomError::InvalidValueFormat {
                     line,
-                    message: format!(
-                        "Unrecognized FamilyLink.child_linkage_status code: {status_text}"
-                    ),
-                })
+                    tag: "STAT".to_string(),
+                    value: status_text.to_string(),
+                });
             }
         };
         Ok(())
@@ -144,10 +144,11 @@ impl FamilyLink {
             "wife" => Some(AdoptedByWhichParent::Wife),
             "both" => Some(AdoptedByWhichParent::Both),
             _ => {
-                return Err(GedcomError::ParseError {
+                return Err(GedcomError::InvalidValueFormat {
                     line,
-                    message: format!("Unrecognized FamilyLink.adopted_by code: {adopted_by_text}"),
-                })
+                    tag: "ADOP".to_string(),
+                    value: adopted_by_text.to_string(),
+                });
             }
         };
         Ok(())
@@ -176,10 +177,10 @@ impl Parser for FamilyLink {
                     tokenizer.line,
                 )?,
                 _ => {
-                    return Err(GedcomError::ParseError {
+                    return Err(GedcomError::InvalidTag {
                         line: tokenizer.line,
-                        message: format!("Unhandled FamilyLink Tag: {tag}"),
-                    })
+                        tag: tag.to_string(),
+                    });
                 }
             }
             Ok(())

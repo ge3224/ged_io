@@ -73,15 +73,36 @@ fn main() -> Result<(), Box<dyn Error>> {
         Err(e) => {
             eprintln!("Error parsing GEDCOM: {}", e);
             match e {
-                GedcomError::ParseError { line, message } => {
-                    eprintln!("Specific Parse Error at line {}: {}", line, message);
+                GedcomError::InvalidTag { line, tag } => {
+                    eprintln!("Specific Invalid Tag Error at line {}: {}", line, tag);
                 }
-                GedcomError::InvalidFormat(msg) => {
-                    eprintln!("Specific Invalid Format Error: {}", msg);
+                GedcomError::InvalidToken { line, token } => {
+                    eprintln!("Specific Invalid Token Error at line {}: {}", line, token);
                 }
-                GedcomError::EncodingError(msg) => {
-                    eprintln!("Specific Encoding Error: {}", msg);
+                GedcomError::UnexpectedLevel { line, expected, found } => {
+                    eprintln!(
+                        "Specific Unexpected Level Error at line {}: expected {}, found {}",
+                        line, expected, found
+                    );
                 }
+                GedcomError::MissingRequiredValue { line, tag } => {
+                    eprintln!("Specific Missing Required Value Error at line {}: {}", line, tag);
+                }
+                GedcomError::InvalidValueFormat { line, tag, value } => {
+                    eprintln!(
+                        "Specific Invalid Value Format Error at line {}: {}: {}",
+                        line, tag, value
+                    );
+                }
+                // GedcomError::ParseError { line, message } => {
+                //     eprintln!("Specific Parse Error at line {}: {}", line, message);
+                // }
+                // GedcomError::InvalidFormat(msg) => {
+                //     eprintln!("Specific Invalid Format Error: {}", msg);
+                // }
+                // GedcomError::EncodingError(msg) => {
+                //     eprintln!("Specific Encoding Error: {}", msg);
+                // }
             }
         }
     }

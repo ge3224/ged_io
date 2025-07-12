@@ -57,9 +57,9 @@ where
             }
             Token::Level(_) => tokenizer.next_token()?,
             _ => {
-                return Err(GedcomError::ParseError {
+                return Err(GedcomError::InvalidTag {
                     line: tokenizer.line,
-                    message: format!("Unhandled Token: {:?}", tokenizer.current_token),
+                    tag: format!("{:?}", tokenizer.current_token),
                 })
             }
         }

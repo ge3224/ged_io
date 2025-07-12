@@ -66,10 +66,10 @@ impl Parser for HeadPlac {
                     }
                 }
                 _ => {
-                    return Err(GedcomError::ParseError {
+                    return Err(GedcomError::InvalidTag {
                         line: tokenizer.line,
-                        message: format!("Unhandled HeadPlace Tag: {tag}"),
-                    })
+                        tag: format!("{:?}", tokenizer.current_token),
+                    });
                 }
             }
             Ok(())

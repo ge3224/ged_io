@@ -75,9 +75,9 @@ impl Family {
     /// Returns a `GedcomError::ParseError` if the individual already exists.
     pub fn set_individual1(&mut self, xref: Xref, line: u32) -> Result<(), GedcomError> {
         if self.individual1.is_some() {
-            return Err(GedcomError::ParseError {
+            return Err(GedcomError::InvalidTag {
                 line,
-                message: "First individual of family already exists.".to_string(),
+                tag: format!("{:?}", self.individual1),
             });
         }
         self.individual1 = Some(xref);
@@ -91,9 +91,12 @@ impl Family {
     /// Returns a `GedcomError::ParseError` if the individual already exists.
     pub fn set_individual2(&mut self, xref: Xref, line: u32) -> Result<(), GedcomError> {
         if self.individual2.is_some() {
-            return Err(GedcomError::ParseError {
+            return Err(GedcomError::InvalidTag {
                 line,
-                message: "Second individual of family already exists.".to_string(),
+                tag: format!(
+                    "Second individual of family already exists: {:?}",
+                    self.individual2
+                ),
             });
         }
         self.individual2 = Some(xref);
@@ -153,10 +156,10 @@ impl Parser for Family {
                 "NOTE" => self.add_note(Note::new(tokenizer, level + 1)?),
                 "OBJE" => self.add_multimedia(Multimedia::new(tokenizer, level + 1, pointer)?),
                 _ => {
-                    return Err(GedcomError::ParseError {
+                    return Err(GedcomError::InvalidTag {
                         line: tokenizer.line,
-                        message: format!("Unhandled Family Tag: {tag}"),
-                    })
+                        tag: format!("{:?}", tokenizer.current_token),
+                    });
                 }
             }
 

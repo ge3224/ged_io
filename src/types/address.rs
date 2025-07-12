@@ -65,10 +65,10 @@ impl Parser for Address {
                 "POST" => self.post = Some(tokenizer.take_line_value()?),
                 "CTRY" => self.country = Some(tokenizer.take_line_value()?),
                 _ => {
-                    return Err(GedcomError::ParseError {
+                    return Err(GedcomError::InvalidTag {
                         line: tokenizer.line,
-                        message: format!("Unhandled Address Tag: {tag}"),
-                    })
+                        tag: format!("{:?}", tokenizer.current_token),
+                    });
                 }
             }
             Ok(())

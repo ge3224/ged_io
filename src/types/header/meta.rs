@@ -43,21 +43,19 @@ impl Parser for HeadMeta {
                 "FORM" => {
                     let form = tokenizer.take_line_value()?;
                     if form.to_uppercase() != "LINEAGE-LINKED" {
-                        return Err(GedcomError::ParseError {
+                        return Err(GedcomError::InvalidValueFormat {
                             line: tokenizer.line,
-                            message: format!(
-                                "Unrecognized GEDCOM form. Expected LINEAGE-LINKED, found {form}"
-                            ),
+                            tag: "FORM".to_string(),
+                            value: form,
                         });
                     }
                     self.form = Some(form);
                 }
-                // _ => panic!("{} Unhandled GEDC Tag: {}", tokenizer.debug(), tag),
                 _ => {
-                    return Err(GedcomError::ParseError {
+                    return Err(GedcomError::InvalidTag {
                         line: tokenizer.line,
-                        message: format!("Unhandled HeadMeta Tag: {tag}"),
-                    })
+                        tag: format!("{:?}", tokenizer.current_token),
+                    });
                 }
             }
 

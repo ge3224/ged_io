@@ -40,10 +40,10 @@ impl Parser for Reference {
                 "TITL" => self.title = Some(tokenizer.take_line_value()?),
                 "FORM" => self.form = Some(Format::new(tokenizer, level + 1)?),
                 _ => {
-                    return Err(GedcomError::ParseError {
+                    return Err(GedcomError::InvalidTag {
                         line: tokenizer.line,
-                        message: format!("Unhandled MultimediaFileRefn Tag: {tag}"),
-                    })
+                        tag: format!("{:?}", tokenizer.current_token),
+                    });
                 }
             }
             Ok(())

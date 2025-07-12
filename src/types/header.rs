@@ -89,10 +89,10 @@ impl Parser for Header {
                 "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
                 "PLAC" => self.place = Some(HeadPlac::new(tokenizer, level + 1)?),
                 _ => {
-                    return Err(GedcomError::ParseError {
+                    return Err(GedcomError::InvalidTag {
                         line: tokenizer.line,
-                        message: format!("Unhandled Header Tag: {tag}"),
-                    })
+                        tag: format!("{:?}", tokenizer.current_token),
+                    });
                 }
             }
             Ok(())

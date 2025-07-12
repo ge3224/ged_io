@@ -179,10 +179,10 @@ impl Parser for Detail {
                     self.add_multimedia_record(Multimedia::new(tokenizer, level + 1, pointer)?);
                 }
                 _ => {
-                    return Err(GedcomError::ParseError {
+                    return Err(GedcomError::InvalidTag {
                         line: tokenizer.line,
-                        message: format!("Unhandled Detail Tag: {tag}"),
-                    })
+                        tag: format!("{:?}", tokenizer.current_token),
+                    });
                 }
             }
             Ok(())

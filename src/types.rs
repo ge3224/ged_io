@@ -140,12 +140,10 @@ impl Parser for GedcomData {
     fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
         loop {
             let Token::Level(current_level) = tokenizer.current_token else {
-                return Err(GedcomError::ParseError {
+                return Err(GedcomError::UnexpectedLevel {
                     line: tokenizer.line,
-                    message: format!(
-                        "Expected Level, found {token:?}",
-                        token = tokenizer.current_token
-                    ),
+                    expected: level + 1,
+                    found: format!("{:?}", tokenizer.current_token),
                 });
             };
 
@@ -173,10 +171,10 @@ impl Parser for GedcomData {
                     "OBJE" => self.add_multimedia(Multimedia::new(tokenizer, level, pointer)?),
                     "TRLR" => break,
                     _ => {
-                        return Err(GedcomError::ParseError {
+                        return Err(GedcomError::InvalidTag {
                             line: tokenizer.line,
-                            message: format!("Unhandled tag {tag}"),
-                        })
+                            tag: format!("{:?}", tokenizer.current_token),
+                        });
                     }
                 }
             } else if let Token::CustomTag(tag) = &tokenizer.current_token {
@@ -187,9 +185,9 @@ impl Parser for GedcomData {
                     tokenizer.next_token()?;
                 }
             } else {
-                return Err(GedcomError::ParseError {
+                return Err(GedcomError::InvalidToken {
                     line: tokenizer.line,
-                    message: format!("Unhandled token {:?}", tokenizer.current_token),
+                    token: format!("{:?}", tokenizer.current_token),
                 });
             }
         }

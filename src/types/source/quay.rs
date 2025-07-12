@@ -58,7 +58,7 @@ impl std::fmt::Display for CertaintyAssessment {
 }
 
 impl Parser for CertaintyAssessment {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
+    fn parse(&mut self, tokenizer: &mut Tokenizer, _level: u8) -> Result<(), GedcomError> {
         tokenizer.next_token()?;
         if let Token::LineValue(val) = &tokenizer.current_token {
             *self = match val.as_str() {
@@ -67,21 +67,21 @@ impl Parser for CertaintyAssessment {
                 "2" => CertaintyAssessment::Secondary,
                 "3" => CertaintyAssessment::Direct,
                 _ => {
-                    return Err(GedcomError::ParseError {
+                    return Err(GedcomError::InvalidValueFormat {
                         line: tokenizer.line,
-                        message: format!(
-                            "Unknown CertaintyAssessment value: {val}; level: {level}",
+                        tag: format!(
+                            "Unknown CertaintyAssessment value: {:?}",
+                            tokenizer.current_token
                         ),
-                    })
+                        value: val.to_string(),
+                    });
                 }
             };
         } else {
-            return Err(GedcomError::ParseError {
+            return Err(GedcomError::InvalidValueFormat {
                 line: tokenizer.line,
-                message: format!(
-                    "Expected CertaintyAssessment LineValue, found {:?}",
-                    tokenizer.current_token
-                ),
+                tag: "CertainAssessment".to_string(),
+                value: format!("{:?}", tokenizer.current_token),
             });
         }
         tokenizer.next_token()?;

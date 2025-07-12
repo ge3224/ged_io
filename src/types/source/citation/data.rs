@@ -44,10 +44,10 @@ impl Parser for SourceCitationData {
                 "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
                 "TEXT" => self.text = Some(Text::new(tokenizer, level + 1)?),
                 _ => {
-                    return Err(GedcomError::ParseError {
+                    return Err(GedcomError::InvalidTag {
                         line: tokenizer.line,
-                        message: format!("Unhandled SourceCitationData Tag: {tag}"),
-                    })
+                        tag: format!("{:?}", tokenizer.current_token),
+                    });
                 }
             }
             Ok(())

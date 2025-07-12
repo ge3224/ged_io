@@ -97,10 +97,10 @@ impl<'a> Tokenizer<'a> {
             Token::Pointer(_) => Token::Tag(self.extract_word()),
             Token::Tag(_) | Token::CustomTag(_) => Token::LineValue(self.extract_value()),
             _ => {
-                return Err(GedcomError::ParseError {
+                return Err(GedcomError::InvalidTag {
                     line: self.line,
-                    message: format!("Tokenization error! {:?}", self.current_token),
-                })
+                    tag: format!("{:?}", self.current_token),
+                });
             }
         };
         Ok(())
@@ -133,9 +133,10 @@ impl<'a> Tokenizer<'a> {
             .iter()
             .collect::<String>()
             .parse::<u8>()
-            .map_err(|e| GedcomError::ParseError {
+            .map_err(|_| GedcomError::InvalidValueFormat {
                 line: self.line,
-                message: format!("Failed to parse number: {e}"),
+                tag: format!("{:?}", self.current_token),
+                value: digits.iter().collect::<String>(),
             })
     }
 
@@ -194,10 +195,10 @@ impl<'a> Tokenizer<'a> {
             // gracefully handle an attempt to take a value from a valueless line
             Token::Level(_) => (),
             _ => {
-                return Err(GedcomError::ParseError {
+                return Err(GedcomError::InvalidTag {
                     line: self.line,
-                    message: format!("Expected LineValue, found {:?}", self.current_token),
-                })
+                    tag: format!("{:?}", self.current_token),
+                });
             }
         }
         Ok(value)
@@ -229,18 +230,18 @@ impl<'a> Tokenizer<'a> {
                         value.push_str(&self.take_line_value()?);
                     }
                     _ => {
-                        return Err(GedcomError::ParseError {
+                        return Err(GedcomError::InvalidTag {
                             line: self.line,
-                            message: format!("Unhandled Continuation Tag: {tag}"),
-                        })
+                            tag: format!("{:?}", self.current_token),
+                        });
                     }
                 },
                 Token::Level(_) => self.next_token()?,
                 _ => {
-                    return Err(GedcomError::ParseError {
+                    return Err(GedcomError::InvalidTag {
                         line: self.line,
-                        message: format!("Unhandled Continuation Token: {:?}", self.current_token),
-                    })
+                        tag: format!("{:?}", self.current_token),
+                    });
                 }
             }
         }

@@ -40,10 +40,10 @@ impl Parser for UserReferenceNumber {
             match tag {
                 "TYPE" => self.user_reference_type = Some(tokenizer.take_line_value()?),
                 _ => {
-                    return Err(GedcomError::ParseError {
+                    return Err(GedcomError::InvalidTag {
                         line: tokenizer.line,
-                        message: format!("Unhandled UserReferenceNumber Tag: {tag}"),
-                    })
+                        tag: format!("{:?}", tokenizer.current_token),
+                    });
                 }
             }
             Ok(())

@@ -75,10 +75,11 @@ impl Parser for Gender {
                 "X" => GenderType::Nonbinary,
                 "U" => GenderType::Unknown,
                 _ => {
-                    return Err(GedcomError::ParseError {
+                    return Err(GedcomError::InvalidValueFormat {
                         line: tokenizer.line,
-                        message: format!("Unknown gender value {gender_string}"),
-                    })
+                        tag: "SEX".to_string(),
+                        value: gender_string.to_string(),
+                    });
                 }
             };
             tokenizer.next_token()?;
@@ -89,10 +90,10 @@ impl Parser for Gender {
                 "FACT" => self.fact = Some(tokenizer.take_continued_text(level + 1)?),
                 "SOUR" => self.add_source_citation(Citation::new(tokenizer, level + 1)?),
                 _ => {
-                    return Err(GedcomError::ParseError {
+                    return Err(GedcomError::InvalidTag {
                         line: tokenizer.line,
-                        message: format!("Unhandled Gender Tag: {tag}"),
-                    })
+                        tag: format!("{:?}", tokenizer.current_token),
+                    });
                 }
             }
             Ok(())
