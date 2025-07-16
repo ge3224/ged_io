@@ -57,7 +57,13 @@ impl Parser for HeadPlac {
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
             match tag {
                 "FORM" => {
-                    let form = tokenizer.take_line_value()?;
+                    let form = tokenizer.take_line_value()?.trim().to_string();
+                    if form.is_empty() {
+                        return Err(GedcomError::ExpectedValue {
+                            line: tokenizer.line,
+                            tag: "FORM".to_string(),
+                        });
+                    }
                     let jurisdictional_titles = form.split(',');
 
                     for t in jurisdictional_titles {

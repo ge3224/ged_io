@@ -30,9 +30,16 @@ impl Encoding {
 }
 
 impl Parser for Encoding {
-    /// parse handles the parsing of the CHARS tag
+    /// parse handles the parsing of the CHAR tag
     fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
-        self.value = Some(tokenizer.take_line_value()?);
+        let char_value = tokenizer.take_line_value()?.trim().to_string();
+        if char_value.is_empty() {
+            return Err(GedcomError::ExpectedValue {
+                line: tokenizer.line,
+                tag: "CHAR".to_string(),
+            });
+        }
+        self.value = Some(char_value);
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
             match tag {

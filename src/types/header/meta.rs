@@ -39,9 +39,24 @@ impl Parser for HeadMeta {
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
             match tag {
-                "VERS" => self.version = Some(tokenizer.take_line_value()?),
+                "VERS" => {
+                    let vers_value = tokenizer.take_line_value()?.trim().to_string();
+                    if vers_value.is_empty() {
+                        return Err(GedcomError::ExpectedValue {
+                            line: tokenizer.line,
+                            tag: "VERS".to_string(),
+                        });
+                    }
+                    self.version = Some(vers_value);
+                }
                 "FORM" => {
-                    let form = tokenizer.take_line_value()?;
+                    let form = tokenizer.take_line_value()?.trim().to_string();
+                    if form.is_empty() {
+                        return Err(GedcomError::ExpectedValue {
+                            line: tokenizer.line,
+                            tag: "FORM".to_string(),
+                        });
+                    }
                     if form.to_uppercase() != "LINEAGE-LINKED" {
                         return Err(GedcomError::InvalidValueFormat {
                             line: tokenizer.line,

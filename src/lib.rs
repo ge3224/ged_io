@@ -85,7 +85,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                         line, expected, found
                     );
                 }
-                GedcomError::MissingRequiredValue { line, tag } => {
+                GedcomError::ExpectedValue { line, tag } => {
                     eprintln!("Specific Missing Required Value Error at line {}: {}", line, tag);
                 }
                 GedcomError::InvalidValueFormat { line, tag, value } => {

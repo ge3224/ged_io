@@ -27,7 +27,7 @@ pub enum GedcomError {
         found: String,
     },
     /// An error indicating that a required value for a GEDCOM tag is missing.
-    MissingRequiredValue {
+    ExpectedValue {
         /// The line number where the error occurred.
         line: u32,
         /// The tag for which the required value is missing.
@@ -61,7 +61,7 @@ impl fmt::Display for GedcomError {
                 f,
                 "Unexpected level at line {line}: expected {expected}, found {found}"
             ),
-            GedcomError::MissingRequiredValue { line, tag } => {
+            GedcomError::ExpectedValue { line, tag } => {
                 write!(f, "Missing required value at line {line}: {tag}")
             }
             GedcomError::InvalidValueFormat { line, tag, value } => {
@@ -110,7 +110,7 @@ mod tests {
 
     #[test]
     fn test_missing_required_value_display() {
-        let err = GedcomError::MissingRequiredValue {
+        let err = GedcomError::ExpectedValue {
             line: 20,
             tag: "NAME".to_string(),
         };
