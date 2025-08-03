@@ -16,10 +16,15 @@ use std::fs;
 fn main() -> Result<(), Box<dyn Error>> {
     let source = fs::read_to_string("./tests/fixtures/sample.ged")?;
     let mut gedcom = Gedcom::new(source.chars())?;
-    let gedcom_data = gedcom.parse_data()?;
+    let result = gedcom.parse_data()?;
+
+    // Display warnings if any
+    for warning in &result.warnings {
+        eprintln!("Warning: {}", warning);
+    }
 
     // Display file statistics
-    gedcom_data.stats();
+    result.data.stats();
     Ok(())
 }
 ```
@@ -43,9 +48,9 @@ use std::error::Error;
 fn serialize_to_json() -> Result<(), Box<dyn Error>> {
     let source = "0 HEAD\n1 GEDC\n2 VERS 5.5\n0 @I1@ INDI\n1 NAME John /Doe/\n0 TRLR";
     let mut gedcom = Gedcom::new(source.chars())?;
-    let gedcom_data = gedcom.parse_data()?;
+    let result = gedcom.parse_data()?;
 
-    let json_output = serde_json::to_string_pretty(&gedcom_data)?;
+    let json_output = serde_json::to_string_pretty(&result.data)?;
     println!("GEDCOM as JSON:\n{}", json_output);
 
     Ok(())
@@ -69,13 +74,18 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut gedcom = Gedcom::new(malformed_gedcom.chars())?;
 
     match gedcom.parse_data() {
-        Ok(_) => println!("Parsing successful!"),
-        Err(e) => {
-            eprintln!("Error parsing GEDCOM: {}", e);
-            match e {
-                GedcomError::InvalidTag { line, tag } => {
-                    eprintln!("Specific Invalid Tag Error at line {}: {}", line, tag);
+        Ok(result) => {
+            println!("Parsing successful!");
+            if !result.warnings.is_empty() {
+                println!("Warnings encountered:");
+                for warning in &result.warnings {
+                    eprintln!("  Warning: {}", warning);
                 }
+            }
+        }
+        Err(e) => {
+            eprintln!("Fatal error parsing GEDCOM: {}", e);
+            match e {
                 GedcomError::InvalidToken { line, token } => {
                     eprintln!("Specific Invalid Token Error at line {}: {}", line, token);
                 }
@@ -84,9 +94,6 @@ fn main() -> Result<(), Box<dyn Error>> {
                         "Specific Unexpected Level Error at line {}: expected {}, found {}",
                         line, expected, found
                     );
-                }
-                GedcomError::ExpectedValue { line, tag } => {
-                    eprintln!("Specific Missing Required Value Error at line {}: {}", line, tag);
                 }
                 GedcomError::InvalidValueFormat { line, tag, value } => {
                     eprintln!(
@@ -112,7 +119,7 @@ pub mod error;
 pub mod parser;
 pub mod tokenizer;
 pub mod types;
-pub use error::GedcomError;
+pub use error::{GedcomError, GedcomWarning, ParseResult, WarningKind};
 
 use crate::{tokenizer::Tokenizer, types::GedcomData};
 use std::str::Chars;
@@ -134,13 +141,14 @@ impl<'a> Gedcom<'a> {
         Ok(Gedcom { tokenizer })
     }
 
-    /// Processes the character data to produce a [`GedcomData`] object containing the parsed
-    /// genealogical information.
+    /// Processes the character data to produce a [`ParseResult`] containing the parsed
+    /// genealogical information and any warnings encountered.
     ///
     /// # Errors
     ///
-    /// Returns an error if the GEDCOM data is malformed.
-    pub fn parse_data(&mut self) -> Result<GedcomData, GedcomError> {
+    /// Returns an error if the GEDCOM data is fatally malformed (corrupted structure).
+    /// Non-fatal issues like missing values or unrecognized tags are returned as warnings.
+    pub fn parse_data(&mut self) -> Result<ParseResult<GedcomData>, GedcomError> {
         GedcomData::new(&mut self.tokenizer, 0)
     }
 }
@@ -158,11 +166,12 @@ mod tests {
            0 TRLR";
 
         let mut doc = Gedcom::new(sample.chars()).unwrap();
-        let data = doc.parse_data().unwrap();
+        let result = doc.parse_data().unwrap();
 
-        let head = data.header.unwrap();
+        let head = result.data.header.unwrap();
         let gedc = head.gedcom.unwrap();
         assert_eq!(gedc.version.unwrap(), "5.5");
+        assert!(result.warnings.is_empty());
     }
 
     #[test]
@@ -181,21 +190,27 @@ mod tests {
             0 TRLR";
 
         let mut doc = Gedcom::new(sample.chars()).unwrap();
-        let data = doc.parse_data().unwrap();
+        let result = doc.parse_data().unwrap();
 
-        assert_eq!(data.submitters.len(), 1);
-        assert_eq!(data.submitters[0].xref.as_ref().unwrap(), "@SUBMITTER@");
+        assert_eq!(result.data.submitters.len(), 1);
+        assert_eq!(
+            result.data.submitters[0].xref.as_ref().unwrap(),
+            "@SUBMITTER@"
+        );
 
-        assert_eq!(data.individuals.len(), 1);
-        assert_eq!(data.individuals[0].xref.as_ref().unwrap(), "@PERSON1@");
+        assert_eq!(result.data.individuals.len(), 1);
+        assert_eq!(
+            result.data.individuals[0].xref.as_ref().unwrap(),
+            "@PERSON1@"
+        );
 
-        assert_eq!(data.families.len(), 1);
-        assert_eq!(data.families[0].xref.as_ref().unwrap(), "@FAMILY1@");
+        assert_eq!(result.data.families.len(), 1);
+        assert_eq!(result.data.families[0].xref.as_ref().unwrap(), "@FAMILY1@");
 
-        assert_eq!(data.repositories.len(), 1);
-        assert_eq!(data.repositories[0].xref.as_ref().unwrap(), "@R1@");
+        assert_eq!(result.data.repositories.len(), 1);
+        assert_eq!(result.data.repositories[0].xref.as_ref().unwrap(), "@R1@");
 
-        assert_eq!(data.sources.len(), 1);
-        assert_eq!(data.sources[0].xref.as_ref().unwrap(), "@SOURCE1@");
+        assert_eq!(result.data.sources.len(), 1);
+        assert_eq!(result.data.sources[0].xref.as_ref().unwrap(), "@SOURCE1@");
     }
 }

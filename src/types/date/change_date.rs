@@ -52,9 +52,9 @@ impl Parser for ChangeDate {
                 "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
                 "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
                 _ => {
-                    return Err(GedcomError::InvalidTag {
+                    return Err(GedcomError::InvalidToken {
                         line: tokenizer.line,
-                        tag: format!("{:?}", tokenizer.current_token),
+                        token: format!("{:?}", tokenizer.current_token),
                     });
                 }
             }

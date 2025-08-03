@@ -40,9 +40,9 @@ impl Parser for Reference {
                 "TITL" => self.title = Some(tokenizer.take_line_value()?),
                 "FORM" => self.form = Some(Format::new(tokenizer, level + 1)?),
                 _ => {
-                    return Err(GedcomError::InvalidTag {
+                    return Err(GedcomError::InvalidToken {
                         line: tokenizer.line,
-                        tag: format!("{:?}", tokenizer.current_token),
+                        token: format!("{:?}", tokenizer.current_token),
                     });
                 }
             }

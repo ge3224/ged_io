@@ -45,12 +45,7 @@ impl Parser for HeadSour {
     /// parse handles the SOUR tag in a header
     fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
         let sour_value = tokenizer.take_line_value()?.trim().to_string();
-        if sour_value.is_empty() {
-            return Err(GedcomError::ExpectedValue {
-                line: tokenizer.line,
-                tag: "SOUR".to_string(),
-            });
-        }
+        // Always set the value, even if empty - missing values are warnings now
         self.value = Some(sour_value);
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
@@ -60,9 +55,9 @@ impl Parser for HeadSour {
                 "CORP" => self.corporation = Some(Corporation::new(tokenizer, level + 1)?),
                 "DATA" => self.data = Some(HeadSourData::new(tokenizer, level + 1)?),
                 _ => {
-                    return Err(GedcomError::InvalidTag {
+                    return Err(GedcomError::InvalidToken {
                         line: tokenizer.line,
-                        tag: format!("{:?}", tokenizer.current_token),
+                        token: format!("{:?}", tokenizer.current_token),
                     });
                 }
             }
@@ -93,7 +88,7 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let sour = data.header.unwrap().source.unwrap();
+        let sour = data.data.header.unwrap().source.unwrap();
         assert_eq!(sour.value.unwrap(), "SOURCE_NAME");
 
         let vers = sour.version.unwrap();

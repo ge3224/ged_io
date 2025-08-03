@@ -144,9 +144,9 @@ impl Parser for Individual {
                 "OBJE" => self.add_multimedia(Multimedia::new(tokenizer, level + 1, None)?),
                 "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
                 _ => {
-                    return Err(GedcomError::InvalidTag {
+                    return Err(GedcomError::InvalidToken {
                         line: tokenizer.line,
-                        tag: format!("{:?}", tokenizer.current_token),
+                        token: format!("{:?}", tokenizer.current_token),
                     });
                 }
             }
@@ -178,7 +178,7 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let indi = &data.individuals[0];
+        let indi = &data.data.individuals[0];
         assert_eq!(indi.xref.as_ref().unwrap(), "@PERSON1@");
         assert_eq!(
             indi.name.as_ref().unwrap().value.as_ref().unwrap(),
@@ -206,7 +206,7 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let sex = data.individuals[0].sex.as_ref().unwrap();
+        let sex = data.data.individuals[0].sex.as_ref().unwrap();
         assert_eq!(sex.value.to_string(), "Male");
         assert_eq!(
             sex.fact.as_ref().unwrap(),
@@ -236,7 +236,10 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let famc = data.individuals[0].events[0].family_link.as_ref().unwrap();
+        let famc = data.data.individuals[0].events[0]
+            .family_link
+            .as_ref()
+            .unwrap();
         assert_eq!(famc.xref, "@ADOPTIVE_PARENTS@");
         assert_eq!(famc.family_link_type.to_string(), "Child");
         assert_eq!(
@@ -263,7 +266,7 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let indi = &data.individuals[0];
+        let indi = &data.data.individuals[0];
         assert_eq!(indi.xref.as_ref().unwrap(), "@PERSON1@");
         assert_eq!(
             indi.name.as_ref().unwrap().value.as_ref().unwrap(),
@@ -300,9 +303,9 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        assert_eq!(data.individuals.len(), 1);
+        assert_eq!(data.data.individuals.len(), 1);
 
-        let attr = &data.individuals[0].attributes[0];
+        let attr = &data.data.individuals[0].attributes[0];
         assert_eq!(attr.attribute.to_string(), "PhysicalDescription");
         assert_eq!(attr.value.as_ref().unwrap(), "Physical description");
         assert_eq!(
@@ -311,7 +314,7 @@ mod tests {
         );
         assert_eq!(attr.place.as_ref().unwrap(), "The place");
 
-        let a_sour = &data.individuals[0].attributes[0].sources[0];
+        let a_sour = &data.data.individuals[0].attributes[0].sources[0];
         assert_eq!(a_sour.page.as_ref().unwrap(), "42");
         assert_eq!(
             a_sour

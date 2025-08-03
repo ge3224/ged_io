@@ -58,9 +58,9 @@ impl Parser for Date {
             match tag {
                 "TIME" => self.time = Some(tokenizer.take_line_value()?),
                 _ => {
-                    return Err(GedcomError::InvalidTag {
+                    return Err(GedcomError::InvalidToken {
                         line: tokenizer.line,
-                        tag: format!("{:?}", tokenizer.current_token),
+                        token: format!("{:?}", tokenizer.current_token),
                     });
                 }
             }
@@ -95,13 +95,13 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let head_date = data.header.unwrap().date.unwrap();
+        let head_date = data.data.header.unwrap().date.unwrap();
         assert_eq!(head_date.value.unwrap(), "2 Oct 2019");
 
-        let birt_date = data.individuals[0].events[0].date.as_ref().unwrap();
+        let birt_date = data.data.individuals[0].events[0].date.as_ref().unwrap();
         assert_eq!(birt_date.value.as_ref().unwrap(), "BEF 1828");
 
-        let resi_date = data.individuals[0].events[1].date.as_ref().unwrap();
+        let resi_date = data.data.individuals[0].events[1].date.as_ref().unwrap();
         assert_eq!(resi_date.value.as_ref().unwrap(), "from 1900 to 1905");
     }
 
@@ -122,9 +122,9 @@ mod tests {
 
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let gedcom_data = doc.parse_data().unwrap();
-        assert_eq!(gedcom_data.multimedia.len(), 1);
+        assert_eq!(gedcom_data.data.multimedia.len(), 1);
 
-        let object = &gedcom_data.multimedia[0];
+        let object = &gedcom_data.data.multimedia[0];
 
         let chan = object.change_date.as_ref().unwrap();
         let date = chan.date.as_ref().unwrap();

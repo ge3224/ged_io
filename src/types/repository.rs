@@ -61,9 +61,9 @@ impl Parser for Repository {
                 "NAME" => self.name = Some(tokenizer.take_line_value()?),
                 "ADDR" => self.address = Some(Address::new(tokenizer, level + 1)?),
                 _ => {
-                    return Err(GedcomError::InvalidTag {
+                    return Err(GedcomError::InvalidToken {
                         line: tokenizer.line,
-                        tag: format!("{:?}", tokenizer.current_token),
+                        token: format!("{:?}", tokenizer.current_token),
                     });
                 }
             }

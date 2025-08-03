@@ -25,14 +25,14 @@ pub mod submitter;
 pub mod translation;
 
 use crate::{
-    parser::Parser,
+    parser::{Parser, WarningParser},
     tokenizer::{Token, Tokenizer},
     types::{
         custom::UserDefinedTag, family::Family, header::Header, individual::Individual,
         multimedia::Multimedia, repository::Repository, source::Source, submission::Submission,
         submitter::Submitter,
     },
-    GedcomError,
+    GedcomError, GedcomWarning, ParseResult, WarningKind,
 };
 
 /// Represents a complete parsed GEDCOM genealogy file.
@@ -73,10 +73,13 @@ impl GedcomData {
     ///
     /// This function will return an error if parsing fails.
     #[allow(clippy::double_must_use)]
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<GedcomData, GedcomError> {
+    pub fn new(
+        tokenizer: &mut Tokenizer,
+        level: u8,
+    ) -> Result<ParseResult<GedcomData>, GedcomError> {
         let mut data = GedcomData::default();
-        data.parse(tokenizer, level)?;
-        Ok(data)
+        let warnings = data.parse_with_warnings(tokenizer, level)?;
+        Ok(ParseResult::with_warnings(data, warnings))
     }
 
     /// Adds a [`Family`] record to the genealogy data.
@@ -171,9 +174,9 @@ impl Parser for GedcomData {
                     "OBJE" => self.add_multimedia(Multimedia::new(tokenizer, level, pointer)?),
                     "TRLR" => break,
                     _ => {
-                        return Err(GedcomError::InvalidTag {
+                        return Err(GedcomError::InvalidToken {
                             line: tokenizer.line,
-                            tag: format!("{:?}", tokenizer.current_token),
+                            token: format!("{:?}", tokenizer.current_token),
                         });
                     }
                 }
@@ -192,5 +195,75 @@ impl Parser for GedcomData {
             }
         }
         Ok(())
+    }
+}
+
+impl WarningParser for GedcomData {
+    fn parse_with_warnings(
+        &mut self,
+        tokenizer: &mut Tokenizer,
+        level: u8,
+    ) -> Result<Vec<GedcomWarning>, GedcomError> {
+        let mut warnings = Vec::new();
+
+        loop {
+            let Token::Level(current_level) = tokenizer.current_token else {
+                return Err(GedcomError::UnexpectedLevel {
+                    line: tokenizer.line,
+                    expected: level + 1,
+                    found: format!("{:?}", tokenizer.current_token),
+                });
+            };
+
+            tokenizer.next_token()?;
+
+            let mut pointer: Option<String> = None;
+            if let Token::Pointer(xref) = &tokenizer.current_token {
+                pointer = Some(xref.to_string());
+                tokenizer.next_token()?;
+            }
+
+            if let Token::Tag(tag) = &tokenizer.current_token {
+                match tag.as_str() {
+                    "HEAD" => self.header = Some(Header::new(tokenizer, level)?),
+                    "FAM" => self.add_family(Family::new(tokenizer, level, pointer)?),
+                    "INDI" => {
+                        self.add_individual(Individual::new(tokenizer, current_level, pointer)?);
+                    }
+                    "REPO" => {
+                        self.add_repository(Repository::new(tokenizer, current_level, pointer)?);
+                    }
+                    "SOUR" => self.add_source(Source::new(tokenizer, current_level, pointer)?),
+                    "SUBN" => self.add_submission(Submission::new(tokenizer, level, pointer)?),
+                    "SUBM" => self.add_submitter(Submitter::new(tokenizer, level, pointer)?),
+                    "OBJE" => self.add_multimedia(Multimedia::new(tokenizer, level, pointer)?),
+                    "TRLR" => break,
+                    _ => {
+                        // Convert unrecognized tag from error to warning
+                        warnings.push(GedcomWarning::new(
+                            tokenizer.line,
+                            WarningKind::UnrecognizedTag { tag: tag.clone() },
+                        ));
+                        // Skip this unrecognized tag and its children
+                        while tokenizer.current_token != Token::Level(level) {
+                            tokenizer.next_token()?;
+                        }
+                    }
+                }
+            } else if let Token::CustomTag(tag) = &tokenizer.current_token {
+                let tag_clone = tag.clone();
+                self.add_custom_data(UserDefinedTag::new(tokenizer, level + 1, &tag_clone)?);
+                while tokenizer.current_token != Token::Level(level) {
+                    tokenizer.next_token()?;
+                }
+            } else {
+                return Err(GedcomError::InvalidToken {
+                    line: tokenizer.line,
+                    token: format!("{:?}", tokenizer.current_token),
+                });
+            }
+        }
+
+        Ok(warnings)
     }
 }

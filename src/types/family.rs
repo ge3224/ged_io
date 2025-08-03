@@ -155,9 +155,9 @@ impl Parser for Family {
                 "NOTE" => self.add_note(Note::new(tokenizer, level + 1)?),
                 "OBJE" => self.add_multimedia(Multimedia::new(tokenizer, level + 1, pointer)?),
                 _ => {
-                    return Err(GedcomError::InvalidTag {
+                    return Err(GedcomError::InvalidToken {
                         line: tokenizer.line,
-                        tag: format!("{:?}", tokenizer.current_token),
+                        token: format!("{:?}", tokenizer.current_token),
                     });
                 }
             }

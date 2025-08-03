@@ -40,9 +40,9 @@ impl Parser for UserReferenceNumber {
             match tag {
                 "TYPE" => self.user_reference_type = Some(tokenizer.take_line_value()?),
                 _ => {
-                    return Err(GedcomError::InvalidTag {
+                    return Err(GedcomError::InvalidToken {
                         line: tokenizer.line,
-                        tag: format!("{:?}", tokenizer.current_token),
+                        token: format!("{:?}", tokenizer.current_token),
                     });
                 }
             }

@@ -52,9 +52,9 @@ impl Parser for Corporation {
                 "FAX" => self.fax = Some(tokenizer.take_line_value()?),
                 "WWW" => self.website = Some(tokenizer.take_line_value()?),
                 _ => {
-                    return Err(GedcomError::InvalidTag {
+                    return Err(GedcomError::InvalidToken {
                         line: tokenizer.line,
-                        tag: format!("{:?}", tokenizer.current_token),
+                        token: format!("{:?}", tokenizer.current_token),
                     });
                 }
             }

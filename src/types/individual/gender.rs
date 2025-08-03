@@ -90,9 +90,9 @@ impl Parser for Gender {
                 "FACT" => self.fact = Some(tokenizer.take_continued_text(level + 1)?),
                 "SOUR" => self.add_source_citation(Citation::new(tokenizer, level + 1)?),
                 _ => {
-                    return Err(GedcomError::InvalidTag {
+                    return Err(GedcomError::InvalidToken {
                         line: tokenizer.line,
-                        tag: format!("{:?}", tokenizer.current_token),
+                        token: format!("{:?}", tokenizer.current_token),
                     });
                 }
             }

@@ -77,7 +77,12 @@ fn run() -> Result<(), CliError> {
     let mut doc = Gedcom::new(contents.chars())?;
     let data = doc.parse_data()?;
 
-    data.stats();
+    // Display warnings if any
+    for warning in &data.warnings {
+        eprintln!("Warning: {warning}");
+    }
+
+    data.data.stats();
 
     Ok(())
 }

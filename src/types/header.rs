@@ -89,9 +89,9 @@ impl Parser for Header {
                 "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
                 "PLAC" => self.place = Some(HeadPlac::new(tokenizer, level + 1)?),
                 _ => {
-                    return Err(GedcomError::InvalidTag {
+                    return Err(GedcomError::InvalidToken {
                         line: tokenizer.line,
-                        tag: format!("{:?}", tokenizer.current_token),
+                        token: format!("{:?}", tokenizer.current_token),
                     });
                 }
             }
@@ -123,7 +123,7 @@ mod tests {
 
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
-        let header = data.header.unwrap();
+        let header = data.data.header.unwrap();
 
         let dest = header.destination.unwrap();
         assert_eq!(dest, "Destination of transmission");

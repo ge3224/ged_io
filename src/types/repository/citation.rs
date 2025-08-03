@@ -45,9 +45,9 @@ impl Parser for Citation {
             match tag {
                 "CALN" => self.call_number = Some(tokenizer.take_line_value()?),
                 _ => {
-                    return Err(GedcomError::InvalidTag {
+                    return Err(GedcomError::InvalidToken {
                         line: tokenizer.line,
-                        tag: format!("{:?}", tokenizer.current_token),
+                        token: format!("{:?}", tokenizer.current_token),
                     });
                 }
             }

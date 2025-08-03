@@ -58,12 +58,7 @@ impl Parser for HeadPlac {
             match tag {
                 "FORM" => {
                     let form = tokenizer.take_line_value()?.trim().to_string();
-                    if form.is_empty() {
-                        return Err(GedcomError::ExpectedValue {
-                            line: tokenizer.line,
-                            tag: "FORM".to_string(),
-                        });
-                    }
+                    // Continue processing even if empty - missing values are warnings now
                     let jurisdictional_titles = form.split(',');
 
                     for t in jurisdictional_titles {
@@ -72,9 +67,9 @@ impl Parser for HeadPlac {
                     }
                 }
                 _ => {
-                    return Err(GedcomError::InvalidTag {
+                    return Err(GedcomError::InvalidToken {
                         line: tokenizer.line,
-                        tag: format!("{:?}", tokenizer.current_token),
+                        token: format!("{:?}", tokenizer.current_token),
                     });
                 }
             }
@@ -103,7 +98,7 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let h_plac = data.header.unwrap().place.unwrap();
+        let h_plac = data.data.header.unwrap().place.unwrap();
         assert_eq!(h_plac.form[0], "City");
         assert_eq!(h_plac.form[1], "County");
         assert_eq!(h_plac.form[2], "State");

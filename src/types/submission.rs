@@ -115,9 +115,9 @@ impl Parser for Submission {
                 "SUBM" => self.submitter_ref = Some(tokenizer.take_line_value()?),
                 "TEMP" => self.temple_code = Some(tokenizer.take_line_value()?),
                 _ => {
-                    return Err(GedcomError::InvalidTag {
+                    return Err(GedcomError::InvalidToken {
                         line: tokenizer.line,
-                        tag: format!("{:?}", tokenizer.current_token),
+                        token: format!("{:?}", tokenizer.current_token),
                     });
                 }
             }
@@ -158,7 +158,7 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let gedcom_data = doc.parse_data().unwrap();
 
-        let mut submissions = gedcom_data.submissions;
+        let mut submissions = gedcom_data.data.submissions;
         assert!(!submissions.is_empty());
 
         let first_submission = submissions.remove(0);

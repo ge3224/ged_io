@@ -33,21 +33,16 @@ impl Parser for Encoding {
     /// parse handles the parsing of the CHAR tag
     fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
         let char_value = tokenizer.take_line_value()?.trim().to_string();
-        if char_value.is_empty() {
-            return Err(GedcomError::ExpectedValue {
-                line: tokenizer.line,
-                tag: "CHAR".to_string(),
-            });
-        }
+        // Always set the value, even if empty - missing values are warnings now
         self.value = Some(char_value);
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
             match tag {
                 "VERS" => self.version = Some(tokenizer.take_line_value()?),
                 _ => {
-                    return Err(GedcomError::InvalidTag {
+                    return Err(GedcomError::InvalidToken {
                         line: tokenizer.line,
-                        tag: format!("{:?}", tokenizer.current_token),
+                        token: format!("{:?}", tokenizer.current_token),
                     });
                 }
             }
@@ -77,7 +72,7 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let h_char = data.header.unwrap().encoding.unwrap();
+        let h_char = data.data.header.unwrap().encoding.unwrap();
         assert_eq!(h_char.value.unwrap(), "ASCII");
         assert_eq!(
             h_char.version.unwrap(),

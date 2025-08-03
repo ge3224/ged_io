@@ -41,35 +41,18 @@ impl Parser for HeadMeta {
             match tag {
                 "VERS" => {
                     let vers_value = tokenizer.take_line_value()?.trim().to_string();
-                    if vers_value.is_empty() {
-                        return Err(GedcomError::ExpectedValue {
-                            line: tokenizer.line,
-                            tag: "VERS".to_string(),
-                        });
-                    }
+                    // Always set the value, even if empty - missing values are warnings now
                     self.version = Some(vers_value);
                 }
                 "FORM" => {
                     let form = tokenizer.take_line_value()?.trim().to_string();
-                    if form.is_empty() {
-                        return Err(GedcomError::ExpectedValue {
-                            line: tokenizer.line,
-                            tag: "FORM".to_string(),
-                        });
-                    }
-                    if form.to_uppercase() != "LINEAGE-LINKED" {
-                        return Err(GedcomError::InvalidValueFormat {
-                            line: tokenizer.line,
-                            tag: "FORM".to_string(),
-                            value: form,
-                        });
-                    }
+                    // Always set the value - validation issues are warnings now
                     self.form = Some(form);
                 }
                 _ => {
-                    return Err(GedcomError::InvalidTag {
+                    return Err(GedcomError::InvalidToken {
                         line: tokenizer.line,
-                        tag: format!("{:?}", tokenizer.current_token),
+                        token: format!("{:?}", tokenizer.current_token),
                     });
                 }
             }
@@ -99,7 +82,7 @@ mod tests {
         let mut ged = Gedcom::new(sample.chars()).unwrap();
         let data = ged.parse_data().unwrap();
 
-        let head_gedc = data.header.unwrap().gedcom.unwrap();
+        let head_gedc = data.data.header.unwrap().gedcom.unwrap();
         assert_eq!(head_gedc.version.unwrap(), "5.5");
         assert_eq!(head_gedc.form.unwrap(), "LINEAGE-LINKED");
     }

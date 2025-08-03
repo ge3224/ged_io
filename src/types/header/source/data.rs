@@ -45,9 +45,9 @@ impl Parser for HeadSourData {
                 "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
                 "COPR" => self.copyright = Some(tokenizer.take_continued_text(level + 1)?),
                 _ => {
-                    return Err(GedcomError::InvalidTag {
+                    return Err(GedcomError::InvalidToken {
                         line: tokenizer.line,
-                        tag: format!("{:?}", tokenizer.current_token),
+                        token: format!("{:?}", tokenizer.current_token),
                     });
                 }
             }
@@ -79,7 +79,7 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let sour = data.header.unwrap().source.unwrap();
+        let sour = data.data.header.unwrap().source.unwrap();
         assert_eq!(sour.value.unwrap(), "SOURCE_NAME");
 
         let sour_data = sour.data.unwrap();

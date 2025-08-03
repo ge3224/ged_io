@@ -81,9 +81,9 @@ impl Parser for Citation {
                 "RFN" => self.submitter_registered_rfn = Some(tokenizer.take_line_value()?),
                 "OBJE" => self.add_multimedia(Multimedia::new(tokenizer, level + 1, pointer)?),
                 _ => {
-                    return Err(GedcomError::InvalidTag {
+                    return Err(GedcomError::InvalidToken {
                         line: tokenizer.line,
-                        tag: format!("{:?}", tokenizer.current_token),
+                        token: format!("{:?}", tokenizer.current_token),
                     });
                 }
             }

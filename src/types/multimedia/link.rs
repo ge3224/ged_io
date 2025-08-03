@@ -63,9 +63,9 @@ impl Parser for Link {
                 "FORM" => self.form = Some(Format::new(tokenizer, level + 1)?),
                 "TITL" => self.title = Some(tokenizer.take_line_value()?),
                 _ => {
-                    return Err(GedcomError::InvalidTag {
+                    return Err(GedcomError::InvalidToken {
                         line: tokenizer.line,
-                        tag: format!("{:?}", tokenizer.current_token),
+                        token: format!("{:?}", tokenizer.current_token),
                     });
                 }
             }

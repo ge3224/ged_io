@@ -21,11 +21,11 @@ mod tests {
 
         let mut doc = Gedcom::new(simple_ged.chars()).unwrap();
         let data = doc.parse_data().unwrap();
-        assert_eq!(data.individuals.len(), 3);
-        assert_eq!(data.families.len(), 1);
-        assert_eq!(data.submitters.len(), 1);
+        assert_eq!(data.data.individuals.len(), 3);
+        assert_eq!(data.data.families.len(), 1);
+        assert_eq!(data.data.submitters.len(), 1);
 
-        let header = data.header.unwrap();
+        let header = data.data.header.unwrap();
 
         // header
         assert_eq!(header.encoding.unwrap().value.unwrap().as_str(), "ASCII");
@@ -34,7 +34,7 @@ mod tests {
 
         // names
         assert_eq!(
-            data.individuals[0]
+            data.data.individuals[0]
                 .name
                 .as_ref()
                 .unwrap()
@@ -46,7 +46,7 @@ mod tests {
 
         // addresses
         assert_eq!(
-            data.submitters[0]
+            data.data.submitters[0]
                 .address
                 .as_ref()
                 .unwrap()
@@ -57,7 +57,7 @@ mod tests {
         );
 
         // events
-        let events = data.families[0].events();
+        let events = data.data.families[0].events();
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].event.to_string(), "Marriage");
         assert_eq!(
@@ -73,11 +73,11 @@ mod tests {
 
         let mut doc = Gedcom::new(simple_ged.chars()).unwrap();
         let data = doc.parse_data().unwrap();
-        assert_eq!(data.individuals.len(), 538);
-        assert_eq!(data.families.len(), 278);
-        // assert_eq!(data.submitters.len(), 0);
+        assert_eq!(data.data.individuals.len(), 538);
+        assert_eq!(data.data.families.len(), 278);
+        // assert_eq!(data.data.submitters.len(), 0);
 
-        let header = data.header.unwrap();
+        let header = data.data.header.unwrap();
 
         // header
         assert_eq!(header.encoding.unwrap().value.unwrap().as_str(), "UTF-8");
@@ -86,7 +86,7 @@ mod tests {
 
         // names
         assert_eq!(
-            data.individuals[0]
+            data.data.individuals[0]
                 .name
                 .as_ref()
                 .unwrap()
@@ -97,7 +97,7 @@ mod tests {
         );
 
         // events
-        let events = data.families[0].events();
+        let events = data.data.families[0].events();
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].event.to_string(), "Marriage");
         assert_eq!(

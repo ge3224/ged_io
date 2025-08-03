@@ -92,9 +92,9 @@ impl Parser for Multimedia {
                 "SOUR" => self.source_citation = Some(Citation::new(tokenizer, level + 1)?),
                 "CHAN" => self.change_date = Some(ChangeDate::new(tokenizer, level + 1)?),
                 _ => {
-                    return Err(GedcomError::InvalidTag {
+                    return Err(GedcomError::InvalidToken {
                         line: tokenizer.line,
-                        tag: format!("{:?}", tokenizer.current_token),
+                        token: format!("{:?}", tokenizer.current_token),
                     });
                 }
             }
@@ -127,8 +127,8 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        assert_eq!(data.multimedia.len(), 1);
-        let obje = &data.multimedia[0];
+        assert_eq!(data.data.multimedia.len(), 1);
+        let obje = &data.data.multimedia[0];
 
         let xref = obje.xref.as_ref().unwrap();
         assert_eq!(xref, "@MEDIA1@");
@@ -160,9 +160,9 @@ mod tests {
 
         let mut record = Gedcom::new(sample.chars()).unwrap();
         let data = record.parse_data().unwrap();
-        assert_eq!(data.multimedia.len(), 1);
+        assert_eq!(data.data.multimedia.len(), 1);
 
-        let obje = &data.multimedia[0];
+        let obje = &data.data.multimedia[0];
         assert_eq!(obje.title.as_ref().unwrap(), "In Prague");
 
         let form = obje.form.as_ref().unwrap();
@@ -187,9 +187,9 @@ mod tests {
 
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
-        assert_eq!(data.multimedia.len(), 1);
+        assert_eq!(data.data.multimedia.len(), 1);
 
-        let file = data.multimedia[0].file.as_ref().unwrap();
+        let file = data.data.multimedia[0].file.as_ref().unwrap();
         assert_eq!(
             file.value.as_ref().unwrap(),
             "/home/user/media/file_name.bmp"
@@ -216,9 +216,9 @@ mod tests {
 
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
-        assert_eq!(data.multimedia.len(), 1);
+        assert_eq!(data.data.multimedia.len(), 1);
 
-        let file = data.multimedia[0].file.as_ref().unwrap();
+        let file = data.data.multimedia[0].file.as_ref().unwrap();
 
         let form = file.form.as_ref().unwrap();
         assert_eq!(form.value.as_ref().unwrap(), "bmp");
@@ -240,9 +240,12 @@ mod tests {
 
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
-        assert_eq!(data.multimedia.len(), 1);
+        assert_eq!(data.data.multimedia.len(), 1);
 
-        let user_ref = data.multimedia[0].user_reference_number.as_ref().unwrap();
+        let user_ref = data.data.multimedia[0]
+            .user_reference_number
+            .as_ref()
+            .unwrap();
         assert_eq!(user_ref.value.as_ref().unwrap(), "000");
         assert_eq!(
             user_ref.user_reference_type.as_ref().unwrap(),

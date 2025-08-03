@@ -83,9 +83,9 @@ impl AttributeDetail {
             "FACT" => IndividualAttribute::Fact,
             // _ => panic!("Unrecognized IndividualAttribute tag: {tag}"),
             _ => {
-                return Err(GedcomError::InvalidTag {
+                return Err(GedcomError::InvalidToken {
                     line: line_number,
-                    tag: tag.to_string(),
+                    token: tag.to_string(),
                 })
             }
         };
@@ -117,9 +117,9 @@ impl Parser for AttributeDetail {
                 "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
                 "TYPE" => self.attribute_type = Some(tokenizer.take_continued_text(level + 1)?),
                 _ => {
-                    return Err(GedcomError::InvalidTag {
+                    return Err(GedcomError::InvalidToken {
                         line: tokenizer.line,
-                        tag: tag.to_string(),
+                        token: tag.to_string(),
                     });
                 }
             }

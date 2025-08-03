@@ -44,9 +44,9 @@ impl Parser for SourceCitationData {
                 "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
                 "TEXT" => self.text = Some(Text::new(tokenizer, level + 1)?),
                 _ => {
-                    return Err(GedcomError::InvalidTag {
+                    return Err(GedcomError::InvalidToken {
                         line: tokenizer.line,
-                        tag: format!("{:?}", tokenizer.current_token),
+                        token: format!("{:?}", tokenizer.current_token),
                     });
                 }
             }

@@ -1,11 +1,11 @@
 use crate::{
-    parser::{parse_subset, Parser},
+    parser::{handle_invalid_tag, parse_subset, parse_subset_with_warnings, Parser, WarningParser},
     tokenizer::{Token, Tokenizer},
     types::{
         address::Address, custom::UserDefinedTag, date::change_date::ChangeDate,
         multimedia::link::Link, note::Note, Xref,
     },
-    GedcomError,
+    GedcomError, GedcomWarning,
 };
 
 #[cfg(feature = "json")]
@@ -96,9 +96,9 @@ impl Parser for Submitter {
                 "CHAN" => self.change_date = Some(ChangeDate::new(tokenizer, level + 1)?),
                 "PHON" => self.phone = Some(tokenizer.take_line_value()?),
                 _ => {
-                    return Err(GedcomError::InvalidTag {
+                    return Err(GedcomError::InvalidToken {
                         line: tokenizer.line,
-                        tag: format!("{:?}", tokenizer.current_token),
+                        token: format!("Unexpected tag in Submitter: {tag}"),
                     });
                 }
             }
@@ -109,5 +109,62 @@ impl Parser for Submitter {
         self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
 
         Ok(())
+    }
+}
+
+impl WarningParser for Submitter {
+    /// Parse handles SUBM top-level tag with warning collection
+    fn parse_with_warnings(
+        &mut self,
+        tokenizer: &mut Tokenizer,
+        level: u8,
+    ) -> Result<Vec<GedcomWarning>, GedcomError> {
+        // skip over SUBM tag name
+        tokenizer.next_token()?;
+
+        let handle_subset =
+            |tag: &str, tokenizer: &mut Tokenizer| -> Result<Option<GedcomWarning>, GedcomError> {
+                let mut pointer: Option<String> = None;
+                if let Token::Pointer(xref) = &tokenizer.current_token {
+                    pointer = Some(xref.to_string());
+                    tokenizer.next_token()?;
+                }
+                match tag {
+                    "NAME" => {
+                        self.name = Some(tokenizer.take_line_value()?);
+                        Ok(None)
+                    }
+                    "ADDR" => {
+                        self.address = Some(Address::new(tokenizer, level + 1)?);
+                        Ok(None)
+                    }
+                    "OBJE" => {
+                        self.add_multimedia(Link::new(tokenizer, level + 1, pointer)?);
+                        Ok(None)
+                    }
+                    "LANG" => {
+                        self.language = Some(tokenizer.take_line_value()?);
+                        Ok(None)
+                    }
+                    "NOTE" => {
+                        self.note = Some(Note::new(tokenizer, level + 1)?);
+                        Ok(None)
+                    }
+                    "CHAN" => {
+                        self.change_date = Some(ChangeDate::new(tokenizer, level + 1)?);
+                        Ok(None)
+                    }
+                    "PHON" => {
+                        self.phone = Some(tokenizer.take_line_value()?);
+                        Ok(None)
+                    }
+                    _ => Ok(Some(handle_invalid_tag(tokenizer, tag)?)),
+                }
+            };
+
+        let (custom_data, warnings) = parse_subset_with_warnings(tokenizer, level, handle_subset)?;
+        self.custom_data = custom_data;
+
+        Ok(warnings)
     }
 }

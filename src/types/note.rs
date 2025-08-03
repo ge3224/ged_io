@@ -69,9 +69,9 @@ impl Parser for Note {
                 "TRANS" => self.translation = Some(Translation::new(tokenizer, level + 1)?),
                 "LANG" => self.language = Some(tokenizer.take_line_value()?),
                 _ => {
-                    return Err(GedcomError::InvalidTag {
+                    return Err(GedcomError::InvalidToken {
                         line: tokenizer.line,
-                        tag: format!("{:?}", tokenizer.current_token),
+                        token: format!("{:?}", tokenizer.current_token),
                     });
                 }
             }
@@ -117,7 +117,7 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let note = data.header.unwrap().note.unwrap();
+        let note = data.data.header.unwrap().note.unwrap();
         assert_eq!(note.value.unwrap().chars().count(), 1441);
     }
 }

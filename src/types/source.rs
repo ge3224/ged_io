@@ -109,9 +109,9 @@ impl Parser for Source {
                 "REPO" => self.add_repo_citation(Citation::new(tokenizer, level + 1)?),
                 "RFN" => self.submitter_registered_rfn = Some(tokenizer.take_line_value()?),
                 _ => {
-                    return Err(GedcomError::InvalidTag {
+                    return Err(GedcomError::InvalidToken {
                         line: tokenizer.line,
-                        tag: format!("{:?}", tokenizer.current_token),
+                        token: format!("{:?}", tokenizer.current_token),
                     });
                 }
             }
@@ -144,8 +144,11 @@ mod tests {
         let mut ged = Gedcom::new(sample.chars()).unwrap();
         let data = ged.parse_data().unwrap();
 
-        assert_eq!(data.individuals[0].source[0].xref, "@SOURCE1@");
-        assert_eq!(data.individuals[0].source[0].page.as_ref().unwrap(), "42");
+        assert_eq!(data.data.individuals[0].source[0].xref, "@SOURCE1@");
+        assert_eq!(
+            data.data.individuals[0].source[0].page.as_ref().unwrap(),
+            "42"
+        );
     }
     #[test]
     fn test_parse_source_citation_data_record() {
@@ -163,7 +166,7 @@ mod tests {
 
         let mut ged = Gedcom::new(sample.chars()).unwrap();
         let data = ged.parse_data().unwrap();
-        let citation_data = data.individuals[0].source[0].data.as_ref().unwrap();
+        let citation_data = data.data.individuals[0].source[0].data.as_ref().unwrap();
 
         assert_eq!(
             citation_data.date.as_ref().unwrap().value.as_ref().unwrap(),
@@ -190,7 +193,7 @@ mod tests {
 
         let mut ged = Gedcom::new(sample.chars()).unwrap();
         let data = ged.parse_data().unwrap();
-        let citation_data = data.individuals[0].source[0].data.as_ref().unwrap();
+        let citation_data = data.data.individuals[0].source[0].data.as_ref().unwrap();
 
         assert_eq!(
             citation_data.text.as_ref().unwrap().value.as_ref().unwrap(),
@@ -213,7 +216,7 @@ mod tests {
 
         let mut ged = Gedcom::new(sample.chars()).unwrap();
         let data = ged.parse_data().unwrap();
-        let quay = data.individuals[0].source[0]
+        let quay = data.data.individuals[0].source[0]
             .certainty_assessment
             .as_ref()
             .unwrap();

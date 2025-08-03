@@ -74,9 +74,9 @@ impl Parser for UserDefinedTag {
                 Token::Level(_) => tokenizer.next_token()?,
                 Token::EOF => break,
                 _ => {
-                    return Err(GedcomError::InvalidTag {
+                    return Err(GedcomError::InvalidToken {
                         line: tokenizer.line,
-                        tag: format!("{:?}", tokenizer.current_token),
+                        token: format!("{:?}", tokenizer.current_token),
                     });
                 }
             }
@@ -108,7 +108,7 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let custom = &data.individuals[0].custom_data;
+        let custom = &data.data.individuals[0].custom_data;
         assert_eq!(custom.len(), 1);
         assert_eq!(custom[0].as_ref().tag, "_MILT");
 

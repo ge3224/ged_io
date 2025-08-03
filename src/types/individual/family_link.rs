@@ -63,9 +63,9 @@ impl FamilyLink {
             "FAMC" => FamilyLinkType::Child,
             "FAMS" => FamilyLinkType::Spouse,
             _ => {
-                return Err(GedcomError::InvalidTag {
+                return Err(GedcomError::InvalidToken {
                     line: tokenizer.line,
-                    tag: tag.to_string(),
+                    token: tag.to_string(),
                 });
             }
         };
@@ -177,9 +177,9 @@ impl Parser for FamilyLink {
                     tokenizer.line,
                 )?,
                 _ => {
-                    return Err(GedcomError::InvalidTag {
+                    return Err(GedcomError::InvalidToken {
                         line: tokenizer.line,
-                        tag: tag.to_string(),
+                        token: tag.to_string(),
                     });
                 }
             }
