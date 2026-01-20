@@ -22,6 +22,7 @@
 //! ```
 
 use crate::{
+    encoding::{decode_gedcom_bytes, GedcomEncoding},
     tokenizer::Tokenizer,
     types::GedcomData,
     GedcomError,
@@ -361,6 +362,103 @@ impl GedcomBuilder {
         }
 
         Ok(data)
+    }
+
+    /// Builds the parser and parses the GEDCOM data from raw bytes.
+    ///
+    /// This method automatically detects the character encoding of the input
+    /// and converts it to UTF-8 before parsing. Supported encodings include:
+    /// - UTF-8 (with or without BOM)
+    /// - UTF-16 LE/BE (with BOM)
+    /// - ISO-8859-1 (Latin-1)
+    /// - ISO-8859-15 (Latin-9)
+    /// - ASCII
+    ///
+    /// # Arguments
+    ///
+    /// * `bytes` - The raw bytes of the GEDCOM file
+    ///
+    /// # Errors
+    ///
+    /// Returns a `GedcomError` if:
+    /// - The encoding cannot be detected or decoded
+    /// - The GEDCOM data is malformed
+    /// - Validation fails (when strict mode or validation options are enabled)
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use ged_io::GedcomBuilder;
+    ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// // Read file as bytes to handle any encoding
+    /// let bytes = b"0 HEAD\n1 GEDC\n2 VERS 5.5\n1 CHAR UTF-8\n0 TRLR";
+    /// let data = GedcomBuilder::new()
+    ///     .build_from_bytes(bytes)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn build_from_bytes(self, bytes: &[u8]) -> Result<GedcomData, GedcomError> {
+        // Check file size limit if configured
+        if let Some(max_size) = self.config.max_file_size {
+            let size = bytes.len();
+            if size > max_size {
+                return Err(GedcomError::FileSizeLimitExceeded { size, max_size });
+            }
+        }
+
+        // Decode bytes to UTF-8 string
+        let (content, _encoding) = decode_gedcom_bytes(bytes)?;
+
+        self.build(content.chars())
+    }
+
+    /// Builds the parser and parses the GEDCOM data from raw bytes with a specific encoding.
+    ///
+    /// Use this method when you know the encoding of the file and want to skip
+    /// auto-detection.
+    ///
+    /// # Arguments
+    ///
+    /// * `bytes` - The raw bytes of the GEDCOM file
+    /// * `encoding` - The encoding to use for decoding
+    ///
+    /// # Errors
+    ///
+    /// Returns a `GedcomError` if:
+    /// - The bytes cannot be decoded with the specified encoding
+    /// - The GEDCOM data is malformed
+    /// - Validation fails (when strict mode or validation options are enabled)
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use ged_io::{GedcomBuilder, GedcomEncoding};
+    ///
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let bytes = b"0 HEAD\n1 GEDC\n2 VERS 5.5\n0 TRLR";
+    /// let data = GedcomBuilder::new()
+    ///     .build_from_bytes_with_encoding(bytes, GedcomEncoding::Utf8)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn build_from_bytes_with_encoding(
+        self,
+        bytes: &[u8],
+        encoding: GedcomEncoding,
+    ) -> Result<GedcomData, GedcomError> {
+        // Check file size limit if configured
+        if let Some(max_size) = self.config.max_file_size {
+            let size = bytes.len();
+            if size > max_size {
+                return Err(GedcomError::FileSizeLimitExceeded { size, max_size });
+            }
+        }
+
+        // Decode bytes with specified encoding
+        let (content, _) = crate::encoding::decode_with_encoding(bytes, encoding)?;
+
+        self.build(content.chars())
     }
 
     /// Builds the parser and parses the GEDCOM data from a string.
