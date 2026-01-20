@@ -27,9 +27,12 @@ the following goals:
 ## Features
 
 * Parse GEDCOM 5.5.1 files into structured Rust data types
+* **Fluent builder API** for configuring parsing behavior
+* **Convenience methods** for common genealogy queries
+* **Display and Debug traits** for human-readable output
 * Optional `serde` integration for JSON serialization
 * Command-line tool for GEDCOM file inspection
-* Basic error handling for common parsing issues
+* Comprehensive error handling with detailed context
 
 ## Installation
 
@@ -37,17 +40,17 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-ged_io = "0.2.1"
+ged_io = "0.3"
 ```
 
 For JSON serialization support:
 
 ```toml
 [dependencies]
-ged_io = { version = "0.2.1", features = ["json"] }
+ged_io = { version = "0.3", features = ["json"] }
 ```
 
-## Usage
+## Quick Start
 
 ### Basic Parsing
 
@@ -60,11 +63,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mut gedcom = Gedcom::new(source.chars())?;
     let data = gedcom.parse_data()?;
 
-    println!("Individuals found:");
-    for individual in data.individuals {
-        if let Some(name) = individual.name {
-            let cleaned_name = name.value.unwrap_or_default().replace('/', " ").trim().to_string();
-            println!("- {}", cleaned_name);
+    // Use convenience methods to explore the data
+    println!("Found {} individuals", data.individuals.len());
+    
+    for individual in &data.individuals {
+        if let Some(name) = individual.full_name() {
+            println!("- {}", name);
         }
     }
 
@@ -72,26 +76,374 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-### JSON Export
+### Using the Builder API (Recommended)
 
-Requires the `json` feature:
+The `GedcomBuilder` provides a fluent interface for configuring parsing behavior:
 
 ```rust
-use ged_io::Gedcom;
-use std::error::Error;
-use std::fs;
+use ged_io::GedcomBuilder;
 
-fn main() -> Result<(), Box<dyn Error>> {
-    let source = fs::read_to_string("./tests/fixtures/sample.ged")?;
-    let mut gedcom = Gedcom::new(source.chars())?;
-    let gedcom_data = gedcom.parse_data()?;
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let source = std::fs::read_to_string("family.ged")?;
+    
+    let data = GedcomBuilder::new()
+        .strict_mode(false)           // Lenient parsing (default)
+        .validate_references(true)    // Check cross-reference integrity
+        .build_from_str(&source)?;
 
-    let json_output = serde_json::to_string_pretty(&gedcom_data)?;
-    println!("{}", json_output);
+    println!("Parsed {} individuals in {} families", 
+             data.individuals.len(), 
+             data.families.len());
     
     Ok(())
 }
 ```
+
+## Builder Configuration Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| `strict_mode` | `false` | Fail on non-standard tags when enabled |
+| `validate_references` | `false` | Validate all cross-references point to existing records |
+| `ignore_unknown_tags` | `false` | Silently ignore unrecognized tags |
+| `encoding_detection` | `false` | Auto-detect character encoding |
+| `date_validation` | `false` | Validate date formats |
+| `max_file_size` | `None` | Limit maximum file size in bytes |
+| `preserve_formatting` | `true` | Keep original text formatting |
+
+### Advanced Builder Configuration
+
+```rust
+use ged_io::GedcomBuilder;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let source = std::fs::read_to_string("large_family.ged")?;
+    
+    let data = GedcomBuilder::new()
+        .strict_mode(true)                    // Strict GEDCOM compliance
+        .validate_references(true)            // Ensure referential integrity
+        .ignore_unknown_tags(true)            // Skip vendor-specific tags
+        .max_file_size(Some(50 * 1024 * 1024)) // 50 MB limit
+        .preserve_formatting(true)            // Keep original text layout
+        .build_from_str(&source)?;
+
+    // Access configuration after building
+    let config = GedcomBuilder::new()
+        .strict_mode(true)
+        .config();
+    println!("Strict mode: {}", config.strict_mode);
+    
+    Ok(())
+}
+```
+
+## Convenience Methods
+
+The library provides ergonomic methods for common genealogy operations:
+
+### Finding Records by Cross-Reference
+
+```rust
+use ged_io::GedcomBuilder;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let source = "0 HEAD\n1 GEDC\n2 VERS 5.5\n0 @I1@ INDI\n1 NAME John /Doe/\n0 TRLR";
+    let data = GedcomBuilder::new().build_from_str(source)?;
+
+    // Find individual by xref
+    if let Some(individual) = data.find_individual("@I1@") {
+        println!("Found: {:?}", individual.full_name());
+    }
+
+    // Also available: find_family, find_source, find_repository, etc.
+    Ok(())
+}
+```
+
+### Working with Individuals
+
+```rust
+use ged_io::GedcomBuilder;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let source = r#"
+0 HEAD
+1 GEDC
+2 VERS 5.5
+0 @I1@ INDI
+1 NAME John /Smith/
+1 SEX M
+1 BIRT
+2 DATE 15 MAR 1950
+2 PLAC New York, USA
+1 DEAT
+2 DATE 20 JUN 2020
+0 TRLR
+"#;
+    let data = GedcomBuilder::new().build_from_str(source)?;
+    let individual = &data.individuals[0];
+
+    // Name access
+    println!("Full name: {:?}", individual.full_name());      // "John Smith"
+    println!("Given name: {:?}", individual.given_name());    // Component access
+    println!("Surname: {:?}", individual.surname());
+
+    // Gender checks
+    println!("Is male: {}", individual.is_male());
+    println!("Is female: {}", individual.is_female());
+
+    // Life events
+    println!("Birth date: {:?}", individual.birth_date());    // "15 MAR 1950"
+    println!("Birth place: {:?}", individual.birth_place());  // "New York, USA"
+    println!("Death date: {:?}", individual.death_date());
+    
+    Ok(())
+}
+```
+
+### Navigating Family Relationships
+
+```rust
+use ged_io::GedcomBuilder;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let source = r#"
+0 HEAD
+1 GEDC
+2 VERS 5.5
+0 @I1@ INDI
+1 NAME John /Doe/
+0 @I2@ INDI
+1 NAME Jane /Doe/
+0 @I3@ INDI
+1 NAME Jimmy /Doe/
+0 @F1@ FAM
+1 HUSB @I1@
+1 WIFE @I2@
+1 CHIL @I3@
+0 TRLR
+"#;
+    let data = GedcomBuilder::new().build_from_str(source)?;
+
+    // Get families where an individual is a spouse
+    let families = data.get_families_as_spouse("@I1@");
+    println!("John is a spouse in {} families", families.len());
+
+    // Get families where an individual is a child
+    let child_families = data.get_families_as_child("@I3@");
+    println!("Jimmy is a child in {} families", child_families.len());
+
+    // Get children of a family
+    if let Some(family) = data.find_family("@F1@") {
+        let children = data.get_children(family);
+        println!("Family has {} children", children.len());
+        
+        // Get parents
+        let parents = data.get_parents(family);
+        for parent in parents {
+            println!("Parent: {:?}", parent.full_name());
+        }
+        
+        // Get spouse of an individual in a family
+        if let Some(spouse) = data.get_spouse("@I1@", family) {
+            println!("John's spouse: {:?}", spouse.full_name());
+        }
+    }
+    
+    Ok(())
+}
+```
+
+### Searching Records
+
+```rust
+use ged_io::GedcomBuilder;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let source = r#"
+0 HEAD
+1 GEDC
+2 VERS 5.5
+0 @I1@ INDI
+1 NAME John /Smith/
+0 @I2@ INDI
+1 NAME Jane /Smith/
+0 @I3@ INDI
+1 NAME Robert /Johnson/
+0 TRLR
+"#;
+    let data = GedcomBuilder::new().build_from_str(source)?;
+
+    // Case-insensitive name search
+    let smiths = data.search_individuals_by_name("smith");
+    println!("Found {} people with 'smith' in their name", smiths.len());
+
+    // Statistics
+    println!("Total records: {}", data.total_records());
+    println!("Is empty: {}", data.is_empty());
+    println!("GEDCOM version: {:?}", data.gedcom_version());
+    
+    Ok(())
+}
+```
+
+## Display and Debug Output
+
+All core types implement `Display` for human-readable output:
+
+```rust
+use ged_io::GedcomBuilder;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let source = r#"
+0 HEAD
+1 GEDC
+2 VERS 5.5
+0 @I1@ INDI
+1 NAME John /Doe/
+1 SEX M
+1 BIRT
+2 DATE 15 MAR 1985
+0 TRLR
+"#;
+    let data = GedcomBuilder::new().build_from_str(source)?;
+
+    // Display the entire GEDCOM data
+    println!("{}", data);
+    
+    // Display individual records
+    for individual in &data.individuals {
+        println!("{}", individual);  // "@I1@ John Doe (Male), b. 15 MAR 1985"
+    }
+    
+    Ok(())
+}
+```
+
+### Improved Debug Output
+
+For more concise debug output, use the `ImprovedDebug` trait:
+
+```rust
+use ged_io::{GedcomBuilder, ImprovedDebug};
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let source = "0 HEAD\n1 GEDC\n2 VERS 5.5\n0 @I1@ INDI\n1 NAME John /Doe/\n0 TRLR";
+    let data = GedcomBuilder::new().build_from_str(source)?;
+
+    // Standard debug (verbose)
+    println!("{:?}", data);
+
+    // Improved debug (concise, relevant information)
+    println!("{:?}", data.debug());
+    
+    for individual in &data.individuals {
+        println!("{:?}", individual.debug());
+    }
+    
+    Ok(())
+}
+```
+
+## JSON Export
+
+Requires the `json` feature:
+
+```rust
+use ged_io::GedcomBuilder;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let source = "0 HEAD\n1 GEDC\n2 VERS 5.5\n0 @I1@ INDI\n1 NAME John /Doe/\n0 TRLR";
+    let data = GedcomBuilder::new().build_from_str(source)?;
+
+    #[cfg(feature = "json")]
+    {
+        let json_output = serde_json::to_string_pretty(&data)?;
+        println!("{}", json_output);
+    }
+    
+    Ok(())
+}
+```
+
+## Error Handling
+
+The library provides detailed error types for diagnosing parsing issues:
+
+```rust
+use ged_io::{GedcomBuilder, GedcomError};
+
+fn main() {
+    let malformed = "0 HEAD\n1 INVALID_STRUCTURE\n0 TRLR";
+    
+    match GedcomBuilder::new().strict_mode(true).build_from_str(malformed) {
+        Ok(data) => println!("Parsed successfully"),
+        Err(e) => {
+            eprintln!("Error: {}", e);
+            
+            match e {
+                GedcomError::ParseError { line, message } => {
+                    eprintln!("Parse error at line {}: {}", line, message);
+                }
+                GedcomError::InvalidFormat(msg) => {
+                    eprintln!("Invalid format: {}", msg);
+                }
+                GedcomError::FileSizeLimitExceeded { size, max_size } => {
+                    eprintln!("File too large: {} bytes (max: {})", size, max_size);
+                }
+                _ => eprintln!("Other error: {}", e),
+            }
+        }
+    }
+}
+```
+
+## Migration Guide
+
+### From `Gedcom::new()` to `GedcomBuilder`
+
+The original `Gedcom::new()` API remains fully supported for backward compatibility.
+However, `GedcomBuilder` is recommended for new code as it provides more control.
+
+**Before (still works):**
+```rust
+use ged_io::Gedcom;
+
+let source = "0 HEAD\n1 GEDC\n2 VERS 5.5\n0 TRLR";
+let mut gedcom = Gedcom::new(source.chars())?;
+let data = gedcom.parse_data()?;
+```
+
+**After (recommended):**
+```rust
+use ged_io::GedcomBuilder;
+
+let source = "0 HEAD\n1 GEDC\n2 VERS 5.5\n0 TRLR";
+let data = GedcomBuilder::new().build_from_str(source)?;
+```
+
+### Key Differences
+
+| Aspect | `Gedcom::new()` | `GedcomBuilder` |
+|--------|-----------------|-----------------|
+| Configuration | None | Full control via fluent API |
+| Input type | `Chars<'a>` iterator | `&str` or `Chars<'a>` |
+| Reference validation | Not available | Optional with `validate_references(true)` |
+| File size limits | Not available | Optional with `max_file_size()` |
+| Two-step parsing | `new()` then `parse_data()` | Single `build_from_str()` call |
+
+### When to Use Each
+
+- **Use `Gedcom::new()`** when:
+  - You need to work with character iterators directly
+  - You have existing code that works and doesn't need new features
+  - You prefer the two-step parsing approach
+
+- **Use `GedcomBuilder`** when:
+  - You need to configure parsing behavior
+  - You want reference validation
+  - You want to limit file sizes
+  - You prefer a single method call to get parsed data
 
 ## Command Line Tool
 
@@ -111,15 +463,15 @@ Example output:
 
 ```plaintext
 ----------------------
-| Gedcom Data Stats: |
+| GEDCOM Data Stats: |
 ----------------------
-   submissions: 0
-   submitters: 1
-   individuals: 3
-   families: 2
-   repositories: 1
-   sources: 1
-   multimedia: 0
+  submissions: 0
+  submitters: 1
+  individuals: 3
+  families: 2
+  repositories: 1
+  sources: 1
+  multimedia: 0
 ----------------------
 ```
 
@@ -129,12 +481,22 @@ This project is under active development. The core parsing functionality works
 for many GEDCOM files, but expect breaking changes in future `0.x` releases as
 the API evolves.
 
-Current limitations:
+### Implemented Features (v0.3)
 
-* GEDCOM 7.0 support is not implemented
-* Write functionality is not available
-* Not all GEDCOM 5.5.1 features are fully supported
-* Testing coverage needs improvement
+- ✅ GEDCOM 5.5.1 parsing
+- ✅ Builder pattern with fluent API
+- ✅ Convenience methods for common queries
+- ✅ Display and Debug trait implementations
+- ✅ Cross-reference validation
+- ✅ Comprehensive error handling
+- ✅ JSON serialization (optional feature)
+
+### Planned Features
+
+- 🔲 GEDCOM write support
+- 🔲 GEDCOM 7.0 support
+- 🔲 Performance optimizations
+- 🔲 Streaming parser for large files
 
 See the [Project Roadmap](ROADMAP.md) and [GitHub
 Milestones](https://github.com/ge3224/ged_io/milestones) for planned features.
