@@ -1,3 +1,4 @@
+pub mod association;
 pub mod attribute;
 pub mod family_link;
 pub mod gender;
@@ -12,6 +13,7 @@ use crate::{
         event::{detail::Detail, util::HasEvents},
         gedcom7::NonEvent,
         individual::{
+            association::Association,
             attribute::detail::AttributeDetail, family_link::FamilyLink, gender::{Gender, GenderType}, name::Name,
         },
         lds::LdsOrdinance,
@@ -63,6 +65,67 @@ pub struct Individual {
     /// These include BAPL (Baptism), CONL (Confirmation), INIL (Initiatory - GEDCOM 7.0 only),
     /// ENDL (Endowment), and SLGC (Sealing to parents).
     pub lds_ordinances: Vec<LdsOrdinance>,
+    /// Associations with other individuals.
+    ///
+    /// Used to link individuals who have some relationship not covered by other
+    /// standard tags (e.g., friends, neighbors, witnesses).
+    pub associations: Vec<Association>,
+    /// Unique identifier (tag: UID).
+    ///
+    /// A globally unique identifier for this record. In GEDCOM 7.0, this is
+    /// a URI that uniquely identifies the record across all datasets.
+    ///
+    /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#UID>
+    pub uid: Option<String>,
+    /// Restriction notice (tag: RESN).
+    ///
+    /// A flag that indicates access to information has been restricted.
+    /// Valid values are:
+    /// - `confidential` - Not for public distribution
+    /// - `locked` - Cannot be modified
+    /// - `privacy` - Information is private
+    ///
+    /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#RESN>
+    pub restriction: Option<String>,
+    /// User reference number (tag: REFN).
+    ///
+    /// A user-defined number or text that the submitter uses to identify
+    /// this record. Not guaranteed to be unique.
+    pub user_reference_number: Option<String>,
+    /// User reference type (tag: TYPE under REFN).
+    ///
+    /// A user-defined type for the reference number.
+    pub user_reference_type: Option<String>,
+    /// Automated record ID (tag: RIN).
+    ///
+    /// A unique record identification number assigned to the record by
+    /// the source system. Used for reconciling differences between systems.
+    pub automated_record_id: Option<String>,
+    /// Ancestral File Number (tag: AFN).
+    ///
+    /// A unique permanent record file number of an individual record
+    /// stored in Ancestral File (LDS-specific).
+    pub ancestral_file_number: Option<String>,
+    /// Alias pointers (tag: ALIA).
+    ///
+    /// Pointers to other individual records that may be the same person.
+    /// Used when combining records from different sources that may refer
+    /// to the same individual.
+    pub aliases: Vec<Xref>,
+    /// Interest in ancestors (tag: ANCI).
+    ///
+    /// Indicates an interest in researching the ancestry of this individual.
+    /// Points to a submitter record who has this interest.
+    pub ancestor_interest: Option<Xref>,
+    /// Interest in descendants (tag: DESI).
+    ///
+    /// Indicates an interest in researching the descendants of this individual.
+    /// Points to a submitter record who has this interest.
+    pub descendant_interest: Option<Xref>,
+    /// External identifiers (tag: EXID, GEDCOM 7.0).
+    ///
+    /// Identifiers maintained by external authorities that apply to this individual.
+    pub external_ids: Vec<String>,
 }
 
 impl Individual {
@@ -212,14 +275,16 @@ impl Individual {
     #[must_use]
     pub fn birth_place(&self) -> Option<&str> {
         self.birth()
-            .and_then(|b| b.place.as_deref())
+            .and_then(|b| b.place.as_ref())
+            .and_then(|p| p.value.as_deref())
     }
 
     /// Gets the death place if available.
     #[must_use]
     pub fn death_place(&self) -> Option<&str> {
         self.death()
-            .and_then(|d| d.place.as_deref())
+            .and_then(|d| d.place.as_ref())
+            .and_then(|p| p.value.as_deref())
     }
 
     /// Gets all events of a specific type.
@@ -267,12 +332,11 @@ impl Parser for Individual {
                 "SEX" => self.sex = Some(Gender::new(tokenizer, level + 1)?),
                 "ADOP" | "BIRT" | "BAPM" | "BARM" | "BASM" | "BLES" | "BURI" | "CENS" | "CHR"
                 | "CHRA" | "CONF" | "CREM" | "DEAT" | "EMIG" | "FCOM" | "GRAD" | "IMMI"
-                | "NATU" | "ORDN" | "RETI" | "RESI" | "PROB" | "WILL" | "EVEN" | "MARR" => {
+                | "NATU" | "ORDN" | "RETI" | "PROB" | "WILL" | "EVEN" | "MARR" => {
                     self.add_event(Detail::new(tokenizer, level + 1, tag)?);
                 }
                 "CAST" | "DSCR" | "EDUC" | "IDNO" | "NATI" | "NCHI" | "NMR" | "OCCU" | "PROP"
-                | "RELI" | "SSN" | "TITL" | "FACT" => {
-                    // RESI should be an attribute or an event?
+                | "RELI" | "RESI" | "SSN" | "TITL" | "FACT" => {
                     self.add_attribute(AttributeDetail::new(tokenizer, level + 1, tag)?);
                 }
                 "FAMC" | "FAMS" => {
@@ -289,6 +353,31 @@ impl Parser for Individual {
                 "BAPL" | "CONL" | "INIL" | "ENDL" | "SLGC" => {
                     self.lds_ordinances.push(LdsOrdinance::new(tokenizer, level + 1, tag)?);
                 }
+                // Associations with other individuals
+                "ASSO" => {
+                    self.associations.push(Association::new(tokenizer, level + 1)?);
+                }
+                // Unique identifier (GEDCOM 7.0)
+                "UID" => self.uid = Some(tokenizer.take_line_value()?),
+                // Restriction notice
+                "RESN" => self.restriction = Some(tokenizer.take_line_value()?),
+                // User reference number
+                "REFN" => {
+                    self.user_reference_number = Some(tokenizer.take_line_value()?);
+                    // Note: TYPE substructure would need to be parsed here
+                }
+                // Automated record ID
+                "RIN" => self.automated_record_id = Some(tokenizer.take_line_value()?),
+                // Ancestral File Number (LDS)
+                "AFN" => self.ancestral_file_number = Some(tokenizer.take_line_value()?),
+                // Alias pointer
+                "ALIA" => self.aliases.push(tokenizer.take_line_value()?),
+                // Interest in ancestors
+                "ANCI" => self.ancestor_interest = Some(tokenizer.take_line_value()?),
+                // Interest in descendants
+                "DESI" => self.descendant_interest = Some(tokenizer.take_line_value()?),
+                // External identifier (GEDCOM 7.0)
+                "EXID" => self.external_ids.push(tokenizer.take_line_value()?),
                 _ => {
                     return Err(GedcomError::ParseError {
                         line: tokenizer.line,
@@ -455,7 +544,7 @@ mod tests {
             attr.date.as_ref().unwrap().value.as_ref().unwrap(),
             "31 DEC 1997"
         );
-        assert_eq!(attr.place.as_ref().unwrap(), "The place");
+        assert_eq!(attr.place.as_ref().unwrap().value.as_ref().unwrap(), "The place");
 
         let a_sour = &data.individuals[0].attributes[0].sources[0];
         assert_eq!(a_sour.page.as_ref().unwrap(), "42");
