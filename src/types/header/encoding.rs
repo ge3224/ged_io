@@ -1,6 +1,7 @@
 use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
+    types::source::citation::Citation,
     GedcomError,
 };
 #[cfg(feature = "json")]
@@ -14,6 +15,9 @@ pub struct Encoding {
     pub value: Option<String>,
     /// tag: VERS
     pub version: Option<String>,
+    /// Source citations (non-standard but used by some generators)
+    /// tag: SOUR
+    pub source: Option<Citation>,
 }
 
 impl Encoding {
@@ -37,11 +41,11 @@ impl Parser for Encoding {
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
             match tag {
                 "VERS" => self.version = Some(tokenizer.take_line_value()?),
+                // SOUR is non-standard but used by some generators (e.g., Geneanet/GeneWeb)
+                "SOUR" => self.source = Some(Citation::new(tokenizer, level + 1)?),
                 _ => {
-                    return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
-                        message: format!("Unhandled Encoding Tag: {tag}"),
-                    })
+                    // Gracefully skip unknown tags instead of failing
+                    tokenizer.take_line_value()?;
                 }
             }
             Ok(())
