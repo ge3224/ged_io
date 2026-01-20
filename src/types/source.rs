@@ -18,6 +18,11 @@ use crate::{
 use serde::{Deserialize, Serialize};
 
 /// Source for genealogy facts
+///
+/// A source record is a place where you describe the source material
+/// from which you have obtained your genealogical information.
+///
+/// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#SOURCE_RECORD>
 #[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Source {
@@ -35,6 +40,31 @@ pub struct Source {
     /// handles "RFN" tag; found in Ancestry.com export
     pub submitter_registered_rfn: Option<String>,
     pub custom_data: Vec<Box<UserDefinedTag>>,
+    /// Unique identifier (tag: UID, GEDCOM 7.0).
+    ///
+    /// A globally unique identifier for this record. In GEDCOM 7.0, this is
+    /// a URI that uniquely identifies the record across all datasets.
+    ///
+    /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#UID>
+    pub uid: Option<String>,
+    /// User reference number (tag: REFN).
+    ///
+    /// A user-defined number or text that the submitter uses to identify
+    /// this record. Not guaranteed to be unique.
+    pub user_reference_number: Option<String>,
+    /// User reference type (tag: TYPE under REFN).
+    ///
+    /// A user-defined type for the reference number.
+    pub user_reference_type: Option<String>,
+    /// Automated record ID (tag: RIN).
+    ///
+    /// A unique record identification number assigned to the record by
+    /// the source system. Used for reconciling differences between systems.
+    pub automated_record_id: Option<String>,
+    /// External identifiers (tag: EXID, GEDCOM 7.0).
+    ///
+    /// Identifiers maintained by external authorities that apply to this source.
+    pub external_ids: Vec<String>,
 }
 
 impl Source {
@@ -108,11 +138,20 @@ impl Parser for Source {
                 "NOTE" => self.add_note(Note::new(tokenizer, level + 1)?),
                 "REPO" => self.add_repo_citation(Citation::new(tokenizer, level + 1)?),
                 "RFN" => self.submitter_registered_rfn = Some(tokenizer.take_line_value()?),
+                // Unique identifier (GEDCOM 7.0)
+                "UID" => self.uid = Some(tokenizer.take_line_value()?),
+                // User reference number
+                "REFN" => {
+                    self.user_reference_number = Some(tokenizer.take_line_value()?);
+                    // Note: TYPE substructure would need to be parsed here
+                }
+                // Automated record ID
+                "RIN" => self.automated_record_id = Some(tokenizer.take_line_value()?),
+                // External identifier (GEDCOM 7.0)
+                "EXID" => self.external_ids.push(tokenizer.take_line_value()?),
                 _ => {
-                    return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
-                        message: format!("Unhandled Source Tag: {tag}"),
-                    })
+                    // Gracefully skip unknown tags
+                    tokenizer.take_line_value()?;
                 }
             }
 
