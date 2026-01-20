@@ -42,6 +42,7 @@ pub enum Event {
     Probate,
     Residence,
     Retired,
+    Separated,
     Will,
     // "Other" is used to construct an event without requiring an explicit event type
     Other,
@@ -56,6 +57,7 @@ impl std::fmt::Display for Event {
 
 #[cfg(test)]
 mod tests {
+    use super::Event;
     use crate::Gedcom;
 
     #[test]
@@ -126,5 +128,39 @@ mod tests {
 
         let anul = &data.families[0].events;
         assert_eq!(anul.len(), 1);
+    }
+
+    #[test]
+    fn test_parse_separation_event() {
+        let sample = "\
+           0 HEAD\n\
+           1 GEDC\n\
+           2 VERS 5.5\n\
+           0 @FAMILY1@ FAM\n\
+           1 MARR Y\n\
+           1 SEP Y\n\
+           2 DATE 15 MAR 2020\n\
+           2 PLAC Los Angeles, CA\n\
+           1 HUSB @I1@\n\
+           1 WIFE @I2@\n\
+           0 TRLR";
+
+        let mut doc = Gedcom::new(sample.chars()).unwrap();
+        let data = doc.parse_data().unwrap();
+
+        let events = &data.families[0].events;
+        assert_eq!(events.len(), 2);
+
+        // Check the separation event
+        let sep_event = events.iter().find(|e| e.event == Event::Separated);
+        assert!(sep_event.is_some(), "Separated event should be parsed");
+
+        let sep = sep_event.unwrap();
+        assert_eq!(sep.event.to_string(), "Separated");
+        assert_eq!(
+            sep.date.as_ref().unwrap().value.as_ref().unwrap(),
+            "15 MAR 2020"
+        );
+        assert_eq!(sep.place.as_ref().unwrap().value.as_ref().unwrap(), "Los Angeles, CA");
     }
 }

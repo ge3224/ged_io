@@ -53,6 +53,41 @@ pub struct Family {
     ///
     /// This includes SLGS (Sealing to spouse) for family records.
     pub lds_ordinances: Vec<LdsOrdinance>,
+    /// Unique identifier (tag: UID).
+    ///
+    /// A globally unique identifier for this record. In GEDCOM 7.0, this is
+    /// a URI that uniquely identifies the record across all datasets.
+    ///
+    /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#UID>
+    pub uid: Option<String>,
+    /// Restriction notice (tag: RESN).
+    ///
+    /// A flag that indicates access to information has been restricted.
+    /// Valid values are:
+    /// - `confidential` - Not for public distribution
+    /// - `locked` - Cannot be modified
+    /// - `privacy` - Information is private
+    ///
+    /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#RESN>
+    pub restriction: Option<String>,
+    /// User reference number (tag: REFN).
+    ///
+    /// A user-defined number or text that the submitter uses to identify
+    /// this record. Not guaranteed to be unique.
+    pub user_reference_number: Option<String>,
+    /// User reference type (tag: TYPE under REFN).
+    ///
+    /// A user-defined type for the reference number.
+    pub user_reference_type: Option<String>,
+    /// Automated record ID (tag: RIN).
+    ///
+    /// A unique record identification number assigned to the record by
+    /// the source system. Used for reconciling differences between systems.
+    pub automated_record_id: Option<String>,
+    /// External identifiers (tag: EXID, GEDCOM 7.0).
+    ///
+    /// Identifiers maintained by external authorities that apply to this family.
+    pub external_ids: Vec<String>,
 }
 
 impl Family {
@@ -159,7 +194,7 @@ impl Parser for Family {
 
             match tag {
                 "MARR" | "ANUL" | "CENS" | "DIV" | "DIVF" | "ENGA" | "MARB" | "MARC" | "MARL"
-                | "MARS" | "RESI" | "EVEN" => {
+                | "MARS" | "RESI" | "EVEN" | "SEP" => {
                     self.add_event(Detail::new(tokenizer, level + 1, tag)?);
                 }
                 "HUSB" => self.set_individual1(tokenizer.take_line_value()?, tokenizer.line)?,
@@ -175,6 +210,19 @@ impl Parser for Family {
                 "SLGS" => {
                     self.lds_ordinances.push(LdsOrdinance::new(tokenizer, level + 1, tag)?);
                 }
+                // Unique identifier (GEDCOM 7.0)
+                "UID" => self.uid = Some(tokenizer.take_line_value()?),
+                // Restriction notice
+                "RESN" => self.restriction = Some(tokenizer.take_line_value()?),
+                // User reference number
+                "REFN" => {
+                    self.user_reference_number = Some(tokenizer.take_line_value()?);
+                    // Note: TYPE substructure would need to be parsed here
+                }
+                // Automated record ID
+                "RIN" => self.automated_record_id = Some(tokenizer.take_line_value()?),
+                // External identifier (GEDCOM 7.0)
+                "EXID" => self.external_ids.push(tokenizer.take_line_value()?),
                 _ => {
                     return Err(GedcomError::ParseError {
                         line: tokenizer.line,

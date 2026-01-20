@@ -15,6 +15,8 @@ use serde::{Deserialize, Serialize};
 /// contained in the GEDCOM transmission. All records in the transmission are assumed to be
 /// submitted by the `SUBMITTER` referenced in the `HEADER`, unless a `SUBMITTER` reference inside a
 /// specific record points at a different `SUBMITTER` record.
+///
+/// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#SUBMITTER_RECORD>
 #[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Submitter {
@@ -39,8 +41,23 @@ pub struct Submitter {
     pub change_date: Option<ChangeDate>,
     /// Note provided by submitter about the enclosing data
     pub note: Option<Note>,
-    /// Phone number of the submitter
-    pub phone: Option<String>,
+    /// Phone number(s) of the submitter (tag: PHON).
+    pub phone: Vec<String>,
+    /// Email address(es) of the submitter (tag: EMAIL).
+    pub email: Vec<String>,
+    /// Fax number(s) of the submitter (tag: FAX).
+    pub fax: Vec<String>,
+    /// Website URL(s) of the submitter (tag: WWW).
+    pub website: Vec<String>,
+    /// Unique identifier (tag: UID, GEDCOM 7.0).
+    ///
+    /// A globally unique identifier for this record.
+    pub uid: Option<String>,
+    /// User reference number (tag: REFN).
+    ///
+    /// A user-defined number or text that the submitter uses to identify
+    /// this record.
+    pub user_reference_number: Option<String>,
     pub custom_data: Vec<Box<UserDefinedTag>>,
 }
 
@@ -94,12 +111,17 @@ impl Parser for Submitter {
                 "LANG" => self.language = Some(tokenizer.take_line_value()?),
                 "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
                 "CHAN" => self.change_date = Some(ChangeDate::new(tokenizer, level + 1)?),
-                "PHON" => self.phone = Some(tokenizer.take_line_value()?),
+                "PHON" => self.phone.push(tokenizer.take_line_value()?),
+                "EMAIL" => self.email.push(tokenizer.take_line_value()?),
+                "FAX" => self.fax.push(tokenizer.take_line_value()?),
+                "WWW" => self.website.push(tokenizer.take_line_value()?),
+                "UID" => self.uid = Some(tokenizer.take_line_value()?),
+                "RIN" => self.automated_record_id = Some(tokenizer.take_line_value()?),
+                "RFN" => self.registered_refn = Some(tokenizer.take_line_value()?),
+                "REFN" => self.user_reference_number = Some(tokenizer.take_line_value()?),
                 _ => {
-                    return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
-                        message: format!("Unhandled Submitter Tag: {tag}"),
-                    })
+                    // Gracefully skip unknown tags
+                    tokenizer.take_line_value()?;
                 }
             }
 
