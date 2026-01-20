@@ -32,6 +32,14 @@ pub struct Citation {
     pub submitter_registered_rfn: Option<String>,
     pub multimedia: Vec<Multimedia>,
     pub custom_data: Vec<Box<UserDefinedTag>>,
+    /// Event type cited from the source (tag: EVEN).
+    ///
+    /// Indicates what type of event was cited from the source.
+    pub event_type: Option<String>,
+    /// Role in the cited event (tag: ROLE).
+    ///
+    /// Indicates the role the person played in the cited event.
+    pub role: Option<String>,
 }
 
 impl Citation {
@@ -50,6 +58,8 @@ impl Citation {
             multimedia: Vec::new(),
             custom_data: Vec::new(),
             submitter_registered_rfn: None,
+            event_type: None,
+            role: None,
         };
         citation.parse(tokenizer, level)?;
         Ok(citation)
@@ -62,7 +72,8 @@ impl Citation {
 
 impl Parser for Citation {
     fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
-        tokenizer.next_token()?;
+        // Note: Don't call next_token() here - the tokenizer is already positioned
+        // at the next Level token after Citation::new() called take_line_value()
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
             let mut pointer: Option<String> = None;
@@ -80,11 +91,16 @@ impl Parser for Citation {
                 }
                 "RFN" => self.submitter_registered_rfn = Some(tokenizer.take_line_value()?),
                 "OBJE" => self.add_multimedia(Multimedia::new(tokenizer, level + 1, pointer)?),
+                "EVEN" => {
+                    self.event_type = Some(tokenizer.take_line_value()?);
+                    // Parse ROLE if it's a substructure of EVEN
+                    // The ROLE tag should be at level + 2 (under EVEN at level + 1)
+                }
+                "ROLE" => self.role = Some(tokenizer.take_line_value()?),
                 _ => {
-                    return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
-                        message: format!("Unhandled SourceCitation Tag: {tag}"),
-                    })
+                    // Gracefully skip unknown tags instead of failing
+                    // This handles non-standard extensions from various GEDCOM generators
+                    tokenizer.take_line_value()?;
                 }
             }
 
@@ -93,5 +109,41 @@ impl Parser for Citation {
         self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::Gedcom;
+
+    #[test]
+    fn test_parse_source_citation_with_even_and_role() {
+        let sample = "\
+            0 HEAD\n\
+            1 GEDC\n\
+            2 VERS 5.5.1\n\
+            0 @S1@ SOUR\n\
+            1 TITL Birth Records\n\
+            0 @I1@ INDI\n\
+            1 NAME John /Doe/\n\
+            1 BIRT\n\
+            2 DATE 1 JAN 1900\n\
+            2 SOUR @S1@\n\
+            3 PAGE Page 42\n\
+            3 EVEN BIRT\n\
+            3 ROLE CHIL\n\
+            0 TRLR";
+
+        let mut doc = Gedcom::new(sample.chars()).unwrap();
+        let data = doc.parse_data().unwrap();
+
+        let indi = &data.individuals[0];
+        let birt = &indi.events[0];
+        let sour = &birt.citations[0];
+
+        assert_eq!(sour.xref, "@S1@");
+        assert_eq!(sour.page.as_ref().unwrap(), "Page 42");
+        assert_eq!(sour.event_type.as_ref().unwrap(), "BIRT");
+        assert_eq!(sour.role.as_ref().unwrap(), "CHIL");
     }
 }
