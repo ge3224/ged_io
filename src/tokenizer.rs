@@ -289,9 +289,13 @@ impl<'a> Tokenizer<'a> {
     /// Takes the value of the current line including handling
     /// multi-line values from CONT & CONC tags.
     ///
+    /// This function consumes `CONT` and `CONC` continuation tags at the next level,
+    /// but stops gracefully when encountering any other tag, leaving the tokenizer
+    /// positioned at that tag for subsequent parsing (e.g., by `parse_subset`).
+    ///
     /// # Errors
     ///
-    /// Returns a `GedcomError` if an unhandled tag or token is encountered.
+    /// Returns a `GedcomError` if an unexpected token is encountered.
     pub fn take_continued_text(&mut self, level: u8) -> Result<String, GedcomError> {
         let mut value = self.take_line_value()?;
 
@@ -311,13 +315,12 @@ impl<'a> Tokenizer<'a> {
                         value.push_str(&self.take_line_value()?);
                     }
                     _ => {
-                        return Err(GedcomError::ParseError {
-                            line: self.line,
-                            message: format!("Unhandled Continuation Tag: {tag}"),
-                        })
+                        // Non-continuation tag encountered; stop and leave it for parse_subset
+                        break;
                     }
                 },
                 Token::Level(_) => self.next_token()?,
+                Token::EOF => break,
                 _ => {
                     return Err(GedcomError::ParseError {
                         line: self.line,

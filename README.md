@@ -19,7 +19,7 @@ This project is a fork of
 the following goals:
 
 * Parse GEDCOM 5.5.1 files accurately ✅
-* Add support for GEDCOM 7.0 specification 🚧 (in progress)
+* Add support for GEDCOM 7.0 specification ✅
 * Implement write functionality for GEDCOM files ✅
 * Handle real-world GEDCOM files with proper error handling ✅
 
@@ -40,13 +40,22 @@ the following goals:
 * Comprehensive error handling with detailed context
 * Comprehensive benchmarking suite with Criterion.rs
 
-### GEDCOM 7.0 Support (New in v0.5)
+### GEDCOM 7.0 Support (Complete in v0.7)
 
 * `SNOTE` (shared note) records
 * `SCHMA` (schema) for extension tag definitions
 * `EXID` (external identifier) structures
+* `SDATE` (sort date) for sorting hints
+* `NO` (non-event) assertions
+* `PHRASE` for free-text date representations
+* `CREA` (creation date) structures
+* `CROP` for image cropping
+* `INIL` (initiatory) LDS ordinance (GEDCOM 7.0 only)
+* Full LDS ordinance support (`BAPL`, `CONL`, `INIL`, `ENDL`, `SLGC`, `SLGS`)
 * Version detection via `detect_version()` and `GedcomVersion` enum
 * `is_gedcom_7()` and `is_gedcom_5()` methods on `GedcomData`
+* `@` sign escaping utilities for version-specific handling
+* Comprehensive migration documentation (see [MIGRATION.md](MIGRATION.md))
 
 ## Installation
 
@@ -54,14 +63,14 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-ged_io = "0.5"
+ged_io = "0.7"
 ```
 
 For JSON serialization support:
 
 ```toml
 [dependencies]
-ged_io = { version = "0.5", features = ["json"] }
+ged_io = { version = "0.7", features = ["json"] }
 ```
 
 ## Quick Start
@@ -550,9 +559,10 @@ This project is under active development. The core parsing functionality works
 for many GEDCOM files, but expect breaking changes in future `0.x` releases as
 the API evolves.
 
-### Implemented Features (v0.4)
+### Implemented Features (v0.7)
 
 - ✅ GEDCOM 5.5.1 parsing
+- ✅ **GEDCOM 7.0 support** (complete)
 - ✅ **Performance optimized** (~40% faster parsing)
 - ✅ **Indexed lookups** for O(1) cross-reference resolution
 - ✅ **Memory-efficient** string storage (`Box<str>`)
@@ -564,11 +574,20 @@ the API evolves.
 - ✅ Comprehensive error handling
 - ✅ JSON serialization (optional feature)
 - ✅ GEDCOM write support
+- ✅ GEDCOM 7.0 shared notes (`SNOTE`)
+- ✅ GEDCOM 7.0 schema (`SCHMA`) for extension tags
+- ✅ GEDCOM 7.0 non-events (`NO`)
+- ✅ GEDCOM 7.0 sort dates (`SDATE`)
+- ✅ GEDCOM 7.0 date phrases (`PHRASE`)
+- ✅ GEDCOM 7.0 image cropping (`CROP`)
+- ✅ LDS ordinances including GEDCOM 7.0 `INIL`
+- ✅ Version-aware `@` sign escaping utilities
+- ✅ Migration documentation
 
 ### Planned Features
 
-- 🔲 GEDCOM 7.0 support
 - 🔲 Streaming parser for very large files
+- 🔲 GEDZIP file format support
 - 🔲 Additional performance optimizations
 
 See the [Project Roadmap](ROADMAP.md) and [GitHub

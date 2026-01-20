@@ -10,11 +10,23 @@ use crate::{
 use serde::{Deserialize, Serialize};
 
 /// Date encompasses a number of date formats, e.g. approximated, period, phrase and range.
+///
+/// # GEDCOM 7.0 Additions
+///
+/// In GEDCOM 7.0, dates can have additional substructures:
+/// - `PHRASE` - A free-text representation of the date
+///
+/// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#DATE>
 #[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Date {
     pub value: Option<String>,
     pub time: Option<String>,
+    /// A free-text phrase representing the date (GEDCOM 7.0).
+    ///
+    /// This is used when the structured date value doesn't capture
+    /// the original wording of the date.
+    pub phrase: Option<String>,
 }
 
 impl Date {
@@ -57,6 +69,7 @@ impl Parser for Date {
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
             match tag {
                 "TIME" => self.time = Some(tokenizer.take_line_value()?),
+                "PHRASE" => self.phrase = Some(tokenizer.take_line_value()?),
                 _ => {
                     return Err(GedcomError::ParseError {
                         line: tokenizer.line,
@@ -74,6 +87,27 @@ impl Parser for Date {
 #[cfg(test)]
 mod tests {
     use crate::Gedcom;
+
+    #[test]
+    fn test_parse_date_with_phrase() {
+        let sample = "\
+            0 HEAD\n\
+            1 GEDC\n\
+            2 VERS 7.0\n\
+            0 @I1@ INDI\n\
+            1 NAME John /Doe/\n\
+            1 BIRT\n\
+            2 DATE 15 MAR 1820\n\
+            3 PHRASE The Ides of March, 1820\n\
+            0 TRLR";
+
+        let mut doc = Gedcom::new(sample.chars()).unwrap();
+        let data = doc.parse_data().unwrap();
+
+        let birt_date = data.individuals[0].events[0].date.as_ref().unwrap();
+        assert_eq!(birt_date.value.as_ref().unwrap(), "15 MAR 1820");
+        assert_eq!(birt_date.phrase.as_ref().unwrap(), "The Ides of March, 1820");
+    }
 
     #[test]
     fn test_parse_date_record() {

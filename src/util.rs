@@ -45,6 +45,10 @@ impl StringInterner {
     ///
     /// If the string has been interned before, returns the existing copy.
     /// Otherwise, stores the string and returns a reference to it.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the internal `RwLock` is poisoned.
     #[inline]
     pub fn intern(&self, s: &str) -> Box<str> {
         // First, try a read lock to check if the string exists
@@ -68,12 +72,20 @@ impl StringInterner {
     }
 
     /// Returns the number of interned strings.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the internal `RwLock` is poisoned.
     #[must_use]
     pub fn len(&self) -> usize {
         self.strings.read().unwrap().len()
     }
 
     /// Returns true if no strings have been interned.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the internal `RwLock` is poisoned.
     #[must_use]
     pub fn is_empty(&self) -> bool {
         self.strings.read().unwrap().is_empty()
@@ -91,6 +103,7 @@ impl Default for StringInterner {
 /// Using an enum instead of strings for known tags reduces memory
 /// and allows for faster matching via pattern matching.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[allow(missing_docs)]
 pub enum KnownTag {
     // Header tags
     Head,
@@ -225,7 +238,7 @@ impl KnownTag {
     /// Returns `KnownTag::Unknown` for unrecognized tags.
     #[inline]
     #[must_use]
-    pub fn from_str(tag: &str) -> Self {
+    pub fn parse(tag: &str) -> Self {
         match tag {
             // Header
             "HEAD" => KnownTag::Head,
@@ -485,6 +498,98 @@ pub fn to_optional_boxed_str(s: Option<&str>) -> Option<Box<str>> {
     s.map(Into::into)
 }
 
+// ============================================================================
+// @ Sign Handling for GEDCOM Versions
+// ============================================================================
+
+/// Escapes `@` signs in a string for GEDCOM output.
+///
+/// In GEDCOM 5.5.1, all `@` characters must be doubled (`@@`).
+/// In GEDCOM 7.0, only a leading `@` character must be doubled.
+///
+/// # Arguments
+///
+/// * `value` - The string to escape
+/// * `is_gedcom_7` - Whether to use GEDCOM 7.0 rules (only leading @)
+///
+/// # Examples
+///
+/// ```
+/// use ged_io::util::escape_at_signs;
+///
+/// // GEDCOM 5.5.1: all @ doubled
+/// assert_eq!(escape_at_signs("test@email.com", false), "test@@email.com");
+/// assert_eq!(escape_at_signs("@ref", false), "@@ref");
+///
+/// // GEDCOM 7.0: only leading @ doubled
+/// assert_eq!(escape_at_signs("test@email.com", true), "test@email.com");
+/// assert_eq!(escape_at_signs("@ref", true), "@@ref");
+/// ```
+#[must_use]
+pub fn escape_at_signs(value: &str, is_gedcom_7: bool) -> String {
+    if is_gedcom_7 {
+        // GEDCOM 7.0: only escape leading @
+        if value.starts_with('@') {
+            format!("@{value}")
+        } else {
+            value.to_string()
+        }
+    } else {
+        // GEDCOM 5.5.1: escape all @
+        value.replace('@', "@@")
+    }
+}
+
+/// Unescapes `@` signs in a string from GEDCOM input.
+///
+/// In GEDCOM 5.5.1, all `@@` sequences represent a single `@`.
+/// In GEDCOM 7.0, only a leading `@@` represents a single `@`.
+///
+/// # Arguments
+///
+/// * `value` - The string to unescape
+/// * `is_gedcom_7` - Whether to use GEDCOM 7.0 rules (only leading @@)
+///
+/// # Examples
+///
+/// ```
+/// use ged_io::util::unescape_at_signs;
+///
+/// // GEDCOM 5.5.1: all @@ become @
+/// assert_eq!(unescape_at_signs("test@@email.com", false), "test@email.com");
+/// assert_eq!(unescape_at_signs("@@ref", false), "@ref");
+///
+/// // GEDCOM 7.0: only leading @@ becomes @
+/// assert_eq!(unescape_at_signs("test@@email.com", true), "test@@email.com");
+/// assert_eq!(unescape_at_signs("@@ref", true), "@ref");
+/// ```
+#[must_use]
+pub fn unescape_at_signs(value: &str, is_gedcom_7: bool) -> String {
+    if is_gedcom_7 {
+        // GEDCOM 7.0: only unescape leading @@
+        if value.starts_with("@@") {
+            value[1..].to_string()
+        } else {
+            value.to_string()
+        }
+    } else {
+        // GEDCOM 5.5.1: unescape all @@
+        value.replace("@@", "@")
+    }
+}
+
+/// Checks if a string value needs @ escaping when written to GEDCOM.
+///
+/// Returns true if the value contains @ characters that would need escaping.
+#[must_use]
+pub fn needs_at_escaping(value: &str, is_gedcom_7: bool) -> bool {
+    if is_gedcom_7 {
+        value.starts_with('@')
+    } else {
+        value.contains('@')
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -509,10 +614,10 @@ mod tests {
 
     #[test]
     fn test_known_tag_parsing() {
-        assert_eq!(KnownTag::from_str("HEAD"), KnownTag::Head);
-        assert_eq!(KnownTag::from_str("INDI"), KnownTag::Indi);
-        assert_eq!(KnownTag::from_str("FAM"), KnownTag::Fam);
-        assert_eq!(KnownTag::from_str("UNKNOWN_TAG"), KnownTag::Unknown);
+        assert_eq!(KnownTag::parse("HEAD"), KnownTag::Head);
+        assert_eq!(KnownTag::parse("INDI"), KnownTag::Indi);
+        assert_eq!(KnownTag::parse("FAM"), KnownTag::Fam);
+        assert_eq!(KnownTag::parse("UNKNOWN_TAG"), KnownTag::Unknown);
     }
 
     #[test]
@@ -535,5 +640,55 @@ mod tests {
 
         let none = to_optional_boxed_str(None);
         assert!(none.is_none());
+    }
+
+    #[test]
+    fn test_escape_at_signs_gedcom_5() {
+        // GEDCOM 5.5.1: all @ should be doubled
+        assert_eq!(escape_at_signs("test", false), "test");
+        assert_eq!(escape_at_signs("test@email.com", false), "test@@email.com");
+        assert_eq!(escape_at_signs("@ref", false), "@@ref");
+        assert_eq!(escape_at_signs("a@b@c", false), "a@@b@@c");
+        assert_eq!(escape_at_signs("@@already", false), "@@@@already");
+    }
+
+    #[test]
+    fn test_escape_at_signs_gedcom_7() {
+        // GEDCOM 7.0: only leading @ should be doubled
+        assert_eq!(escape_at_signs("test", true), "test");
+        assert_eq!(escape_at_signs("test@email.com", true), "test@email.com");
+        assert_eq!(escape_at_signs("@ref", true), "@@ref");
+        assert_eq!(escape_at_signs("a@b@c", true), "a@b@c");
+    }
+
+    #[test]
+    fn test_unescape_at_signs_gedcom_5() {
+        // GEDCOM 5.5.1: all @@ should become @
+        assert_eq!(unescape_at_signs("test", false), "test");
+        assert_eq!(unescape_at_signs("test@@email.com", false), "test@email.com");
+        assert_eq!(unescape_at_signs("@@ref", false), "@ref");
+        assert_eq!(unescape_at_signs("a@@b@@c", false), "a@b@c");
+    }
+
+    #[test]
+    fn test_unescape_at_signs_gedcom_7() {
+        // GEDCOM 7.0: only leading @@ should become @
+        assert_eq!(unescape_at_signs("test", true), "test");
+        assert_eq!(unescape_at_signs("test@@email.com", true), "test@@email.com");
+        assert_eq!(unescape_at_signs("@@ref", true), "@ref");
+        assert_eq!(unescape_at_signs("a@@b@@c", true), "a@@b@@c");
+    }
+
+    #[test]
+    fn test_needs_at_escaping() {
+        // GEDCOM 5.5.1
+        assert!(!needs_at_escaping("test", false));
+        assert!(needs_at_escaping("test@email.com", false));
+        assert!(needs_at_escaping("@ref", false));
+
+        // GEDCOM 7.0
+        assert!(!needs_at_escaping("test", true));
+        assert!(!needs_at_escaping("test@email.com", true));
+        assert!(needs_at_escaping("@ref", true));
     }
 }

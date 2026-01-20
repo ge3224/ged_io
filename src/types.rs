@@ -24,6 +24,8 @@ pub mod source;
 pub mod submission;
 pub mod submitter;
 pub mod translation;
+pub mod gedcom7;
+pub mod lds;
 
 use crate::{
     parser::Parser,
