@@ -143,7 +143,7 @@ impl Individual {
     /// Checks if the individual is male.
     #[must_use]
     pub fn is_male(&self) -> bool {
-        self.sex.as_ref().map_or(false, |s| {
+        self.sex.as_ref().is_some_and(|s| {
             matches!(s.value, GenderType::Male)
         })
     }
@@ -151,7 +151,7 @@ impl Individual {
     /// Checks if the individual is female.
     #[must_use]
     pub fn is_female(&self) -> bool {
-        self.sex.as_ref().map_or(false, |s| {
+        self.sex.as_ref().is_some_and(|s| {
             matches!(s.value, GenderType::Female)
         })
     }

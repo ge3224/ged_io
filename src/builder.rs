@@ -32,6 +32,7 @@ use std::str::Chars;
 ///
 /// This struct holds all configuration settings that affect how the parser
 /// processes GEDCOM data. It is used internally by `GedcomBuilder`.
+#[allow(clippy::struct_excessive_bools)]
 #[derive(Debug, Clone)]
 pub struct ParserConfig {
     /// When true, the parser will fail on any non-standard or unknown tags.
@@ -43,7 +44,7 @@ pub struct ParserConfig {
     pub validate_references: bool,
 
     /// When true, unknown/unrecognized tags are silently ignored.
-    /// When false, they may be stored as custom data or cause errors (depending on strict_mode).
+    /// When false, they may be stored as custom data or cause errors (depending on `strict_mode`).
     pub ignore_unknown_tags: bool,
 
     /// When true, the parser attempts to auto-detect the character encoding.
@@ -186,7 +187,7 @@ impl GedcomBuilder {
     ///
     /// When enabled, unknown or unrecognized GEDCOM tags will be silently
     /// ignored during parsing. When disabled, unknown tags may be stored
-    /// as custom data or cause errors (depending on strict_mode setting).
+    /// as custom data or cause errors (depending on `strict_mode` setting).
     ///
     /// # Arguments
     ///
@@ -401,6 +402,7 @@ impl GedcomBuilder {
     }
 
     /// Validates that all cross-references point to existing records.
+    #[allow(clippy::unused_self)]
     fn validate_references_internal(&self, data: &GedcomData) -> Result<(), GedcomError> {
         use std::collections::HashSet;
 
