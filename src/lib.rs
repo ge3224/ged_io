@@ -5,6 +5,13 @@ The library works with GEDCOM (Genealogical Data Communication), a text-based fo
 supported by genealogy software for storing and exchanging family history data. `ged_io` transforms
 this text format into workable Rust data structures.
 
+# Version Support
+
+This library supports both GEDCOM 5.5.1 and GEDCOM 7.0 specifications:
+
+- **GEDCOM 5.5.1** (1999/2019): The previous major version, widely supported
+- **GEDCOM 7.0** (2021+): The current version with UTF-8 encoding, extension schemas, and new structure types
+
 Basic example:
 
 ```rust
@@ -30,7 +37,7 @@ To enable JSON support, add the feature to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-ged_io = { version = "0.2.1", features = ["json"] }
+ged_io = { version = "0.4", features = ["json"] }
 ```
 
 JSON serialization example:
@@ -53,6 +60,20 @@ fn serialize_to_json() -> Result<(), Box<dyn Error>> {
 
 # #[cfg(feature = "json")]
 # serialize_to_json().unwrap();
+```
+
+## Version Detection Example
+
+```rust
+use ged_io::version::{detect_version, GedcomVersion};
+
+let content = "0 HEAD\n1 GEDC\n2 VERS 7.0\n0 TRLR";
+let version = detect_version(content);
+assert_eq!(version, GedcomVersion::V7_0);
+
+let content = "0 HEAD\n1 GEDC\n2 VERS 5.5.1\n0 TRLR";
+let version = detect_version(content);
+assert_eq!(version, GedcomVersion::V5_5_1);
 ```
 
 ## Error Handling Example
@@ -123,6 +144,22 @@ pub mod display;
 pub mod debug;
 /// Indexed GEDCOM data structure for O(1) lookups.
 pub mod indexed;
+/// GEDCOM version detection and handling.
+///
+/// This module provides the ability to detect and work with different GEDCOM versions,
+/// primarily GEDCOM 5.5.1 and GEDCOM 7.0.
+///
+/// # Example
+///
+/// ```rust
+/// use ged_io::version::{detect_version, GedcomVersion};
+///
+/// let content = "0 HEAD\n1 GEDC\n2 VERS 7.0\n0 TRLR";
+/// let version = detect_version(content);
+/// assert!(version.is_v7());
+/// assert!(!version.is_v5());
+/// ```
+pub mod version;
 /// Writer module for serializing GEDCOM data back to GEDCOM format.
 ///
 /// # Example
@@ -148,12 +185,36 @@ pub mod types;
 pub use error::GedcomError;
 pub use builder::{GedcomBuilder, ParserConfig};
 pub use debug::ImprovedDebug;
+pub use version::{GedcomVersion, detect_version, VersionFeatures};
 pub use writer::{GedcomWriter, WriterConfig};
 
 use crate::{tokenizer::Tokenizer, types::GedcomData};
 use std::str::Chars;
 
 /// The main interface for parsing GEDCOM files into structured Rust data types.
+///
+/// This struct wraps a tokenizer and provides methods to parse GEDCOM content
+/// into a [`GedcomData`] structure.
+///
+/// # Version Support
+///
+/// The parser automatically handles both GEDCOM 5.5.1 and GEDCOM 7.0 files.
+/// Version-specific features are detected and handled appropriately:
+///
+/// - GEDCOM 7.0 features like `SNOTE` (shared notes) and `SCHMA` (schema) are parsed when present
+/// - GEDCOM 5.5.1 features like `SUBN` (submission) and `CHAR` (encoding) are parsed when present
+///
+/// # Example
+///
+/// ```rust
+/// use ged_io::Gedcom;
+///
+/// let source = "0 HEAD\n1 GEDC\n2 VERS 5.5\n0 @I1@ INDI\n1 NAME John /Doe/\n0 TRLR";
+/// let mut gedcom = Gedcom::new(source.chars()).unwrap();
+/// let data = gedcom.parse_data().unwrap();
+///
+/// assert_eq!(data.individuals.len(), 1);
+/// ```
 pub struct Gedcom<'a> {
     tokenizer: Tokenizer<'a>,
 }
@@ -233,5 +294,45 @@ mod tests {
 
         assert_eq!(data.sources.len(), 1);
         assert_eq!(data.sources[0].xref.as_ref().unwrap(), "@SOURCE1@");
+    }
+
+    #[test]
+    fn test_parse_gedcom_7_shared_note() {
+        let sample = "\
+            0 HEAD\n\
+            1 GEDC\n\
+            2 VERS 7.0\n\
+            0 @N1@ SNOTE This is a shared note\n\
+            0 TRLR";
+
+        let mut doc = Gedcom::new(sample.chars()).unwrap();
+        let data = doc.parse_data().unwrap();
+
+        assert_eq!(data.shared_notes.len(), 1);
+        assert_eq!(data.shared_notes[0].xref.as_ref().unwrap(), "@N1@");
+        assert_eq!(data.shared_notes[0].text, "This is a shared note");
+        assert!(data.is_gedcom_7());
+    }
+
+    #[test]
+    fn test_parse_gedcom_7_with_schema() {
+        let sample = "\
+            0 HEAD\n\
+            1 GEDC\n\
+            2 VERS 7.0\n\
+            1 SCHMA\n\
+            2 TAG _CUSTOM http://example.com/custom\n\
+            0 TRLR";
+
+        let mut doc = Gedcom::new(sample.chars()).unwrap();
+        let data = doc.parse_data().unwrap();
+
+        assert!(data.is_gedcom_7());
+        let header = data.header.unwrap();
+        assert!(header.schema.is_some());
+        assert_eq!(
+            header.find_extension_uri("_CUSTOM"),
+            Some("http://example.com/custom")
+        );
     }
 }
