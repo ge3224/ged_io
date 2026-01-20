@@ -12,7 +12,7 @@ use crate::{
 /// payload is the name of that source, with substructures providing additional details about the
 /// source (not the export). See
 /// <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#HEAD-SOUR-DATA>.
-#[derive(Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct HeadSourData {
     pub value: Option<String>,
