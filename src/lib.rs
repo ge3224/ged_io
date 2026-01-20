@@ -132,6 +132,12 @@ fn main() -> Result<(), Box<dyn Error>> {
 #![deny(clippy::pedantic)]
 #![warn(missing_docs)]
 
+/// Character encoding detection and conversion for GEDCOM files.
+///
+/// This module provides utilities for detecting and converting different character encodings
+/// commonly found in GEDCOM files, including UTF-8, UTF-16, ISO-8859-1, and ISO-8859-15.
+pub mod encoding;
+
 /// Utility functions for GEDCOM processing.
 ///
 /// This module provides utility functions for:
@@ -190,9 +196,11 @@ pub mod tokenizer;
 pub mod types;
 pub use error::GedcomError;
 pub use builder::{GedcomBuilder, ParserConfig};
+pub use types::SourceCitationStats;
 pub use debug::ImprovedDebug;
 pub use version::{GedcomVersion, detect_version, VersionFeatures};
 pub use writer::{GedcomWriter, WriterConfig};
+pub use encoding::{GedcomEncoding, decode_gedcom_bytes, detect_encoding};
 
 use crate::{tokenizer::Tokenizer, types::GedcomData};
 use std::str::Chars;
