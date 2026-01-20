@@ -10,9 +10,11 @@ use crate::{
         custom::UserDefinedTag,
         date::change_date::ChangeDate,
         event::{detail::Detail, util::HasEvents},
+        gedcom7::NonEvent,
         individual::{
             attribute::detail::AttributeDetail, family_link::FamilyLink, gender::{Gender, GenderType}, name::Name,
         },
+        lds::LdsOrdinance,
         multimedia::Multimedia,
         note::Note,
         source::citation::Citation,
@@ -28,6 +30,13 @@ use serde::{Deserialize, Serialize};
 /// individual. These facts may come from multiple sources. Source citations and notes allow
 /// documentation of the source where each of the facts were discovered. See
 /// <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#INDIVIDUAL_RECORD>.
+///
+/// # GEDCOM 7.0 Additions
+///
+/// In GEDCOM 7.0, individuals can have:
+/// - `NO` - Non-event assertions (e.g., "NO MARR" means never married)
+///
+/// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#NO>
 #[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Individual {
@@ -43,6 +52,17 @@ pub struct Individual {
     pub note: Option<Note>,
     pub change_date: Option<ChangeDate>,
     pub custom_data: Vec<Box<UserDefinedTag>>,
+    /// Non-event assertions for GEDCOM 7.0.
+    ///
+    /// These assert that specific events did NOT occur (e.g., "NO MARR" means
+    /// the individual never married). This is distinct from omitting an event
+    /// (which means unknown).
+    pub non_events: Vec<NonEvent>,
+    /// LDS (Latter-day Saints) ordinances.
+    ///
+    /// These include BAPL (Baptism), CONL (Confirmation), INIL (Initiatory - GEDCOM 7.0 only),
+    /// ENDL (Endowment), and SLGC (Sealing to parents).
+    pub lds_ordinances: Vec<LdsOrdinance>,
 }
 
 impl Individual {
@@ -264,6 +284,11 @@ impl Parser for Individual {
                 }
                 "OBJE" => self.add_multimedia(Multimedia::new(tokenizer, level + 1, None)?),
                 "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
+                "NO" => self.non_events.push(NonEvent::new(tokenizer, level + 1)?),
+                // LDS Ordinances (INIL is GEDCOM 7.0 only)
+                "BAPL" | "CONL" | "INIL" | "ENDL" | "SLGC" => {
+                    self.lds_ordinances.push(LdsOrdinance::new(tokenizer, level + 1, tag)?);
+                }
                 _ => {
                     return Err(GedcomError::ParseError {
                         line: tokenizer.line,
