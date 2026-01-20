@@ -1,4 +1,7 @@
 //! Shared parsing utilities and traits for GEDCOM records.
+//!
+//! This module provides the core parsing infrastructure for GEDCOM data.
+//! Functions are optimized with inline hints for performance-critical paths.
 
 use crate::{
     tokenizer::{Token, Tokenizer},
@@ -26,6 +29,7 @@ pub trait Parser {
 /// # Errors
 ///
 /// Returns a `GedcomError` if an unhandled token is encountered or if `UserDefinedTag::new` fails.
+#[inline]
 pub fn parse_subset<F>(
     tokenizer: &mut Tokenizer,
     level: u8,
@@ -45,7 +49,7 @@ where
         match &tokenizer.current_token {
             Token::Tag(tag) => {
                 let tag_clone = tag.clone();
-                tag_handler(tag_clone.as_str(), tokenizer)?;
+                tag_handler(&tag_clone, tokenizer)?;
             }
             Token::CustomTag(tag) => {
                 let tag_clone = tag.clone();

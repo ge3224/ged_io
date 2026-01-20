@@ -61,7 +61,7 @@ impl Parser for CertaintyAssessment {
     fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
         tokenizer.next_token()?;
         if let Token::LineValue(val) = &tokenizer.current_token {
-            *self = match val.as_str() {
+            *self = match val.as_ref() {
                 "0" => CertaintyAssessment::Unreliable,
                 "1" => CertaintyAssessment::Questionable,
                 "2" => CertaintyAssessment::Secondary,
