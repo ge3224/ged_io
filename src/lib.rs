@@ -74,13 +74,31 @@ fn main() -> Result<(), Box<dyn Error>> {
             eprintln!("Error parsing GEDCOM: {}", e);
             match e {
                 GedcomError::ParseError { line, message } => {
-                    eprintln!("Specific Parse Error at line {}: {}", line, message);
+                    eprintln!("Parse error at line {}: {}", line, message);
                 }
                 GedcomError::InvalidFormat(msg) => {
-                    eprintln!("Specific Invalid Format Error: {}", msg);
+                    eprintln!("Invalid format: {}", msg);
                 }
                 GedcomError::EncodingError(msg) => {
-                    eprintln!("Specific Encoding Error: {}", msg);
+                    eprintln!("Encoding error: {}", msg);
+                }
+                GedcomError::InvalidTag { line, tag } => {
+                    eprintln!("Invalid tag '{}' at line {}", tag, line);
+                }
+                GedcomError::UnexpectedLevel { line, expected, found } => {
+                    eprintln!("Unexpected level at line {}: expected {}, found {}", line, expected, found);
+                }
+                GedcomError::MissingRequiredValue { line, tag } => {
+                    eprintln!("Missing required value for '{}' at line {}", tag, line);
+                }
+                GedcomError::InvalidValueFormat { line, value, expected_format } => {
+                    eprintln!("Invalid format for '{}' at line {}: expected {}", value, line, expected_format);
+                }
+                GedcomError::FileSizeLimitExceeded { size, max_size } => {
+                    eprintln!("File too large: {} bytes (max: {} bytes)", size, max_size);
+                }
+                GedcomError::IoError(msg) => {
+                    eprintln!("I/O error: {}", msg);
                 }
             }
         }
