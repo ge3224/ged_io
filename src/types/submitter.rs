@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 /// contained in the GEDCOM transmission. All records in the transmission are assumed to be
 /// submitted by the `SUBMITTER` referenced in the `HEADER`, unless a `SUBMITTER` reference inside a
 /// specific record points at a different `SUBMITTER` record.
-#[derive(Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Submitter {
     /// Optional reference to link to this submitter
