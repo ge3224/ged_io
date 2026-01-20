@@ -11,7 +11,7 @@ use crate::{
         date::change_date::ChangeDate,
         event::{detail::Detail, util::HasEvents},
         individual::{
-            attribute::detail::AttributeDetail, family_link::FamilyLink, gender::Gender, name::Name,
+            attribute::detail::AttributeDetail, family_link::FamilyLink, gender::{Gender, GenderType}, name::Name,
         },
         multimedia::Multimedia,
         note::Note,
@@ -97,6 +97,127 @@ impl Individual {
     #[must_use]
     pub fn families(&self) -> &[FamilyLink] {
         &self.families
+    }
+
+    // ========================================================================
+    // Convenience Methods for Common Data Access (Issue #29)
+    // ========================================================================
+
+    /// Gets the full name as a formatted string, removing GEDCOM slashes.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use ged_io::Gedcom;
+    ///
+    /// let source = "0 HEAD\n1 GEDC\n2 VERS 5.5\n0 @I1@ INDI\n1 NAME John /Doe/\n0 TRLR";
+    /// let mut gedcom = Gedcom::new(source.chars()).unwrap();
+    /// let data = gedcom.parse_data().unwrap();
+    ///
+    /// let name = data.individuals[0].full_name();
+    /// assert_eq!(name, Some("John Doe".to_string()));
+    /// ```
+    #[must_use]
+    pub fn full_name(&self) -> Option<String> {
+        self.name.as_ref().and_then(|n| {
+            n.value.as_ref().map(|v| {
+                v.replace('/', "").trim().to_string()
+            })
+        })
+    }
+
+    /// Gets the given (first) name if available.
+    #[must_use]
+    pub fn given_name(&self) -> Option<&str> {
+        self.name.as_ref()
+            .and_then(|n| n.given.as_deref())
+    }
+
+    /// Gets the surname (family name) if available.
+    #[must_use]
+    pub fn surname(&self) -> Option<&str> {
+        self.name.as_ref()
+            .and_then(|n| n.surname.as_deref())
+    }
+
+    /// Checks if the individual is male.
+    #[must_use]
+    pub fn is_male(&self) -> bool {
+        self.sex.as_ref().map_or(false, |s| {
+            matches!(s.value, GenderType::Male)
+        })
+    }
+
+    /// Checks if the individual is female.
+    #[must_use]
+    pub fn is_female(&self) -> bool {
+        self.sex.as_ref().map_or(false, |s| {
+            matches!(s.value, GenderType::Female)
+        })
+    }
+
+    /// Gets the birth event details if available.
+    #[must_use]
+    pub fn birth(&self) -> Option<&Detail> {
+        self.events.iter().find(|e| {
+            matches!(e.event, crate::types::event::Event::Birth)
+        })
+    }
+
+    /// Gets the death event details if available.
+    #[must_use]
+    pub fn death(&self) -> Option<&Detail> {
+        self.events.iter().find(|e| {
+            matches!(e.event, crate::types::event::Event::Death)
+        })
+    }
+
+    /// Gets the birth date as a string if available.
+    #[must_use]
+    pub fn birth_date(&self) -> Option<&str> {
+        self.birth()
+            .and_then(|b| b.date.as_ref())
+            .and_then(|d| d.value.as_deref())
+    }
+
+    /// Gets the death date as a string if available.
+    #[must_use]
+    pub fn death_date(&self) -> Option<&str> {
+        self.death()
+            .and_then(|d| d.date.as_ref())
+            .and_then(|d| d.value.as_deref())
+    }
+
+    /// Gets the birth place if available.
+    #[must_use]
+    pub fn birth_place(&self) -> Option<&str> {
+        self.birth()
+            .and_then(|b| b.place.as_deref())
+    }
+
+    /// Gets the death place if available.
+    #[must_use]
+    pub fn death_place(&self) -> Option<&str> {
+        self.death()
+            .and_then(|d| d.place.as_deref())
+    }
+
+    /// Gets all events of a specific type.
+    #[must_use]
+    pub fn events_of_type(&self, event_type: &crate::types::event::Event) -> Vec<&Detail> {
+        self.events.iter().filter(|e| &e.event == event_type).collect()
+    }
+
+    /// Checks if the individual has any events recorded.
+    #[must_use]
+    pub fn has_events(&self) -> bool {
+        !self.events.is_empty()
+    }
+
+    /// Checks if the individual has any sources cited.
+    #[must_use]
+    pub fn has_sources(&self) -> bool {
+        !self.source.is_empty()
     }
 }
 
