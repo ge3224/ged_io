@@ -12,8 +12,8 @@ use crate::{
 /// Actual text from the source that was used in making assertions, for example a date phrase as
 /// actually recorded in the source, or significant notes written by the recorder, or an applicable
 /// sentence from a letter. This is stored in the SOUR.DATA.TEXT context.
-#[derive(Clone, Debug, Default)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize, PartialEq))]
+#[derive(Clone, Debug, Default, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct SourceCitationData {
     pub date: Option<Date>,
     pub text: Option<Text>,

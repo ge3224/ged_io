@@ -29,8 +29,8 @@ use serde::{Deserialize, Serialize};
 /// The change and creation dates should be for the OBJE record itself, not the underlying files.
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#MULTIMEDIA_RECORD>.
-#[derive(Clone, Debug, Default)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize, PartialEq))]
+#[derive(Clone, Debug, Default, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Multimedia {
     /// Optional reference to link to this submitter
     pub xref: Option<Xref>,

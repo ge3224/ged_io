@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// This data representation understands that HUSB & WIFE are just poorly-named
 /// pointers to individuals. no gender "validating" is done on parse.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Family {
     pub xref: Option<Xref>,

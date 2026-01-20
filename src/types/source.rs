@@ -18,8 +18,8 @@ use crate::{
 use serde::{Deserialize, Serialize};
 
 /// Source for genealogy facts
-#[derive(Clone, Debug, Default)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize, PartialEq))]
+#[derive(Clone, Debug, Default, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Source {
     pub xref: Option<String>,
     pub data: Data,

@@ -10,7 +10,7 @@ use crate::{
 };
 
 /// Physical address at which a fact occurs
-#[derive(Default)]
+#[derive(Clone, Default, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Address {
     pub value: Option<String>,

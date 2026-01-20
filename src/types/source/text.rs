@@ -12,8 +12,8 @@ use crate::{
 /// source. This should be, from the evidence point of view, "what the original record keeper said"
 /// as opposed to the researcher's interpretation. The word TEXT, in this case, means from the text
 /// which appeared in the source record including labels.
-#[derive(Clone, Debug, Default)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize, PartialEq))]
+#[derive(Clone, Debug, Default, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Text {
     pub value: Option<String>,
 }

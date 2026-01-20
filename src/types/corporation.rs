@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 /// Corporation (tag: CORP) is the name of the business, corporation, or person that produced or
 /// commissioned the product. See
 /// <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#CORP>.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Corporation {
     pub value: Option<String>,

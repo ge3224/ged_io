@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 /// `GedcomMeta` (tag: GEDC) is a container for information about the entire document. It is
 /// recommended that applications write GEDC with its required subrecord VERS as the first
 /// substructure of a HEAD. See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#GEDC>.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct HeadMeta {
     /// tag: VERS

@@ -10,8 +10,8 @@ use crate::{
 /// `UserReferenceNumber` is a user-defined number or text that the submitter uses to identify this
 /// record. For instance, it may be a record number within the submitter's automated or manual
 /// system, or it may be a page and position number on a pedigree chart.
-#[derive(Clone, Debug, Default)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize, PartialEq))]
+#[derive(Clone, Debug, Default, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct UserReferenceNumber {
     /// line value
     pub value: Option<String>,

@@ -9,8 +9,8 @@ use crate::{
 };
 
 /// Citation linking a `Source` to a data `Repository`
-#[derive(Clone, Debug, Default)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize, PartialEq))]
+#[derive(Clone, Debug, Default, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Citation {
     /// Reference to the `Repository`
     pub xref: Xref,

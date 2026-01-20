@@ -18,7 +18,7 @@ use crate::{
 /// and/or address, etc. to be transmitted, just as the events are. Previous versions, which
 /// handled just a tag and value, can be read as usual by handling the subordinate attribute detail
 /// as an exception. . See GEDCOM 5.5 spec, page 69.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct AttributeDetail {
     pub attribute: IndividualAttribute,
