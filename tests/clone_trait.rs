@@ -171,7 +171,7 @@ fn test_clone_into_vec() {
     let data = gedcom.parse_data().unwrap();
 
     // Clone individuals into a new vector
-    let cloned_individuals: Vec<_> = data.individuals.iter().cloned().collect();
+    let cloned_individuals: Vec<_> = data.individuals.to_vec();
 
     assert_eq!(data.individuals.len(), cloned_individuals.len());
     for (original, cloned) in data.individuals.iter().zip(cloned_individuals.iter()) {
