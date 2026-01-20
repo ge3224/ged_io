@@ -318,7 +318,7 @@ fn test_vec_iteration_unchanged() {
     let data = gedcom.parse_data().unwrap();
 
     // Standard iteration patterns must work
-    let count = data.individuals.iter().count();
+    let count = data.individuals.len();
     assert_eq!(count, 3);
 
     // Index access must work

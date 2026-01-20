@@ -347,7 +347,7 @@ fn test_writer_with_crlf_line_endings() {
 #[test]
 fn test_writer_custom_gedcom_version() {
     let original = "0 HEAD\n1 GEDC\n2 VERS 5.5\n0 TRLR";
-    let data = GedcomBuilder::new().build_from_str(original).unwrap();
+    let _data = GedcomBuilder::new().build_from_str(original).unwrap();
 
     let writer = GedcomWriter::new().gedcom_version("5.5.1");
     let config = writer.config();
