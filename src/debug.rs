@@ -24,7 +24,7 @@ use crate::types::{
     GedcomData,
 };
 
-/// A wrapper type that provides improved Debug output for GedcomData.
+/// A wrapper type that provides improved Debug output for `GedcomData`.
 ///
 /// This wrapper hides empty collections and provides a more concise summary.
 pub struct GedcomDataDebug<'a>(pub &'a GedcomData);
@@ -359,7 +359,7 @@ impl fmt::Debug for NoteDebug<'_> {
     }
 }
 
-/// Extension trait for GedcomData to get improved debug output.
+/// Extension trait for `GedcomData` to get improved debug output.
 pub trait ImprovedDebug {
     /// Returns a wrapper that provides improved Debug output.
     fn debug(&self) -> impl fmt::Debug;

@@ -849,11 +849,11 @@ impl GedcomWriter {
         tag: &str,
         value: Option<&str>,
     ) -> Result<(), io::Error> {
-        write!(writer, "{} {}", level, tag).map_err(io_error)?;
+        write!(writer, "{level} {tag}").map_err(io_error)?;
 
         if let Some(v) = value {
             if !v.is_empty() {
-                write!(writer, " {}", v).map_err(io_error)?;
+                write!(writer, " {v}").map_err(io_error)?;
             }
         }
 
@@ -871,11 +871,11 @@ impl GedcomWriter {
         tag: &str,
         value: Option<&str>,
     ) -> Result<(), io::Error> {
-        write!(writer, "{} {} {}", level, xref, tag).map_err(io_error)?;
+        write!(writer, "{level} {xref} {tag}").map_err(io_error)?;
 
         if let Some(v) = value {
             if !v.is_empty() {
-                write!(writer, " {}", v).map_err(io_error)?;
+                write!(writer, " {v}").map_err(io_error)?;
             }
         }
 
@@ -938,7 +938,7 @@ impl GedcomWriter {
 
 /// Converts a `std::fmt::Error` to an `io::Error`.
 fn io_error(_: std::fmt::Error) -> io::Error {
-    io::Error::new(io::ErrorKind::Other, "formatting error")
+    io::Error::other("formatting error")
 }
 
 // =============================================================================
@@ -980,8 +980,7 @@ fn event_to_tag(event: &Event) -> &'static str {
         Event::MarriageLicense => "MARL",
         Event::MarriageSettlement => "MARS",
         Event::Residence => "RESI",
-        Event::Event => "EVEN",
-        Event::Other => "EVEN",
+        Event::Event | Event::Other => "EVEN",
         Event::SourceData(_) => "DATA",
     }
 }
