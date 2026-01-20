@@ -121,12 +121,32 @@ pub mod builder;
 pub mod display;
 /// Improved Debug trait implementations for GEDCOM data structures.
 pub mod debug;
+/// Writer module for serializing GEDCOM data back to GEDCOM format.
+///
+/// # Example
+///
+/// ```rust
+/// use ged_io::{GedcomBuilder, GedcomWriter};
+///
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// let source = "0 HEAD\n1 GEDC\n2 VERS 5.5\n0 @I1@ INDI\n1 NAME John /Doe/\n0 TRLR";
+/// let data = GedcomBuilder::new().build_from_str(source)?;
+///
+/// // Write back to GEDCOM format
+/// let writer = GedcomWriter::new();
+/// let output = writer.write_to_string(&data)?;
+/// assert!(output.contains("John /Doe/"));
+/// # Ok(())
+/// # }
+/// ```
+pub mod writer;
 pub mod parser;
 pub mod tokenizer;
 pub mod types;
 pub use error::GedcomError;
 pub use builder::{GedcomBuilder, ParserConfig};
 pub use debug::ImprovedDebug;
+pub use writer::{GedcomWriter, WriterConfig};
 
 use crate::{tokenizer::Tokenizer, types::GedcomData};
 use std::str::Chars;
