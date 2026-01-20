@@ -135,7 +135,7 @@ mod tests {
         let birt_date = data.individuals[0].events[0].date.as_ref().unwrap();
         assert_eq!(birt_date.value.as_ref().unwrap(), "BEF 1828");
 
-        let resi_date = data.individuals[0].events[1].date.as_ref().unwrap();
+        let resi_date = data.individuals[0].attributes[0].date.as_ref().unwrap();
         assert_eq!(resi_date.value.as_ref().unwrap(), "from 1900 to 1905");
     }
 
