@@ -69,7 +69,7 @@ impl Parser for Gender {
         tokenizer.next_token()?;
 
         if let Token::LineValue(gender_string) = &tokenizer.current_token {
-            self.value = match gender_string.as_str() {
+            self.value = match gender_string.as_ref() {
                 "M" => GenderType::Male,
                 "F" => GenderType::Female,
                 "X" => GenderType::Nonbinary,

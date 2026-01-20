@@ -155,7 +155,7 @@ impl GedcomData {
     #[must_use]
     pub fn find_individual(&self, xref: &str) -> Option<&Individual> {
         self.individuals.iter().find(|i| {
-            i.xref.as_ref().map_or(false, |x| x == xref)
+            i.xref.as_ref().is_some_and(|x| x == xref)
         })
     }
 
@@ -176,7 +176,7 @@ impl GedcomData {
     #[must_use]
     pub fn find_family(&self, xref: &str) -> Option<&Family> {
         self.families.iter().find(|f| {
-            f.xref.as_ref().map_or(false, |x| x == xref)
+            f.xref.as_ref().is_some_and(|x| x == xref)
         })
     }
 
@@ -184,7 +184,7 @@ impl GedcomData {
     #[must_use]
     pub fn find_source(&self, xref: &str) -> Option<&Source> {
         self.sources.iter().find(|s| {
-            s.xref.as_ref().map_or(false, |x| x == xref)
+            s.xref.as_ref().is_some_and(|x| x == xref)
         })
     }
 
@@ -192,7 +192,7 @@ impl GedcomData {
     #[must_use]
     pub fn find_repository(&self, xref: &str) -> Option<&Repository> {
         self.repositories.iter().find(|r| {
-            r.xref.as_ref().map_or(false, |x| x == xref)
+            r.xref.as_ref().is_some_and(|x| x == xref)
         })
     }
 
@@ -200,7 +200,7 @@ impl GedcomData {
     #[must_use]
     pub fn find_multimedia(&self, xref: &str) -> Option<&Multimedia> {
         self.multimedia.iter().find(|m| {
-            m.xref.as_ref().map_or(false, |x| x == xref)
+            m.xref.as_ref().is_some_and(|x| x == xref)
         })
     }
 
@@ -208,7 +208,7 @@ impl GedcomData {
     #[must_use]
     pub fn find_submitter(&self, xref: &str) -> Option<&Submitter> {
         self.submitters.iter().find(|s| {
-            s.xref.as_ref().map_or(false, |x| x == xref)
+            s.xref.as_ref().is_some_and(|x| x == xref)
         })
     }
 
@@ -229,8 +229,8 @@ impl GedcomData {
     #[must_use]
     pub fn get_families_as_spouse(&self, individual_xref: &str) -> Vec<&Family> {
         self.families.iter().filter(|f| {
-            f.individual1.as_ref().map_or(false, |x| x == individual_xref) ||
-            f.individual2.as_ref().map_or(false, |x| x == individual_xref)
+            f.individual1.as_ref().is_some_and(|x| x == individual_xref) ||
+            f.individual2.as_ref().is_some_and(|x| x == individual_xref)
         }).collect()
     }
 
@@ -270,9 +270,9 @@ impl GedcomData {
     /// Gets the spouse/partner of an individual in a specific family.
     #[must_use]
     pub fn get_spouse(&self, individual_xref: &str, family: &Family) -> Option<&Individual> {
-        if family.individual1.as_ref().map_or(false, |x| x == individual_xref) {
+        if family.individual1.as_ref().is_some_and(|x| x == individual_xref) {
             family.individual2.as_ref().and_then(|x| self.find_individual(x))
-        } else if family.individual2.as_ref().map_or(false, |x| x == individual_xref) {
+        } else if family.individual2.as_ref().is_some_and(|x| x == individual_xref) {
             family.individual1.as_ref().and_then(|x| self.find_individual(x))
         } else {
             None
@@ -297,8 +297,8 @@ impl GedcomData {
     pub fn search_individuals_by_name(&self, query: &str) -> Vec<&Individual> {
         let query_lower = query.to_lowercase();
         self.individuals.iter().filter(|i| {
-            i.name.as_ref().map_or(false, |name| {
-                name.value.as_ref().map_or(false, |v| v.to_lowercase().contains(&query_lower))
+            i.name.as_ref().is_some_and(|name| {
+                name.value.as_ref().is_some_and(|v| v.to_lowercase().contains(&query_lower))
             })
         }).collect()
     }
@@ -367,7 +367,7 @@ impl Parser for GedcomData {
             }
 
             if let Token::Tag(tag) = &tokenizer.current_token {
-                match tag.as_str() {
+                match tag.as_ref() {
                     "HEAD" => self.header = Some(Header::new(tokenizer, level)?),
                     "FAM" => self.add_family(Family::new(tokenizer, level, pointer)?),
                     "INDI" => {
