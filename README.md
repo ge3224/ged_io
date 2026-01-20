@@ -588,7 +588,6 @@ the API evolves.
 
 - 🔲 Streaming parser for very large files
 - 🔲 GEDZIP file format support
-- 🔲 Additional performance optimizations
 
 See the [Project Roadmap](ROADMAP.md) and [GitHub
 Milestones](https://github.com/ge3224/ged_io/milestones) for planned features.
