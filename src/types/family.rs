@@ -5,6 +5,8 @@ use crate::{
         custom::UserDefinedTag,
         date::change_date::ChangeDate,
         event::{detail::Detail, util::HasEvents},
+        gedcom7::NonEvent,
+        lds::LdsOrdinance,
         multimedia::Multimedia,
         note::Note,
         source::citation::Citation,
@@ -20,6 +22,13 @@ use serde::{Deserialize, Serialize};
 ///
 /// This data representation understands that HUSB & WIFE are just poorly-named
 /// pointers to individuals. no gender "validating" is done on parse.
+///
+/// # GEDCOM 7.0 Additions
+///
+/// In GEDCOM 7.0, families can have:
+/// - `NO` - Non-event assertions (e.g., "NO CHIL" means no children)
+///
+/// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#NO>
 #[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Family {
@@ -35,6 +44,15 @@ pub struct Family {
     pub multimedia: Vec<Multimedia>,
     pub notes: Vec<Note>,
     pub custom_data: Vec<Box<UserDefinedTag>>,
+    /// Non-event assertions for GEDCOM 7.0.
+    ///
+    /// These assert that specific events did NOT occur (e.g., "NO CHIL" means
+    /// no children). This is distinct from omitting an event (which means unknown).
+    pub non_events: Vec<NonEvent>,
+    /// LDS (Latter-day Saints) sealing ordinance.
+    ///
+    /// This includes SLGS (Sealing to spouse) for family records.
+    pub lds_ordinances: Vec<LdsOrdinance>,
 }
 
 impl Family {
@@ -152,6 +170,11 @@ impl Parser for Family {
                 "SOUR" => self.add_source(Citation::new(tokenizer, level + 1)?),
                 "NOTE" => self.add_note(Note::new(tokenizer, level + 1)?),
                 "OBJE" => self.add_multimedia(Multimedia::new(tokenizer, level + 1, pointer)?),
+                "NO" => self.non_events.push(NonEvent::new(tokenizer, level + 1)?),
+                // LDS Sealing to Spouse ordinance
+                "SLGS" => {
+                    self.lds_ordinances.push(LdsOrdinance::new(tokenizer, level + 1, tag)?);
+                }
                 _ => {
                     return Err(GedcomError::ParseError {
                         line: tokenizer.line,

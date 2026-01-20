@@ -25,16 +25,19 @@ use crate::types::{
     event::detail::Detail as EventDetail,
     event::Event,
     family::Family,
-    header::{meta::HeadMeta, source::HeadSour},
+    gedcom7::{NonEvent, SortDate},
+    header::{meta::HeadMeta, schema::Schema, source::HeadSour},
     individual::{
         attribute::detail::AttributeDetail,
         gender::{Gender, GenderType},
         name::Name,
         Individual,
     },
+    lds::LdsOrdinance,
     multimedia::Multimedia,
     note::Note,
     repository::Repository,
+    shared_note::SharedNote,
     source::{citation::Citation, Source},
     source::quay::CertaintyAssessment,
     submission::Submission,
@@ -195,6 +198,11 @@ impl GedcomWriter {
             self.write_multimedia(writer, media)?;
         }
 
+        // Write shared notes (GEDCOM 7.0)
+        for shared_note in &data.shared_notes {
+            self.write_shared_note(writer, shared_note)?;
+        }
+
         // Write trailer
         self.write_line(writer, 0, "TRLR", None)?;
 
@@ -261,6 +269,11 @@ impl GedcomWriter {
             // Note
             if let Some(ref note) = header.note {
                 self.write_note(writer, 1, note)?;
+            }
+
+            // Schema (GEDCOM 7.0)
+            if let Some(ref schema) = header.schema {
+                self.write_schema(writer, schema)?;
             }
         } else {
             // Write minimal required header
@@ -339,51 +352,51 @@ impl GedcomWriter {
         writer: &mut W,
         individual: &Individual,
     ) -> Result<(), io::Error> {
-        let xref = individual.xref.as_deref().unwrap_or("@I0@");
-        self.write_line_with_xref(writer, 0, xref, "INDI", None)?;
+        self.write_line_with_xref(writer, 0, individual.xref.as_deref(), "INDI", None)?;
 
-        // Name
         if let Some(ref name) = individual.name {
             self.write_name(writer, name)?;
         }
 
-        // Sex
         if let Some(ref sex) = individual.sex {
             self.write_gender(writer, sex)?;
         }
 
-        // Events
         for event in &individual.events {
             self.write_event(writer, 1, event)?;
         }
 
-        // Attributes
         for attr in &individual.attributes {
             self.write_attribute(writer, attr)?;
         }
 
-        // Family links
+        // GEDCOM 7.0: Non-events
+        for non_event in &individual.non_events {
+            self.write_non_event(writer, 1, non_event)?;
+        }
+
+        // LDS Ordinances (BAPL, CONL, INIL, ENDL, SLGC)
+        for ordinance in &individual.lds_ordinances {
+            self.write_lds_ordinance(writer, 1, ordinance)?;
+        }
+
         for family_link in &individual.families {
             let tag = family_link.family_link_type.to_tag();
             self.write_line(writer, 1, tag, Some(&family_link.xref))?;
         }
 
-        // Source citations
         for citation in &individual.source {
             self.write_citation(writer, 1, citation)?;
         }
 
-        // Multimedia
         for media in &individual.multimedia {
             self.write_multimedia_link(writer, 1, media)?;
         }
 
-        // Note
         if let Some(ref note) = individual.note {
             self.write_note(writer, 1, note)?;
         }
 
-        // Change date
         if let Some(ref change_date) = individual.change_date {
             self.write_line(writer, 1, "CHAN", None)?;
             if let Some(ref date) = change_date.date {
@@ -466,6 +479,11 @@ impl GedcomWriter {
             self.write_date(writer, level + 1, date)?;
         }
 
+        // GEDCOM 7.0: Sort date
+        if let Some(ref sort_date) = event.sort_date {
+            self.write_sort_date(writer, level + 1, sort_date)?;
+        }
+
         if let Some(ref place) = event.place {
             self.write_line(writer, level + 1, "PLAC", Some(place))?;
         }
@@ -515,39 +533,46 @@ impl GedcomWriter {
 
     /// Writes a family record.
     fn write_family<W: Write>(&self, writer: &mut W, family: &Family) -> Result<(), io::Error> {
-        let xref = family.xref.as_deref().unwrap_or("@F0@");
-        self.write_line_with_xref(writer, 0, xref, "FAM", None)?;
+        self.write_line_with_xref(writer, 0, family.xref.as_deref(), "FAM", None)?;
 
-        // Partners
-        if let Some(ref ind1) = family.individual1 {
-            self.write_line(writer, 1, "HUSB", Some(ind1))?;
+        if let Some(ref husb) = family.individual1 {
+            self.write_line(writer, 1, "HUSB", Some(husb))?;
         }
 
-        if let Some(ref ind2) = family.individual2 {
-            self.write_line(writer, 1, "WIFE", Some(ind2))?;
+        if let Some(ref wife) = family.individual2 {
+            self.write_line(writer, 1, "WIFE", Some(wife))?;
         }
 
-        // Children
         for child in &family.children {
             self.write_line(writer, 1, "CHIL", Some(child))?;
         }
 
-        // Events
         for event in &family.events {
             self.write_event(writer, 1, event)?;
         }
 
-        // Source citations
+        // GEDCOM 7.0: Non-events
+        for non_event in &family.non_events {
+            self.write_non_event(writer, 1, non_event)?;
+        }
+
+        // LDS Sealing to Spouse (SLGS)
+        for ordinance in &family.lds_ordinances {
+            self.write_lds_ordinance(writer, 1, ordinance)?;
+        }
+
         for citation in &family.sources {
             self.write_citation(writer, 1, citation)?;
         }
 
-        // Notes
+        for media in &family.multimedia {
+            self.write_multimedia_link(writer, 1, media)?;
+        }
+
         for note in &family.notes {
             self.write_note(writer, 1, note)?;
         }
 
-        // Change date
         if let Some(ref change_date) = family.change_date {
             self.write_line(writer, 1, "CHAN", None)?;
             if let Some(ref date) = change_date.date {
@@ -560,8 +585,7 @@ impl GedcomWriter {
 
     /// Writes a source record.
     fn write_source<W: Write>(&self, writer: &mut W, source: &Source) -> Result<(), io::Error> {
-        let xref = source.xref.as_deref().unwrap_or("@S0@");
-        self.write_line_with_xref(writer, 0, xref, "SOUR", None)?;
+        self.write_line_with_xref(writer, 0, source.xref.as_deref(), "SOUR", None)?;
 
         if let Some(ref title) = source.title {
             self.write_long_text(writer, 1, "TITL", title)?;
@@ -602,8 +626,7 @@ impl GedcomWriter {
         writer: &mut W,
         repo: &Repository,
     ) -> Result<(), io::Error> {
-        let xref = repo.xref.as_deref().unwrap_or("@R0@");
-        self.write_line_with_xref(writer, 0, xref, "REPO", None)?;
+        self.write_line_with_xref(writer, 0, repo.xref.as_deref(), "REPO", None)?;
 
         if let Some(ref name) = repo.name {
             self.write_line(writer, 1, "NAME", Some(name))?;
@@ -624,8 +647,7 @@ impl GedcomWriter {
         writer: &mut W,
         submitter: &Submitter,
     ) -> Result<(), io::Error> {
-        let xref = submitter.xref.as_deref().unwrap_or("@SUBM0@");
-        self.write_line_with_xref(writer, 0, xref, "SUBM", None)?;
+        self.write_line_with_xref(writer, 0, submitter.xref.as_deref(), "SUBM", None)?;
 
         if let Some(ref name) = submitter.name {
             self.write_line(writer, 1, "NAME", Some(name))?;
@@ -661,8 +683,7 @@ impl GedcomWriter {
         writer: &mut W,
         submission: &Submission,
     ) -> Result<(), io::Error> {
-        let xref = submission.xref.as_deref().unwrap_or("@SUBN0@");
-        self.write_line_with_xref(writer, 0, xref, "SUBN", None)?;
+        self.write_line_with_xref(writer, 0, submission.xref.as_deref(), "SUBN", None)?;
 
         if let Some(ref subm) = submission.submitter_ref {
             self.write_line(writer, 1, "SUBM", Some(subm))?;
@@ -693,8 +714,7 @@ impl GedcomWriter {
         writer: &mut W,
         media: &Multimedia,
     ) -> Result<(), io::Error> {
-        let xref = media.xref.as_deref().unwrap_or("@M0@");
-        self.write_line_with_xref(writer, 0, xref, "OBJE", None)?;
+        self.write_line_with_xref(writer, 0, media.xref.as_deref(), "OBJE", None)?;
 
         if let Some(ref file) = media.file {
             self.write_line(writer, 1, "FILE", file.value.as_deref())?;
@@ -787,6 +807,150 @@ impl GedcomWriter {
             self.write_line(writer, level + 1, "TIME", Some(time))?;
         }
 
+        // GEDCOM 7.0: PHRASE substructure
+        if let Some(ref phrase) = date.phrase {
+            self.write_line(writer, level + 1, "PHRASE", Some(phrase))?;
+        }
+
+        Ok(())
+    }
+
+    /// Writes a schema structure (GEDCOM 7.0).
+    fn write_schema<W: Write>(&self, writer: &mut W, schema: &Schema) -> Result<(), io::Error> {
+        self.write_line(writer, 1, "SCHMA", None)?;
+
+        for tag_def in &schema.tag_definitions {
+            let payload = tag_def.to_payload();
+            self.write_line(writer, 2, "TAG", Some(&payload))?;
+        }
+
+        Ok(())
+    }
+
+    /// Writes a shared note record (GEDCOM 7.0).
+    fn write_shared_note<W: Write>(
+        &self,
+        writer: &mut W,
+        note: &SharedNote,
+    ) -> Result<(), io::Error> {
+        self.write_line_with_xref(writer, 0, note.xref.as_deref(), "SNOTE", Some(&note.text))?;
+
+        if let Some(ref mime) = note.mime {
+            self.write_line(writer, 1, "MIME", Some(mime))?;
+        }
+
+        if let Some(ref lang) = note.language {
+            self.write_line(writer, 1, "LANG", Some(lang))?;
+        }
+
+        for translation in &note.translations {
+            self.write_line(writer, 1, "TRAN", Some(&translation.text))?;
+            if let Some(ref mime) = translation.mime {
+                self.write_line(writer, 2, "MIME", Some(mime))?;
+            }
+            if let Some(ref lang) = translation.language {
+                self.write_line(writer, 2, "LANG", Some(lang))?;
+            }
+        }
+
+        for exid in &note.external_ids {
+            self.write_line(writer, 1, "EXID", Some(&exid.id))?;
+            if let Some(ref type_uri) = exid.type_uri {
+                self.write_line(writer, 2, "TYPE", Some(type_uri))?;
+            }
+        }
+
+        for citation in &note.source_citations {
+            self.write_citation(writer, 1, citation)?;
+        }
+
+        Ok(())
+    }
+
+    /// Writes a sort date structure (GEDCOM 7.0).
+    fn write_sort_date<W: Write>(
+        &self,
+        writer: &mut W,
+        level: u8,
+        sort_date: &SortDate,
+    ) -> Result<(), io::Error> {
+        if let Some(ref value) = sort_date.value {
+            self.write_line(writer, level, "SDATE", Some(value))?;
+        }
+
+        if let Some(ref time) = sort_date.time {
+            self.write_line(writer, level + 1, "TIME", Some(time))?;
+        }
+
+        if let Some(ref phrase) = sort_date.phrase {
+            self.write_line(writer, level + 1, "PHRASE", Some(phrase))?;
+        }
+
+        Ok(())
+    }
+
+    /// Writes a non-event structure (GEDCOM 7.0).
+    fn write_non_event<W: Write>(
+        &self,
+        writer: &mut W,
+        level: u8,
+        non_event: &NonEvent,
+    ) -> Result<(), io::Error> {
+        self.write_line(writer, level, "NO", Some(&non_event.event_type))?;
+
+        if let Some(ref date) = non_event.date {
+            self.write_date(writer, level + 1, date)?;
+        }
+
+        if let Some(ref note) = non_event.note {
+            self.write_note(writer, level + 1, note)?;
+        }
+
+        for citation in &non_event.source_citations {
+            self.write_citation(writer, level + 1, citation)?;
+        }
+
+        Ok(())
+    }
+
+    /// Writes an LDS ordinance structure.
+    fn write_lds_ordinance<W: Write>(
+        &self,
+        writer: &mut W,
+        level: u8,
+        ordinance: &LdsOrdinance,
+    ) -> Result<(), io::Error> {
+        let tag = ordinance
+            .ordinance_type
+            .as_ref()
+            .map_or("BAPL", |t| t.to_tag());
+
+        self.write_line(writer, level, tag, None)?;
+
+        if let Some(ref date) = ordinance.date {
+            self.write_date(writer, level + 1, date)?;
+        }
+
+        if let Some(ref temple) = ordinance.temple {
+            self.write_line(writer, level + 1, "TEMP", Some(temple))?;
+        }
+
+        if let Some(ref status) = ordinance.status {
+            self.write_line(writer, level + 1, "STAT", Some(status.to_gedcom_value()))?;
+        }
+
+        if let Some(ref famc) = ordinance.family_xref {
+            self.write_line(writer, level + 1, "FAMC", Some(famc))?;
+        }
+
+        if let Some(ref note) = ordinance.note {
+            self.write_note(writer, level + 1, note)?;
+        }
+
+        for citation in &ordinance.source_citations {
+            self.write_citation(writer, level + 1, citation)?;
+        }
+
         Ok(())
     }
 
@@ -867,11 +1031,12 @@ impl GedcomWriter {
         &self,
         writer: &mut W,
         level: u8,
-        xref: &str,
+        xref: Option<&str>,
         tag: &str,
         value: Option<&str>,
     ) -> Result<(), io::Error> {
-        write!(writer, "{level} {xref} {tag}").map_err(io_error)?;
+        let xref_str = xref.unwrap_or("@X0@");
+        write!(writer, "{level} {xref_str} {tag}").map_err(io_error)?;
 
         if let Some(v) = value {
             if !v.is_empty() {

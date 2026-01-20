@@ -8,6 +8,7 @@ use crate::{
     types::{
         date::Date,
         event::{family::FamilyEventDetail, Event},
+        gedcom7::SortDate,
         individual::family_link::FamilyLink,
         multimedia::Multimedia,
         note::Note,
@@ -23,6 +24,13 @@ use crate::{
 /// EVEN tag in this structure is for recording general events that are not specified in the
 /// specification. The event indicated by this general EVEN tag is defined by the value of the
 /// subordinate TYPE tag (`event_type`).
+///
+/// # GEDCOM 7.0 Additions
+///
+/// In GEDCOM 7.0, events can have additional substructures:
+/// - `SDATE` - A sort date used for ordering events when the actual date is vague
+///
+/// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#INDIVIDUAL_EVENT_STRUCTURE>
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Detail {
@@ -39,6 +47,12 @@ pub struct Detail {
     pub event_type: Option<String>,
     pub citations: Vec<Citation>,
     pub multimedia: Vec<Multimedia>,
+    /// A sort date used for ordering events (GEDCOM 7.0).
+    ///
+    /// This is intended for use when the actual date is vague (e.g., "before 1820")
+    /// but the user has additional information suggesting a more specific date
+    /// to use for sorting purposes.
+    pub sort_date: Option<SortDate>,
 }
 
 impl Detail {
@@ -59,6 +73,7 @@ impl Detail {
             event_type: None,
             citations: Vec::new(),
             multimedia: Vec::new(),
+            sort_date: None,
         };
         event.parse(tokenizer, level)?;
         Ok(event)
@@ -178,6 +193,7 @@ impl Parser for Detail {
                 "OBJE" => {
                     self.add_multimedia_record(Multimedia::new(tokenizer, level + 1, pointer)?);
                 }
+                "SDATE" => self.sort_date = Some(SortDate::new(tokenizer, level + 1)?),
                 _ => {
                     return Err(GedcomError::ParseError {
                         line: tokenizer.line,

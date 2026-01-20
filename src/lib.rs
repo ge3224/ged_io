@@ -132,8 +132,14 @@ fn main() -> Result<(), Box<dyn Error>> {
 #![deny(clippy::pedantic)]
 #![warn(missing_docs)]
 
+/// Utility functions for GEDCOM processing.
+///
+/// This module provides utility functions for:
+/// - @ sign escaping/unescaping based on GEDCOM version
+/// - String interning for memory efficiency
+/// - Known GEDCOM tag handling
 #[macro_use]
-mod util;
+pub mod util;
 /// Error types for the `ged_io` crate.
 pub mod error;
 /// Builder pattern for configuring GEDCOM parsing.
