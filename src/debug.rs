@@ -577,7 +577,12 @@ mod tests {
             surname_prefix: None,
             note: None,
             suffix: Some("Jr.".to_string()),
+            nickname: None,
             source: Vec::new(),
+            name_type: None,
+            phonetic: Vec::new(),
+            romanized: Vec::new(),
+            custom_data: Vec::new(),
         };
 
         let debug_output = format!("{:?}", name.debug());
