@@ -485,7 +485,31 @@ impl GedcomWriter {
         }
 
         if let Some(ref place) = event.place {
-            self.write_line(writer, level + 1, "PLAC", Some(place))?;
+            self.write_line(writer, level + 1, "PLAC", place.value.as_deref())?;
+            if let Some(ref form) = place.form {
+                self.write_line(writer, level + 2, "FORM", Some(form))?;
+            }
+            if let Some(ref map) = place.map {
+                self.write_line(writer, level + 2, "MAP", None)?;
+                if let Some(ref lat) = map.latitude {
+                    self.write_line(writer, level + 3, "LATI", Some(lat))?;
+                }
+                if let Some(ref lon) = map.longitude {
+                    self.write_line(writer, level + 3, "LONG", Some(lon))?;
+                }
+            }
+            for phonetic in &place.phonetic {
+                self.write_line(writer, level + 2, "FONE", Some(&phonetic.value))?;
+                if let Some(ref vtype) = phonetic.variation_type {
+                    self.write_line(writer, level + 3, "TYPE", Some(vtype))?;
+                }
+            }
+            for romanized in &place.romanized {
+                self.write_line(writer, level + 2, "ROMN", Some(&romanized.value))?;
+                if let Some(ref vtype) = romanized.variation_type {
+                    self.write_line(writer, level + 3, "TYPE", Some(vtype))?;
+                }
+            }
         }
 
         if let Some(ref event_type) = event.event_type {
@@ -500,6 +524,62 @@ impl GedcomWriter {
             self.write_note(writer, level + 1, note)?;
         }
 
+        // New fields: CAUS, RESN, AGE, AGNC, RELI
+        if let Some(ref cause) = event.cause {
+            self.write_long_text(writer, level + 1, "CAUS", cause)?;
+        }
+
+        if let Some(ref restriction) = event.restriction {
+            self.write_line(writer, level + 1, "RESN", Some(restriction))?;
+        }
+
+        if let Some(ref age) = event.age {
+            self.write_line(writer, level + 1, "AGE", Some(age))?;
+        }
+
+        if let Some(ref agency) = event.agency {
+            self.write_line(writer, level + 1, "AGNC", Some(agency))?;
+        }
+
+        if let Some(ref religion) = event.religion {
+            self.write_line(writer, level + 1, "RELI", Some(religion))?;
+        }
+
+        Ok(())
+    }
+
+    /// Writes a place structure.
+    fn write_place<W: Write>(
+        &self,
+        writer: &mut W,
+        level: u8,
+        place: &crate::types::place::Place,
+    ) -> Result<(), io::Error> {
+        self.write_line(writer, level, "PLAC", place.value.as_deref())?;
+        if let Some(ref form) = place.form {
+            self.write_line(writer, level + 1, "FORM", Some(form))?;
+        }
+        if let Some(ref map) = place.map {
+            self.write_line(writer, level + 1, "MAP", None)?;
+            if let Some(ref lat) = map.latitude {
+                self.write_line(writer, level + 2, "LATI", Some(lat))?;
+            }
+            if let Some(ref lon) = map.longitude {
+                self.write_line(writer, level + 2, "LONG", Some(lon))?;
+            }
+        }
+        for phonetic in &place.phonetic {
+            self.write_line(writer, level + 1, "FONE", Some(&phonetic.value))?;
+            if let Some(ref vtype) = phonetic.variation_type {
+                self.write_line(writer, level + 2, "TYPE", Some(vtype))?;
+            }
+        }
+        for romanized in &place.romanized {
+            self.write_line(writer, level + 1, "ROMN", Some(&romanized.value))?;
+            if let Some(ref vtype) = romanized.variation_type {
+                self.write_line(writer, level + 2, "TYPE", Some(vtype))?;
+            }
+        }
         Ok(())
     }
 
@@ -517,7 +597,7 @@ impl GedcomWriter {
         }
 
         if let Some(ref place) = attr.place {
-            self.write_line(writer, 2, "PLAC", Some(place))?;
+            self.write_place(writer, 2, place)?;
         }
 
         for citation in &attr.sources {
@@ -1145,6 +1225,7 @@ fn event_to_tag(event: &Event) -> &'static str {
         Event::MarriageLicense => "MARL",
         Event::MarriageSettlement => "MARS",
         Event::Residence => "RESI",
+        Event::Separated => "SEP",
         Event::Event | Event::Other => "EVEN",
         Event::SourceData(_) => "DATA",
     }
