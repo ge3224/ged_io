@@ -9,9 +9,10 @@ use crate::{
         date::Date,
         event::{family::FamilyEventDetail, Event},
         gedcom7::SortDate,
-        individual::family_link::FamilyLink,
+        individual::{association::Association, family_link::FamilyLink},
         multimedia::Multimedia,
         note::Note,
+        place::Place,
         source::citation::Citation,
     },
     GedcomError,
@@ -37,7 +38,14 @@ pub struct Detail {
     pub event: Event,
     pub value: Option<String>,
     pub date: Option<Date>,
-    pub place: Option<String>,
+    /// The place where the event occurred (tag: PLAC).
+    ///
+    /// Now uses the full `Place` structure which supports:
+    /// - Geographic coordinates (MAP with LATI/LONG)
+    /// - Phonetic variations (FONE)
+    /// - Romanized variations (ROMN)
+    /// - Place form
+    pub place: Option<Place>,
     pub note: Option<Note>,
     pub family_link: Option<FamilyLink>,
     pub family_event_details: Vec<FamilyEventDetail>,
@@ -53,6 +61,44 @@ pub struct Detail {
     /// but the user has additional information suggesting a more specific date
     /// to use for sorting purposes.
     pub sort_date: Option<SortDate>,
+    /// Associations with individuals related to this event (e.g., witnesses, godparents).
+    pub associations: Vec<Association>,
+    /// The cause of the event (tag: CAUS).
+    ///
+    /// Used to indicate what caused the event to occur. Commonly used with death events
+    /// to record the cause of death.
+    ///
+    /// See GEDCOM 5.5.1 spec, page 43; <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#CAUS>
+    pub cause: Option<String>,
+    /// Restriction notice (tag: RESN).
+    ///
+    /// A flag that indicates access to information has been restricted.
+    /// Valid values are:
+    /// - `confidential` - Not for public distribution
+    /// - `locked` - Cannot be modified
+    /// - `privacy` - Information is private
+    ///
+    /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#RESN>
+    pub restriction: Option<String>,
+    /// Age at the time of the event (tag: AGE).
+    ///
+    /// The age of the individual at the time the event occurred.
+    /// Format examples: "25y", "25y 6m", "CHILD", "INFANT", "STILLBORN"
+    ///
+    /// See GEDCOM 5.5.1 spec, page 42; <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#AGE>
+    pub age: Option<String>,
+    /// Responsible agency (tag: AGNC).
+    ///
+    /// The organization, institution, corporation, person, or other entity
+    /// that has authority or control interests in the associated context.
+    ///
+    /// See GEDCOM 5.5.1 spec, page 42; <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#AGNC>
+    pub agency: Option<String>,
+    /// Religion associated with this event (tag: RELI).
+    ///
+    /// A religious denomination to which a person is affiliated or for which
+    /// a record applies.
+    pub religion: Option<String>,
 }
 
 impl Detail {
@@ -74,6 +120,12 @@ impl Detail {
             citations: Vec::new(),
             multimedia: Vec::new(),
             sort_date: None,
+            associations: Vec::new(),
+            cause: None,
+            restriction: None,
+            age: None,
+            agency: None,
+            religion: None,
         };
         event.parse(tokenizer, level)?;
         Ok(event)
@@ -123,6 +175,7 @@ impl Detail {
             "PROB" => Event::Probate,
             "RESI" => Event::Residence,
             "RETI" => Event::Retired,
+            "SEP" => Event::Separated,
             "WILL" => Event::Will,
             _ => panic!("Unrecognized EventType tag: {tag}"),
         }
@@ -152,7 +205,9 @@ impl std::fmt::Debug for Detail {
         let mut debug = f.debug_struct(&event_type);
 
         fmt_optional_value!(debug, "date", &self.date);
-        fmt_optional_value!(debug, "place", &self.place);
+        if let Some(ref place) = self.place {
+            debug.field("place", &place.value);
+        }
 
         debug.finish_non_exhaustive()
     }
@@ -178,7 +233,7 @@ impl Parser for Detail {
             }
             match tag {
                 "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
-                "PLAC" => self.place = Some(tokenizer.take_line_value()?),
+                "PLAC" => self.place = Some(Place::new(tokenizer, level + 1)?),
                 "SOUR" => self.add_citation(Citation::new(tokenizer, level + 1)?),
                 "FAMC" => self.family_link = Some(FamilyLink::new(tokenizer, level + 1, tag)?),
                 "HUSB" | "WIFE" => {
@@ -194,11 +249,16 @@ impl Parser for Detail {
                     self.add_multimedia_record(Multimedia::new(tokenizer, level + 1, pointer)?);
                 }
                 "SDATE" => self.sort_date = Some(SortDate::new(tokenizer, level + 1)?),
+                "ASSO" => self.associations.push(Association::new(tokenizer, level + 1)?),
+                "CAUS" => self.cause = Some(tokenizer.take_continued_text(level + 1)?),
+                "RESN" => self.restriction = Some(tokenizer.take_line_value()?),
+                "AGE" => self.age = Some(tokenizer.take_line_value()?),
+                "AGNC" => self.agency = Some(tokenizer.take_line_value()?),
+                "RELI" => self.religion = Some(tokenizer.take_line_value()?),
                 _ => {
-                    return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
-                        message: format!("Unhandled Detail Tag: {tag}"),
-                    })
+                    // Gracefully skip unknown tags instead of failing
+                    // This handles non-standard extensions from various GEDCOM generators
+                    tokenizer.take_line_value()?;
                 }
             }
             Ok(())
@@ -211,5 +271,138 @@ impl Parser for Detail {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::Gedcom;
+
+    #[test]
+    fn test_parse_event_with_cause() {
+        let sample = "\
+            0 HEAD\n\
+            1 GEDC\n\
+            2 VERS 5.5.1\n\
+            0 @I1@ INDI\n\
+            1 NAME John /Doe/\n\
+            1 DEAT Y\n\
+            2 DATE 15 MAR 1900\n\
+            2 PLAC New York, NY\n\
+            2 CAUS Heart failure\n\
+            0 TRLR";
+
+        let mut doc = Gedcom::new(sample.chars()).unwrap();
+        let data = doc.parse_data().unwrap();
+
+        let death = &data.individuals[0].events[0];
+        assert_eq!(death.cause.as_ref().unwrap(), "Heart failure");
+    }
+
+    #[test]
+    fn test_parse_event_with_restriction() {
+        let sample = "\
+            0 HEAD\n\
+            1 GEDC\n\
+            2 VERS 7.0\n\
+            0 @I1@ INDI\n\
+            1 NAME John /Doe/\n\
+            1 BIRT\n\
+            2 DATE 1 JAN 1950\n\
+            2 RESN confidential\n\
+            0 TRLR";
+
+        let mut doc = Gedcom::new(sample.chars()).unwrap();
+        let data = doc.parse_data().unwrap();
+
+        let birth = &data.individuals[0].events[0];
+        assert_eq!(birth.restriction.as_ref().unwrap(), "confidential");
+    }
+
+    #[test]
+    fn test_parse_event_with_age() {
+        let sample = "\
+            0 HEAD\n\
+            1 GEDC\n\
+            2 VERS 5.5.1\n\
+            0 @I1@ INDI\n\
+            1 NAME John /Doe/\n\
+            1 DEAT Y\n\
+            2 DATE 15 MAR 1900\n\
+            2 AGE 75y 3m\n\
+            0 TRLR";
+
+        let mut doc = Gedcom::new(sample.chars()).unwrap();
+        let data = doc.parse_data().unwrap();
+
+        let death = &data.individuals[0].events[0];
+        assert_eq!(death.age.as_ref().unwrap(), "75y 3m");
+    }
+
+    #[test]
+    fn test_parse_event_with_agency() {
+        let sample = "\
+            0 HEAD\n\
+            1 GEDC\n\
+            2 VERS 5.5.1\n\
+            0 @I1@ INDI\n\
+            1 NAME John /Doe/\n\
+            1 GRAD\n\
+            2 DATE 15 JUN 1970\n\
+            2 AGNC Harvard University\n\
+            0 TRLR";
+
+        let mut doc = Gedcom::new(sample.chars()).unwrap();
+        let data = doc.parse_data().unwrap();
+
+        let grad = &data.individuals[0].events[0];
+        assert_eq!(grad.agency.as_ref().unwrap(), "Harvard University");
+    }
+
+    #[test]
+    fn test_parse_event_with_religion() {
+        let sample = "\
+            0 HEAD\n\
+            1 GEDC\n\
+            2 VERS 5.5.1\n\
+            0 @I1@ INDI\n\
+            1 NAME John /Doe/\n\
+            1 CHR\n\
+            2 DATE 1 FEB 1950\n\
+            2 RELI Catholic\n\
+            0 TRLR";
+
+        let mut doc = Gedcom::new(sample.chars()).unwrap();
+        let data = doc.parse_data().unwrap();
+
+        let chr = &data.individuals[0].events[0];
+        assert_eq!(chr.religion.as_ref().unwrap(), "Catholic");
+    }
+
+    #[test]
+    fn test_parse_event_with_all_new_fields() {
+        let sample = "\
+            0 HEAD\n\
+            1 GEDC\n\
+            2 VERS 7.0\n\
+            0 @I1@ INDI\n\
+            1 NAME John /Doe/\n\
+            1 DEAT Y\n\
+            2 DATE 15 MAR 1900\n\
+            2 PLAC Boston, MA\n\
+            2 CAUS Pneumonia\n\
+            2 AGE 80y\n\
+            2 AGNC Massachusetts General Hospital\n\
+            2 RESN privacy\n\
+            0 TRLR";
+
+        let mut doc = Gedcom::new(sample.chars()).unwrap();
+        let data = doc.parse_data().unwrap();
+
+        let death = &data.individuals[0].events[0];
+        assert_eq!(death.cause.as_ref().unwrap(), "Pneumonia");
+        assert_eq!(death.age.as_ref().unwrap(), "80y");
+        assert_eq!(death.agency.as_ref().unwrap(), "Massachusetts General Hospital");
+        assert_eq!(death.restriction.as_ref().unwrap(), "privacy");
     }
 }
