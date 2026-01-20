@@ -40,7 +40,7 @@ the following goals:
 * Comprehensive error handling with detailed context
 * Comprehensive benchmarking suite with Criterion.rs
 
-### GEDCOM 7.0 Support (Complete in v0.7)
+### GEDCOM 7.0 Support (Complete)
 
 * `SNOTE` (shared note) records
 * `SCHMA` (schema) for extension tag definitions
@@ -57,20 +57,31 @@ the following goals:
 * `@` sign escaping utilities for version-specific handling
 * Comprehensive migration documentation (see [MIGRATION.md](MIGRATION.md))
 
+### New in v0.8
+
+* **Complete GEDCOM 5.5.1/7.0 tag support** - All standard tags now parsed
+* **Enhanced Place structure** - MAP coordinates (LATI/LONG), FONE/ROMN variations
+* **Enhanced Name structure** - TYPE (Birth, Married, Maiden, etc.), FONE/ROMN variations
+* **Source citation stats** - `count_source_citations()` with detailed breakdown
+* **ISO-8859-15 encoding** - Latin-9 support for European GEDCOM files
+* **EVEN/ROLE in citations** - Full source citation structure support
+* **Additional record fields** - UID, EXID, ALIA, ANCI, DESI, RESN, CAUS, AGE, AGNC, RELI
+* **Association support** - ASSO tag for individual associations
+
 ## Installation
 
 Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-ged_io = "0.7"
+ged_io = "0.8"
 ```
 
 For JSON serialization support:
 
 ```toml
 [dependencies]
-ged_io = { version = "0.7", features = ["json"] }
+ged_io = { version = "0.8", features = ["json"] }
 ```
 
 ## Quick Start
@@ -559,10 +570,10 @@ This project is under active development. The core parsing functionality works
 for many GEDCOM files, but expect breaking changes in future `0.x` releases as
 the API evolves.
 
-### Implemented Features (v0.7)
+### Implemented Features (v0.8)
 
-- ✅ GEDCOM 5.5.1 parsing
-- ✅ **GEDCOM 7.0 support** (complete)
+- ✅ **Complete GEDCOM 5.5.1 tag support**
+- ✅ **Complete GEDCOM 7.0 tag support**
 - ✅ **Performance optimized** (~40% faster parsing)
 - ✅ **Indexed lookups** for O(1) cross-reference resolution
 - ✅ **Memory-efficient** string storage (`Box<str>`)
@@ -583,6 +594,14 @@ the API evolves.
 - ✅ LDS ordinances including GEDCOM 7.0 `INIL`
 - ✅ Version-aware `@` sign escaping utilities
 - ✅ Migration documentation
+- ✅ **Enhanced Place structure** (MAP, LATI, LONG, FONE, ROMN)
+- ✅ **Enhanced Name structure** (TYPE, FONE, ROMN)
+- ✅ **Source citation counting** with detailed breakdown
+- ✅ **ISO-8859-15 (Latin-9) encoding** support
+- ✅ **EVEN/ROLE in source citations**
+- ✅ **UID, EXID, ALIA, ANCI, DESI** on records
+- ✅ **CAUS, RESN, AGE, AGNC, RELI** on events/attributes
+- ✅ **Association (ASSO)** support
 
 ### Planned Features
 
