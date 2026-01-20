@@ -9,8 +9,8 @@ use crate::{
 };
 
 /// `FamilyEventDetail` defines an additional dataset found in certain events.
-#[derive(Clone)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize, PartialEq))]
+#[derive(Clone, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct FamilyEventDetail {
     pub member: Spouse,
     pub age: Option<String>,

@@ -23,8 +23,8 @@ use crate::{
 /// EVEN tag in this structure is for recording general events that are not specified in the
 /// specification. The event indicated by this general EVEN tag is defined by the value of the
 /// subordinate TYPE tag (`event_type`).
-#[derive(Clone)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize, PartialEq))]
+#[derive(Clone, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Detail {
     pub event: Event,
     pub value: Option<String>,

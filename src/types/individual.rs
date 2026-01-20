@@ -28,7 +28,7 @@ use serde::{Deserialize, Serialize};
 /// individual. These facts may come from multiple sources. Source citations and notes allow
 /// documentation of the source where each of the facts were discovered. See
 /// <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#INDIVIDUAL_RECORD>.
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Individual {
     pub xref: Option<Xref>,

@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 
 /// `HeadPlace` (tag: PLAC) is is a placeholder for providing a default PLAC.FORM, and must not
 /// have a payload. See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#HEAD-PLAC>.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct HeadPlac {
     /// form (tag: FORM) is a comma-separated list of jurisdictional titles (e.g. City, County,

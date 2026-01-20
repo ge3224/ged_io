@@ -40,7 +40,7 @@ use crate::{
 /// Contains all genealogical data organized into logical collections, with individuals and
 /// families forming the core family tree, supported by sources, multimedia, and other
 /// documentation records.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct GedcomData {
     /// Header containing file metadata

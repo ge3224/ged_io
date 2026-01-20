@@ -22,8 +22,8 @@ use crate::{
 /// `FamilyLinkType` is a code used to indicates whether a family link is a pointer to a family
 /// where this person is a child (FAMC tag), or it is pointer to a family where this person is a
 /// spouse or parent (FAMS tag). See GEDCOM 5.5 spec, page 26.
-#[derive(Clone, Debug)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize, PartialEq))]
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub enum FamilyLinkType {
     Spouse,
     Child,
@@ -39,8 +39,8 @@ impl std::fmt::Display for FamilyLinkType {
 /// to a family through either the FAMC tag or the FAMS tag. The FAMC tag provides a pointer to a
 /// family where this person is a child. The FAMS tag provides a pointer to a family where this
 /// person is a spouse or parent. See GEDCOM 5.5 spec, page 26.
-#[derive(Clone, Debug)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize, PartialEq))]
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct FamilyLink {
     pub xref: Xref,
     pub family_link_type: FamilyLinkType,

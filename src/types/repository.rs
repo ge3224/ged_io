@@ -10,7 +10,7 @@ use crate::{
 use serde::{Deserialize, Serialize};
 
 /// Data repository, the `REPO` tag
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Repository {
     /// Optional reference to link to this repo

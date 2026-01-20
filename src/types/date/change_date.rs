@@ -23,8 +23,8 @@ use crate::{
 ///
 /// [GEDCOM 5.5.1 specification, page 31](https://gedcom.io/specifications/ged551.pdf)
 /// [GEDCOM 7.0 Specification, page 44](gedcom.io/specifications/FamilySearchGEDCOMv7.html)
-#[derive(Clone, Debug, Default)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize, PartialEq))]
+#[derive(Clone, Debug, Default, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct ChangeDate {
     pub date: Option<Date>,
     pub note: Option<Note>,
