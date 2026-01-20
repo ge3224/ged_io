@@ -49,6 +49,18 @@ pub struct ParserConfig {
     /// When true, the parser attempts to auto-detect the character encoding.
     /// When false, UTF-8 is assumed.
     pub encoding_detection: bool,
+
+    /// When true, dates are validated for proper GEDCOM format.
+    /// When false, dates are stored as-is without validation.
+    pub date_validation: bool,
+
+    /// Optional maximum file size in bytes. If set, files exceeding this size
+    /// will cause an error before parsing begins.
+    pub max_file_size: Option<usize>,
+
+    /// When true, original spacing and formatting in text values is preserved.
+    /// When false, text may be normalized.
+    pub preserve_formatting: bool,
 }
 
 impl Default for ParserConfig {
@@ -58,6 +70,9 @@ impl Default for ParserConfig {
             validate_references: false,
             ignore_unknown_tags: false,
             encoding_detection: false,
+            date_validation: false,
+            max_file_size: None,
+            preserve_formatting: true,
         }
     }
 }
@@ -101,6 +116,9 @@ impl GedcomBuilder {
     /// - `validate_references`: false
     /// - `ignore_unknown_tags`: false
     /// - `encoding_detection`: false
+    /// - `date_validation`: false
+    /// - `max_file_size`: None (unlimited)
+    /// - `preserve_formatting`: true
     ///
     /// # Example
     ///
@@ -161,6 +179,127 @@ impl GedcomBuilder {
     #[must_use]
     pub fn validate_references(mut self, enabled: bool) -> Self {
         self.config.validate_references = enabled;
+        self
+    }
+
+    /// Enables or disables ignoring unknown tags.
+    ///
+    /// When enabled, unknown or unrecognized GEDCOM tags will be silently
+    /// ignored during parsing. When disabled, unknown tags may be stored
+    /// as custom data or cause errors (depending on strict_mode setting).
+    ///
+    /// # Arguments
+    ///
+    /// * `enabled` - Whether to ignore unknown tags
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use ged_io::GedcomBuilder;
+    ///
+    /// let builder = GedcomBuilder::new()
+    ///     .ignore_unknown_tags(true);
+    /// ```
+    #[must_use]
+    pub fn ignore_unknown_tags(mut self, enabled: bool) -> Self {
+        self.config.ignore_unknown_tags = enabled;
+        self
+    }
+
+    /// Enables or disables automatic encoding detection.
+    ///
+    /// When enabled, the parser will attempt to auto-detect the character
+    /// encoding of the GEDCOM file from the header or BOM. When disabled,
+    /// UTF-8 encoding is assumed.
+    ///
+    /// # Arguments
+    ///
+    /// * `enabled` - Whether to auto-detect encoding
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use ged_io::GedcomBuilder;
+    ///
+    /// let builder = GedcomBuilder::new()
+    ///     .encoding_detection(true);
+    /// ```
+    #[must_use]
+    pub fn encoding_detection(mut self, enabled: bool) -> Self {
+        self.config.encoding_detection = enabled;
+        self
+    }
+
+    /// Enables or disables date format validation.
+    ///
+    /// When enabled, the parser will validate that date values conform to
+    /// the GEDCOM date format specification. Invalid dates will cause errors.
+    /// When disabled (default), dates are stored as-is without validation.
+    ///
+    /// # Arguments
+    ///
+    /// * `enabled` - Whether to validate dates
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use ged_io::GedcomBuilder;
+    ///
+    /// let builder = GedcomBuilder::new()
+    ///     .date_validation(true);
+    /// ```
+    #[must_use]
+    pub fn date_validation(mut self, enabled: bool) -> Self {
+        self.config.date_validation = enabled;
+        self
+    }
+
+    /// Sets a maximum file size limit for parsing.
+    ///
+    /// When set, the parser will return an error if the input exceeds
+    /// the specified size in bytes. This can be used as a safety measure
+    /// to prevent parsing extremely large files.
+    ///
+    /// # Arguments
+    ///
+    /// * `size` - Maximum file size in bytes
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use ged_io::GedcomBuilder;
+    ///
+    /// // Limit to 10 MB
+    /// let builder = GedcomBuilder::new()
+    ///     .max_file_size(10 * 1024 * 1024);
+    /// ```
+    #[must_use]
+    pub fn max_file_size(mut self, size: usize) -> Self {
+        self.config.max_file_size = Some(size);
+        self
+    }
+
+    /// Enables or disables preservation of original formatting.
+    ///
+    /// When enabled (default), original spacing and formatting in text
+    /// values is preserved. When disabled, text may be normalized
+    /// (e.g., collapsing multiple spaces).
+    ///
+    /// # Arguments
+    ///
+    /// * `enabled` - Whether to preserve formatting
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use ged_io::GedcomBuilder;
+    ///
+    /// let builder = GedcomBuilder::new()
+    ///     .preserve_formatting(false);
+    /// ```
+    #[must_use]
+    pub fn preserve_formatting(mut self, enabled: bool) -> Self {
+        self.config.preserve_formatting = enabled;
         self
     }
 
@@ -250,6 +389,14 @@ impl GedcomBuilder {
     /// # }
     /// ```
     pub fn build_from_str(self, content: &str) -> Result<GedcomData, GedcomError> {
+        // Check file size limit if configured
+        if let Some(max_size) = self.config.max_file_size {
+            let size = content.len();
+            if size > max_size {
+                return Err(GedcomError::FileSizeLimitExceeded { size, max_size });
+            }
+        }
+
         self.build(content.chars())
     }
 
@@ -348,16 +495,29 @@ mod tests {
         assert!(!builder.config().validate_references);
         assert!(!builder.config().ignore_unknown_tags);
         assert!(!builder.config().encoding_detection);
+        assert!(!builder.config().date_validation);
+        assert!(builder.config().max_file_size.is_none());
+        assert!(builder.config().preserve_formatting);
     }
 
     #[test]
     fn test_builder_fluent_api() {
         let builder = GedcomBuilder::new()
             .strict_mode(true)
-            .validate_references(true);
+            .validate_references(true)
+            .ignore_unknown_tags(true)
+            .encoding_detection(true)
+            .date_validation(true)
+            .max_file_size(1_000_000)
+            .preserve_formatting(false);
 
         assert!(builder.config().strict_mode);
         assert!(builder.config().validate_references);
+        assert!(builder.config().ignore_unknown_tags);
+        assert!(builder.config().encoding_detection);
+        assert!(builder.config().date_validation);
+        assert_eq!(builder.config().max_file_size, Some(1_000_000));
+        assert!(!builder.config().preserve_formatting);
     }
 
     #[test]
@@ -427,10 +587,35 @@ mod tests {
             validate_references: true,
             ignore_unknown_tags: true,
             encoding_detection: true,
+            date_validation: true,
+            max_file_size: Some(1000),
+            preserve_formatting: false,
         };
         let cloned = config.clone();
         assert_eq!(config.strict_mode, cloned.strict_mode);
         assert_eq!(config.validate_references, cloned.validate_references);
+        assert_eq!(config.date_validation, cloned.date_validation);
+        assert_eq!(config.max_file_size, cloned.max_file_size);
+        assert_eq!(config.preserve_formatting, cloned.preserve_formatting);
+    }
+
+    #[test]
+    fn test_builder_max_file_size_exceeded() {
+        let large_content = "0 HEAD\n1 GEDC\n2 VERS 5.5\n".to_string()
+            + &"0 @I1@ INDI\n1 NAME Test /Person/\n".repeat(100)
+            + "0 TRLR";
+
+        let result = GedcomBuilder::new()
+            .max_file_size(100) // 100 bytes limit
+            .build_from_str(&large_content);
+
+        match result {
+            Err(GedcomError::FileSizeLimitExceeded { size, max_size }) => {
+                assert!(size > 100);
+                assert_eq!(max_size, 100);
+            }
+            _ => panic!("Expected FileSizeLimitExceeded error"),
+        }
     }
 
     #[test]
