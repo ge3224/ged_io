@@ -5,7 +5,11 @@ use crate::{
     parser::{parse_subset, Parser},
     tokenizer::{Token, Tokenizer},
     types::{
-        date::Date, individual::attribute::IndividualAttribute, note::Note,
+        address::Address,
+        date::Date,
+        individual::attribute::IndividualAttribute,
+        note::Note,
+        place::Place,
         source::citation::Citation,
     },
     GedcomError,
@@ -23,7 +27,14 @@ use crate::{
 pub struct AttributeDetail {
     pub attribute: IndividualAttribute,
     pub value: Option<String>,
-    pub place: Option<String>,
+    /// The place where the attribute applies (tag: PLAC).
+    ///
+    /// Now uses the full `Place` structure which supports:
+    /// - Geographic coordinates (MAP with LATI/LONG)
+    /// - Phonetic variations (FONE)
+    /// - Romanized variations (ROMN)
+    /// - Place form
+    pub place: Option<Place>,
     pub date: Option<Date>,
     pub sources: Vec<Citation>,
     pub note: Option<Note>,
@@ -31,6 +42,26 @@ pub struct AttributeDetail {
     /// classify the parent event or attribute tag. This should be used to define what kind of
     /// identification number or fact classification is being defined.
     pub attribute_type: Option<String>,
+    /// Restriction notice (tag: RESN).
+    ///
+    /// A flag that indicates access to information has been restricted.
+    /// Valid values are:
+    /// - `confidential` - Not for public distribution
+    /// - `locked` - Cannot be modified
+    /// - `privacy` - Information is private
+    pub restriction: Option<String>,
+    /// Age at the time of the attribute (tag: AGE).
+    ///
+    /// The age of the individual at the time the attribute was recorded.
+    pub age: Option<String>,
+    /// Physical address associated with this attribute (tag: ADDR).
+    ///
+    /// Commonly used with RESI (residence) attributes.
+    pub address: Option<Address>,
+    /// Cause related to this attribute (tag: CAUS).
+    pub cause: Option<String>,
+    /// Responsible agency (tag: AGNC).
+    pub agency: Option<String>,
 }
 
 impl AttributeDetail {
@@ -52,6 +83,11 @@ impl AttributeDetail {
             sources: Vec::new(),
             note: None,
             attribute_type: None,
+            restriction: None,
+            age: None,
+            address: None,
+            cause: None,
+            agency: None,
         };
         attribute.parse(tokenizer, level)?;
         Ok(attribute)
@@ -113,14 +149,17 @@ impl Parser for AttributeDetail {
             match tag {
                 "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
                 "SOUR" => self.add_source_citation(Citation::new(tokenizer, level + 1)?),
-                "PLAC" => self.place = Some(tokenizer.take_line_value()?),
+                "PLAC" => self.place = Some(Place::new(tokenizer, level + 1)?),
                 "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
                 "TYPE" => self.attribute_type = Some(tokenizer.take_continued_text(level + 1)?),
+                "RESN" => self.restriction = Some(tokenizer.take_line_value()?),
+                "AGE" => self.age = Some(tokenizer.take_line_value()?),
+                "ADDR" => self.address = Some(Address::new(tokenizer, level + 1)?),
+                "CAUS" => self.cause = Some(tokenizer.take_continued_text(level + 1)?),
+                "AGNC" => self.agency = Some(tokenizer.take_line_value()?),
                 _ => {
-                    return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
-                        message: format!("Unhandled AttributeDetail Tag: {tag}"),
-                    })
+                    // Gracefully skip unknown tags instead of failing
+                    tokenizer.take_line_value()?;
                 }
             }
 
@@ -134,5 +173,87 @@ impl Parser for AttributeDetail {
         }
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::Gedcom;
+
+    #[test]
+    fn test_parse_attribute_with_restriction() {
+        let sample = "\
+            0 HEAD\n\
+            1 GEDC\n\
+            2 VERS 7.0\n\
+            0 @I1@ INDI\n\
+            1 NAME John /Doe/\n\
+            1 OCCU Software Engineer\n\
+            2 DATE FROM 2010 TO 2020\n\
+            2 RESN privacy\n\
+            0 TRLR";
+
+        let mut doc = Gedcom::new(sample.chars()).unwrap();
+        let data = doc.parse_data().unwrap();
+
+        let occu = &data.individuals[0].attributes[0];
+        assert_eq!(occu.value.as_ref().unwrap(), "Software Engineer");
+        assert_eq!(occu.restriction.as_ref().unwrap(), "privacy");
+    }
+
+    #[test]
+    fn test_parse_attribute_with_address() {
+        let sample = "\
+            0 HEAD\n\
+            1 GEDC\n\
+            2 VERS 5.5.1\n\
+            0 @I1@ INDI\n\
+            1 NAME John /Doe/\n\
+            1 RESI\n\
+            2 DATE FROM 2010 TO 2020\n\
+            2 PLAC New York, NY, USA\n\
+            2 ADDR 123 Main Street\n\
+            3 CITY New York\n\
+            3 STAE NY\n\
+            3 POST 10001\n\
+            3 CTRY USA\n\
+            0 TRLR";
+
+        let mut doc = Gedcom::new(sample.chars()).unwrap();
+        let data = doc.parse_data().unwrap();
+
+        let resi = &data.individuals[0].attributes[0];
+        assert!(resi.address.is_some());
+        let addr = resi.address.as_ref().unwrap();
+        assert_eq!(addr.city.as_ref().unwrap(), "New York");
+        assert_eq!(addr.state.as_ref().unwrap(), "NY");
+        assert_eq!(addr.post.as_ref().unwrap(), "10001");
+    }
+
+    #[test]
+    fn test_parse_attribute_with_place_coordinates() {
+        let sample = "\
+            0 HEAD\n\
+            1 GEDC\n\
+            2 VERS 5.5.1\n\
+            0 @I1@ INDI\n\
+            1 NAME John /Doe/\n\
+            1 RESI\n\
+            2 PLAC Paris, France\n\
+            3 MAP\n\
+            4 LATI N48.8566\n\
+            4 LONG E2.3522\n\
+            0 TRLR";
+
+        let mut doc = Gedcom::new(sample.chars()).unwrap();
+        let data = doc.parse_data().unwrap();
+
+        let resi = &data.individuals[0].attributes[0];
+        assert!(resi.place.is_some());
+        let place = resi.place.as_ref().unwrap();
+        assert_eq!(place.value.as_ref().unwrap(), "Paris, France");
+        assert!(place.has_coordinates());
+        assert!((place.latitude().unwrap() - 48.8566).abs() < 0.0001);
+        assert!((place.longitude().unwrap() - 2.3522).abs() < 0.0001);
     }
 }
