@@ -133,6 +133,215 @@ impl GedcomData {
         println!("  multimedia: {}", self.multimedia.len());
         println!("----------------------");
     }
+
+    // ========================================================================
+    // Convenience Methods for Common Data Access (Issue #29)
+    // ========================================================================
+
+    /// Finds an individual by their cross-reference ID (xref).
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use ged_io::Gedcom;
+    ///
+    /// let source = "0 HEAD\n1 GEDC\n2 VERS 5.5\n0 @I1@ INDI\n1 NAME John /Doe/\n0 TRLR";
+    /// let mut gedcom = Gedcom::new(source.chars()).unwrap();
+    /// let data = gedcom.parse_data().unwrap();
+    ///
+    /// let individual = data.find_individual("@I1@");
+    /// assert!(individual.is_some());
+    /// ```
+    #[must_use]
+    pub fn find_individual(&self, xref: &str) -> Option<&Individual> {
+        self.individuals.iter().find(|i| {
+            i.xref.as_ref().map_or(false, |x| x == xref)
+        })
+    }
+
+    /// Finds a family by their cross-reference ID (xref).
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use ged_io::Gedcom;
+    ///
+    /// let source = "0 HEAD\n1 GEDC\n2 VERS 5.5\n0 @F1@ FAM\n0 TRLR";
+    /// let mut gedcom = Gedcom::new(source.chars()).unwrap();
+    /// let data = gedcom.parse_data().unwrap();
+    ///
+    /// let family = data.find_family("@F1@");
+    /// assert!(family.is_some());
+    /// ```
+    #[must_use]
+    pub fn find_family(&self, xref: &str) -> Option<&Family> {
+        self.families.iter().find(|f| {
+            f.xref.as_ref().map_or(false, |x| x == xref)
+        })
+    }
+
+    /// Finds a source by their cross-reference ID (xref).
+    #[must_use]
+    pub fn find_source(&self, xref: &str) -> Option<&Source> {
+        self.sources.iter().find(|s| {
+            s.xref.as_ref().map_or(false, |x| x == xref)
+        })
+    }
+
+    /// Finds a repository by their cross-reference ID (xref).
+    #[must_use]
+    pub fn find_repository(&self, xref: &str) -> Option<&Repository> {
+        self.repositories.iter().find(|r| {
+            r.xref.as_ref().map_or(false, |x| x == xref)
+        })
+    }
+
+    /// Finds a multimedia record by their cross-reference ID (xref).
+    #[must_use]
+    pub fn find_multimedia(&self, xref: &str) -> Option<&Multimedia> {
+        self.multimedia.iter().find(|m| {
+            m.xref.as_ref().map_or(false, |x| x == xref)
+        })
+    }
+
+    /// Finds a submitter by their cross-reference ID (xref).
+    #[must_use]
+    pub fn find_submitter(&self, xref: &str) -> Option<&Submitter> {
+        self.submitters.iter().find(|s| {
+            s.xref.as_ref().map_or(false, |x| x == xref)
+        })
+    }
+
+    /// Gets the families where an individual is a spouse/partner.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use ged_io::Gedcom;
+    ///
+    /// let source = "0 HEAD\n1 GEDC\n2 VERS 5.5\n0 @I1@ INDI\n0 @F1@ FAM\n1 HUSB @I1@\n0 TRLR";
+    /// let mut gedcom = Gedcom::new(source.chars()).unwrap();
+    /// let data = gedcom.parse_data().unwrap();
+    ///
+    /// let families = data.get_families_as_spouse("@I1@");
+    /// assert_eq!(families.len(), 1);
+    /// ```
+    #[must_use]
+    pub fn get_families_as_spouse(&self, individual_xref: &str) -> Vec<&Family> {
+        self.families.iter().filter(|f| {
+            f.individual1.as_ref().map_or(false, |x| x == individual_xref) ||
+            f.individual2.as_ref().map_or(false, |x| x == individual_xref)
+        }).collect()
+    }
+
+    /// Gets the families where an individual is a child.
+    #[must_use]
+    pub fn get_families_as_child(&self, individual_xref: &str) -> Vec<&Family> {
+        self.families.iter().filter(|f| {
+            f.children.iter().any(|c| c == individual_xref)
+        }).collect()
+    }
+
+    /// Gets the children of a family as Individual references.
+    #[must_use]
+    pub fn get_children(&self, family: &Family) -> Vec<&Individual> {
+        family.children.iter()
+            .filter_map(|xref| self.find_individual(xref))
+            .collect()
+    }
+
+    /// Gets the parents/partners of a family as Individual references.
+    #[must_use]
+    pub fn get_parents(&self, family: &Family) -> Vec<&Individual> {
+        let mut parents = Vec::new();
+        if let Some(ref xref) = family.individual1 {
+            if let Some(ind) = self.find_individual(xref) {
+                parents.push(ind);
+            }
+        }
+        if let Some(ref xref) = family.individual2 {
+            if let Some(ind) = self.find_individual(xref) {
+                parents.push(ind);
+            }
+        }
+        parents
+    }
+
+    /// Gets the spouse/partner of an individual in a specific family.
+    #[must_use]
+    pub fn get_spouse(&self, individual_xref: &str, family: &Family) -> Option<&Individual> {
+        if family.individual1.as_ref().map_or(false, |x| x == individual_xref) {
+            family.individual2.as_ref().and_then(|x| self.find_individual(x))
+        } else if family.individual2.as_ref().map_or(false, |x| x == individual_xref) {
+            family.individual1.as_ref().and_then(|x| self.find_individual(x))
+        } else {
+            None
+        }
+    }
+
+    /// Searches for individuals whose name contains the given string (case-insensitive).
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use ged_io::Gedcom;
+    ///
+    /// let source = "0 HEAD\n1 GEDC\n2 VERS 5.5\n0 @I1@ INDI\n1 NAME John /Doe/\n0 TRLR";
+    /// let mut gedcom = Gedcom::new(source.chars()).unwrap();
+    /// let data = gedcom.parse_data().unwrap();
+    ///
+    /// let results = data.search_individuals_by_name("doe");
+    /// assert_eq!(results.len(), 1);
+    /// ```
+    #[must_use]
+    pub fn search_individuals_by_name(&self, query: &str) -> Vec<&Individual> {
+        let query_lower = query.to_lowercase();
+        self.individuals.iter().filter(|i| {
+            i.name.as_ref().map_or(false, |name| {
+                name.value.as_ref().map_or(false, |v| v.to_lowercase().contains(&query_lower))
+            })
+        }).collect()
+    }
+
+    /// Gets all individuals with a specific event type (e.g., Birth, Death, Marriage).
+    #[must_use]
+    pub fn get_individuals_with_event(&self, event_type: &crate::types::event::Event) -> Vec<&Individual> {
+        self.individuals.iter().filter(|i| {
+            i.events.iter().any(|e| &e.event == event_type)
+        }).collect()
+    }
+
+    /// Returns the total count of all records in the GEDCOM data.
+    #[must_use]
+    pub fn total_records(&self) -> usize {
+        self.individuals.len() +
+        self.families.len() +
+        self.sources.len() +
+        self.repositories.len() +
+        self.multimedia.len() +
+        self.submitters.len() +
+        self.submissions.len()
+    }
+
+    /// Checks if the GEDCOM data is empty (no records).
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.individuals.is_empty() &&
+        self.families.is_empty() &&
+        self.sources.is_empty() &&
+        self.repositories.is_empty() &&
+        self.multimedia.is_empty() &&
+        self.submitters.is_empty() &&
+        self.submissions.is_empty()
+    }
+
+    /// Gets the GEDCOM version from the header, if available.
+    #[must_use]
+    pub fn gedcom_version(&self) -> Option<&str> {
+        self.header.as_ref()
+            .and_then(|h| h.gedcom.as_ref())
+            .and_then(|g| g.version.as_deref())
+    }
 }
 
 impl Parser for GedcomData {
