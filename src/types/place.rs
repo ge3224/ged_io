@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 /// The type of each jurisdiction is given in the PLAC.FORM substructure, if present, or in the
 /// HEAD.PLAC.FORM structure. If neither is present, the jurisdictional types are unspecified
 /// beyond the lowest-to-highest order noted above.
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Place {
     pub value: Option<String>,

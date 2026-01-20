@@ -10,8 +10,8 @@ use crate::{
 use serde::{Deserialize, Serialize};
 
 /// Date encompasses a number of date formats, e.g. approximated, period, phrase and range.
-#[derive(Clone, Debug, Default)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize, PartialEq))]
+#[derive(Clone, Debug, Default, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Date {
     pub value: Option<String>,
     pub time: Option<String>,

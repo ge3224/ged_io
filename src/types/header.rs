@@ -19,7 +19,7 @@ use serde::{Deserialize, Serialize};
 
 /// Header (tag: HEAD) containing GEDCOM metadata.
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#HEADER>.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Header {
     /// tag: GEDC

@@ -16,7 +16,7 @@ use crate::{
 /// A multimedia link provides a way to associate digital media (images, audio, video, documents)
 /// with genealogical records. This can include photographs, scanned documents, audio recordings,
 /// or any other digital content that supplements the genealogical data.
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Link {
     /// Optional reference to link to this submitter

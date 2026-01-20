@@ -11,8 +11,8 @@ use serde::{Deserialize, Serialize};
 /// system.
 ///
 /// See <https://gedcom.io/specifications/ged55.pdf> (page 49).
-#[derive(Clone, Debug)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize, PartialEq))]
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct UserDefinedTag {
     pub tag: String,
     pub value: Option<String>,

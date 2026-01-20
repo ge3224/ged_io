@@ -16,8 +16,8 @@ use crate::{
 /// 1 = Questionable reliability of evidence (interviews, census, oral genealogies, or potential for bias for example, an autobiography)
 /// 2 = Secondary evidence, data officially recorded sometime after event
 /// 3 = Direct and primary evidence used, or by dominance of the evidence
-#[derive(Clone, Debug)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize, PartialEq))]
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub enum CertaintyAssessment {
     Unreliable,
     Questionable,

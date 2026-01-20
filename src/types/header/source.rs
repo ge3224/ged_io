@@ -14,7 +14,7 @@ use crate::{
 /// registration process for these identifiers existed for a time, but no longer does. If an
 /// existing identifier is known, it should be used. Otherwise, a URI owned by the product should
 /// be used instead. See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#HEAD-SOUR>.
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct HeadSour {
     pub value: Option<String>,

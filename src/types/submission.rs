@@ -24,7 +24,7 @@ use serde::{Deserialize, Serialize};
 /// References:
 /// [GEDCOM 5.5.1 specification, page 28](https://gedcom.io/specifications/ged551.pdf)
 /// [GEDCOM 7.0 Specification](gedcom.io/specifications/FamilySearchGEDCOMv7.html)
-#[derive(Debug, Default)]
+#[derive(Debug, Default, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Submission {
     /// Cross-reference identifier for this submission record

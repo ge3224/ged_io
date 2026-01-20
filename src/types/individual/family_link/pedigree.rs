@@ -3,8 +3,8 @@ use serde::{Deserialize, Serialize};
 
 /// Pedigree is a code used to indicate the child to family relationship for pedigree navigation
 /// purposes. See GEDCOM 5.5 spec, page 57.
-#[derive(Clone, Debug)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize, PartialEq))]
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub enum Pedigree {
     /// Adopted indicates adoptive parents.
     Adopted,
