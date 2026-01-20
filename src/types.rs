@@ -19,6 +19,7 @@ pub mod multimedia;
 pub mod note;
 pub mod place;
 pub mod repository;
+pub mod shared_note;
 pub mod source;
 pub mod submission;
 pub mod submitter;
@@ -29,8 +30,8 @@ use crate::{
     tokenizer::{Token, Tokenizer},
     types::{
         custom::UserDefinedTag, family::Family, header::Header, individual::Individual,
-        multimedia::Multimedia, repository::Repository, source::Source, submission::Submission,
-        submitter::Submitter,
+        multimedia::Multimedia, repository::Repository, shared_note::SharedNote, source::Source,
+        submission::Submission, submitter::Submitter,
     },
     GedcomError,
 };
@@ -40,6 +41,12 @@ use crate::{
 /// Contains all genealogical data organized into logical collections, with individuals and
 /// families forming the core family tree, supported by sources, multimedia, and other
 /// documentation records.
+///
+/// # GEDCOM Version Support
+///
+/// This structure supports both GEDCOM 5.5.1 and GEDCOM 7.0 files:
+/// - `submissions` are only present in GEDCOM 5.5.1 files
+/// - `shared_notes` are only present in GEDCOM 7.0 files
 #[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct GedcomData {
@@ -47,7 +54,7 @@ pub struct GedcomData {
     pub header: Option<Header>,
     /// List of submitters of the facts
     pub submitters: Vec<Submitter>,
-    /// List of submission records
+    /// List of submission records (GEDCOM 5.5.1 only)
     pub submissions: Vec<Submission>,
     /// Individuals within the family tree
     pub individuals: Vec<Individual>,
@@ -59,6 +66,12 @@ pub struct GedcomData {
     pub sources: Vec<Source>,
     /// A multimedia asset linked to a fact
     pub multimedia: Vec<Multimedia>,
+    /// Shared notes that can be referenced by multiple structures (GEDCOM 7.0 only)
+    ///
+    /// A shared note record may be pointed to by multiple other structures.
+    /// Shared notes should only be used if editing the note in one place
+    /// should edit it in all other places.
+    pub shared_notes: Vec<SharedNote>,
     /// Applications requiring the use of nonstandard tags should define them with a leading underscore
     /// so that they will not conflict with future GEDCOM standard tags. Systems that read
     /// user-defined tags must consider that they have meaning only with respect to a system
@@ -114,6 +127,11 @@ impl GedcomData {
         self.multimedia.push(multimedia);
     }
 
+    /// Adds a [`SharedNote`] record to the genealogy data (GEDCOM 7.0 only).
+    pub fn add_shared_note(&mut self, shared_note: SharedNote) {
+        self.shared_notes.push(shared_note);
+    }
+
     /// Adds a [`UserDefinedTag`] record to the genealogy data.
     pub fn add_custom_data(&mut self, non_standard_data: UserDefinedTag) {
         self.custom_data.push(Box::new(non_standard_data));
@@ -131,6 +149,7 @@ impl GedcomData {
         println!("  repositories: {}", self.repositories.len());
         println!("  sources: {}", self.sources.len());
         println!("  multimedia: {}", self.multimedia.len());
+        println!("  shared_notes: {}", self.shared_notes.len());
         println!("----------------------");
     }
 
@@ -209,6 +228,16 @@ impl GedcomData {
     pub fn find_submitter(&self, xref: &str) -> Option<&Submitter> {
         self.submitters.iter().find(|s| {
             s.xref.as_ref().is_some_and(|x| x == xref)
+        })
+    }
+
+    /// Finds a shared note by their cross-reference ID (xref).
+    ///
+    /// This is only relevant for GEDCOM 7.0 files.
+    #[must_use]
+    pub fn find_shared_note(&self, xref: &str) -> Option<&SharedNote> {
+        self.shared_notes.iter().find(|n| {
+            n.xref.as_ref().is_some_and(|x| x == xref)
         })
     }
 
@@ -320,7 +349,8 @@ impl GedcomData {
         self.repositories.len() +
         self.multimedia.len() +
         self.submitters.len() +
-        self.submissions.len()
+        self.submissions.len() +
+        self.shared_notes.len()
     }
 
     /// Checks if the GEDCOM data is empty (no records).
@@ -332,7 +362,8 @@ impl GedcomData {
         self.repositories.is_empty() &&
         self.multimedia.is_empty() &&
         self.submitters.is_empty() &&
-        self.submissions.is_empty()
+        self.submissions.is_empty() &&
+        self.shared_notes.is_empty()
     }
 
     /// Gets the GEDCOM version from the header, if available.
@@ -341,6 +372,39 @@ impl GedcomData {
         self.header.as_ref()
             .and_then(|h| h.gedcom.as_ref())
             .and_then(|g| g.version.as_deref())
+    }
+
+    /// Returns true if this appears to be a GEDCOM 7.0 file.
+    ///
+    /// Checks for:
+    /// - Version string starting with "7."
+    /// - Presence of SCHMA structure
+    /// - Presence of SNOTE records
+    #[must_use]
+    pub fn is_gedcom_7(&self) -> bool {
+        // Check header indicators
+        if let Some(ref header) = self.header {
+            if header.is_gedcom_7() {
+                return true;
+            }
+        }
+
+        // Check for shared notes (GEDCOM 7.0 only)
+        if !self.shared_notes.is_empty() {
+            return true;
+        }
+
+        false
+    }
+
+    /// Returns true if this appears to be a GEDCOM 5.5.1 file.
+    #[must_use]
+    pub fn is_gedcom_5(&self) -> bool {
+        if let Some(version) = self.gedcom_version() {
+            return version.starts_with("5.");
+        }
+        // Default to 5.5.1 if no version specified
+        !self.is_gedcom_7()
     }
 }
 
@@ -380,6 +444,8 @@ impl Parser for GedcomData {
                     "SUBN" => self.add_submission(Submission::new(tokenizer, level, pointer)?),
                     "SUBM" => self.add_submitter(Submitter::new(tokenizer, level, pointer)?),
                     "OBJE" => self.add_multimedia(Multimedia::new(tokenizer, level, pointer)?),
+                    // GEDCOM 7.0: Shared note record
+                    "SNOTE" => self.add_shared_note(SharedNote::new(tokenizer, level, pointer)?),
                     "TRLR" => break,
                     _ => {
                         return Err(GedcomError::ParseError {
@@ -403,5 +469,98 @@ impl Parser for GedcomData {
             }
         }
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_shared_note() {
+        let sample = "\
+            0 HEAD\n\
+            1 GEDC\n\
+            2 VERS 7.0\n\
+            0 @N1@ SNOTE This is a shared note.\n\
+            0 TRLR";
+
+        let mut tokenizer = Tokenizer::new(sample.chars());
+        tokenizer.next_token().unwrap();
+        let data = GedcomData::new(&mut tokenizer, 0).unwrap();
+
+        assert_eq!(data.shared_notes.len(), 1);
+        let note = &data.shared_notes[0];
+        assert_eq!(note.xref, Some("@N1@".to_string()));
+        assert_eq!(note.text, "This is a shared note.");
+    }
+
+    #[test]
+    fn test_is_gedcom_7() {
+        let sample_v7 = "\
+            0 HEAD\n\
+            1 GEDC\n\
+            2 VERS 7.0\n\
+            0 @N1@ SNOTE Test note\n\
+            0 TRLR";
+
+        let mut tokenizer = Tokenizer::new(sample_v7.chars());
+        tokenizer.next_token().unwrap();
+        let data = GedcomData::new(&mut tokenizer, 0).unwrap();
+
+        assert!(data.is_gedcom_7());
+        assert!(!data.is_gedcom_5());
+    }
+
+    #[test]
+    fn test_is_gedcom_5() {
+        let sample_v5 = "\
+            0 HEAD\n\
+            1 GEDC\n\
+            2 VERS 5.5.1\n\
+            0 TRLR";
+
+        let mut tokenizer = Tokenizer::new(sample_v5.chars());
+        tokenizer.next_token().unwrap();
+        let data = GedcomData::new(&mut tokenizer, 0).unwrap();
+
+        assert!(!data.is_gedcom_7());
+        assert!(data.is_gedcom_5());
+    }
+
+    #[test]
+    fn test_find_shared_note() {
+        let sample = "\
+            0 HEAD\n\
+            1 GEDC\n\
+            2 VERS 7.0\n\
+            0 @N1@ SNOTE First note\n\
+            0 @N2@ SNOTE Second note\n\
+            0 TRLR";
+
+        let mut tokenizer = Tokenizer::new(sample.chars());
+        tokenizer.next_token().unwrap();
+        let data = GedcomData::new(&mut tokenizer, 0).unwrap();
+
+        assert!(data.find_shared_note("@N1@").is_some());
+        assert!(data.find_shared_note("@N2@").is_some());
+        assert!(data.find_shared_note("@N3@").is_none());
+    }
+
+    #[test]
+    fn test_total_records_includes_shared_notes() {
+        let sample = "\
+            0 HEAD\n\
+            1 GEDC\n\
+            2 VERS 7.0\n\
+            0 @I1@ INDI\n\
+            0 @N1@ SNOTE Test note\n\
+            0 TRLR";
+
+        let mut tokenizer = Tokenizer::new(sample.chars());
+        tokenizer.next_token().unwrap();
+        let data = GedcomData::new(&mut tokenizer, 0).unwrap();
+
+        assert_eq!(data.total_records(), 2); // 1 individual + 1 shared note
     }
 }

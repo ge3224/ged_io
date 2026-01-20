@@ -76,17 +76,47 @@ Add the ability to write GEDCOM data back to files and ensure complete 5.5.1 spe
 
 ---
 
-## v0.6: GEDCOM 7.0 Support
+## v0.6: GEDCOM 7.0 Support 🚧 IN PROGRESS
 
 Add support for the GEDCOM 7.0 specification while maintaining backward compatibility.
 
 ### Primary objectives
 
-- Update data structures to accommodate GEDCOM 7.0 features
-- Implement 7.0 parser with format auto-detection
-- Add 7.0 write support
-- Maintain compatibility with existing 5.5.1 functionality
-- Document migration path from 5.5.1 to 7.0
+- ✅ Create version detection module (`version.rs`)
+- ✅ Implement `GedcomVersion` enum with version-specific feature flags
+- ✅ Add `SCHMA` (schema) structure for extension tag definitions
+- ✅ Add `SNOTE` (shared note) record type
+- ✅ Add `ExternalId` structure for `EXID` tags
+- ✅ Add `NoteTranslation` structure for `TRAN` tags
+- 🔲 Update data structures to accommodate remaining GEDCOM 7.0 features
+- 🔲 Implement 7.0 parser with format auto-detection
+- 🔲 Add 7.0 write support
+- 🔲 Maintain compatibility with existing 5.5.1 functionality
+- 🔲 Document migration path from 5.5.1 to 7.0
+
+### Implemented features
+
+- `GedcomVersion` enum with `V5_5_1`, `V7_0`, and `Unknown` variants
+- `detect_version()` function for automatic version detection
+- `VersionFeatures` struct for checking version-specific capabilities
+- `Schema` and `TagDefinition` for GEDCOM 7.0 extension tag support
+- `SharedNote` record type with translations and external IDs
+- Header updates with `is_gedcom_7()` and `find_extension_uri()` methods
+- `GedcomData` updates with shared note support and version detection
+
+### Remaining work
+
+- Add `CREA` (creation date) structure
+- Add `SDATE` (sort date) structure  
+- Add `CROP` (image cropping) structure
+- Add `NO` (non-event) structure
+- Add `INIL` (initiatory) ordinance
+- Add `MIME` substructure support throughout
+- Add `PHRASE` substructure for dates
+- Update tokenizer for GEDCOM 7.0 differences (leading @ doubling only)
+- Add streaming parser for very large files
+- Complete 7.0 writer support
+- Comprehensive test suite for 7.0 features
 
 ### Expected outcomes
 
@@ -127,6 +157,7 @@ practical need:
 - Integration with genealogy software APIs
 - Advanced validation and data quality tools
 - WASM bindings for web applications
+- GEDZIP file format support (bundled datasets with media files)
 
 ---
 
