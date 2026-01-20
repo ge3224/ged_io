@@ -1,6 +1,6 @@
 [package]
 name = "ged_io"
-version = "0.3.0"
+version = "0.4.0"
 authors = [
     "Robert Pirtle <astropirtle@gmail.com>",
     "Jacob Benison <ge3224@gmail.com>",
@@ -24,6 +24,19 @@ serde_json = { version = "1.0", optional = true }
 
 [dev-dependencies]
 serde_test = "1.0.123"
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "parsing"
+harness = false
+
+[[bench]]
+name = "tokenizer"
+harness = false
+
+[[bench]]
+name = "memory"
+harness = false
 
 [lib]
 name = "ged_io"
