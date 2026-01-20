@@ -46,6 +46,33 @@ use crate::{
 ///
 /// # GEDCOM Version Support
 ///
+#[derive(Clone, Debug, Default, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+pub struct SourceCitationStats {
+    /// Total number of source citations across all records.
+    pub total: usize,
+    /// Citations directly on individual records.
+    pub on_individuals: usize,
+    /// Citations on events (births, deaths, marriages, etc.).
+    pub on_events: usize,
+    /// Citations on individual attributes (occupation, residence, etc.).
+    pub on_attributes: usize,
+    /// Citations directly on family records.
+    pub on_families: usize,
+    /// Citations on name structures.
+    pub on_names: usize,
+    /// Citations on other structures (places, LDS ordinances, etc.).
+    pub on_other: usize,
+}
+
+/// The main data structure for parsed GEDCOM data.
+///
+/// This contains all the parsed records from a GEDCOM file: individuals and
+/// families forming the core family tree, supported by sources, multimedia, and other
+/// documentation records.
+///
+/// # GEDCOM Version Support
+///
 /// This structure supports both GEDCOM 5.5.1 and GEDCOM 7.0 files:
 /// - `submissions` are only present in GEDCOM 5.5.1 files
 /// - `shared_notes` are only present in GEDCOM 7.0 files
@@ -141,6 +168,7 @@ impl GedcomData {
 
     /// Prints a summary of record counts to stdout.
     pub fn stats(&self) {
+        let citation_stats = self.count_source_citations();
         println!("----------------------");
         println!("| GEDCOM Data Stats: |");
         println!("----------------------");
@@ -149,10 +177,126 @@ impl GedcomData {
         println!("  individuals: {}", self.individuals.len());
         println!("  families: {}", self.families.len());
         println!("  repositories: {}", self.repositories.len());
-        println!("  sources: {}", self.sources.len());
+        println!("  sources (records): {}", self.sources.len());
+        println!("  source citations: {}", citation_stats.total);
         println!("  multimedia: {}", self.multimedia.len());
         println!("  shared_notes: {}", self.shared_notes.len());
         println!("----------------------");
+        println!("| Citation Breakdown: |");
+        println!("----------------------");
+        println!("  on individuals: {}", citation_stats.on_individuals);
+        println!("  on events: {}", citation_stats.on_events);
+        println!("  on attributes: {}", citation_stats.on_attributes);
+        println!("  on families: {}", citation_stats.on_families);
+        println!("  on names: {}", citation_stats.on_names);
+        println!("  on other: {}", citation_stats.on_other);
+        println!("----------------------");
+    }
+
+    /// Counts all source citations across the entire GEDCOM file.
+    ///
+    /// This counts citations embedded within individuals, families, events,
+    /// attributes, and other structures - not the top-level source records.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use ged_io::Gedcom;
+    ///
+    /// let source = "\
+    ///     0 HEAD\n\
+    ///     1 GEDC\n\
+    ///     2 VERS 5.5.1\n\
+    ///     0 @S1@ SOUR\n\
+    ///     1 TITL Birth Records\n\
+    ///     0 @I1@ INDI\n\
+    ///     1 NAME John /Doe/\n\
+    ///     1 BIRT\n\
+    ///     2 DATE 1 JAN 1900\n\
+    ///     2 SOUR @S1@\n\
+    ///     0 TRLR";
+    /// let mut gedcom = Gedcom::new(source.chars()).unwrap();
+    /// let data = gedcom.parse_data().unwrap();
+    ///
+    /// let stats = data.count_source_citations();
+    /// assert_eq!(stats.total, 1);
+    /// assert_eq!(stats.on_events, 1);
+    /// ```
+    #[must_use]
+    pub fn count_source_citations(&self) -> SourceCitationStats {
+        let mut stats = SourceCitationStats::default();
+
+        // Count citations on individuals
+        for individual in &self.individuals {
+            // Direct citations on the individual
+            stats.on_individuals += individual.source.len();
+
+            // Citations on name
+            if let Some(ref name) = individual.name {
+                stats.on_names += name.source.len();
+            }
+
+            // Citations on gender
+            if let Some(ref gender) = individual.sex {
+                stats.on_other += gender.sources.len();
+            }
+
+            // Citations on events
+            for event in &individual.events {
+                stats.on_events += event.citations.len();
+            }
+
+            // Citations on attributes
+            for attr in &individual.attributes {
+                stats.on_attributes += attr.sources.len();
+            }
+
+            // Citations on LDS ordinances
+            for ordinance in &individual.lds_ordinances {
+                stats.on_other += ordinance.source_citations.len();
+            }
+
+            // Citations on non-events
+            for non_event in &individual.non_events {
+                stats.on_other += non_event.source_citations.len();
+            }
+        }
+
+        // Count citations on families
+        for family in &self.families {
+            // Direct citations on the family
+            stats.on_families += family.sources.len();
+
+            // Citations on family events
+            for event in &family.events {
+                stats.on_events += event.citations.len();
+            }
+
+            // Citations on LDS ordinances
+            for ordinance in &family.lds_ordinances {
+                stats.on_other += ordinance.source_citations.len();
+            }
+
+            // Citations on non-events
+            for non_event in &family.non_events {
+                stats.on_other += non_event.source_citations.len();
+            }
+        }
+
+        // Count citations on shared notes
+        for note in &self.shared_notes {
+            stats.on_other += note.source_citations.len();
+        }
+
+        // Calculate total
+        stats.total = stats.on_individuals
+            + stats.on_events
+            + stats.on_attributes
+            + stats.on_families
+            + stats.on_names
+            + stats.on_other;
+
+        stats
     }
 
     // ========================================================================
