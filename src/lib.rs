@@ -117,6 +117,8 @@ mod util;
 pub mod error;
 /// Builder pattern for configuring GEDCOM parsing.
 pub mod builder;
+/// Display trait implementations for GEDCOM data structures.
+pub mod display;
 pub mod parser;
 pub mod tokenizer;
 pub mod types;
