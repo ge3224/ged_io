@@ -121,6 +121,8 @@ pub mod builder;
 pub mod display;
 /// Improved Debug trait implementations for GEDCOM data structures.
 pub mod debug;
+/// Indexed GEDCOM data structure for O(1) lookups.
+pub mod indexed;
 /// Writer module for serializing GEDCOM data back to GEDCOM format.
 ///
 /// # Example
