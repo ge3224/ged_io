@@ -115,10 +115,13 @@ fn main() -> Result<(), Box<dyn Error>> {
 mod util;
 /// Error types for the `ged_io` crate.
 pub mod error;
+/// Builder pattern for configuring GEDCOM parsing.
+pub mod builder;
 pub mod parser;
 pub mod tokenizer;
 pub mod types;
 pub use error::GedcomError;
+pub use builder::{GedcomBuilder, ParserConfig};
 
 use crate::{tokenizer::Tokenizer, types::GedcomData};
 use std::str::Chars;
