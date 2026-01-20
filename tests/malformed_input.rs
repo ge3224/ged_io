@@ -10,9 +10,8 @@ use ged_io::{Gedcom, GedcomBuilder, GedcomError};
 fn test_missing_header() {
     let sample = "0 @I1@ INDI\n1 NAME John /Doe/\n0 TRLR";
     let result = Gedcom::new(sample.chars());
-    match result {
-        Ok(mut g) => { let _ = g.parse_data(); }
-        Err(_) => {}
+    if let Ok(mut g) = result {
+        let _ = g.parse_data();
     }
 }
 
@@ -27,9 +26,8 @@ fn test_incomplete_header() {
 fn test_missing_trailer() {
     let sample = "0 HEAD\n1 GEDC\n2 VERS 5.5\n0 @I1@ INDI";
     let result = Gedcom::new(sample.chars());
-    match result {
-        Ok(mut g) => { let _ = g.parse_data(); }
-        Err(_) => {}
+    if let Ok(mut g) = result {
+        let _ = g.parse_data();
     }
 }
 
@@ -84,18 +82,16 @@ fn test_invalid_date_format() {
 #[test]
 fn test_empty_file() {
     let result = Gedcom::new("".chars());
-    match result {
-        Ok(mut g) => { let _ = g.parse_data(); }
-        Err(_) => {}
+    if let Ok(mut g) = result {
+        let _ = g.parse_data();
     }
 }
 
 #[test]
 fn test_whitespace_only() {
     let result = Gedcom::new("   \n\n  ".chars());
-    match result {
-        Ok(mut g) => { let _ = g.parse_data(); }
-        Err(_) => {}
+    if let Ok(mut g) = result {
+        let _ = g.parse_data();
     }
 }
 
@@ -127,19 +123,19 @@ fn test_file_size_limit_exceeded() {
 }
 
 // ============================================================================
-// Error Message Quality Tests  
+// Error Message Quality Tests
 // ============================================================================
 
 #[test]
 fn test_parse_error_has_context() {
     let err = GedcomError::ParseError { line: 42, message: "test".into() };
-    assert!(format!("{}", err).contains("42"));
+    assert!(format!("{err}").contains("42"));
 }
 
 #[test]
 fn test_invalid_tag_error_has_context() {
     let err = GedcomError::InvalidTag { line: 15, tag: "BAD".into() };
-    let msg = format!("{}", err);
+    let msg = format!("{err}");
     assert!(msg.contains("15") && msg.contains("BAD"));
 }
 
