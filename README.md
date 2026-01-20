@@ -10,23 +10,25 @@ A **high-performance GEDCOM parser** for Rust 🦀
 ## About
 
 `ged_io` is a Rust crate for parsing GEDCOM files, the standard format for
-exchanging genealogical data. It currently supports parsing GEDCOM 5.5.1 files
-into structured Rust data types with optimized performance and memory usage.
+exchanging genealogical data. It supports both **GEDCOM 5.5.1** and **GEDCOM 7.0**
+specifications, parsing them into structured Rust data types with optimized 
+performance and memory usage.
 
 This project is a fork of
 [`pirtleshell/rust-gedcom`](https://github.com/pirtleshell/rust-gedcom) with
 the following goals:
 
-* Parse GEDCOM 5.5.1 files accurately
-* Add support for GEDCOM 7.0 specification
-* Implement write functionality for GEDCOM files
-* Handle real-world GEDCOM files with proper error handling
+* Parse GEDCOM 5.5.1 files accurately ✅
+* Add support for GEDCOM 7.0 specification 🚧 (in progress)
+* Implement write functionality for GEDCOM files ✅
+* Handle real-world GEDCOM files with proper error handling ✅
 
 **Note:** This crate is under active development. The API may change in future releases.
 
 ## Features
 
-* Parse GEDCOM 5.5.1 files into structured Rust data types
+* Parse **GEDCOM 5.5.1** and **GEDCOM 7.0** files into structured Rust data types
+* **Automatic version detection** - the parser detects and handles both formats
 * **High-performance parsing** with optimized tokenizer (~40% faster than v0.3)
 * **Indexed lookups** for O(1) cross-reference resolution
 * **Fluent builder API** for configuring parsing behavior
@@ -38,20 +40,28 @@ the following goals:
 * Comprehensive error handling with detailed context
 * Comprehensive benchmarking suite with Criterion.rs
 
+### GEDCOM 7.0 Support (New in v0.5)
+
+* `SNOTE` (shared note) records
+* `SCHMA` (schema) for extension tag definitions
+* `EXID` (external identifier) structures
+* Version detection via `detect_version()` and `GedcomVersion` enum
+* `is_gedcom_7()` and `is_gedcom_5()` methods on `GedcomData`
+
 ## Installation
 
 Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-ged_io = "0.4"
+ged_io = "0.5"
 ```
 
 For JSON serialization support:
 
 ```toml
 [dependencies]
-ged_io = { version = "0.4", features = ["json"] }
+ged_io = { version = "0.5", features = ["json"] }
 ```
 
 ## Quick Start
@@ -98,6 +108,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Parsed {} individuals in {} families", 
              data.individuals.len(), 
              data.families.len());
+    
+    // Check GEDCOM version
+    if data.is_gedcom_7() {
+        println!("This is a GEDCOM 7.0 file");
+    }
     
     Ok(())
 }
