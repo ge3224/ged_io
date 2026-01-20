@@ -119,11 +119,14 @@ pub mod error;
 pub mod builder;
 /// Display trait implementations for GEDCOM data structures.
 pub mod display;
+/// Improved Debug trait implementations for GEDCOM data structures.
+pub mod debug;
 pub mod parser;
 pub mod tokenizer;
 pub mod types;
 pub use error::GedcomError;
 pub use builder::{GedcomBuilder, ParserConfig};
+pub use debug::ImprovedDebug;
 
 use crate::{tokenizer::Tokenizer, types::GedcomData};
 use std::str::Chars;
