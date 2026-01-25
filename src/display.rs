@@ -125,22 +125,43 @@ impl fmt::Display for Individual {
             write!(f, " ({})", sex.value)?;
         }
 
-        // Display birth date if available
+        let mut birth_date: Option<&str> = None;
+        let mut baptism_date: Option<&str> = None;
+        let mut death_date: Option<&str> = None;
+        let mut inhumation_date: Option<&str> = None;
+
         for event in &self.events {
-            if matches!(event.event, crate::types::event::Event::Birth) {
-                if let Some(ref date) = event.date {
-                    if let Some(ref date_val) = date.value {
-                        write!(f, ", b. {date_val}")?;
+            match event.event {
+                crate::types::event::Event::Birth => {
+                    if birth_date.is_none() {
+                        birth_date = event.date.as_ref().and_then(|d| d.value.as_deref());
                     }
                 }
-            }
-            if matches!(event.event, crate::types::event::Event::Death) {
-                if let Some(ref date) = event.date {
-                    if let Some(ref date_val) = date.value {
-                        write!(f, ", d. {date_val}")?;
+                crate::types::event::Event::Baptism => {
+                    if baptism_date.is_none() {
+                        baptism_date = event.date.as_ref().and_then(|d| d.value.as_deref());
                     }
                 }
+                crate::types::event::Event::Death => {
+                    if death_date.is_none() {
+                        death_date = event.date.as_ref().and_then(|d| d.value.as_deref());
+                    }
+                }
+                crate::types::event::Event::Burial => {
+                    if inhumation_date.is_none() {
+                        inhumation_date = event.date.as_ref().and_then(|d| d.value.as_deref());
+                    }
+                }
+                _ => {}
             }
+        }
+
+        if let Some(date) = birth_date.or(baptism_date) {
+            write!(f, ", b. {date}")?;
+        }
+
+        if let Some(date) = death_date.or(inhumation_date) {
+            write!(f, ", d. {date}")?;
         }
 
         Ok(())
@@ -214,15 +235,53 @@ impl fmt::Display for Family {
             write!(f, " [{} child(ren)]", self.children.len())?;
         }
 
-        // Display marriage date if available
+        let mut marriage_date: Option<&str> = None;
+        let mut engagement_date: Option<&str> = None;
+        let mut separated_date: Option<&str> = None;
+        let mut divorce_date: Option<&str> = None;
+        let mut annulment_date: Option<&str> = None;
+
         for event in &self.events {
-            if matches!(event.event, crate::types::event::Event::Marriage) {
-                if let Some(ref date) = event.date {
-                    if let Some(ref date_val) = date.value {
-                        write!(f, ", m. {date_val}")?;
+            match event.event {
+                crate::types::event::Event::Marriage => {
+                    if marriage_date.is_none() {
+                        marriage_date = event.date.as_ref().and_then(|d| d.value.as_deref());
                     }
                 }
+                crate::types::event::Event::Engagement => {
+                    if engagement_date.is_none() {
+                        engagement_date = event.date.as_ref().and_then(|d| d.value.as_deref());
+                    }
+                }
+                crate::types::event::Event::Separated => {
+                    if separated_date.is_none() {
+                        separated_date = event.date.as_ref().and_then(|d| d.value.as_deref());
+                    }
+                }
+                crate::types::event::Event::Divorce => {
+                    if divorce_date.is_none() {
+                        divorce_date = event.date.as_ref().and_then(|d| d.value.as_deref());
+                    }
+                }
+                crate::types::event::Event::Annulment => {
+                    if annulment_date.is_none() {
+                        annulment_date = event.date.as_ref().and_then(|d| d.value.as_deref());
+                    }
+                }
+                _ => {}
             }
+        }
+
+        if let Some(date) = marriage_date {
+            write!(f, ", m. {date}")?;
+        } else if let Some(date) = engagement_date {
+            write!(f, ", rel. {date}")?;
+        } else if let Some(date) = separated_date {
+            write!(f, ", sep. {date}")?;
+        } else if let Some(date) = divorce_date {
+            write!(f, ", div. {date}")?;
+        } else if let Some(date) = annulment_date {
+            write!(f, ", anul. {date}")?;
         }
 
         Ok(())
@@ -422,6 +481,86 @@ mod tests {
         assert!(display.contains("@I2@"));
         assert!(display.contains("1 child(ren)"));
         assert!(display.contains("m. 1 JUN 2000"));
+    }
+
+    #[test]
+    fn test_family_display_engagement_fallback() {
+        let sample = "\
+            0 HEAD\n\
+            1 GEDC\n\
+            2 VERS 5.5\n\
+            0 @F1@ FAM\n\
+            1 HUSB @I1@\n\
+            1 WIFE @I2@\n\
+            1 ENGA\n\
+            2 DATE 1 JUN 1999\n\
+            0 TRLR";
+
+        let mut gedcom = Gedcom::new(sample.chars()).unwrap();
+        let data = gedcom.parse_data().unwrap();
+
+        let display = format!("{}", data.families[0]);
+        assert!(display.contains("rel. 1 JUN 1999"));
+    }
+
+    #[test]
+    fn test_family_display_separated_fallback() {
+        let sample = "\
+            0 HEAD\n\
+            1 GEDC\n\
+            2 VERS 5.5\n\
+            0 @F1@ FAM\n\
+            1 HUSB @I1@\n\
+            1 WIFE @I2@\n\
+            1 SEP\n\
+            2 DATE 1 JUN 2001\n\
+            0 TRLR";
+
+        let mut gedcom = Gedcom::new(sample.chars()).unwrap();
+        let data = gedcom.parse_data().unwrap();
+
+        let display = format!("{}", data.families[0]);
+        assert!(display.contains("sep. 1 JUN 2001"));
+    }
+
+    #[test]
+    fn test_family_display_divorce_fallback() {
+        let sample = "\
+            0 HEAD\n\
+            1 GEDC\n\
+            2 VERS 5.5\n\
+            0 @F1@ FAM\n\
+            1 HUSB @I1@\n\
+            1 WIFE @I2@\n\
+            1 DIV\n\
+            2 DATE 1 JUN 2002\n\
+            0 TRLR";
+
+        let mut gedcom = Gedcom::new(sample.chars()).unwrap();
+        let data = gedcom.parse_data().unwrap();
+
+        let display = format!("{}", data.families[0]);
+        assert!(display.contains("div. 1 JUN 2002"));
+    }
+
+    #[test]
+    fn test_family_display_annulment_fallback() {
+        let sample = "\
+            0 HEAD\n\
+            1 GEDC\n\
+            2 VERS 5.5\n\
+            0 @F1@ FAM\n\
+            1 HUSB @I1@\n\
+            1 WIFE @I2@\n\
+            1 ANUL\n\
+            2 DATE 1 JUN 2003\n\
+            0 TRLR";
+
+        let mut gedcom = Gedcom::new(sample.chars()).unwrap();
+        let data = gedcom.parse_data().unwrap();
+
+        let display = format!("{}", data.families[0]);
+        assert!(display.contains("anul. 1 JUN 2003"));
     }
 
     #[test]

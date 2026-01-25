@@ -866,8 +866,9 @@ impl GedcomWriter {
         }
 
         if let Some(ref certainty) = citation.certainty_assessment {
-            let quay = certainty_to_gedcom_value(certainty);
-            self.write_value_or_wrap(writer, level + 1, "QUAY", Some(&quay))?;
+            if let Some(quay) = certainty_to_gedcom_value(certainty) {
+                self.write_line(writer, level + 1, "QUAY", Some(quay))?;
+            }
         }
 
         if let Some(ref note) = citation.note {
@@ -1181,12 +1182,10 @@ impl GedcomWriter {
         tag: &str,
         text: &str,
     ) -> Result<(), io::Error> {
-        let lines: Vec<&str> = text.split('\n').collect();
-
-        for (i, line) in lines.iter().enumerate() {
+        for (i, line) in text.split('\n').enumerate() {
             // Empty continuation lines must still be represented explicitly with `CONT` + an empty value.
             // `CONT` means “new line”, so dropping them would merge lines.
-            let line_value = Some(*line);
+            let line_value = Some(line);
             if i == 0 {
                 // First line uses the main tag
                 if line.len() <= self.config.max_line_length {
@@ -1302,13 +1301,13 @@ fn attribute_to_tag(
 }
 
 /// Converts a certainty assessment to its GEDCOM value.
-fn certainty_to_gedcom_value(certainty: &CertaintyAssessment) -> String {
+fn certainty_to_gedcom_value(certainty: &CertaintyAssessment) -> Option<&'static str> {
     match certainty {
-        CertaintyAssessment::Unreliable => "0".to_string(),
-        CertaintyAssessment::Questionable => "1".to_string(),
-        CertaintyAssessment::Secondary => "2".to_string(),
-        CertaintyAssessment::Direct => "3".to_string(),
-        CertaintyAssessment::None => String::new(),
+        CertaintyAssessment::Unreliable => Some("0"),
+        CertaintyAssessment::Questionable => Some("1"),
+        CertaintyAssessment::Secondary => Some("2"),
+        CertaintyAssessment::Direct => Some("3"),
+        CertaintyAssessment::None => None,
     }
 }
 
