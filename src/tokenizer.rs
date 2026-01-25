@@ -323,7 +323,9 @@ impl<'a> Tokenizer<'a> {
     ///
     /// Returns a `GedcomError` if an unexpected token is encountered.
     pub fn take_continued_text(&mut self, level: u8) -> Result<String, GedcomError> {
-        let mut value = self.take_line_value()?;
+        let first = self.take_line_value()?;
+        let mut value = String::with_capacity(first.len() + 16);
+        value.push_str(&first);
 
         loop {
             if let Token::Level(cur_level) = self.current_token {

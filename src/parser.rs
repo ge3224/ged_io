@@ -49,7 +49,7 @@ where
         match &tokenizer.current_token {
             Token::Tag(tag) => {
                 let tag_clone = tag.clone();
-                tag_handler(&tag_clone, tokenizer)?;
+                tag_handler(tag_clone.as_ref(), tokenizer)?;
             }
             Token::CustomTag(tag) => {
                 let tag_clone = tag.clone();
