@@ -188,6 +188,33 @@ pub mod gedzip;
 /// Indexed GEDCOM data structure for O(1) lookups.
 pub mod indexed;
 pub mod parser;
+/// Streaming parser for large GEDCOM files.
+///
+/// This module provides an iterator-based streaming parser that reads GEDCOM files
+/// record-by-record without loading the entire file into memory.
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use std::fs::File;
+/// use std::io::BufReader;
+/// use ged_io::stream::{GedcomStreamParser, GedcomRecord};
+///
+/// let file = File::open("large_family.ged").unwrap();
+/// let reader = BufReader::new(file);
+///
+/// for record in GedcomStreamParser::new(reader).unwrap() {
+///     match record.unwrap() {
+///         GedcomRecord::Individual(indi) => {
+///             if let Some(name) = indi.full_name() {
+///                 println!("Found: {}", name);
+///             }
+///         }
+///         _ => {}
+///     }
+/// }
+/// ```
+pub mod stream;
 pub mod tokenizer;
 pub mod types;
 /// GEDCOM version detection and handling.
@@ -229,6 +256,7 @@ pub use builder::{GedcomBuilder, ParserConfig};
 pub use debug::ImprovedDebug;
 pub use encoding::{decode_gedcom_bytes, detect_encoding, GedcomEncoding};
 pub use error::GedcomError;
+pub use stream::{GedcomRecord, GedcomStreamParser};
 pub use types::SourceCitationStats;
 pub use version::{detect_version, GedcomVersion, VersionFeatures};
 pub use writer::{GedcomWriter, WriterConfig};
