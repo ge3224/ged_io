@@ -69,7 +69,10 @@ fn test_round_trip_individual_with_events() {
     let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();
 
     assert_eq!(data1.individuals.len(), data2.individuals.len());
-    assert_eq!(data1.individuals[0].events.len(), data2.individuals[0].events.len());
+    assert_eq!(
+        data1.individuals[0].events.len(),
+        data2.individuals[0].events.len()
+    );
 
     // Verify birth event
     let birth1 = data1.individuals[0].birth();
@@ -139,7 +142,10 @@ fn test_round_trip_family_with_marriage() {
     let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();
 
     assert_eq!(data1.families.len(), data2.families.len());
-    assert_eq!(data1.families[0].events.len(), data2.families[0].events.len());
+    assert_eq!(
+        data1.families[0].events.len(),
+        data2.families[0].events.len()
+    );
 }
 
 #[test]
@@ -289,7 +295,12 @@ fn test_round_trip_complete_gedcom() {
     assert_eq!(data1.repositories.len(), data2.repositories.len());
 
     // Verify key data
-    for (i, (ind1, ind2)) in data1.individuals.iter().zip(data2.individuals.iter()).enumerate() {
+    for (i, (ind1, ind2)) in data1
+        .individuals
+        .iter()
+        .zip(data2.individuals.iter())
+        .enumerate()
+    {
         assert_eq!(ind1.xref, ind2.xref, "Individual {} xref mismatch", i);
         assert_eq!(ind1.name, ind2.name, "Individual {} name mismatch", i);
         assert_eq!(ind1.sex, ind2.sex, "Individual {} sex mismatch", i);
@@ -340,8 +351,14 @@ fn test_writer_with_crlf_line_endings() {
     let writer = GedcomWriter::new().line_ending("\r\n");
     let written = writer.write_to_string(&data).unwrap();
 
-    assert!(written.contains("\r\n"), "Output should contain CRLF line endings");
-    assert!(!written.contains("\n\n"), "Output should not contain double newlines");
+    assert!(
+        written.contains("\r\n"),
+        "Output should contain CRLF line endings"
+    );
+    assert!(
+        !written.contains("\n\n"),
+        "Output should not contain double newlines"
+    );
 }
 
 #[test]
@@ -421,7 +438,10 @@ fn test_round_trip_multiple_children() {
 
     let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();
 
-    assert_eq!(data1.families[0].children.len(), data2.families[0].children.len());
+    assert_eq!(
+        data1.families[0].children.len(),
+        data2.families[0].children.len()
+    );
     assert_eq!(data1.families[0].children, data2.families[0].children);
 }
 

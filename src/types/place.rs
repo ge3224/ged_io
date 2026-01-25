@@ -135,7 +135,9 @@ impl MapCoordinates {
     /// GEDCOM 7.0 format (4.3333 or -122.4194).
     #[must_use]
     pub fn longitude_decimal(&self) -> Option<f64> {
-        self.longitude.as_ref().and_then(|lon| parse_coordinate(lon))
+        self.longitude
+            .as_ref()
+            .and_then(|lon| parse_coordinate(lon))
     }
 
     /// Returns true if both latitude and longitude are set.
@@ -288,19 +290,21 @@ impl Place {
     /// Returns the latitude as a decimal value, if available.
     #[must_use]
     pub fn latitude(&self) -> Option<f64> {
-        self.map.as_ref().and_then(|m| m.latitude_decimal())
+        self.map.as_ref().and_then(MapCoordinates::latitude_decimal)
     }
 
     /// Returns the longitude as a decimal value, if available.
     #[must_use]
     pub fn longitude(&self) -> Option<f64> {
-        self.map.as_ref().and_then(|m| m.longitude_decimal())
+        self.map
+            .as_ref()
+            .and_then(MapCoordinates::longitude_decimal)
     }
 
     /// Returns true if this place has geographic coordinates.
     #[must_use]
     pub fn has_coordinates(&self) -> bool {
-        self.map.as_ref().is_some_and(|m| m.is_complete())
+        self.map.as_ref().is_some_and(MapCoordinates::is_complete)
     }
 
     /// Adds a phonetic variation of the place name.
@@ -331,8 +335,12 @@ impl Parser for Place {
             match tag {
                 "FORM" => self.form = Some(tokenizer.take_line_value()?),
                 "MAP" => self.map = Some(MapCoordinates::new(tokenizer, level + 1)?),
-                "FONE" => self.phonetic.push(PlaceVariation::new(tokenizer, level + 1)?),
-                "ROMN" => self.romanized.push(PlaceVariation::new(tokenizer, level + 1)?),
+                "FONE" => self
+                    .phonetic
+                    .push(PlaceVariation::new(tokenizer, level + 1)?),
+                "ROMN" => self
+                    .romanized
+                    .push(PlaceVariation::new(tokenizer, level + 1)?),
                 "NOTE" => self.notes.push(Note::new(tokenizer, level + 1)?),
                 "SOUR" => self.citations.push(Citation::new(tokenizer, level + 1)?),
                 "EXID" => self.external_ids.push(tokenizer.take_line_value()?),
@@ -358,7 +366,7 @@ mod tests {
 
     #[test]
     fn test_parse_coordinate_north() {
-        assert!((parse_coordinate("N50.8333333").unwrap() - 50.8333333).abs() < 0.0001);
+        assert!((parse_coordinate("N50.8333333").unwrap() - 50.833_333_3).abs() < 0.0001);
     }
 
     #[test]

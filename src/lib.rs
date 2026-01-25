@@ -146,16 +146,50 @@ pub mod encoding;
 /// - Known GEDCOM tag handling
 #[macro_use]
 pub mod util;
-/// Error types for the `ged_io` crate.
-pub mod error;
 /// Builder pattern for configuring GEDCOM parsing.
 pub mod builder;
-/// Display trait implementations for GEDCOM data structures.
-pub mod display;
 /// Improved Debug trait implementations for GEDCOM data structures.
 pub mod debug;
+/// Display trait implementations for GEDCOM data structures.
+pub mod display;
+/// Error types for the `ged_io` crate.
+pub mod error;
+
+/// GEDZIP file format support for GEDCOM 7.0.
+///
+/// This module provides functionality to read and write GEDZIP files, which are
+/// ZIP archives containing a GEDCOM dataset along with associated media files.
+///
+/// Requires the `gedzip` feature to be enabled.
+///
+/// # Example
+///
+/// ```rust,no_run
+/// # #[cfg(feature = "gedzip")]
+/// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+/// use ged_io::gedzip::{read_gedzip, write_gedzip};
+/// use ged_io::GedcomBuilder;
+///
+/// // Read a GEDZIP file
+/// let bytes = std::fs::read("family.gdz")?;
+/// let data = read_gedzip(&bytes)?;
+///
+/// // Write a GEDZIP file
+/// let bytes = write_gedzip(&data)?;
+/// std::fs::write("output.gdz", bytes)?;
+/// # Ok(())
+/// # }
+/// # #[cfg(not(feature = "gedzip"))]
+/// # fn main() {}
+/// ```
+#[cfg(feature = "gedzip")]
+pub mod gedzip;
+
 /// Indexed GEDCOM data structure for O(1) lookups.
 pub mod indexed;
+pub mod parser;
+pub mod tokenizer;
+pub mod types;
 /// GEDCOM version detection and handling.
 ///
 /// This module provides the ability to detect and work with different GEDCOM versions,
@@ -191,16 +225,13 @@ pub mod version;
 /// # }
 /// ```
 pub mod writer;
-pub mod parser;
-pub mod tokenizer;
-pub mod types;
-pub use error::GedcomError;
 pub use builder::{GedcomBuilder, ParserConfig};
-pub use types::SourceCitationStats;
 pub use debug::ImprovedDebug;
-pub use version::{GedcomVersion, detect_version, VersionFeatures};
+pub use encoding::{decode_gedcom_bytes, detect_encoding, GedcomEncoding};
+pub use error::GedcomError;
+pub use types::SourceCitationStats;
+pub use version::{detect_version, GedcomVersion, VersionFeatures};
 pub use writer::{GedcomWriter, WriterConfig};
-pub use encoding::{GedcomEncoding, decode_gedcom_bytes, detect_encoding};
 
 use crate::{tokenizer::Tokenizer, types::GedcomData};
 use std::str::Chars;

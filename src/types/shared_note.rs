@@ -18,11 +18,7 @@
 use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
-    types::{
-        custom::UserDefinedTag,
-        date::change_date::ChangeDate,
-        source::citation::Citation,
-    },
+    types::{custom::UserDefinedTag, date::change_date::ChangeDate, source::citation::Citation},
     GedcomError,
 };
 
@@ -145,7 +141,9 @@ impl ExternalId {
     /// This concatenates the type URI with the identifier.
     #[must_use]
     pub fn full_url(&self) -> Option<String> {
-        self.type_uri.as_ref().map(|uri| format!("{}{}", uri, self.id))
+        self.type_uri
+            .as_ref()
+            .map(|uri| format!("{}{}", uri, self.id))
     }
 }
 
@@ -391,8 +389,14 @@ mod tests {
     fn test_external_id() {
         let exid = ExternalId::new("12345", Some("https://example.com/person/"));
         assert_eq!(exid.id, "12345");
-        assert_eq!(exid.type_uri, Some("https://example.com/person/".to_string()));
-        assert_eq!(exid.full_url(), Some("https://example.com/person/12345".to_string()));
+        assert_eq!(
+            exid.type_uri,
+            Some("https://example.com/person/".to_string())
+        );
+        assert_eq!(
+            exid.full_url(),
+            Some("https://example.com/person/12345".to_string())
+        );
 
         let exid_no_type = ExternalId::new("12345", None);
         assert_eq!(exid_no_type.full_url(), None);
@@ -415,9 +419,11 @@ mod tests {
 
     #[test]
     fn test_to_plain_text_from_html() {
-        let mut note = SharedNote::default();
-        note.mime = Some("text/html".to_string());
-        note.text = "<p>Hello <b>world</b>!</p><br>New line &amp; more &lt;text&gt;".to_string();
+        let note = SharedNote {
+            mime: Some("text/html".to_string()),
+            text: "<p>Hello <b>world</b>!</p><br>New line &amp; more &lt;text&gt;".to_string(),
+            ..Default::default()
+        };
 
         let plain = note.to_plain_text();
         assert!(plain.contains("Hello"));
@@ -430,8 +436,10 @@ mod tests {
 
     #[test]
     fn test_to_plain_text_already_plain() {
-        let mut note = SharedNote::default();
-        note.text = "Plain text content".to_string();
+        let note = SharedNote {
+            text: "Plain text content".to_string(),
+            ..Default::default()
+        };
 
         assert_eq!(note.to_plain_text(), "Plain text content");
     }

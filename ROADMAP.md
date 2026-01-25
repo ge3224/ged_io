@@ -133,6 +133,28 @@ Add support for the GEDCOM 7.0 specification while maintaining backward compatib
 
 ---
 
+## v0.9: GEDZIP Support ✅ COMPLETE
+
+Add support for GEDZIP file format - bundled GEDCOM data with media files.
+
+### Primary objectives
+
+- ✅ Implement `GedzipReader` for reading GEDZIP archives
+- ✅ Implement `GedzipWriter` for creating GEDZIP archives
+- ✅ Add `build_from_gedzip()` method to `GedcomBuilder`
+- ✅ Support media file extraction and bundling
+- ✅ Comprehensive error handling with `GedzipError` type
+- ✅ Full test coverage
+
+### Achieved outcomes
+
+- ✅ Library can read and write GEDZIP (`.gdz`) files
+- ✅ Media files can be bundled with GEDCOM data
+- ✅ Convenience functions for simple read/write operations
+- ✅ Opt-in feature (`gedzip`) to avoid unnecessary dependencies
+
+---
+
 ## v1.0: Documentation and Stability
 
 Focus on API stability, comprehensive documentation, and community preparation.
@@ -160,11 +182,11 @@ Potential areas for future development, depending on community interest and
 practical need:
 
 - Performance optimizations based on real-world usage patterns
+- Streaming parser for very large files
 - Additional output formats or conversion utilities
 - Integration with genealogy software APIs
 - Advanced validation and data quality tools
 - WASM bindings for web applications
-- GEDZIP file format support (bundled datasets with media files)
 
 ---
 

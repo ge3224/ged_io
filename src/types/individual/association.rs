@@ -90,7 +90,10 @@ mod tests {
         let individual = &data.individuals[0];
         assert_eq!(individual.associations.len(), 1);
         assert_eq!(individual.associations[0].xref, "@I2@");
-        assert_eq!(individual.associations[0].relationship.clone().unwrap(), "FRIEND");
+        assert_eq!(
+            individual.associations[0].relationship.clone().unwrap(),
+            "FRIEND"
+        );
         assert_eq!(
             individual.associations[0].association_type.clone().unwrap(),
             "COWORKER"

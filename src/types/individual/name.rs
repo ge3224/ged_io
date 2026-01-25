@@ -39,13 +39,12 @@ impl NameType {
     #[must_use]
     pub fn parse(value: &str) -> Self {
         match value.to_uppercase().as_str() {
-            "BIRTH" | "AKA" => NameType::Aka,
+            "BIRTH" | "AKA" | "ALSO KNOWN AS" => NameType::Aka,
             "IMMIGRANT" => NameType::Immigrant,
             "PROFESSIONAL" => NameType::Professional,
             "RELIGIOUS" => NameType::Religious,
             "MAIDEN" => NameType::Maiden,
             "MARRIED" => NameType::Married,
-            "ALSO KNOWN AS" => NameType::Aka,
             _ => NameType::Other(value.to_string()),
         }
     }
@@ -177,7 +176,7 @@ impl Parser for NameVariation {
 /// payload in some form, possibly adjusted for gender-specific suffixes or the like. It is
 /// permitted for the payload to contain information not present in any name piece substructure.
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#PERSONAL_NAME_STRUCTURE>.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Name {
     /// The full name value with surname in slashes (e.g., "John /Doe/").
@@ -228,26 +227,6 @@ pub struct Name {
 
     /// Custom data (extension tags).
     pub custom_data: Vec<Box<UserDefinedTag>>,
-}
-
-impl Default for Name {
-    fn default() -> Self {
-        Name {
-            value: None,
-            given: None,
-            surname: None,
-            prefix: None,
-            surname_prefix: None,
-            note: None,
-            suffix: None,
-            nickname: None,
-            source: Vec::new(),
-            name_type: None,
-            phonetic: Vec::new(),
-            romanized: Vec::new(),
-            custom_data: Vec::new(),
-        }
-    }
 }
 
 impl Name {
@@ -318,8 +297,12 @@ impl Parser for Name {
                     let type_value = tokenizer.take_line_value()?;
                     self.name_type = Some(NameType::parse(&type_value));
                 }
-                "FONE" => self.phonetic.push(NameVariation::new(tokenizer, level + 1)?),
-                "ROMN" => self.romanized.push(NameVariation::new(tokenizer, level + 1)?),
+                "FONE" => self
+                    .phonetic
+                    .push(NameVariation::new(tokenizer, level + 1)?),
+                "ROMN" => self
+                    .romanized
+                    .push(NameVariation::new(tokenizer, level + 1)?),
                 _ => {
                     // Gracefully skip unknown tags instead of failing
                     tokenizer.take_line_value()?;
@@ -401,10 +384,7 @@ mod tests {
         assert!(name.has_phonetic());
         assert_eq!(name.phonetic.len(), 1);
         assert_eq!(name.phonetic[0].value, "Yamada /Taro/");
-        assert_eq!(
-            name.phonetic[0].variation_type,
-            Some("romaji".to_string())
-        );
+        assert_eq!(name.phonetic[0].variation_type, Some("romaji".to_string()));
         assert_eq!(name.phonetic[0].given, Some("Taro".to_string()));
         assert_eq!(name.phonetic[0].surname, Some("Yamada".to_string()));
     }
@@ -429,16 +409,15 @@ mod tests {
         assert!(name.has_romanized());
         assert_eq!(name.romanized.len(), 1);
         assert_eq!(name.romanized[0].value, "Wang /Xiaoming/");
-        assert_eq!(
-            name.romanized[0].variation_type,
-            Some("pinyin".to_string())
-        );
+        assert_eq!(name.romanized[0].variation_type, Some("pinyin".to_string()));
     }
 
     #[test]
     fn test_name_full_name() {
-        let mut name = Name::default();
-        name.value = Some("John /Doe/".to_string());
+        let name = Name {
+            value: Some("John /Doe/".to_string()),
+            ..Default::default()
+        };
         assert_eq!(name.full_name(), Some("John Doe".to_string()));
     }
 

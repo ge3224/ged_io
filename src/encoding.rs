@@ -225,25 +225,17 @@ pub fn decode_with_encoding(
     let result = match encoding {
         GedcomEncoding::Utf8 | GedcomEncoding::Ascii => {
             // Skip UTF-8 BOM if present
-            let bytes = if bytes.len() >= 3
-                && bytes[0] == 0xEF
-                && bytes[1] == 0xBB
-                && bytes[2] == 0xBF
-            {
-                &bytes[3..]
-            } else {
-                bytes
-            };
-            String::from_utf8(bytes.to_vec()).map_err(|e| {
-                GedcomError::EncodingError(format!("Invalid UTF-8: {e}"))
-            })?
+            let bytes =
+                if bytes.len() >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF {
+                    &bytes[3..]
+                } else {
+                    bytes
+                };
+            String::from_utf8(bytes.to_vec())
+                .map_err(|e| GedcomError::EncodingError(format!("Invalid UTF-8: {e}")))?
         }
-        GedcomEncoding::Utf16Le => {
-            decode_utf16(bytes, UTF_16LE)?
-        }
-        GedcomEncoding::Utf16Be => {
-            decode_utf16(bytes, UTF_16BE)?
-        }
+        GedcomEncoding::Utf16Le => decode_utf16(bytes, UTF_16LE)?,
+        GedcomEncoding::Utf16Be => decode_utf16(bytes, UTF_16BE)?,
         GedcomEncoding::Iso8859_1 => {
             // Use Windows-1252 which is a superset of ISO-8859-1
             let (decoded, _, had_errors) = WINDOWS_1252.decode(bytes);

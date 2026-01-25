@@ -400,10 +400,7 @@ mod tests {
 
         let family = indexed.find_family("@F1@");
         assert!(family.is_some());
-        assert_eq!(
-            family.unwrap().individual1,
-            Some("@I1@".to_string())
-        );
+        assert_eq!(family.unwrap().individual1, Some("@I1@".to_string()));
     }
 
     #[test]

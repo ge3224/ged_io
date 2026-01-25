@@ -38,8 +38,8 @@ use crate::types::{
     note::Note,
     repository::Repository,
     shared_note::SharedNote,
-    source::{citation::Citation, Source},
     source::quay::CertaintyAssessment,
+    source::{citation::Citation, Source},
     submission::Submission,
     submitter::Submitter,
     GedcomData,
@@ -716,8 +716,6 @@ impl GedcomWriter {
             self.write_address(writer, 1, address)?;
         }
 
-
-
         Ok(())
     }
 
@@ -878,7 +876,12 @@ impl GedcomWriter {
     }
 
     /// Writes a date structure.
-    fn write_date<W: Write>(&self, writer: &mut W, level: u8, date: &Date) -> Result<(), io::Error> {
+    fn write_date<W: Write>(
+        &self,
+        writer: &mut W,
+        level: u8,
+        date: &Date,
+    ) -> Result<(), io::Error> {
         if let Some(ref value) = date.value {
             self.write_line(writer, level, "DATE", Some(value))?;
         }
@@ -1075,7 +1078,12 @@ impl GedcomWriter {
     }
 
     /// Writes a note structure.
-    fn write_note<W: Write>(&self, writer: &mut W, level: u8, note: &Note) -> Result<(), io::Error> {
+    fn write_note<W: Write>(
+        &self,
+        writer: &mut W,
+        level: u8,
+        note: &Note,
+    ) -> Result<(), io::Error> {
         if let Some(ref value) = note.value {
             self.write_long_text(writer, level, "NOTE", value)?;
         } else {
@@ -1232,7 +1240,9 @@ fn event_to_tag(event: &Event) -> &'static str {
 }
 
 /// Converts an individual attribute type to its GEDCOM tag.
-fn attribute_to_tag(attr: &crate::types::individual::attribute::IndividualAttribute) -> &'static str {
+fn attribute_to_tag(
+    attr: &crate::types::individual::attribute::IndividualAttribute,
+) -> &'static str {
     use crate::types::individual::attribute::IndividualAttribute;
     match attr {
         IndividualAttribute::CastName => "CAST",
@@ -1312,7 +1322,8 @@ mod tests {
 
     #[test]
     fn test_write_family() {
-        let source = "0 HEAD\n1 GEDC\n2 VERS 5.5\n0 @F1@ FAM\n1 HUSB @I1@\n1 WIFE @I2@\n1 CHIL @I3@\n0 TRLR";
+        let source =
+            "0 HEAD\n1 GEDC\n2 VERS 5.5\n0 @F1@ FAM\n1 HUSB @I1@\n1 WIFE @I2@\n1 CHIL @I3@\n0 TRLR";
         let data = GedcomBuilder::new().build_from_str(source).unwrap();
 
         let writer = GedcomWriter::new();
@@ -1363,7 +1374,8 @@ mod tests {
 
     #[test]
     fn test_round_trip_basic() {
-        let original = "0 HEAD\n1 GEDC\n2 VERS 5.5\n0 @I1@ INDI\n1 NAME John /Doe/\n1 SEX M\n0 TRLR";
+        let original =
+            "0 HEAD\n1 GEDC\n2 VERS 5.5\n0 @I1@ INDI\n1 NAME John /Doe/\n1 SEX M\n0 TRLR";
         let data = GedcomBuilder::new().build_from_str(original).unwrap();
 
         let writer = GedcomWriter::new();

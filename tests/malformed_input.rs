@@ -128,13 +128,19 @@ fn test_file_size_limit_exceeded() {
 
 #[test]
 fn test_parse_error_has_context() {
-    let err = GedcomError::ParseError { line: 42, message: "test".into() };
+    let err = GedcomError::ParseError {
+        line: 42,
+        message: "test".into(),
+    };
     assert!(format!("{err}").contains("42"));
 }
 
 #[test]
 fn test_invalid_tag_error_has_context() {
-    let err = GedcomError::InvalidTag { line: 15, tag: "BAD".into() };
+    let err = GedcomError::InvalidTag {
+        line: 15,
+        tag: "BAD".into(),
+    };
     let msg = format!("{err}");
     assert!(msg.contains("15") && msg.contains("BAD"));
 }

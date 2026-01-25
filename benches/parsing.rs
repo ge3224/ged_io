@@ -20,12 +20,16 @@ fn bench_parse_original_api(c: &mut Criterion) {
         if let Ok(content) = fs::read_to_string(path) {
             let size = content.len();
             group.throughput(Throughput::Bytes(size as u64));
-            group.bench_with_input(BenchmarkId::new("Gedcom::new", name), &content, |b, content| {
-                b.iter(|| {
-                    let mut gedcom = Gedcom::new(black_box(content.chars())).unwrap();
-                    gedcom.parse_data().unwrap()
-                });
-            });
+            group.bench_with_input(
+                BenchmarkId::new("Gedcom::new", name),
+                &content,
+                |b, content| {
+                    b.iter(|| {
+                        let mut gedcom = Gedcom::new(black_box(content.chars())).unwrap();
+                        gedcom.parse_data().unwrap()
+                    });
+                },
+            );
         }
     }
 
@@ -51,7 +55,11 @@ fn bench_parse_builder_api(c: &mut Criterion) {
                 BenchmarkId::new("GedcomBuilder::build_from_str", name),
                 &content,
                 |b, content| {
-                    b.iter(|| GedcomBuilder::new().build_from_str(black_box(content)).unwrap());
+                    b.iter(|| {
+                        GedcomBuilder::new()
+                            .build_from_str(black_box(content))
+                            .unwrap()
+                    });
                 },
             );
         }
@@ -108,7 +116,11 @@ fn bench_parse_synthetic(c: &mut Criterion) {
             BenchmarkId::new("individuals", count),
             &content,
             |b, content| {
-                b.iter(|| GedcomBuilder::new().build_from_str(black_box(content)).unwrap());
+                b.iter(|| {
+                    GedcomBuilder::new()
+                        .build_from_str(black_box(content))
+                        .unwrap()
+                });
             },
         );
     }
@@ -135,8 +147,17 @@ fn generate_synthetic_gedcom(individual_count: usize) -> String {
             gedcom.push_str("1 SEX M\n");
         }
         gedcom.push_str("1 BIRT\n");
-        gedcom.push_str(&format!("2 DATE {} JAN {}\n", (i % 28) + 1, 1900 + (i % 100)));
-        gedcom.push_str(&format!("2 PLAC City{}, State{}, Country{}\n", i % 50, i % 10, i % 5));
+        gedcom.push_str(&format!(
+            "2 DATE {} JAN {}\n",
+            (i % 28) + 1,
+            1900 + (i % 100)
+        ));
+        gedcom.push_str(&format!(
+            "2 PLAC City{}, State{}, Country{}\n",
+            i % 50,
+            i % 10,
+            i % 5
+        ));
     }
 
     // Add some families
@@ -176,7 +197,11 @@ fn bench_parse_lines_per_second(c: &mut Criterion) {
             let line_count = content.lines().count();
             group.throughput(Throughput::Elements(line_count as u64));
             group.bench_with_input(BenchmarkId::new("lines", name), &content, |b, content| {
-                b.iter(|| GedcomBuilder::new().build_from_str(black_box(content)).unwrap());
+                b.iter(|| {
+                    GedcomBuilder::new()
+                        .build_from_str(black_box(content))
+                        .unwrap()
+                });
             });
         }
     }

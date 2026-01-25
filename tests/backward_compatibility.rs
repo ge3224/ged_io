@@ -175,7 +175,11 @@ fn test_parse_error_type_unchanged() {
 
     // Should produce a ParseError
     assert!(result.is_err());
-    if let Err(GedcomError::ParseError { line: _, message: _ }) = result {
+    if let Err(GedcomError::ParseError {
+        line: _,
+        message: _,
+    }) = result
+    {
         // Expected error type
     } else {
         panic!("Expected ParseError variant");

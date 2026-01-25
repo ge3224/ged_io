@@ -19,14 +19,18 @@ fn bench_tokenize_files(c: &mut Criterion) {
         if let Ok(content) = fs::read_to_string(path) {
             let size = content.len();
             group.throughput(Throughput::Bytes(size as u64));
-            group.bench_with_input(BenchmarkId::new("tokenize", name), &content, |b, content| {
-                b.iter(|| {
-                    let mut tokenizer = Tokenizer::new(black_box(content.chars()));
-                    while !tokenizer.done() {
-                        tokenizer.next_token().unwrap();
-                    }
-                });
-            });
+            group.bench_with_input(
+                BenchmarkId::new("tokenize", name),
+                &content,
+                |b, content| {
+                    b.iter(|| {
+                        let mut tokenizer = Tokenizer::new(black_box(content.chars()));
+                        while !tokenizer.done() {
+                            tokenizer.next_token().unwrap();
+                        }
+                    });
+                },
+            );
         }
     }
 
@@ -102,18 +106,25 @@ fn bench_take_line_value(c: &mut Criterion) {
     let values = [
         ("short", "1 NAME John\n"),
         ("medium", "1 NAME John Jacob Jingleheimer Schmidt\n"),
-        ("long", &format!("1 NOTE {}\n", "This is a long note. ".repeat(50))),
+        (
+            "long",
+            &format!("1 NOTE {}\n", "This is a long note. ".repeat(50)),
+        ),
     ];
 
     for (name, content) in values {
-        group.bench_with_input(BenchmarkId::new("value_length", name), &content, |b, content| {
-            b.iter(|| {
-                let mut tokenizer = Tokenizer::new(black_box(content.chars()));
-                tokenizer.next_token().unwrap(); // Level
-                tokenizer.next_token().unwrap(); // Tag
-                tokenizer.take_line_value().unwrap()
-            });
-        });
+        group.bench_with_input(
+            BenchmarkId::new("value_length", name),
+            &content,
+            |b, content| {
+                b.iter(|| {
+                    let mut tokenizer = Tokenizer::new(black_box(content.chars()));
+                    tokenizer.next_token().unwrap(); // Level
+                    tokenizer.next_token().unwrap(); // Tag
+                    tokenizer.take_line_value().unwrap()
+                });
+            },
+        );
     }
 
     group.finish();
