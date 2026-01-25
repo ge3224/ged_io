@@ -274,33 +274,266 @@ let family = indexed.find_family("@F1@");
 
 ---
 
-## Supported GEDCOM Features
+## Supported GEDCOM Tags
 
-### Record Types
+The library provides full support for GEDCOM 5.5.1 and 7.0 specifications. Tags marked with **7.0** are new in GEDCOM 7.0.
 
-| Record | GEDCOM 5.5.1 | GEDCOM 7.0 |
-|--------|:------------:|:----------:|
-| HEAD (Header) | ✅ | ✅ |
-| INDI (Individual) | ✅ | ✅ |
-| FAM (Family) | ✅ | ✅ |
-| SOUR (Source) | ✅ | ✅ |
-| REPO (Repository) | ✅ | ✅ |
-| OBJE (Multimedia) | ✅ | ✅ |
-| NOTE (Note) | ✅ | ✅ |
-| SNOTE (Shared Note) | - | ✅ |
-| SUBM (Submitter) | ✅ | ✅ |
+### Records (Level 0)
 
-### GEDCOM 7.0 Additions
+| Tag | Description | 5.5.1 | 7.0 |
+|-----|-------------|:-----:|:---:|
+| HEAD | Header with file metadata | ✅ | ✅ |
+| INDI | Individual person record | ✅ | ✅ |
+| FAM | Family group record | ✅ | ✅ |
+| SOUR | Source record | ✅ | ✅ |
+| REPO | Repository record | ✅ | ✅ |
+| OBJE | Multimedia object record | ✅ | ✅ |
+| SUBM | Submitter record | ✅ | ✅ |
+| SUBN | Submission record | ✅ | - |
+| SNOTE | Shared note record | - | ✅ |
+| TRLR | Trailer (end of file) | ✅ | ✅ |
 
-- `SCHMA` - Schema for extension tags
-- `SNOTE` - Shared note records  
-- `EXID` - External identifiers
-- `SDATE` - Sort dates
-- `PHRASE` - Free-text date phrases
-- `CREA` - Creation dates
-- `CROP` - Image cropping
-- `NO` - Non-event assertions
-- `INIL` - LDS initiatory ordinance
+### Individual Events
+
+| Tag | Description | 5.5.1 | 7.0 |
+|-----|-------------|:-----:|:---:|
+| ADOP | Adoption | ✅ | ✅ |
+| BAPM | Baptism | ✅ | ✅ |
+| BARM | Bar Mitzvah | ✅ | ✅ |
+| BASM | Bas Mitzvah | ✅ | ✅ |
+| BIRT | Birth | ✅ | ✅ |
+| BLES | Blessing | ✅ | ✅ |
+| BURI | Burial/Depositing remains | ✅ | ✅ |
+| CENS | Census | ✅ | ✅ |
+| CHR | Christening | ✅ | ✅ |
+| CHRA | Adult christening | ✅ | ✅ |
+| CONF | Confirmation | ✅ | ✅ |
+| CREM | Cremation | ✅ | ✅ |
+| DEAT | Death | ✅ | ✅ |
+| EMIG | Emigration | ✅ | ✅ |
+| EVEN | Generic event | ✅ | ✅ |
+| FCOM | First communion | ✅ | ✅ |
+| GRAD | Graduation | ✅ | ✅ |
+| IMMI | Immigration | ✅ | ✅ |
+| NATU | Naturalization | ✅ | ✅ |
+| ORDN | Ordination | ✅ | ✅ |
+| PROB | Probate | ✅ | ✅ |
+| RETI | Retirement | ✅ | ✅ |
+| WILL | Will | ✅ | ✅ |
+
+### Family Events
+
+| Tag | Description | 5.5.1 | 7.0 |
+|-----|-------------|:-----:|:---:|
+| ANUL | Annulment | ✅ | ✅ |
+| CENS | Census | ✅ | ✅ |
+| DIV | Divorce | ✅ | ✅ |
+| DIVF | Divorce filed | ✅ | ✅ |
+| ENGA | Engagement | ✅ | ✅ |
+| EVEN | Generic event | ✅ | ✅ |
+| MARB | Marriage bann | ✅ | ✅ |
+| MARC | Marriage contract | ✅ | ✅ |
+| MARL | Marriage license | ✅ | ✅ |
+| MARR | Marriage | ✅ | ✅ |
+| MARS | Marriage settlement | ✅ | ✅ |
+| RESI | Residence | ✅ | ✅ |
+| SEP | Separation | - | ✅ |
+
+### Individual Attributes
+
+| Tag | Description | 5.5.1 | 7.0 |
+|-----|-------------|:-----:|:---:|
+| CAST | Caste name | ✅ | ✅ |
+| DSCR | Physical description | ✅ | ✅ |
+| EDUC | Education | ✅ | ✅ |
+| FACT | Generic fact | ✅ | ✅ |
+| IDNO | National ID number | ✅ | ✅ |
+| NATI | Nationality | ✅ | ✅ |
+| NCHI | Number of children | ✅ | ✅ |
+| NMR | Number of marriages | ✅ | ✅ |
+| OCCU | Occupation | ✅ | ✅ |
+| PROP | Property/Possessions | ✅ | ✅ |
+| RELI | Religion | ✅ | ✅ |
+| RESI | Residence | ✅ | ✅ |
+| SSN | Social Security Number | ✅ | ✅ |
+| TITL | Title/Nobility | ✅ | ✅ |
+
+### Name Structure
+
+| Tag | Description | 5.5.1 | 7.0 |
+|-----|-------------|:-----:|:---:|
+| NAME | Personal name | ✅ | ✅ |
+| GIVN | Given name | ✅ | ✅ |
+| NICK | Nickname | ✅ | ✅ |
+| NPFX | Name prefix | ✅ | ✅ |
+| NSFX | Name suffix | ✅ | ✅ |
+| SPFX | Surname prefix | ✅ | ✅ |
+| SURN | Surname | ✅ | ✅ |
+| TYPE | Name type | ✅ | ✅ |
+| FONE | Phonetic variation | ✅ | ✅ |
+| ROMN | Romanized variation | ✅ | ✅ |
+| TRAN | Translation | - | ✅ |
+
+### Family Links
+
+| Tag | Description | 5.5.1 | 7.0 |
+|-----|-------------|:-----:|:---:|
+| CHIL | Child | ✅ | ✅ |
+| FAMC | Family as child | ✅ | ✅ |
+| FAMS | Family as spouse | ✅ | ✅ |
+| HUSB | Husband/Partner | ✅ | ✅ |
+| WIFE | Wife/Partner | ✅ | ✅ |
+| PEDI | Pedigree linkage type | ✅ | ✅ |
+| STAT | Status | ✅ | ✅ |
+| ALIA | Alias/Alternate ID | ✅ | ✅ |
+| ASSO | Association | ✅ | ✅ |
+
+### Source & Citation
+
+| Tag | Description | 5.5.1 | 7.0 |
+|-----|-------------|:-----:|:---:|
+| SOUR | Source citation | ✅ | ✅ |
+| ABBR | Abbreviation | ✅ | ✅ |
+| AUTH | Author | ✅ | ✅ |
+| CALN | Call number | ✅ | ✅ |
+| DATA | Data | ✅ | ✅ |
+| PAGE | Page/Location | ✅ | ✅ |
+| PUBL | Publication info | ✅ | ✅ |
+| QUAY | Quality assessment | ✅ | ✅ |
+| REPO | Repository reference | ✅ | ✅ |
+| ROLE | Role in event | ✅ | ✅ |
+| TEXT | Text from source | ✅ | ✅ |
+| TITL | Title | ✅ | ✅ |
+
+### Date & Time
+
+| Tag | Description | 5.5.1 | 7.0 |
+|-----|-------------|:-----:|:---:|
+| DATE | Date | ✅ | ✅ |
+| TIME | Time | ✅ | ✅ |
+| CHAN | Change date | ✅ | ✅ |
+| CREA | Creation date | - | ✅ |
+| SDATE | Sort date | - | ✅ |
+| PHRASE | Free-text phrase | - | ✅ |
+
+### Place & Address
+
+| Tag | Description | 5.5.1 | 7.0 |
+|-----|-------------|:-----:|:---:|
+| PLAC | Place | ✅ | ✅ |
+| ADDR | Address | ✅ | ✅ |
+| ADR1 | Address line 1 | ✅ | ✅ |
+| ADR2 | Address line 2 | ✅ | ✅ |
+| ADR3 | Address line 3 | ✅ | ✅ |
+| CITY | City | ✅ | ✅ |
+| STAE | State/Province | ✅ | ✅ |
+| POST | Postal code | ✅ | ✅ |
+| CTRY | Country | ✅ | ✅ |
+| MAP | Map coordinates | ✅ | ✅ |
+| LATI | Latitude | ✅ | ✅ |
+| LONG | Longitude | ✅ | ✅ |
+| FONE | Phonetic variation | ✅ | ✅ |
+| ROMN | Romanized variation | ✅ | ✅ |
+| FORM | Place hierarchy format | ✅ | ✅ |
+
+### Multimedia
+
+| Tag | Description | 5.5.1 | 7.0 |
+|-----|-------------|:-----:|:---:|
+| OBJE | Multimedia link | ✅ | ✅ |
+| FILE | File reference | ✅ | ✅ |
+| FORM | Media format/type | ✅ | ✅ |
+| TITL | Title | ✅ | ✅ |
+| MEDI | Medium type | ✅ | ✅ |
+| BLOB | Binary data (5.5.1 only) | ✅ | - |
+| CROP | Image crop region | - | ✅ |
+| TOP | Crop top | - | ✅ |
+| LEFT | Crop left | - | ✅ |
+| HEIGHT | Crop height | - | ✅ |
+| WIDTH | Crop width | - | ✅ |
+
+### Notes
+
+| Tag | Description | 5.5.1 | 7.0 |
+|-----|-------------|:-----:|:---:|
+| NOTE | Note | ✅ | ✅ |
+| SNOTE | Shared note reference | - | ✅ |
+| CONT | Line continuation | ✅ | ✅ |
+| CONC | Line concatenation | ✅ | - |
+| MIME | MIME type | - | ✅ |
+| LANG | Language | ✅ | ✅ |
+| TRAN | Translation | - | ✅ |
+
+### Header & Metadata
+
+| Tag | Description | 5.5.1 | 7.0 |
+|-----|-------------|:-----:|:---:|
+| GEDC | GEDCOM info | ✅ | ✅ |
+| VERS | Version | ✅ | ✅ |
+| FORM | Format | ✅ | ✅ |
+| CHAR | Character encoding | ✅ | - |
+| DEST | Destination | ✅ | ✅ |
+| COPR | Copyright | ✅ | ✅ |
+| CORP | Corporation | ✅ | ✅ |
+| SCHMA | Extension schema | - | ✅ |
+| TAG | Tag definition | - | ✅ |
+
+### Contact Information
+
+| Tag | Description | 5.5.1 | 7.0 |
+|-----|-------------|:-----:|:---:|
+| PHON | Phone | ✅ | ✅ |
+| EMAIL | Email | ✅ | ✅ |
+| FAX | Fax | ✅ | ✅ |
+| WWW | Website | ✅ | ✅ |
+
+### Identifiers
+
+| Tag | Description | 5.5.1 | 7.0 |
+|-----|-------------|:-----:|:---:|
+| REFN | User reference number | ✅ | ✅ |
+| RIN | Record ID number | ✅ | ✅ |
+| AFN | Ancestral File Number | ✅ | ✅ |
+| UID | Unique identifier | ✅ | ✅ |
+| EXID | External identifier | - | ✅ |
+
+### Event Details
+
+| Tag | Description | 5.5.1 | 7.0 |
+|-----|-------------|:-----:|:---:|
+| TYPE | Event/Fact type | ✅ | ✅ |
+| AGE | Age at event | ✅ | ✅ |
+| AGNC | Agency | ✅ | ✅ |
+| CAUS | Cause | ✅ | ✅ |
+| RESN | Restriction notice | ✅ | ✅ |
+| NO | Non-event assertion | - | ✅ |
+
+### LDS Ordinances
+
+| Tag | Description | 5.5.1 | 7.0 |
+|-----|-------------|:-----:|:---:|
+| BAPL | Baptism, LDS | ✅ | ✅ |
+| CONL | Confirmation, LDS | ✅ | ✅ |
+| ENDL | Endowment, LDS | ✅ | ✅ |
+| SLGC | Sealing, child to parents | ✅ | ✅ |
+| SLGS | Sealing, spouse | ✅ | ✅ |
+| INIL | Initiatory, LDS | - | ✅ |
+| TEMP | Temple | ✅ | ✅ |
+| STAT | Ordinance status | ✅ | ✅ |
+
+### Submitter & Submission
+
+| Tag | Description | 5.5.1 | 7.0 |
+|-----|-------------|:-----:|:---:|
+| SUBM | Submitter reference | ✅ | ✅ |
+| ANCI | Ancestor interest | ✅ | ✅ |
+| DESI | Descendant interest | ✅ | ✅ |
+
+### Other
+
+| Tag | Description | 5.5.1 | 7.0 |
+|-----|-------------|:-----:|:---:|
+| SEX | Sex/Gender | ✅ | ✅ |
 
 ### Date Formats
 
