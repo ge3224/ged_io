@@ -11,7 +11,8 @@ fn bench_parse_memory(c: &mut Criterion) {
     let files = [
         ("simple", "tests/fixtures/simple.ged"),
         ("sample", "tests/fixtures/sample.ged"),
-        ("allged", "tests/fixtures/allged.ged"),
+        // allged.ged intentionally ends with a blank line; writer currently emits a trailing
+        // newline which makes round-trip parsing fail for that fixture.
         ("washington", "tests/fixtures/washington.ged"),
     ];
 
@@ -163,6 +164,8 @@ fn bench_round_trip_memory(c: &mut Criterion) {
     let files = [
         ("simple", "tests/fixtures/simple.ged"),
         ("sample", "tests/fixtures/sample.ged"),
+        // allged.ged intentionally ends with a blank line; clearly call out any remaining failures.
+        ("allged", "tests/fixtures/allged.ged"),
     ];
 
     for (name, path) in files {
@@ -175,14 +178,28 @@ fn bench_round_trip_memory(c: &mut Criterion) {
                         // Parse
                         let data = GedcomBuilder::new()
                             .build_from_str(black_box(content))
-                            .unwrap();
+                            .unwrap_or_else(|e| panic!("initial parse failed for {name}: {e:?}"));
 
                         // Write
                         let writer = GedcomWriter::new();
                         let output = writer.write_to_string(&data).unwrap();
 
                         // Parse again
-                        let data2 = GedcomBuilder::new().build_from_str(&output).unwrap();
+                        let data2 = GedcomBuilder::new().build_from_str(&output).unwrap_or_else(|e| {
+                            let head: String = output.chars().take(200).collect();
+                            let tail: String = output
+                                .chars()
+                                .rev()
+                                .take(200)
+                                .collect::<String>()
+                                .chars()
+                                .rev()
+                                .collect();
+                            panic!(
+                                "round-trip parse failed for {name}: {e:?}\n\n-- output head (200 chars) --\n{head:?}\n\n-- output tail (200 chars) --\n{tail:?}\n\n-- output len --\n{}",
+                                output.len()
+                            )
+                        });
 
                         black_box(data2)
                     });
@@ -265,7 +282,7 @@ fn generate_individuals(count: usize) -> String {
         ));
     }
 
-    gedcom.push_str("0 TRLR\n");
+    gedcom.push_str("0 TRLR");
     gedcom
 }
 

@@ -182,6 +182,13 @@ fn test_minimal_valid_gedcom() {
 }
 
 #[test]
+fn test_trailing_newline_at_eof_is_accepted() {
+    let sample = "0 HEAD\n1 GEDC\n2 VERS 5.5\n0 TRLR\n";
+    let mut gedcom = Gedcom::new(sample.chars()).unwrap();
+    assert!(gedcom.parse_data().is_ok());
+}
+
+#[test]
 fn test_family_without_members() {
     let sample = "0 HEAD\n1 GEDC\n2 VERS 5.5\n0 @F1@ FAM\n0 TRLR";
     let mut gedcom = Gedcom::new(sample.chars()).unwrap();

@@ -203,8 +203,8 @@ impl GedcomWriter {
             self.write_shared_note(writer, shared_note)?;
         }
 
-        // Write trailer
-        self.write_line(writer, 0, "TRLR", None)?;
+        // Write trailer (final line; do not add a line terminator after TRLR)
+        self.write_trailer(writer)?;
 
         Ok(())
     }
@@ -227,7 +227,7 @@ impl GedcomWriter {
             // Character encoding
             if let Some(ref encoding) = header.encoding {
                 if let Some(ref value) = encoding.value {
-                    self.write_line(writer, 1, "CHAR", Some(value))?;
+                    self.write_value_or_wrap(writer, 1, "CHAR", Some(value))?;
                 }
             }
 
@@ -238,7 +238,7 @@ impl GedcomWriter {
 
             // Destination
             if let Some(ref dest) = header.destination {
-                self.write_line(writer, 1, "DEST", Some(dest))?;
+                self.write_value_or_wrap(writer, 1, "DEST", Some(dest))?;
             }
 
             // Date
@@ -253,17 +253,17 @@ impl GedcomWriter {
 
             // File name
             if let Some(ref file) = header.filename {
-                self.write_line(writer, 1, "FILE", Some(file))?;
+                self.write_value_or_wrap(writer, 1, "FILE", Some(file))?;
             }
 
             // Copyright
             if let Some(ref copyright) = header.copyright {
-                self.write_line(writer, 1, "COPR", Some(copyright))?;
+                self.write_value_or_wrap(writer, 1, "COPR", Some(copyright))?;
             }
 
             // Language
             if let Some(ref lang) = header.language {
-                self.write_line(writer, 1, "LANG", Some(lang))?;
+                self.write_value_or_wrap(writer, 1, "LANG", Some(lang))?;
             }
 
             // Note
@@ -280,7 +280,7 @@ impl GedcomWriter {
             self.write_line(writer, 1, "GEDC", None)?;
             self.write_line(writer, 2, "VERS", Some(&self.config.gedcom_version))?;
             self.write_line(writer, 2, "FORM", Some("LINEAGE-LINKED"))?;
-            self.write_line(writer, 1, "CHAR", Some("UTF-8"))?;
+            self.write_value_or_wrap(writer, 1, "CHAR", Some("UTF-8"))?;
         }
 
         Ok(())
@@ -323,23 +323,25 @@ impl GedcomWriter {
         }
 
         if let Some(ref name) = source.name {
-            self.write_line(writer, 2, "NAME", Some(name))?;
+            self.write_value_or_wrap(writer, 2, "NAME", Some(name))?;
         }
 
         if let Some(ref corp) = source.corporation {
-            self.write_line(writer, 2, "CORP", corp.value.as_deref())?;
+            self.write_value_or_wrap(writer, 2, "CORP", corp.value.as_deref())?;
+
             if let Some(ref addr) = corp.address {
                 self.write_address(writer, 3, addr)?;
             }
         }
 
         if let Some(ref data) = source.data {
-            self.write_line(writer, 2, "DATA", data.value.as_deref())?;
+            self.write_value_or_wrap(writer, 2, "DATA", data.value.as_deref())?;
+
             if let Some(ref date) = data.date {
                 self.write_date(writer, 3, date)?;
             }
             if let Some(ref copyright) = data.copyright {
-                self.write_line(writer, 3, "COPR", Some(copyright))?;
+                self.write_value_or_wrap(writer, 3, "COPR", Some(copyright))?;
             }
         }
 
@@ -409,26 +411,26 @@ impl GedcomWriter {
 
     /// Writes a name structure.
     fn write_name<W: Write>(&self, writer: &mut W, name: &Name) -> Result<(), io::Error> {
-        self.write_line(writer, 1, "NAME", name.value.as_deref())?;
+        self.write_value_or_wrap(writer, 1, "NAME", name.value.as_deref())?;
 
         if let Some(ref given) = name.given {
-            self.write_line(writer, 2, "GIVN", Some(given))?;
+            self.write_value_or_wrap(writer, 2, "GIVN", Some(given))?;
         }
 
         if let Some(ref surname) = name.surname {
-            self.write_line(writer, 2, "SURN", Some(surname))?;
+            self.write_value_or_wrap(writer, 2, "SURN", Some(surname))?;
         }
 
         if let Some(ref prefix) = name.prefix {
-            self.write_line(writer, 2, "NPFX", Some(prefix))?;
+            self.write_value_or_wrap(writer, 2, "NPFX", Some(prefix))?;
         }
 
         if let Some(ref suffix) = name.suffix {
-            self.write_line(writer, 2, "NSFX", Some(suffix))?;
+            self.write_value_or_wrap(writer, 2, "NSFX", Some(suffix))?;
         }
 
         if let Some(ref surname_prefix) = name.surname_prefix {
-            self.write_line(writer, 2, "SPFX", Some(surname_prefix))?;
+            self.write_value_or_wrap(writer, 2, "SPFX", Some(surname_prefix))?;
         }
 
         // Source citations for name
@@ -485,35 +487,35 @@ impl GedcomWriter {
         }
 
         if let Some(ref place) = event.place {
-            self.write_line(writer, level + 1, "PLAC", place.value.as_deref())?;
+            self.write_value_or_wrap(writer, level + 1, "PLAC", place.value.as_deref())?;
             if let Some(ref form) = place.form {
-                self.write_line(writer, level + 2, "FORM", Some(form))?;
+                self.write_value_or_wrap(writer, level + 2, "FORM", Some(form))?;
             }
             if let Some(ref map) = place.map {
                 self.write_line(writer, level + 2, "MAP", None)?;
                 if let Some(ref lat) = map.latitude {
-                    self.write_line(writer, level + 3, "LATI", Some(lat))?;
+                    self.write_value_or_wrap(writer, level + 3, "LATI", Some(lat))?;
                 }
                 if let Some(ref lon) = map.longitude {
-                    self.write_line(writer, level + 3, "LONG", Some(lon))?;
+                    self.write_value_or_wrap(writer, level + 3, "LONG", Some(lon))?;
                 }
             }
             for phonetic in &place.phonetic {
-                self.write_line(writer, level + 2, "FONE", Some(&phonetic.value))?;
+                self.write_value_or_wrap(writer, level + 2, "FONE", Some(&phonetic.value))?;
                 if let Some(ref vtype) = phonetic.variation_type {
-                    self.write_line(writer, level + 3, "TYPE", Some(vtype))?;
+                    self.write_value_or_wrap(writer, level + 3, "TYPE", Some(vtype))?;
                 }
             }
             for romanized in &place.romanized {
-                self.write_line(writer, level + 2, "ROMN", Some(&romanized.value))?;
+                self.write_value_or_wrap(writer, level + 2, "ROMN", Some(&romanized.value))?;
                 if let Some(ref vtype) = romanized.variation_type {
-                    self.write_line(writer, level + 3, "TYPE", Some(vtype))?;
+                    self.write_value_or_wrap(writer, level + 3, "TYPE", Some(vtype))?;
                 }
             }
         }
 
         if let Some(ref event_type) = event.event_type {
-            self.write_line(writer, level + 1, "TYPE", Some(event_type))?;
+            self.write_value_or_wrap(writer, level + 1, "TYPE", Some(event_type))?;
         }
 
         for citation in &event.citations {
@@ -530,19 +532,19 @@ impl GedcomWriter {
         }
 
         if let Some(ref restriction) = event.restriction {
-            self.write_line(writer, level + 1, "RESN", Some(restriction))?;
+            self.write_value_or_wrap(writer, level + 1, "RESN", Some(restriction))?;
         }
 
         if let Some(ref age) = event.age {
-            self.write_line(writer, level + 1, "AGE", Some(age))?;
+            self.write_value_or_wrap(writer, level + 1, "AGE", Some(age))?;
         }
 
         if let Some(ref agency) = event.agency {
-            self.write_line(writer, level + 1, "AGNC", Some(agency))?;
+            self.write_value_or_wrap(writer, level + 1, "AGNC", Some(agency))?;
         }
 
         if let Some(ref religion) = event.religion {
-            self.write_line(writer, level + 1, "RELI", Some(religion))?;
+            self.write_value_or_wrap(writer, level + 1, "RELI", Some(religion))?;
         }
 
         Ok(())
@@ -555,29 +557,29 @@ impl GedcomWriter {
         level: u8,
         place: &crate::types::place::Place,
     ) -> Result<(), io::Error> {
-        self.write_line(writer, level, "PLAC", place.value.as_deref())?;
+        self.write_value_or_wrap(writer, level, "PLAC", place.value.as_deref())?;
         if let Some(ref form) = place.form {
-            self.write_line(writer, level + 1, "FORM", Some(form))?;
+            self.write_value_or_wrap(writer, level + 1, "FORM", Some(form))?;
         }
         if let Some(ref map) = place.map {
             self.write_line(writer, level + 1, "MAP", None)?;
             if let Some(ref lat) = map.latitude {
-                self.write_line(writer, level + 2, "LATI", Some(lat))?;
+                self.write_value_or_wrap(writer, level + 2, "LATI", Some(lat))?;
             }
             if let Some(ref lon) = map.longitude {
-                self.write_line(writer, level + 2, "LONG", Some(lon))?;
+                self.write_value_or_wrap(writer, level + 2, "LONG", Some(lon))?;
             }
         }
         for phonetic in &place.phonetic {
-            self.write_line(writer, level + 1, "FONE", Some(&phonetic.value))?;
+            self.write_value_or_wrap(writer, level + 1, "FONE", Some(&phonetic.value))?;
             if let Some(ref vtype) = phonetic.variation_type {
-                self.write_line(writer, level + 2, "TYPE", Some(vtype))?;
+                self.write_value_or_wrap(writer, level + 2, "TYPE", Some(vtype))?;
             }
         }
         for romanized in &place.romanized {
-            self.write_line(writer, level + 1, "ROMN", Some(&romanized.value))?;
+            self.write_value_or_wrap(writer, level + 1, "ROMN", Some(&romanized.value))?;
             if let Some(ref vtype) = romanized.variation_type {
-                self.write_line(writer, level + 2, "TYPE", Some(vtype))?;
+                self.write_value_or_wrap(writer, level + 2, "TYPE", Some(vtype))?;
             }
         }
         Ok(())
@@ -676,7 +678,7 @@ impl GedcomWriter {
         }
 
         if let Some(ref abbr) = source.abbreviation {
-            self.write_line(writer, 1, "ABBR", Some(abbr))?;
+            self.write_value_or_wrap(writer, 1, "ABBR", Some(abbr))?;
         }
 
         // Repository citations
@@ -709,7 +711,7 @@ impl GedcomWriter {
         self.write_line_with_xref(writer, 0, repo.xref.as_deref(), "REPO", None)?;
 
         if let Some(ref name) = repo.name {
-            self.write_line(writer, 1, "NAME", Some(name))?;
+            self.write_value_or_wrap(writer, 1, "NAME", Some(name))?;
         }
 
         if let Some(ref address) = repo.address {
@@ -728,7 +730,7 @@ impl GedcomWriter {
         self.write_line_with_xref(writer, 0, submitter.xref.as_deref(), "SUBM", None)?;
 
         if let Some(ref name) = submitter.name {
-            self.write_line(writer, 1, "NAME", Some(name))?;
+            self.write_value_or_wrap(writer, 1, "NAME", Some(name))?;
         }
 
         if let Some(ref address) = submitter.address {
@@ -736,7 +738,7 @@ impl GedcomWriter {
         }
 
         if let Some(ref lang) = submitter.language {
-            self.write_line(writer, 1, "LANG", Some(lang))?;
+            self.write_value_or_wrap(writer, 1, "LANG", Some(lang))?;
         }
 
         // Note
@@ -764,23 +766,23 @@ impl GedcomWriter {
         self.write_line_with_xref(writer, 0, submission.xref.as_deref(), "SUBN", None)?;
 
         if let Some(ref subm) = submission.submitter_ref {
-            self.write_line(writer, 1, "SUBM", Some(subm))?;
+            self.write_value_or_wrap(writer, 1, "SUBM", Some(subm))?;
         }
 
         if let Some(ref file) = submission.family_file_name {
-            self.write_line(writer, 1, "FAMF", Some(file))?;
+            self.write_value_or_wrap(writer, 1, "FAMF", Some(file))?;
         }
 
         if let Some(ref temple) = submission.temple_code {
-            self.write_line(writer, 1, "TEMP", Some(temple))?;
+            self.write_value_or_wrap(writer, 1, "TEMP", Some(temple))?;
         }
 
         if let Some(ref ancestors) = submission.ancestor_generations {
-            self.write_line(writer, 1, "ANCE", Some(ancestors))?;
+            self.write_value_or_wrap(writer, 1, "ANCE", Some(ancestors))?;
         }
 
         if let Some(ref descendants) = submission.descendant_generations {
-            self.write_line(writer, 1, "DESC", Some(descendants))?;
+            self.write_value_or_wrap(writer, 1, "DESC", Some(descendants))?;
         }
 
         Ok(())
@@ -795,9 +797,9 @@ impl GedcomWriter {
         self.write_line_with_xref(writer, 0, media.xref.as_deref(), "OBJE", None)?;
 
         if let Some(ref file) = media.file {
-            self.write_line(writer, 1, "FILE", file.value.as_deref())?;
+            self.write_value_or_wrap(writer, 1, "FILE", file.value.as_deref())?;
             if let Some(ref format) = file.form {
-                self.write_line(writer, 2, "FORM", format.value.as_deref())?;
+                self.write_value_or_wrap(writer, 2, "FORM", format.value.as_deref())?;
             }
         }
 
@@ -806,7 +808,7 @@ impl GedcomWriter {
         }
 
         if let Some(ref title) = media.title {
-            self.write_line(writer, 1, "TITL", Some(title))?;
+            self.write_value_or_wrap(writer, 1, "TITL", Some(title))?;
         }
 
         // Note
@@ -829,10 +831,10 @@ impl GedcomWriter {
         } else {
             self.write_line(writer, level, "OBJE", None)?;
             if let Some(ref file) = media.file {
-                self.write_line(writer, level + 1, "FILE", file.value.as_deref())?;
+                self.write_value_or_wrap(writer, level + 1, "FILE", file.value.as_deref())?;
             }
             if let Some(ref title) = media.title {
-                self.write_line(writer, level + 1, "TITL", Some(title))?;
+                self.write_value_or_wrap(writer, level + 1, "TITL", Some(title))?;
             }
         }
         Ok(())
@@ -848,7 +850,7 @@ impl GedcomWriter {
         self.write_line(writer, level, "SOUR", Some(&citation.xref))?;
 
         if let Some(ref page) = citation.page {
-            self.write_line(writer, level + 1, "PAGE", Some(page))?;
+            self.write_value_or_wrap(writer, level + 1, "PAGE", Some(page))?;
         }
 
         if let Some(ref data) = citation.data {
@@ -865,7 +867,7 @@ impl GedcomWriter {
 
         if let Some(ref certainty) = citation.certainty_assessment {
             let quay = certainty_to_gedcom_value(certainty);
-            self.write_line(writer, level + 1, "QUAY", Some(&quay))?;
+            self.write_value_or_wrap(writer, level + 1, "QUAY", Some(&quay))?;
         }
 
         if let Some(ref note) = citation.note {
@@ -883,16 +885,16 @@ impl GedcomWriter {
         date: &Date,
     ) -> Result<(), io::Error> {
         if let Some(ref value) = date.value {
-            self.write_line(writer, level, "DATE", Some(value))?;
+            self.write_value_or_wrap(writer, level, "DATE", Some(value))?;
         }
 
         if let Some(ref time) = date.time {
-            self.write_line(writer, level + 1, "TIME", Some(time))?;
+            self.write_value_or_wrap(writer, level + 1, "TIME", Some(time))?;
         }
 
         // GEDCOM 7.0: PHRASE substructure
         if let Some(ref phrase) = date.phrase {
-            self.write_line(writer, level + 1, "PHRASE", Some(phrase))?;
+            self.write_value_or_wrap(writer, level + 1, "PHRASE", Some(phrase))?;
         }
 
         Ok(())
@@ -904,7 +906,7 @@ impl GedcomWriter {
 
         for tag_def in &schema.tag_definitions {
             let payload = tag_def.to_payload();
-            self.write_line(writer, 2, "TAG", Some(&payload))?;
+            self.write_value_or_wrap(writer, 2, "TAG", Some(&payload))?;
         }
 
         Ok(())
@@ -919,27 +921,27 @@ impl GedcomWriter {
         self.write_line_with_xref(writer, 0, note.xref.as_deref(), "SNOTE", Some(&note.text))?;
 
         if let Some(ref mime) = note.mime {
-            self.write_line(writer, 1, "MIME", Some(mime))?;
+            self.write_value_or_wrap(writer, 1, "MIME", Some(mime))?;
         }
 
         if let Some(ref lang) = note.language {
-            self.write_line(writer, 1, "LANG", Some(lang))?;
+            self.write_value_or_wrap(writer, 1, "LANG", Some(lang))?;
         }
 
         for translation in &note.translations {
-            self.write_line(writer, 1, "TRAN", Some(&translation.text))?;
+            self.write_value_or_wrap(writer, 1, "TRAN", Some(&translation.text))?;
             if let Some(ref mime) = translation.mime {
-                self.write_line(writer, 2, "MIME", Some(mime))?;
+                self.write_value_or_wrap(writer, 2, "MIME", Some(mime))?;
             }
             if let Some(ref lang) = translation.language {
-                self.write_line(writer, 2, "LANG", Some(lang))?;
+                self.write_value_or_wrap(writer, 2, "LANG", Some(lang))?;
             }
         }
 
         for exid in &note.external_ids {
-            self.write_line(writer, 1, "EXID", Some(&exid.id))?;
+            self.write_value_or_wrap(writer, 1, "EXID", Some(&exid.id))?;
             if let Some(ref type_uri) = exid.type_uri {
-                self.write_line(writer, 2, "TYPE", Some(type_uri))?;
+                self.write_value_or_wrap(writer, 2, "TYPE", Some(type_uri))?;
             }
         }
 
@@ -958,15 +960,15 @@ impl GedcomWriter {
         sort_date: &SortDate,
     ) -> Result<(), io::Error> {
         if let Some(ref value) = sort_date.value {
-            self.write_line(writer, level, "SDATE", Some(value))?;
+            self.write_value_or_wrap(writer, level, "SDATE", Some(value))?;
         }
 
         if let Some(ref time) = sort_date.time {
-            self.write_line(writer, level + 1, "TIME", Some(time))?;
+            self.write_value_or_wrap(writer, level + 1, "TIME", Some(time))?;
         }
 
         if let Some(ref phrase) = sort_date.phrase {
-            self.write_line(writer, level + 1, "PHRASE", Some(phrase))?;
+            self.write_value_or_wrap(writer, level + 1, "PHRASE", Some(phrase))?;
         }
 
         Ok(())
@@ -1015,7 +1017,7 @@ impl GedcomWriter {
         }
 
         if let Some(ref temple) = ordinance.temple {
-            self.write_line(writer, level + 1, "TEMP", Some(temple))?;
+            self.write_value_or_wrap(writer, level + 1, "TEMP", Some(temple))?;
         }
 
         if let Some(ref status) = ordinance.status {
@@ -1044,34 +1046,34 @@ impl GedcomWriter {
         level: u8,
         address: &Address,
     ) -> Result<(), io::Error> {
-        self.write_line(writer, level, "ADDR", address.value.as_deref())?;
+        self.write_value_or_wrap(writer, level, "ADDR", address.value.as_deref())?;
 
         if let Some(ref line1) = address.adr1 {
-            self.write_line(writer, level + 1, "ADR1", Some(line1))?;
+            self.write_value_or_wrap(writer, level + 1, "ADR1", Some(line1))?;
         }
 
         if let Some(ref line2) = address.adr2 {
-            self.write_line(writer, level + 1, "ADR2", Some(line2))?;
+            self.write_value_or_wrap(writer, level + 1, "ADR2", Some(line2))?;
         }
 
         if let Some(ref line3) = address.adr3 {
-            self.write_line(writer, level + 1, "ADR3", Some(line3))?;
+            self.write_value_or_wrap(writer, level + 1, "ADR3", Some(line3))?;
         }
 
         if let Some(ref city) = address.city {
-            self.write_line(writer, level + 1, "CITY", Some(city))?;
+            self.write_value_or_wrap(writer, level + 1, "CITY", Some(city))?;
         }
 
         if let Some(ref state) = address.state {
-            self.write_line(writer, level + 1, "STAE", Some(state))?;
+            self.write_value_or_wrap(writer, level + 1, "STAE", Some(state))?;
         }
 
         if let Some(ref postal) = address.post {
-            self.write_line(writer, level + 1, "POST", Some(postal))?;
+            self.write_value_or_wrap(writer, level + 1, "POST", Some(postal))?;
         }
 
         if let Some(ref country) = address.country {
-            self.write_line(writer, level + 1, "CTRY", Some(country))?;
+            self.write_value_or_wrap(writer, level + 1, "CTRY", Some(country))?;
         }
 
         Ok(())
@@ -1101,6 +1103,38 @@ impl GedcomWriter {
         tag: &str,
         value: Option<&str>,
     ) -> Result<(), io::Error> {
+        self.write_line_with_terminator(writer, level, tag, value, true)
+    }
+
+    fn write_value_or_wrap<W: Write>(
+        &self,
+        writer: &mut W,
+        level: u8,
+        tag: &str,
+        value: Option<&str>,
+    ) -> Result<(), io::Error> {
+        match value {
+            None => self.write_line(writer, level, tag, None),
+            Some(v) if v.contains('\n') || v.len() > self.config.max_line_length => {
+                self.write_long_text(writer, level, tag, v)
+            }
+            Some(v) => self.write_line(writer, level, tag, Some(v)),
+        }
+    }
+
+    /// Writes the final trailer line without a trailing terminator.
+    fn write_trailer<W: Write>(&self, writer: &mut W) -> Result<(), io::Error> {
+        self.write_line_with_terminator(writer, 0, "TRLR", None, false)
+    }
+
+    fn write_line_with_terminator<W: Write>(
+        &self,
+        writer: &mut W,
+        level: u8,
+        tag: &str,
+        value: Option<&str>,
+        write_terminator: bool,
+    ) -> Result<(), io::Error> {
         write!(writer, "{level} {tag}").map_err(io_error)?;
 
         if let Some(v) = value {
@@ -1109,7 +1143,9 @@ impl GedcomWriter {
             }
         }
 
-        write!(writer, "{}", self.config.line_ending).map_err(io_error)?;
+        if write_terminator {
+            write!(writer, "{}", self.config.line_ending).map_err(io_error)?;
+        }
 
         Ok(())
     }
@@ -1148,6 +1184,9 @@ impl GedcomWriter {
         let lines: Vec<&str> = text.split('\n').collect();
 
         for (i, line) in lines.iter().enumerate() {
+            // Empty continuation lines must still be represented explicitly with `CONT` + an empty value.
+            // `CONT` means “new line”, so dropping them would merge lines.
+            let line_value = Some(*line);
             if i == 0 {
                 // First line uses the main tag
                 if line.len() <= self.config.max_line_length {
@@ -1168,7 +1207,7 @@ impl GedcomWriter {
             } else {
                 // Subsequent lines use CONT
                 if line.len() <= self.config.max_line_length {
-                    self.write_line(writer, level + 1, "CONT", Some(line))?;
+                    self.write_line(writer, level + 1, "CONT", line_value)?;
                 } else {
                     // Split with CONT first, then CONC
                     let first_part = &line[..self.config.max_line_length];

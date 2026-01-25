@@ -16,6 +16,8 @@ fn test_round_trip_minimal() {
 
     let writer = GedcomWriter::new();
     let written = writer.write_to_string(&data1).unwrap();
+    assert!(written.ends_with("0 TRLR"));
+    assert!(!written.ends_with('\n'));
 
     let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();
 

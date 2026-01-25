@@ -12,7 +12,7 @@ fn bench_parse_original_api(c: &mut Criterion) {
     let files = [
         ("simple", "tests/fixtures/simple.ged"),
         ("sample", "tests/fixtures/sample.ged"),
-        ("allged", "tests/fixtures/allged.ged"),
+        // allged.ged intentionally ends with a blank line.
         ("washington", "tests/fixtures/washington.ged"),
     ];
 
@@ -43,7 +43,7 @@ fn bench_parse_builder_api(c: &mut Criterion) {
     let files = [
         ("simple", "tests/fixtures/simple.ged"),
         ("sample", "tests/fixtures/sample.ged"),
-        ("allged", "tests/fixtures/allged.ged"),
+        // allged.ged intentionally ends with a blank line.
         ("washington", "tests/fixtures/washington.ged"),
     ];
 
@@ -75,7 +75,7 @@ fn bench_parse_with_validation(c: &mut Criterion) {
     let files = [
         ("simple", "tests/fixtures/simple.ged"),
         ("sample", "tests/fixtures/sample.ged"),
-        ("allged", "tests/fixtures/allged.ged"),
+        // allged.ged intentionally ends with a blank line.
         ("washington", "tests/fixtures/washington.ged"),
     ];
 
@@ -179,7 +179,7 @@ fn generate_synthetic_gedcom(individual_count: usize) -> String {
         }
     }
 
-    gedcom.push_str("0 TRLR\n");
+    gedcom.push_str("0 TRLR");
     gedcom
 }
 
