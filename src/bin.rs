@@ -68,7 +68,10 @@ fn parse_args(argv: &[String]) -> Result<CliArgs, CliError> {
             value => {
                 if out.filename.is_some() {
                     return Err(CliError::Usage(format!(
-                        "Found more args than expected: {:?}",
+                        "Found more args than expected: {:?}\n\
+\
+Hint: this tool expects exactly one .ged file path (quote it if it contains spaces), for example:\n\
+  ged_io --individual-lastname \"/path/with spaces/family.ged\"",
                         &argv[1..]
                     )));
                 }
