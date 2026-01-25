@@ -245,7 +245,7 @@ dependencies = [
 
 [[package]]
 name = "ged_io"
-version = "0.9.0"
+version = "0.10.0"
 dependencies = [
  "criterion",
  "encoding_rs",
