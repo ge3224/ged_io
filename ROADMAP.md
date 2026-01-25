@@ -4,8 +4,8 @@ This document outlines the planned development phases for the `ged_io` GEDCOM
 parsing library.
 
 For current work items and detailed task tracking, see [GitHub
-Issues](https://github.com/ge3224/ged_io/issues) and
-[Milestones](https://github.com/ge3224/ged_io/milestones).
+Issues](https://github.com/trois-six/ged_io/issues) and
+[Milestones](https://github.com/trois-six/ged_io/milestones).
 
 ---
 
@@ -155,6 +155,30 @@ Add support for GEDZIP file format - bundled GEDCOM data with media files.
 
 ---
 
+## v0.11: Streaming Parser ✅ COMPLETE
+
+Add memory-efficient streaming parser for processing large GEDCOM files.
+
+### Primary objectives
+
+- ✅ Implement `GedcomStreamParser` for iterator-based record streaming
+- ✅ Add `TokenizerTrait` to abstract tokenizer operations
+- ✅ Add `StreamTokenizer` for reading from `BufRead` sources
+- ✅ Add `GedcomRecord` enum representing any top-level record type
+- ✅ Implement `FromIterator<GedcomRecord>` for `GedcomData`
+- ✅ Handle non-UTF-8 input with clear error messages
+- ✅ Full test coverage
+
+### Achieved outcomes
+
+- ✅ Library can process arbitrarily large GEDCOM files
+- ✅ Memory usage stays constant regardless of file size
+- ✅ Iterator-based API integrates naturally with Rust idioms
+- ✅ Records can be filtered/processed on-the-fly or collected into `GedcomData`
+- ✅ Clear error handling for encoding issues
+
+---
+
 ## v1.0: Documentation and Stability
 
 Focus on API stability, comprehensive documentation, and community preparation.
@@ -182,7 +206,6 @@ Potential areas for future development, depending on community interest and
 practical need:
 
 - Performance optimizations based on real-world usage patterns
-- Streaming parser for very large files
 - Additional output formats or conversion utilities
 - Integration with genealogy software APIs
 - Advanced validation and data quality tools
