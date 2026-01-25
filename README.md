@@ -21,10 +21,10 @@ Whether you're building a genealogy application, migrating data between platform
 | **Dual Format Support** | Full support for both GEDCOM 5.5.1 and GEDCOM 7.0 specifications |
 | **Read & Write** | Parse GEDCOM files into Rust structs, modify them, and write back |
 | **GEDZIP Support** | Read/write `.gdz` archives bundling GEDCOM data with media files |
-| **High Performance** | Optimized tokenizer with ~40% faster parsing than earlier versions |
 | **Multiple Encodings** | UTF-8, UTF-16, ISO-8859-1, ISO-8859-15 (Latin-9) |
 | **JSON Export** | Optional serde integration for JSON serialization |
 | **Type Safe** | Strongly-typed Rust structs for all GEDCOM record types |
+| **Compatible** | Relax rules to be compatible with most of GEDCOM files |
 
 ---
 
