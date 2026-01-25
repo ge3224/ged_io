@@ -22,7 +22,7 @@ Whether you're building a genealogy application, migrating data between platform
 | **Read & Write** | Parse GEDCOM files into Rust structs, modify them, and write back |
 | **Streaming Parser** | Memory-efficient iterator-based parsing for large files |
 | **GEDZIP Support** | Read/write `.gdz` archives bundling GEDCOM data with media files |
-| **Multiple Encodings** | UTF-8, UTF-16, ISO-8859-1, ISO-8859-15 (Latin-9) |
+| **Multiple Encodings** | UTF-8, UTF-16, ISO-8859-1, ISO-8859-15 (Latin-9), ANSEL |
 | **JSON Export** | Optional serde integration for JSON serialization |
 | **Type Safe** | Strongly-typed Rust structs for all GEDCOM record types |
 | **Compatible** | Relax rules to be compatible with most of GEDCOM files |
@@ -616,6 +616,29 @@ A CLI tool is included for quick GEDCOM inspection:
 # Install
 cargo install ged_io
 
+# Help
+ged_io --help
+ged_io - GEDCOM inspection tool
+
+USAGE:
+ged_io <file.ged>
+ged_io --individual <XREF> <file.ged>
+ged_io --individual-lastname <LASTNAME> <file.ged>
+ged_io --individual-firstname <FIRSTNAME> <file.ged>
+
+OPTIONS:
+-h, --help                        Print this help
+--individual <XREF>               Display a single individual (e.g. @I1@)
+--individual-lastname <LASTNAME>  Filter individuals by last name (case-insensitive)
+--individual-firstname <FIRSTNAME> Filter individuals by first name (case-insensitive)
+
+NOTES:
+If both --individual-lastname and --individual-firstname are set,
+individuals matching BOTH filters are listed.
+
+```
+Example with one file:
+```bash
 # Analyze a file
 ged_io family.ged
 ```
