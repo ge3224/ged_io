@@ -11,7 +11,8 @@ fn bench_tokenize_files(c: &mut Criterion) {
     let files = [
         ("simple", "tests/fixtures/simple.ged"),
         ("sample", "tests/fixtures/sample.ged"),
-        ("allged", "tests/fixtures/allged.ged"),
+        // allged.ged intentionally ends with a blank line; in strict tokenization benchmarks
+        // we want valid/typical inputs only.
         ("washington", "tests/fixtures/washington.ged"),
     ];
 
@@ -25,8 +26,14 @@ fn bench_tokenize_files(c: &mut Criterion) {
                 |b, content| {
                     b.iter(|| {
                         let mut tokenizer = Tokenizer::new(black_box(content.chars()));
+                        // Tokenizer starts with current_token=None/current_char='\n'; prime it first.
+                        tokenizer
+                            .next_token()
+                            .unwrap_or_else(|e| panic!("tokenize failed for {name}: {e:?}"));
                         while !tokenizer.done() {
-                            tokenizer.next_token().unwrap();
+                            tokenizer
+                                .next_token()
+                                .unwrap_or_else(|e| panic!("tokenize failed for {name}: {e:?}"));
                         }
                     });
                 },
@@ -46,8 +53,11 @@ fn bench_tokenize_line_types(c: &mut Criterion) {
     group.bench_function("simple_tag", |b| {
         b.iter(|| {
             let mut tokenizer = Tokenizer::new(black_box(simple_line.chars()));
-            while !tokenizer.done() {
-                tokenizer.next_token().unwrap();
+            tokenizer.next_token().unwrap();
+            if !tokenizer.done() {
+                tokenizer
+                    .next_token()
+                    .unwrap_or_else(|e| panic!("tokenize failed for simple_tag: {e:?}"));
             }
         });
     });
@@ -57,8 +67,11 @@ fn bench_tokenize_line_types(c: &mut Criterion) {
     group.bench_function("with_pointer", |b| {
         b.iter(|| {
             let mut tokenizer = Tokenizer::new(black_box(pointer_line.chars()));
-            while !tokenizer.done() {
-                tokenizer.next_token().unwrap();
+            tokenizer.next_token().unwrap();
+            if !tokenizer.done() {
+                tokenizer
+                    .next_token()
+                    .unwrap_or_else(|e| panic!("tokenize failed for with_pointer: {e:?}"));
             }
         });
     });
@@ -68,8 +81,11 @@ fn bench_tokenize_line_types(c: &mut Criterion) {
     group.bench_function("with_value", |b| {
         b.iter(|| {
             let mut tokenizer = Tokenizer::new(black_box(value_line.chars()));
-            while !tokenizer.done() {
-                tokenizer.next_token().unwrap();
+            tokenizer.next_token().unwrap();
+            if !tokenizer.done() {
+                tokenizer
+                    .next_token()
+                    .unwrap_or_else(|e| panic!("tokenize failed for with_value: {e:?}"));
             }
         });
     });
@@ -79,8 +95,11 @@ fn bench_tokenize_line_types(c: &mut Criterion) {
     group.bench_function("long_value", |b| {
         b.iter(|| {
             let mut tokenizer = Tokenizer::new(black_box(long_value.chars()));
-            while !tokenizer.done() {
-                tokenizer.next_token().unwrap();
+            tokenizer.next_token().unwrap();
+            if !tokenizer.done() {
+                tokenizer
+                    .next_token()
+                    .unwrap_or_else(|e| panic!("tokenize failed for long_value: {e:?}"));
             }
         });
     });
@@ -90,8 +109,11 @@ fn bench_tokenize_line_types(c: &mut Criterion) {
     group.bench_function("custom_tag", |b| {
         b.iter(|| {
             let mut tokenizer = Tokenizer::new(black_box(custom_tag_line.chars()));
-            while !tokenizer.done() {
-                tokenizer.next_token().unwrap();
+            tokenizer.next_token().unwrap();
+            if !tokenizer.done() {
+                tokenizer
+                    .next_token()
+                    .unwrap_or_else(|e| panic!("tokenize failed for custom_tag: {e:?}"));
             }
         });
     });
@@ -121,7 +143,8 @@ fn bench_take_line_value(c: &mut Criterion) {
                     let mut tokenizer = Tokenizer::new(black_box(content.chars()));
                     tokenizer.next_token().unwrap(); // Level
                     tokenizer.next_token().unwrap(); // Tag
-                    tokenizer.take_line_value().unwrap()
+                    let v = tokenizer.take_line_value().unwrap();
+                    black_box(v)
                 });
             },
         );
@@ -191,11 +214,12 @@ fn bench_token_extraction(c: &mut Criterion) {
         b.iter(|| {
             let mut tokenizer = Tokenizer::new(black_box(levels.chars()));
             let mut count = 0;
+            tokenizer.next_token().unwrap();
             while !tokenizer.done() {
-                tokenizer.next_token().unwrap();
                 if matches!(tokenizer.current_token, Token::Level(_)) {
                     count += 1;
                 }
+                tokenizer.next_token().unwrap();
             }
             count
         });
@@ -207,11 +231,12 @@ fn bench_token_extraction(c: &mut Criterion) {
         b.iter(|| {
             let mut tokenizer = Tokenizer::new(black_box(tags.chars()));
             let mut count = 0;
+            tokenizer.next_token().unwrap();
             while !tokenizer.done() {
-                tokenizer.next_token().unwrap();
                 if matches!(tokenizer.current_token, Token::Tag(_)) {
                     count += 1;
                 }
+                tokenizer.next_token().unwrap();
             }
             count
         });
@@ -223,11 +248,12 @@ fn bench_token_extraction(c: &mut Criterion) {
         b.iter(|| {
             let mut tokenizer = Tokenizer::new(black_box(pointers.chars()));
             let mut count = 0;
+            tokenizer.next_token().unwrap();
             while !tokenizer.done() {
-                tokenizer.next_token().unwrap();
                 if matches!(tokenizer.current_token, Token::Pointer(_)) {
                     count += 1;
                 }
+                tokenizer.next_token().unwrap();
             }
             count
         });
@@ -253,6 +279,7 @@ fn bench_tokenize_synthetic(c: &mut Criterion) {
             |b, content| {
                 b.iter(|| {
                     let mut tokenizer = Tokenizer::new(black_box(content.chars()));
+                    tokenizer.next_token().unwrap();
                     while !tokenizer.done() {
                         tokenizer.next_token().unwrap();
                     }

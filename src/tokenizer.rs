@@ -116,12 +116,23 @@ impl<'a> Tokenizer<'a> {
             return Ok(());
         }
 
-        // level number is at the start of each line.
+        // Level number is at the start of each line.
+        // Also allow a file that starts without a leading newline.
         if self.current_char == '\r' {
             self.next_char();
         }
-        if self.current_char == '\n' {
-            self.next_char();
+        if matches!(self.current_token, Token::None) || self.current_char == '\n' {
+            // Treat the initial state (current_char='\n' and Token::None) as "start of file".
+            // In that case we must NOT consume a real leading '\n' (there isn't one).
+            if self.current_char == '\n' {
+                self.next_char();
+
+                // Allow a trailing newline at EOF (common for text files).
+                if self.current_char == '\0' {
+                    self.current_token = Token::EOF;
+                    return Ok(());
+                }
+            }
 
             self.current_token = Token::Level(self.extract_number()?);
             self.line += 1;
