@@ -601,6 +601,7 @@ All standard GEDCOM date formats are preserved:
 
 - UTF-8 (with/without BOM)
 - UTF-16 LE/BE
+- ANSEL (Z39.47, legacy GEDCOM 5.x encoding)
 - ISO-8859-1 (Latin-1)
 - ISO-8859-15 (Latin-9)
 - ASCII

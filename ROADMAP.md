@@ -155,9 +155,10 @@ Add support for GEDZIP file format - bundled GEDCOM data with media files.
 
 ---
 
-## v0.11: Streaming Parser ✅ COMPLETE
+## v0.11: Streaming Parser & ANSEL Encoding ✅ COMPLETE
 
-Add memory-efficient streaming parser for processing large GEDCOM files.
+Add memory-efficient streaming parser for processing large GEDCOM files,
+and support for ANSEL character encoding.
 
 ### Primary objectives
 
@@ -167,6 +168,7 @@ Add memory-efficient streaming parser for processing large GEDCOM files.
 - ✅ Add `GedcomRecord` enum representing any top-level record type
 - ✅ Implement `FromIterator<GedcomRecord>` for `GedcomData`
 - ✅ Handle non-UTF-8 input with clear error messages
+- ✅ Add ANSEL (Z39.47) encoding support for legacy GEDCOM 5.x files
 - ✅ Full test coverage
 
 ### Achieved outcomes
@@ -176,6 +178,8 @@ Add memory-efficient streaming parser for processing large GEDCOM files.
 - ✅ Iterator-based API integrates naturally with Rust idioms
 - ✅ Records can be filtered/processed on-the-fly or collected into `GedcomData`
 - ✅ Clear error handling for encoding issues
+- ✅ ANSEL decoding with combining diacritical marks
+- ✅ ANSEL encoding for writing legacy files
 
 ---
 
