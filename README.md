@@ -34,20 +34,20 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-ged_io = "0.9"
+ged_io = "0.10"
 ```
 
 ### Optional Features
 
 ```toml
 # JSON serialization support
-ged_io = { version = "0.9", features = ["json"] }
+ged_io = { version = "0.10", features = ["json"] }
 
 # GEDZIP archive support (.gdz files)
-ged_io = { version = "0.9", features = ["gedzip"] }
+ged_io = { version = "0.10", features = ["gedzip"] }
 
 # Enable all features
-ged_io = { version = "0.9", features = ["json", "gedzip"] }
+ged_io = { version = "0.10", features = ["json", "gedzip"] }
 ```
 
 ---
@@ -228,6 +228,11 @@ let data = GedcomBuilder::new()
     .max_file_size(Some(50_000_000))  // 50 MB limit
     .build_from_str(&content)?;
 ```
+
+Lenient parsing policy (default):
+- Accepts common real-world quirks (UTF-8 BOM, CRLF line endings, trailing newline at EOF).
+- Allows missing `HEAD` and/or `TRLR` records (the parser stops cleanly at EOF).
+- Keeps writing strict: the writer always emits valid GEDCOM output (including `0 TRLR` without a final newline and using `CONT`/`CONC` for multiline text).
 
 | Option | Default | Description |
 |--------|---------|-------------|
@@ -626,18 +631,18 @@ cargo clippy --all-targets --all-features -- -D warnings
 
 ## Performance
 
-Benchmarked against typical GEDCOM files:
+Criterion benchmarks (`cargo bench`) on this repo's fixtures:
 
-| File | Records | Parse Time |
-|------|---------|------------|
-| Simple (47 lines) | ~5 | ~12 µs |
-| Sample (96 lines) | ~10 | ~25 µs |
-| Medium (1,159 lines) | ~100 | ~345 µs |
-| Large (11,527 lines) | ~1,000 | ~3.5 ms |
+| Fixture | Benchmark | Time (median) |
+|---------|-----------|---------------|
+| `tests/fixtures/simple.ged` | `GedcomBuilder::build_from_str` | ~10.58 µs |
+| `tests/fixtures/sample.ged` | `GedcomBuilder::build_from_str` | ~22.27 µs |
+| `tests/fixtures/washington.ged` | `GedcomBuilder::build_from_str` | ~2.93 ms |
 
-- **~40% faster** than version 0.3
-- **O(1) indexed lookups** vs O(n) linear search
-- Memory-efficient `Box<str>` storage
+Notes:
+- The "original" API (`Gedcom::new`) is faster in parsing-only benches (~8.30 µs / ~18.06 µs / ~2.74 ms) because it does less validation/configuration work.
+- Round-tripping (parse + write) is benchmarked separately in `benches/memory.rs`.
+- Numbers vary by CPU, Rust version, and enabled features.
 
 ---
 
@@ -646,7 +651,9 @@ Benchmarked against typical GEDCOM files:
 - [API Documentation](https://docs.rs/ged_io) - Full API reference
 - [MIGRATION.md](MIGRATION.md) - GEDCOM 5.5.1 to 7.0 migration guide
 - [ROADMAP.md](ROADMAP.md) - Project roadmap and planned features
-- [GEDCOM 7.0 Specification](https://gedcom.io/specifications/FamilySearchGEDCOMv7.html)
+- GEDCOM specifications (bundled in this repo):
+  - [GEDCOM 7.0 Specification (PDF)](docs/FamilySearchGEDCOMv7.pdf)
+  - [GEDCOM 5.5.1 Specification (PDF)](docs/ged551.pdf)
 
 ---
 
