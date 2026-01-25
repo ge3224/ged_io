@@ -118,10 +118,22 @@ impl<'a> Tokenizer<'a> {
 
         // Level number is at the start of each line.
         // Also allow a file that starts without a leading newline.
-        if self.current_char == '\r' {
-            self.next_char();
-        }
         if matches!(self.current_token, Token::None) || self.current_char == '\n' {
+            // Tolerate UTF-8 BOM at the start of the file.
+            while matches!(self.current_token, Token::None)
+                && (self.current_char as u32) == 65279_u32
+            {
+                self.next_char();
+            }
+
+            // Tolerate CRLF and CR-only line endings.
+            if self.current_char == '\r' {
+                self.next_char();
+                if self.current_char == '\n' {
+                    self.next_char();
+                }
+            }
+
             // Treat the initial state (current_char='\n' and Token::None) as "start of file".
             // In that case we must NOT consume a real leading '\n' (there isn't one).
             if self.current_char == '\n' {
@@ -141,8 +153,20 @@ impl<'a> Tokenizer<'a> {
 
         self.skip_whitespace();
 
-        // handle tag with trailing whitespace
+        // Allow empty lines between records.
         if self.current_char == '\n' {
+            self.next_token()?;
+            return Ok(());
+        }
+        if self.current_char == '\r' {
+            self.next_char();
+            if self.current_char == '\n' {
+                self.next_char();
+            }
+            if self.current_char == '\0' {
+                self.current_token = Token::EOF;
+                return Ok(());
+            }
             self.next_token()?;
             return Ok(());
         }
@@ -159,7 +183,15 @@ impl<'a> Tokenizer<'a> {
             }
             Token::Pointer(_) => Token::Tag(self.extract_word_with_capacity(TAG_CAPACITY)),
             Token::Tag(_) | Token::CustomTag(_) => {
-                Token::LineValue(self.extract_value_with_capacity(VALUE_CAPACITY))
+                // If the line ends right after the tag, treat it as an empty value.
+                if self.current_char == '\n'
+                    || self.current_char == '\r'
+                    || self.current_char == '\0'
+                {
+                    Token::LineValue("".into())
+                } else {
+                    Token::LineValue(self.extract_value_with_capacity(VALUE_CAPACITY))
+                }
             }
             _ => {
                 return Err(GedcomError::ParseError {
@@ -191,45 +223,28 @@ impl<'a> Tokenizer<'a> {
     fn extract_number(&mut self) -> Result<u8, GedcomError> {
         self.skip_whitespace();
 
-        // Most levels are single digit (0-9), optimize for that case
-        let first_digit = self.current_char;
-        if !first_digit.is_ascii_digit() {
+        // Be permissive: if the line doesn't start with a digit, skip the whole line
+        // and try again on the next one.
+        if !self.current_char.is_ascii_digit() {
             return Err(GedcomError::ParseError {
                 line: self.line,
                 message: "Expected digit for level number".to_string(),
             });
         }
 
-        self.next_char();
-
-        // Check if there's a second digit
-        if self.current_char.is_ascii_digit() {
-            let second_digit = self.current_char;
+        // Parse an arbitrary-length digit sequence.
+        let mut level: u32 = 0;
+        while self.current_char.is_ascii_digit() {
+            level = level
+                .saturating_mul(10)
+                .saturating_add((self.current_char as u8 - b'0') as u32);
             self.next_char();
-
-            // Check for more digits (unlikely but handle gracefully)
-            if self.current_char.is_ascii_digit() {
-                // Collect remaining digits
-                let mut digits = String::with_capacity(4);
-                digits.push(first_digit);
-                digits.push(second_digit);
-                while self.current_char.is_ascii_digit() {
-                    digits.push(self.current_char);
-                    self.next_char();
-                }
-                return digits.parse::<u8>().map_err(|e| GedcomError::ParseError {
-                    line: self.line,
-                    message: format!("Failed to parse number: {e}"),
-                });
-            }
-
-            // Two digit number
-            let value = (first_digit as u8 - b'0') * 10 + (second_digit as u8 - b'0');
-            return Ok(value);
         }
 
-        // Single digit (most common case)
-        Ok(first_digit as u8 - b'0')
+        level.try_into().map_err(|_| GedcomError::ParseError {
+            line: self.line,
+            message: format!("Level number too large: {level}"),
+        })
     }
 
     #[inline]

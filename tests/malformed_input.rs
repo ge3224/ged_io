@@ -9,10 +9,8 @@ use ged_io::{Gedcom, GedcomBuilder, GedcomError};
 #[test]
 fn test_missing_header() {
     let sample = "0 @I1@ INDI\n1 NAME John /Doe/\n0 TRLR";
-    let result = Gedcom::new(sample.chars());
-    if let Ok(mut g) = result {
-        let _ = g.parse_data();
-    }
+    let mut gedcom = Gedcom::new(sample.chars()).unwrap();
+    assert!(gedcom.parse_data().is_ok());
 }
 
 #[test]
@@ -23,11 +21,20 @@ fn test_incomplete_header() {
 }
 
 #[test]
-fn test_missing_trailer() {
-    let sample = "0 HEAD\n1 GEDC\n2 VERS 5.5\n0 @I1@ INDI";
-    let result = Gedcom::new(sample.chars());
-    if let Ok(mut g) = result {
-        let _ = g.parse_data();
+fn test_missing_trailer_is_accepted() {
+    let sample = "0 HEAD\n1 GEDC\n2 VERS 5.5\n0 @I1@ INDI\n1 NAME John /Doe/";
+    let mut gedcom = Gedcom::new(sample.chars()).unwrap();
+    if let Err(e) = gedcom.parse_data() {
+        panic!("unexpected parse error: {e:?}");
+    }
+}
+
+#[test]
+fn test_missing_header_and_trailer_is_accepted() {
+    let sample = "0 @I1@ INDI\n1 NAME John /Doe/";
+    let mut gedcom = Gedcom::new(sample.chars()).unwrap();
+    if let Err(e) = gedcom.parse_data() {
+        panic!("unexpected parse error: {e:?}");
     }
 }
 
