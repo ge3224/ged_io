@@ -171,4 +171,38 @@ mod tests {
         let chan_note = chan.note.as_ref().unwrap();
         assert_eq!(chan_note.value.as_ref().unwrap(), "A note");
     }
+
+    #[test]
+    fn test_parse_calendar_escapes() {
+        // Test all 4 GEDCOM calendar types are preserved
+        let calendars = [
+            ("GREGORIAN", "@#DGREGORIAN@ 31 DEC 1997"),
+            ("JULIAN", "@#DJULIAN@ 15 MAR 1582"),
+            ("HEBREW", "@#DHEBREW@ 15 TSH 5784"),
+            ("FRENCH_R", "@#DFRENCH R@ 1 VEND 1"),
+        ];
+
+        for (name, date_str) in calendars {
+            let sample = format!(
+                "0 HEAD\n\
+                1 GEDC\n\
+                2 VERS 5.5.1\n\
+                0 @I1@ INDI\n\
+                1 NAME Test /Person/\n\
+                1 BIRT\n\
+                2 DATE {date_str}\n\
+                0 TRLR"
+            );
+
+            let mut doc = Gedcom::new(sample.chars()).unwrap();
+            let gedcom_data = doc.parse_data().unwrap();
+
+            let birt_date = gedcom_data.individuals[0].events[0].date.as_ref().unwrap();
+            assert_eq!(
+                birt_date.value.as_ref().unwrap(),
+                date_str,
+                "{name} calendar date should be preserved exactly"
+            );
+        }
+    }
 }
