@@ -258,11 +258,13 @@ impl Parser for Crop {
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
             let value_str = tokenizer.take_line_value()?;
-            let value: f32 = value_str.parse().map_err(|_| GedcomError::InvalidValueFormat {
-                line: tokenizer.line as usize,
-                value: value_str.clone(),
-                expected_format: "numeric value (0-100)".to_string(),
-            })?;
+            let value: f32 = value_str
+                .parse()
+                .map_err(|_| GedcomError::InvalidValueFormat {
+                    line: tokenizer.line as usize,
+                    value: value_str.clone(),
+                    expected_format: "numeric value (0-100)".to_string(),
+                })?;
 
             match tag {
                 "TOP" => self.top = Some(value),
@@ -499,7 +501,10 @@ mod tests {
     #[test]
     fn test_non_event_description() {
         assert_eq!(NonEvent::for_event("MARR").event_description(), "Marriage");
-        assert_eq!(NonEvent::for_event("CHR").event_description(), "Christening");
+        assert_eq!(
+            NonEvent::for_event("CHR").event_description(),
+            "Christening"
+        );
         assert_eq!(NonEvent::for_event("BAPM").event_description(), "Baptism");
         assert_eq!(NonEvent::for_event("BURI").event_description(), "Burial");
         assert_eq!(NonEvent::for_event("CUSTOM").event_description(), "CUSTOM");

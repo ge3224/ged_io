@@ -5,12 +5,8 @@ use crate::{
     parser::{parse_subset, Parser},
     tokenizer::{Token, Tokenizer},
     types::{
-        address::Address,
-        date::Date,
-        individual::attribute::IndividualAttribute,
-        note::Note,
-        place::Place,
-        source::citation::Citation,
+        address::Address, date::Date, individual::attribute::IndividualAttribute, note::Note,
+        place::Place, source::citation::Citation,
     },
     GedcomError,
 };

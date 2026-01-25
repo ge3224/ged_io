@@ -349,9 +349,7 @@ fn test_version_7_variants() {
 #[test]
 fn test_version_5_variants() {
     for version in &["5.5", "5.5.1", "5.5.0"] {
-        let content = format!(
-            "0 HEAD\n1 GEDC\n2 VERS {version}\n2 FORM LINEAGE-LINKED\n0 TRLR"
-        );
+        let content = format!("0 HEAD\n1 GEDC\n2 VERS {version}\n2 FORM LINEAGE-LINKED\n0 TRLR");
         let detected = detect_version(&content);
         assert!(
             detected.is_v5(),
@@ -900,17 +898,23 @@ fn test_lds_ordinance_type_methods() {
 /// Test @ sign escaping utilities.
 #[test]
 fn test_at_sign_escaping() {
-    use ged_io::util::{escape_at_signs, unescape_at_signs, needs_at_escaping};
+    use ged_io::util::{escape_at_signs, needs_at_escaping, unescape_at_signs};
 
     // GEDCOM 5.5.1: all @ doubled
     assert_eq!(escape_at_signs("test@email.com", false), "test@@email.com");
     assert_eq!(escape_at_signs("@ref", false), "@@ref");
-    assert_eq!(unescape_at_signs("test@@email.com", false), "test@email.com");
+    assert_eq!(
+        unescape_at_signs("test@@email.com", false),
+        "test@email.com"
+    );
 
     // GEDCOM 7.0: only leading @ doubled
     assert_eq!(escape_at_signs("test@email.com", true), "test@email.com");
     assert_eq!(escape_at_signs("@ref", true), "@@ref");
-    assert_eq!(unescape_at_signs("test@@email.com", true), "test@@email.com");
+    assert_eq!(
+        unescape_at_signs("test@@email.com", true),
+        "test@@email.com"
+    );
     assert_eq!(unescape_at_signs("@@ref", true), "@ref");
 
     // needs_at_escaping

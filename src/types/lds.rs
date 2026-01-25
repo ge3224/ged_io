@@ -26,11 +26,7 @@
 use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
-    types::{
-        date::Date,
-        note::Note,
-        source::citation::Citation,
-    },
+    types::{date::Date, note::Note, source::citation::Citation},
     GedcomError,
 };
 
@@ -445,10 +441,7 @@ mod tests {
             .with_temple("SLAKE")
             .with_status(LdsOrdinanceStatus::Completed);
 
-        assert_eq!(
-            ordinance.ordinance_type,
-            Some(LdsOrdinanceType::Initiatory)
-        );
+        assert_eq!(ordinance.ordinance_type, Some(LdsOrdinanceType::Initiatory));
         assert_eq!(
             ordinance.date.as_ref().unwrap().value,
             Some("15 MAR 1990".to_string())
@@ -461,9 +454,10 @@ mod tests {
 
     #[test]
     fn test_ordinance_is_completed() {
-        let mut ordinance = LdsOrdinance::default();
-
-        ordinance.status = Some(LdsOrdinanceStatus::Completed);
+        let mut ordinance = LdsOrdinance {
+            status: Some(LdsOrdinanceStatus::Completed),
+            ..Default::default()
+        };
         assert!(ordinance.is_completed());
 
         ordinance.status = Some(LdsOrdinanceStatus::BicCompleted);

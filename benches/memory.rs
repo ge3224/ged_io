@@ -167,21 +167,27 @@ fn bench_round_trip_memory(c: &mut Criterion) {
 
     for (name, path) in files {
         if let Ok(content) = fs::read_to_string(path) {
-            group.bench_with_input(BenchmarkId::new("round_trip", name), &content, |b, content| {
-                b.iter(|| {
-                    // Parse
-                    let data = GedcomBuilder::new().build_from_str(black_box(content)).unwrap();
+            group.bench_with_input(
+                BenchmarkId::new("round_trip", name),
+                &content,
+                |b, content| {
+                    b.iter(|| {
+                        // Parse
+                        let data = GedcomBuilder::new()
+                            .build_from_str(black_box(content))
+                            .unwrap();
 
-                    // Write
-                    let writer = GedcomWriter::new();
-                    let output = writer.write_to_string(&data).unwrap();
+                        // Write
+                        let writer = GedcomWriter::new();
+                        let output = writer.write_to_string(&data).unwrap();
 
-                    // Parse again
-                    let data2 = GedcomBuilder::new().build_from_str(&output).unwrap();
+                        // Parse again
+                        let data2 = GedcomBuilder::new().build_from_str(&output).unwrap();
 
-                    black_box(data2)
-                });
-            });
+                        black_box(data2)
+                    });
+                },
+            );
         }
     }
 

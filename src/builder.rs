@@ -499,6 +499,65 @@ impl GedcomBuilder {
         self.build(content.chars())
     }
 
+    /// Builds the parser and parses the GEDCOM data from a GEDZIP archive.
+    ///
+    /// This method reads a GEDZIP file (ZIP archive containing `gedcom.ged`)
+    /// and parses the GEDCOM data from it. GEDZIP is the standard format for
+    /// bundling GEDCOM 7.0 datasets with associated media files.
+    ///
+    /// Requires the `gedzip` feature to be enabled.
+    ///
+    /// # Arguments
+    ///
+    /// * `bytes` - The raw bytes of the GEDZIP file
+    ///
+    /// # Errors
+    ///
+    /// Returns a `GedcomError` if:
+    /// - The bytes are not a valid ZIP archive
+    /// - The archive does not contain a `gedcom.ged` file
+    /// - The GEDCOM data is malformed
+    /// - Validation fails (when strict mode or validation options are enabled)
+    ///
+    /// # Example
+    ///
+    /// ```rust,no_run
+    /// # #[cfg(feature = "gedzip")]
+    /// # fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// use ged_io::GedcomBuilder;
+    ///
+    /// let bytes = std::fs::read("family.gdz")?;
+    /// let data = GedcomBuilder::new()
+    ///     .build_from_gedzip(&bytes)?;
+    /// println!("Found {} individuals", data.individuals.len());
+    /// # Ok(())
+    /// # }
+    /// # #[cfg(not(feature = "gedzip"))]
+    /// # fn main() {}
+    /// ```
+    #[cfg(feature = "gedzip")]
+    pub fn build_from_gedzip(self, bytes: &[u8]) -> Result<GedcomData, GedcomError> {
+        use crate::gedzip::GedzipReader;
+
+        let cursor = std::io::Cursor::new(bytes);
+        let mut reader = GedzipReader::new(cursor)
+            .map_err(|e| GedcomError::InvalidFormat(format!("Invalid GEDZIP archive: {e}")))?;
+
+        let gedcom_bytes = reader
+            .read_gedcom_bytes()
+            .map_err(|e| GedcomError::InvalidFormat(format!("Failed to read gedcom.ged: {e}")))?;
+
+        // Check file size limit if configured
+        if let Some(max_size) = self.config.max_file_size {
+            let size = gedcom_bytes.len();
+            if size > max_size {
+                return Err(GedcomError::FileSizeLimitExceeded { size, max_size });
+            }
+        }
+
+        self.build_from_bytes(&gedcom_bytes)
+    }
+
     /// Validates that all cross-references point to existing records.
     #[allow(clippy::unused_self)]
     fn validate_references_internal(&self, data: &GedcomData) -> Result<(), GedcomError> {
@@ -637,9 +696,7 @@ mod tests {
             1 NAME John /Doe/\n\
             0 TRLR";
 
-        let data = GedcomBuilder::new()
-            .build_from_str(sample)
-            .unwrap();
+        let data = GedcomBuilder::new().build_from_str(sample).unwrap();
 
         assert_eq!(data.individuals.len(), 1);
     }

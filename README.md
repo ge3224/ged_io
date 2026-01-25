@@ -74,14 +74,21 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-ged_io = "0.8"
+ged_io = "0.9"
 ```
 
 For JSON serialization support:
 
 ```toml
 [dependencies]
-ged_io = { version = "0.8", features = ["json"] }
+ged_io = { version = "0.9", features = ["json"] }
+```
+
+For GEDZIP file format support:
+
+```toml
+[dependencies]
+ged_io = { version = "0.9", features = ["gedzip"] }
 ```
 
 ## Quick Start
@@ -455,6 +462,72 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+## GEDZIP File Format
+
+GEDZIP (`.gdz`) is a bundled GEDCOM 7.0 file format that packages the main GEDCOM data with any referenced media files in a ZIP archive. Requires the `gedzip` feature.
+
+### Reading GEDZIP Files
+
+```rust
+use ged_io::GedcomBuilder;
+use std::fs;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let bytes = fs::read("family.gdz")?;
+    
+    // Parse GEDCOM data from GEDZIP archive
+    let data = GedcomBuilder::new().build_from_gedzip(&bytes)?;
+    
+    println!("Parsed {} individuals", data.individuals.len());
+    Ok(())
+}
+```
+
+### Writing GEDZIP Files
+
+```rust
+use ged_io::GedcomBuilder;
+use ged_io::gedzip::write_gedzip_with_media;
+use std::collections::HashMap;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let source = "0 HEAD\n1 GEDC\n2 VERS 7.0\n0 TRLR";
+    let data = GedcomBuilder::new().build_from_str(source)?;
+    
+    // Add media files to bundle
+    let mut media = HashMap::new();
+    media.insert("photos/portrait.jpg".to_string(), 
+                 std::fs::read("portrait.jpg")?);
+    
+    let bytes = write_gedzip_with_media(&data, &media)?;
+    std::fs::write("family.gdz", bytes)?;
+    Ok(())
+}
+```
+
+### Extracting Media Files
+
+```rust
+use ged_io::gedzip::read_gedzip;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let bytes = std::fs::read("family.gdz")?;
+    let reader = read_gedzip(&bytes)?;
+    
+    // List all media files in the archive
+    for filename in reader.media_filenames() {
+        println!("Media file: {}", filename);
+    }
+    
+    // Extract a specific media file
+    if let Some(photo_bytes) = reader.media_file("photos/portrait.jpg") {
+        std::fs::write("extracted_portrait.jpg", photo_bytes)?;
+    }
+    
+    Ok(())
+}
+```
+
 ## Error Handling
 
 The library provides detailed error types for diagnosing parsing issues:
@@ -602,11 +675,11 @@ the API evolves.
 - ✅ **UID, EXID, ALIA, ANCI, DESI** on records
 - ✅ **CAUS, RESN, AGE, AGNC, RELI** on events/attributes
 - ✅ **Association (ASSO)** support
+- ✅ **GEDZIP support** (bundled GEDCOM + media files)
 
 ### Planned Features
 
 - 🔲 Streaming parser for very large files
-- 🔲 GEDZIP file format support
 
 See the [Project Roadmap](ROADMAP.md) and [GitHub
 Milestones](https://github.com/ge3224/ged_io/milestones) for planned features.

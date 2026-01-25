@@ -273,7 +273,10 @@ mod tests {
     #[test]
     fn test_tag_definition_to_payload() {
         let def = TagDefinition::new("_SKYPEID", "http://xmlns.com/foaf/0.1/skypeID");
-        assert_eq!(def.to_payload(), "_SKYPEID http://xmlns.com/foaf/0.1/skypeID");
+        assert_eq!(
+            def.to_payload(),
+            "_SKYPEID http://xmlns.com/foaf/0.1/skypeID"
+        );
     }
 
     #[test]

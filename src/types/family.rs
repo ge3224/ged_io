@@ -208,7 +208,8 @@ impl Parser for Family {
                 "NO" => self.non_events.push(NonEvent::new(tokenizer, level + 1)?),
                 // LDS Sealing to Spouse ordinance
                 "SLGS" => {
-                    self.lds_ordinances.push(LdsOrdinance::new(tokenizer, level + 1, tag)?);
+                    self.lds_ordinances
+                        .push(LdsOrdinance::new(tokenizer, level + 1, tag)?);
                 }
                 // Unique identifier (GEDCOM 7.0)
                 "UID" => self.uid = Some(tokenizer.take_line_value()?),

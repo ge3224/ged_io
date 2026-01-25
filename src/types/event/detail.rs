@@ -249,7 +249,9 @@ impl Parser for Detail {
                     self.add_multimedia_record(Multimedia::new(tokenizer, level + 1, pointer)?);
                 }
                 "SDATE" => self.sort_date = Some(SortDate::new(tokenizer, level + 1)?),
-                "ASSO" => self.associations.push(Association::new(tokenizer, level + 1)?),
+                "ASSO" => self
+                    .associations
+                    .push(Association::new(tokenizer, level + 1)?),
                 "CAUS" => self.cause = Some(tokenizer.take_continued_text(level + 1)?),
                 "RESN" => self.restriction = Some(tokenizer.take_line_value()?),
                 "AGE" => self.age = Some(tokenizer.take_line_value()?),
@@ -402,7 +404,10 @@ mod tests {
         let death = &data.individuals[0].events[0];
         assert_eq!(death.cause.as_ref().unwrap(), "Pneumonia");
         assert_eq!(death.age.as_ref().unwrap(), "80y");
-        assert_eq!(death.agency.as_ref().unwrap(), "Massachusetts General Hospital");
+        assert_eq!(
+            death.agency.as_ref().unwrap(),
+            "Massachusetts General Hospital"
+        );
         assert_eq!(death.restriction.as_ref().unwrap(), "privacy");
     }
 }

@@ -473,8 +473,7 @@ fn test_ansel_encoding_not_supported() {
     let bytes = b"0 HEAD\n1 CHAR ANSEL\n0 TRLR\n";
 
     // ANSEL is detected but not supported
-    let result = GedcomBuilder::new()
-        .build_from_bytes_with_encoding(bytes, GedcomEncoding::Ansel);
+    let result = GedcomBuilder::new().build_from_bytes_with_encoding(bytes, GedcomEncoding::Ansel);
 
     assert!(result.is_err());
     let err = result.unwrap_err();
@@ -599,7 +598,10 @@ fn test_parse_complete_gedcom_with_iso8859_1() {
 
     // Check birth place encoding
     let birth_event = &jose.events[0];
-    assert_eq!(birth_event.place.as_ref().unwrap().value.as_ref().unwrap(), "Málaga, España");
+    assert_eq!(
+        birth_event.place.as_ref().unwrap().value.as_ref().unwrap(),
+        "Málaga, España"
+    );
 
     // Check María's details
     let maria = &data.individuals[1];
@@ -611,7 +613,10 @@ fn test_parse_complete_gedcom_with_iso8859_1() {
     // Check marriage place
     let family = &data.families[0];
     let marriage = &family.events[0];
-    assert_eq!(marriage.place.as_ref().unwrap().value.as_ref().unwrap(), "Sevilla, España");
+    assert_eq!(
+        marriage.place.as_ref().unwrap().value.as_ref().unwrap(),
+        "Sevilla, España"
+    );
 }
 
 // ============================================================================

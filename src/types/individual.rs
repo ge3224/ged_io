@@ -14,7 +14,10 @@ use crate::{
         gedcom7::NonEvent,
         individual::{
             association::Association,
-            attribute::detail::AttributeDetail, family_link::FamilyLink, gender::{Gender, GenderType}, name::Name,
+            attribute::detail::AttributeDetail,
+            family_link::FamilyLink,
+            gender::{Gender, GenderType},
+            name::Name,
         },
         lds::LdsOrdinance,
         multimedia::Multimedia,
@@ -203,56 +206,54 @@ impl Individual {
     #[must_use]
     pub fn full_name(&self) -> Option<String> {
         self.name.as_ref().and_then(|n| {
-            n.value.as_ref().map(|v| {
-                v.replace('/', "").trim().to_string()
-            })
+            n.value
+                .as_ref()
+                .map(|v| v.replace('/', "").trim().to_string())
         })
     }
 
     /// Gets the given (first) name if available.
     #[must_use]
     pub fn given_name(&self) -> Option<&str> {
-        self.name.as_ref()
-            .and_then(|n| n.given.as_deref())
+        self.name.as_ref().and_then(|n| n.given.as_deref())
     }
 
     /// Gets the surname (family name) if available.
     #[must_use]
     pub fn surname(&self) -> Option<&str> {
-        self.name.as_ref()
-            .and_then(|n| n.surname.as_deref())
+        self.name.as_ref().and_then(|n| n.surname.as_deref())
     }
 
     /// Checks if the individual is male.
     #[must_use]
     pub fn is_male(&self) -> bool {
-        self.sex.as_ref().is_some_and(|s| {
-            matches!(s.value, GenderType::Male)
-        })
+        self.sex
+            .as_ref()
+            .is_some_and(|s| matches!(s.value, GenderType::Male))
     }
 
     /// Checks if the individual is female.
     #[must_use]
     pub fn is_female(&self) -> bool {
-        self.sex.as_ref().is_some_and(|s| {
-            matches!(s.value, GenderType::Female)
-        })
+        self.sex
+            .as_ref()
+            .is_some_and(|s| matches!(s.value, GenderType::Female))
     }
 
     /// Gets the birth event details if available.
     #[must_use]
     pub fn birth(&self) -> Option<&Detail> {
-        self.events.iter().find(|e| {
-            matches!(e.event, crate::types::event::Event::Birth)
-        })
+        self.events
+            .iter()
+            .find(|e| matches!(e.event, crate::types::event::Event::Birth))
     }
 
     /// Gets the death event details if available.
     #[must_use]
     pub fn death(&self) -> Option<&Detail> {
-        self.events.iter().find(|e| {
-            matches!(e.event, crate::types::event::Event::Death)
-        })
+        self.events
+            .iter()
+            .find(|e| matches!(e.event, crate::types::event::Event::Death))
     }
 
     /// Gets the birth date as a string if available.
@@ -290,7 +291,10 @@ impl Individual {
     /// Gets all events of a specific type.
     #[must_use]
     pub fn events_of_type(&self, event_type: &crate::types::event::Event) -> Vec<&Detail> {
-        self.events.iter().filter(|e| &e.event == event_type).collect()
+        self.events
+            .iter()
+            .filter(|e| &e.event == event_type)
+            .collect()
     }
 
     /// Checks if the individual has any events recorded.
@@ -351,11 +355,13 @@ impl Parser for Individual {
                 "NO" => self.non_events.push(NonEvent::new(tokenizer, level + 1)?),
                 // LDS Ordinances (INIL is GEDCOM 7.0 only)
                 "BAPL" | "CONL" | "INIL" | "ENDL" | "SLGC" => {
-                    self.lds_ordinances.push(LdsOrdinance::new(tokenizer, level + 1, tag)?);
+                    self.lds_ordinances
+                        .push(LdsOrdinance::new(tokenizer, level + 1, tag)?);
                 }
                 // Associations with other individuals
                 "ASSO" => {
-                    self.associations.push(Association::new(tokenizer, level + 1)?);
+                    self.associations
+                        .push(Association::new(tokenizer, level + 1)?);
                 }
                 // Unique identifier (GEDCOM 7.0)
                 "UID" => self.uid = Some(tokenizer.take_line_value()?),
@@ -544,7 +550,10 @@ mod tests {
             attr.date.as_ref().unwrap().value.as_ref().unwrap(),
             "31 DEC 1997"
         );
-        assert_eq!(attr.place.as_ref().unwrap().value.as_ref().unwrap(), "The place");
+        assert_eq!(
+            attr.place.as_ref().unwrap().value.as_ref().unwrap(),
+            "The place"
+        );
 
         let a_sour = &data.individuals[0].attributes[0].sources[0];
         assert_eq!(a_sour.page.as_ref().unwrap(), "42");

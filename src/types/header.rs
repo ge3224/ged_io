@@ -10,7 +10,9 @@ use crate::{
     tokenizer::Tokenizer,
     types::{
         date::Date,
-        header::{encoding::Encoding, meta::HeadMeta, place::HeadPlac, schema::Schema, source::HeadSour},
+        header::{
+            encoding::Encoding, meta::HeadMeta, place::HeadPlac, schema::Schema, source::HeadSour,
+        },
         note::Note,
     },
     GedcomError,

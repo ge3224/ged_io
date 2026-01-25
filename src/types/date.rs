@@ -106,7 +106,10 @@ mod tests {
 
         let birt_date = data.individuals[0].events[0].date.as_ref().unwrap();
         assert_eq!(birt_date.value.as_ref().unwrap(), "15 MAR 1820");
-        assert_eq!(birt_date.phrase.as_ref().unwrap(), "The Ides of March, 1820");
+        assert_eq!(
+            birt_date.phrase.as_ref().unwrap(),
+            "The Ides of March, 1820"
+        );
     }
 
     #[test]

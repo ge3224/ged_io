@@ -13,8 +13,10 @@ pub mod custom;
 pub mod date;
 pub mod event;
 pub mod family;
+pub mod gedcom7;
 pub mod header;
 pub mod individual;
+pub mod lds;
 pub mod multimedia;
 pub mod note;
 pub mod place;
@@ -24,8 +26,6 @@ pub mod source;
 pub mod submission;
 pub mod submitter;
 pub mod translation;
-pub mod gedcom7;
-pub mod lds;
 
 use crate::{
     parser::Parser,
@@ -319,9 +319,9 @@ impl GedcomData {
     /// ```
     #[must_use]
     pub fn find_individual(&self, xref: &str) -> Option<&Individual> {
-        self.individuals.iter().find(|i| {
-            i.xref.as_ref().is_some_and(|x| x == xref)
-        })
+        self.individuals
+            .iter()
+            .find(|i| i.xref.as_ref().is_some_and(|x| x == xref))
     }
 
     /// Finds a family by their cross-reference ID (xref).
@@ -340,41 +340,41 @@ impl GedcomData {
     /// ```
     #[must_use]
     pub fn find_family(&self, xref: &str) -> Option<&Family> {
-        self.families.iter().find(|f| {
-            f.xref.as_ref().is_some_and(|x| x == xref)
-        })
+        self.families
+            .iter()
+            .find(|f| f.xref.as_ref().is_some_and(|x| x == xref))
     }
 
     /// Finds a source by their cross-reference ID (xref).
     #[must_use]
     pub fn find_source(&self, xref: &str) -> Option<&Source> {
-        self.sources.iter().find(|s| {
-            s.xref.as_ref().is_some_and(|x| x == xref)
-        })
+        self.sources
+            .iter()
+            .find(|s| s.xref.as_ref().is_some_and(|x| x == xref))
     }
 
     /// Finds a repository by their cross-reference ID (xref).
     #[must_use]
     pub fn find_repository(&self, xref: &str) -> Option<&Repository> {
-        self.repositories.iter().find(|r| {
-            r.xref.as_ref().is_some_and(|x| x == xref)
-        })
+        self.repositories
+            .iter()
+            .find(|r| r.xref.as_ref().is_some_and(|x| x == xref))
     }
 
     /// Finds a multimedia record by their cross-reference ID (xref).
     #[must_use]
     pub fn find_multimedia(&self, xref: &str) -> Option<&Multimedia> {
-        self.multimedia.iter().find(|m| {
-            m.xref.as_ref().is_some_and(|x| x == xref)
-        })
+        self.multimedia
+            .iter()
+            .find(|m| m.xref.as_ref().is_some_and(|x| x == xref))
     }
 
     /// Finds a submitter by their cross-reference ID (xref).
     #[must_use]
     pub fn find_submitter(&self, xref: &str) -> Option<&Submitter> {
-        self.submitters.iter().find(|s| {
-            s.xref.as_ref().is_some_and(|x| x == xref)
-        })
+        self.submitters
+            .iter()
+            .find(|s| s.xref.as_ref().is_some_and(|x| x == xref))
     }
 
     /// Finds a shared note by their cross-reference ID (xref).
@@ -382,9 +382,9 @@ impl GedcomData {
     /// This is only relevant for GEDCOM 7.0 files.
     #[must_use]
     pub fn find_shared_note(&self, xref: &str) -> Option<&SharedNote> {
-        self.shared_notes.iter().find(|n| {
-            n.xref.as_ref().is_some_and(|x| x == xref)
-        })
+        self.shared_notes
+            .iter()
+            .find(|n| n.xref.as_ref().is_some_and(|x| x == xref))
     }
 
     /// Gets the families where an individual is a spouse/partner.
@@ -403,24 +403,30 @@ impl GedcomData {
     /// ```
     #[must_use]
     pub fn get_families_as_spouse(&self, individual_xref: &str) -> Vec<&Family> {
-        self.families.iter().filter(|f| {
-            f.individual1.as_ref().is_some_and(|x| x == individual_xref) ||
-            f.individual2.as_ref().is_some_and(|x| x == individual_xref)
-        }).collect()
+        self.families
+            .iter()
+            .filter(|f| {
+                f.individual1.as_ref().is_some_and(|x| x == individual_xref)
+                    || f.individual2.as_ref().is_some_and(|x| x == individual_xref)
+            })
+            .collect()
     }
 
     /// Gets the families where an individual is a child.
     #[must_use]
     pub fn get_families_as_child(&self, individual_xref: &str) -> Vec<&Family> {
-        self.families.iter().filter(|f| {
-            f.children.iter().any(|c| c == individual_xref)
-        }).collect()
+        self.families
+            .iter()
+            .filter(|f| f.children.iter().any(|c| c == individual_xref))
+            .collect()
     }
 
     /// Gets the children of a family as Individual references.
     #[must_use]
     pub fn get_children(&self, family: &Family) -> Vec<&Individual> {
-        family.children.iter()
+        family
+            .children
+            .iter()
             .filter_map(|xref| self.find_individual(xref))
             .collect()
     }
@@ -445,10 +451,24 @@ impl GedcomData {
     /// Gets the spouse/partner of an individual in a specific family.
     #[must_use]
     pub fn get_spouse(&self, individual_xref: &str, family: &Family) -> Option<&Individual> {
-        if family.individual1.as_ref().is_some_and(|x| x == individual_xref) {
-            family.individual2.as_ref().and_then(|x| self.find_individual(x))
-        } else if family.individual2.as_ref().is_some_and(|x| x == individual_xref) {
-            family.individual1.as_ref().and_then(|x| self.find_individual(x))
+        if family
+            .individual1
+            .as_ref()
+            .is_some_and(|x| x == individual_xref)
+        {
+            family
+                .individual2
+                .as_ref()
+                .and_then(|x| self.find_individual(x))
+        } else if family
+            .individual2
+            .as_ref()
+            .is_some_and(|x| x == individual_xref)
+        {
+            family
+                .individual1
+                .as_ref()
+                .and_then(|x| self.find_individual(x))
         } else {
             None
         }
@@ -471,51 +491,61 @@ impl GedcomData {
     #[must_use]
     pub fn search_individuals_by_name(&self, query: &str) -> Vec<&Individual> {
         let query_lower = query.to_lowercase();
-        self.individuals.iter().filter(|i| {
-            i.name.as_ref().is_some_and(|name| {
-                name.value.as_ref().is_some_and(|v| v.to_lowercase().contains(&query_lower))
+        self.individuals
+            .iter()
+            .filter(|i| {
+                i.name.as_ref().is_some_and(|name| {
+                    name.value
+                        .as_ref()
+                        .is_some_and(|v| v.to_lowercase().contains(&query_lower))
+                })
             })
-        }).collect()
+            .collect()
     }
 
     /// Gets all individuals with a specific event type (e.g., Birth, Death, Marriage).
     #[must_use]
-    pub fn get_individuals_with_event(&self, event_type: &crate::types::event::Event) -> Vec<&Individual> {
-        self.individuals.iter().filter(|i| {
-            i.events.iter().any(|e| &e.event == event_type)
-        }).collect()
+    pub fn get_individuals_with_event(
+        &self,
+        event_type: &crate::types::event::Event,
+    ) -> Vec<&Individual> {
+        self.individuals
+            .iter()
+            .filter(|i| i.events.iter().any(|e| &e.event == event_type))
+            .collect()
     }
 
     /// Returns the total count of all records in the GEDCOM data.
     #[must_use]
     pub fn total_records(&self) -> usize {
-        self.individuals.len() +
-        self.families.len() +
-        self.sources.len() +
-        self.repositories.len() +
-        self.multimedia.len() +
-        self.submitters.len() +
-        self.submissions.len() +
-        self.shared_notes.len()
+        self.individuals.len()
+            + self.families.len()
+            + self.sources.len()
+            + self.repositories.len()
+            + self.multimedia.len()
+            + self.submitters.len()
+            + self.submissions.len()
+            + self.shared_notes.len()
     }
 
     /// Checks if the GEDCOM data is empty (no records).
     #[must_use]
     pub fn is_empty(&self) -> bool {
-        self.individuals.is_empty() &&
-        self.families.is_empty() &&
-        self.sources.is_empty() &&
-        self.repositories.is_empty() &&
-        self.multimedia.is_empty() &&
-        self.submitters.is_empty() &&
-        self.submissions.is_empty() &&
-        self.shared_notes.is_empty()
+        self.individuals.is_empty()
+            && self.families.is_empty()
+            && self.sources.is_empty()
+            && self.repositories.is_empty()
+            && self.multimedia.is_empty()
+            && self.submitters.is_empty()
+            && self.submissions.is_empty()
+            && self.shared_notes.is_empty()
     }
 
     /// Gets the GEDCOM version from the header, if available.
     #[must_use]
     pub fn gedcom_version(&self) -> Option<&str> {
-        self.header.as_ref()
+        self.header
+            .as_ref()
             .and_then(|h| h.gedcom.as_ref())
             .and_then(|g| g.version.as_deref())
     }

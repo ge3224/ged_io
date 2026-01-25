@@ -161,6 +161,9 @@ mod tests {
             sep.date.as_ref().unwrap().value.as_ref().unwrap(),
             "15 MAR 2020"
         );
-        assert_eq!(sep.place.as_ref().unwrap().value.as_ref().unwrap(), "Los Angeles, CA");
+        assert_eq!(
+            sep.place.as_ref().unwrap().value.as_ref().unwrap(),
+            "Los Angeles, CA"
+        );
     }
 }

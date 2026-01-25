@@ -665,7 +665,10 @@ mod tests {
     fn test_unescape_at_signs_gedcom_5() {
         // GEDCOM 5.5.1: all @@ should become @
         assert_eq!(unescape_at_signs("test", false), "test");
-        assert_eq!(unescape_at_signs("test@@email.com", false), "test@email.com");
+        assert_eq!(
+            unescape_at_signs("test@@email.com", false),
+            "test@email.com"
+        );
         assert_eq!(unescape_at_signs("@@ref", false), "@ref");
         assert_eq!(unescape_at_signs("a@@b@@c", false), "a@b@c");
     }
@@ -674,7 +677,10 @@ mod tests {
     fn test_unescape_at_signs_gedcom_7() {
         // GEDCOM 7.0: only leading @@ should become @
         assert_eq!(unescape_at_signs("test", true), "test");
-        assert_eq!(unescape_at_signs("test@@email.com", true), "test@@email.com");
+        assert_eq!(
+            unescape_at_signs("test@@email.com", true),
+            "test@@email.com"
+        );
         assert_eq!(unescape_at_signs("@@ref", true), "@ref");
         assert_eq!(unescape_at_signs("a@@b@@c", true), "a@@b@@c");
     }

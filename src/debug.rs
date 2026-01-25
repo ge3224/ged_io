@@ -38,7 +38,10 @@ impl fmt::Debug for GedcomDataDebug<'_> {
         }
 
         if !self.0.individuals.is_empty() {
-            debug.field("individuals", &format!("[{} records]", self.0.individuals.len()));
+            debug.field(
+                "individuals",
+                &format!("[{} records]", self.0.individuals.len()),
+            );
         }
 
         if !self.0.families.is_empty() {
@@ -50,23 +53,38 @@ impl fmt::Debug for GedcomDataDebug<'_> {
         }
 
         if !self.0.repositories.is_empty() {
-            debug.field("repositories", &format!("[{} records]", self.0.repositories.len()));
+            debug.field(
+                "repositories",
+                &format!("[{} records]", self.0.repositories.len()),
+            );
         }
 
         if !self.0.multimedia.is_empty() {
-            debug.field("multimedia", &format!("[{} records]", self.0.multimedia.len()));
+            debug.field(
+                "multimedia",
+                &format!("[{} records]", self.0.multimedia.len()),
+            );
         }
 
         if !self.0.submitters.is_empty() {
-            debug.field("submitters", &format!("[{} records]", self.0.submitters.len()));
+            debug.field(
+                "submitters",
+                &format!("[{} records]", self.0.submitters.len()),
+            );
         }
 
         if !self.0.submissions.is_empty() {
-            debug.field("submissions", &format!("[{} records]", self.0.submissions.len()));
+            debug.field(
+                "submissions",
+                &format!("[{} records]", self.0.submissions.len()),
+            );
         }
 
         if !self.0.custom_data.is_empty() {
-            debug.field("custom_data", &format!("[{} records]", self.0.custom_data.len()));
+            debug.field(
+                "custom_data",
+                &format!("[{} records]", self.0.custom_data.len()),
+            );
         }
 
         debug.finish()
@@ -103,7 +121,10 @@ impl fmt::Debug for IndividualDebug<'_> {
         }
 
         if !self.0.attributes.is_empty() {
-            debug.field("attributes", &format!("[{} attrs]", self.0.attributes.len()));
+            debug.field(
+                "attributes",
+                &format!("[{} attrs]", self.0.attributes.len()),
+            );
         }
 
         debug.finish_non_exhaustive()

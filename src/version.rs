@@ -349,11 +349,23 @@ mod tests {
 
     #[test]
     fn test_version_from_str() {
-        assert_eq!(GedcomVersion::from_version_str("5.5.1"), GedcomVersion::V5_5_1);
-        assert_eq!(GedcomVersion::from_version_str("5.5"), GedcomVersion::V5_5_1);
-        assert_eq!(GedcomVersion::from_version_str("5.5.0"), GedcomVersion::V5_5_1);
+        assert_eq!(
+            GedcomVersion::from_version_str("5.5.1"),
+            GedcomVersion::V5_5_1
+        );
+        assert_eq!(
+            GedcomVersion::from_version_str("5.5"),
+            GedcomVersion::V5_5_1
+        );
+        assert_eq!(
+            GedcomVersion::from_version_str("5.5.0"),
+            GedcomVersion::V5_5_1
+        );
         assert_eq!(GedcomVersion::from_version_str("7.0"), GedcomVersion::V7_0);
-        assert_eq!(GedcomVersion::from_version_str("7.0.14"), GedcomVersion::V7_0);
+        assert_eq!(
+            GedcomVersion::from_version_str("7.0.14"),
+            GedcomVersion::V7_0
+        );
         assert_eq!(GedcomVersion::from_version_str("7"), GedcomVersion::V7_0);
         assert!(GedcomVersion::from_version_str("6.0").is_unknown());
     }

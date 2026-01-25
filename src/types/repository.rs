@@ -4,11 +4,7 @@ use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{
-        address::Address,
-        custom::UserDefinedTag,
-        date::change_date::ChangeDate,
-        note::Note,
-        Xref,
+        address::Address, custom::UserDefinedTag, date::change_date::ChangeDate, note::Note, Xref,
     },
     GedcomError,
 };
@@ -263,7 +259,11 @@ mod tests {
 
         let repo = &data.repositories[0];
         assert_eq!(repo.notes.len(), 1);
-        assert!(repo.notes[0].value.as_ref().unwrap().contains("largest genealogical"));
+        assert!(repo.notes[0]
+            .value
+            .as_ref()
+            .unwrap()
+            .contains("largest genealogical"));
         assert_eq!(repo.uid.as_ref().unwrap(), "http://example.org/repo/fhl");
     }
 
@@ -287,8 +287,8 @@ mod tests {
 
         let repo = &data.repositories[0];
         assert!(repo.change_date.is_some());
-        let date = repo.change_date.as_ref().unwrap().date.as_ref().unwrap();
-        assert_eq!(date.value.as_ref().unwrap(), "1 JAN 2024");
+        let change_date = repo.change_date.as_ref().unwrap().date.as_ref().unwrap();
+        assert_eq!(change_date.value.as_ref().unwrap(), "1 JAN 2024");
         assert_eq!(repo.automated_record_id.as_ref().unwrap(), "12345");
         assert_eq!(repo.user_reference_number.as_ref().unwrap(), "REF-001");
     }
