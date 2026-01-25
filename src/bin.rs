@@ -10,8 +10,8 @@ use std::process;
 struct CliArgs {
     filename: Option<String>,
     individual_xref: Option<String>,
-    individual_lastname: bool,
-    individual_firstname: bool,
+    individual_lastname: Option<String>,
+    individual_firstname: Option<String>,
     help: bool,
 }
 
@@ -22,18 +22,18 @@ fn print_help() {
 USAGE:\n\
   ged_io <file.ged>\n\
   ged_io --individual <XREF> <file.ged>\n\
-  ged_io --individual-lastname <file.ged>\n\
-  ged_io --individual-firstname <file.ged>\n\
+  ged_io --individual-lastname <LASTNAME> <file.ged>\n\
+  ged_io --individual-firstname <FIRSTNAME> <file.ged>\n\
 \n\
 OPTIONS:\n\
-  -h, --help                  Print this help\n\
-  --individual <XREF>          Display a single individual (e.g. @I1@)\n\
-  --individual-lastname        List all individuals as last name only\n\
-  --individual-firstname       List all individuals as first name only\n\
+  -h, --help                        Print this help\n\
+  --individual <XREF>               Display a single individual (e.g. @I1@)\n\
+  --individual-lastname <LASTNAME>  Filter individuals by last name (case-insensitive)\n\
+  --individual-firstname <FIRSTNAME> Filter individuals by first name (case-insensitive)\n\
 \n\
 NOTES:\n\
   If both --individual-lastname and --individual-firstname are set,\n\
-  individuals are listed as \"<Last> <First>\".\n"
+  individuals matching BOTH filters are listed.\n"
     );
 }
 
@@ -55,12 +55,18 @@ fn parse_args(argv: &[String]) -> Result<CliArgs, CliError> {
                 i += 2;
             }
             "--individual-lastname" => {
-                out.individual_lastname = true;
-                i += 1;
+                let val = argv.get(i + 1).ok_or_else(|| {
+                    CliError::Usage("--individual-lastname expects a LASTNAME".to_string())
+                })?;
+                out.individual_lastname = Some(val.clone());
+                i += 2;
             }
             "--individual-firstname" => {
-                out.individual_firstname = true;
-                i += 1;
+                let val = argv.get(i + 1).ok_or_else(|| {
+                    CliError::Usage("--individual-firstname expects a FIRSTNAME".to_string())
+                })?;
+                out.individual_firstname = Some(val.clone());
+                i += 2;
             }
             other if other.starts_with('-') => {
                 return Err(CliError::Usage(format!("Unknown option: {other}")));
@@ -180,7 +186,16 @@ fn run() -> Result<(), CliError> {
         return Err(CliError::Usage(format!("Individual not found: {xref}")));
     }
 
-    if args.individual_lastname || args.individual_firstname {
+    if args.individual_lastname.is_some() || args.individual_firstname.is_some() {
+        let filter_last = args
+            .individual_lastname
+            .as_deref()
+            .map(|s| s.to_lowercase());
+        let filter_first = args
+            .individual_firstname
+            .as_deref()
+            .map(|s| s.to_lowercase());
+
         for individual in &data.individuals {
             let display_name = individual
                 .name
@@ -190,22 +205,26 @@ fn run() -> Result<(), CliError> {
 
             let (first, last) = extract_first_last_name(&display_name);
 
-            let out = match (args.individual_lastname, args.individual_firstname) {
-                (true, true) => match (last, first) {
-                    (Some(l), Some(f)) => format!("{l} {f}"),
-                    (Some(l), None) => l,
-                    (None, Some(f)) => f,
-                    (None, None) => "(Unknown)".to_string(),
-                },
-                (true, false) => last.unwrap_or_else(|| "(Unknown)".to_string()),
-                (false, true) => first.unwrap_or_else(|| "(Unknown)".to_string()),
-                (false, false) => unreachable!(),
-            };
+            let first_lower = first.as_deref().map(|s| s.to_lowercase());
+            let last_lower = last.as_deref().map(|s| s.to_lowercase());
 
-            if let Some(ref xref) = individual.xref {
-                println!("{xref} {out}");
-            } else {
-                println!("{out}");
+            let matches_last = filter_last
+                .as_ref()
+                .map(|f| last_lower.as_ref().map(|l| l.contains(f)).unwrap_or(false))
+                .unwrap_or(true);
+
+            let matches_first = filter_first
+                .as_ref()
+                .map(|f| {
+                    first_lower
+                        .as_ref()
+                        .map(|fi| fi.contains(f))
+                        .unwrap_or(false)
+                })
+                .unwrap_or(true);
+
+            if matches_last && matches_first {
+                println!("{individual}");
             }
         }
 
