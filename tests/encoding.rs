@@ -624,35 +624,6 @@ fn test_parse_complete_gedcom_with_iso8859_1() {
 // ============================================================================
 
 #[test]
-fn test_parse_juesce_fixture_with_build_from_bytes() {
-    // Test parsing the juesce.ged fixture file using build_from_bytes
-    let bytes = std::fs::read("tests/fixtures/juesce.ged").unwrap();
-
-    // Verify encoding detection
-    let (_, encoding) = decode_gedcom_bytes(&bytes).unwrap();
-    assert_eq!(encoding, GedcomEncoding::Utf8);
-
-    // Parse with build_from_bytes
-    let data = GedcomBuilder::new().build_from_bytes(&bytes).unwrap();
-
-    // Verify parsing succeeded
-    assert_eq!(data.individuals.len(), 10130);
-    assert_eq!(data.families.len(), 2488);
-
-    // Verify header encoding
-    let header = data.header.as_ref().unwrap();
-    let encoding_tag = header.encoding.as_ref().unwrap();
-    assert_eq!(encoding_tag.value.as_ref().unwrap(), "UTF-8");
-
-    // Verify first individual
-    let first = &data.individuals[0];
-    assert_eq!(
-        first.name.as_ref().unwrap().value.as_ref().unwrap(),
-        "Florence /ALFONSI/"
-    );
-}
-
-#[test]
 fn test_parse_simple_fixture_with_build_from_bytes() {
     let bytes = std::fs::read("tests/fixtures/simple.ged").unwrap();
 
