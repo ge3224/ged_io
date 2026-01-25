@@ -4,7 +4,7 @@ version = "0.10.0"
 authors = [
     "Robert Pirtle <astropirtle@gmail.com>",
     "Jacob Benison <ge3224@gmail.com>",
-    "Pierre.erraud <trois.six+github@ik.me>",
+    "Pierre Erraud <trois.six+github@ik.me>",
 ]
 description = "A parser for GEDCOM files"
 keywords = ["genealogy", "gedcom", "parser", "family-trees"]
