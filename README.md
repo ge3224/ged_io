@@ -602,7 +602,6 @@ Output (example `tests/fixtures/sample.ged`):
   on names: 0
   on other: 0
 ----------------------
-Parsing complete!
 ```
 
 ---
