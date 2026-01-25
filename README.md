@@ -20,6 +20,7 @@ Whether you're building a genealogy application, migrating data between platform
 |---------|-------------|
 | **Dual Format Support** | Full support for both GEDCOM 5.5.1 and GEDCOM 7.0 specifications |
 | **Read & Write** | Parse GEDCOM files into Rust structs, modify them, and write back |
+| **Streaming Parser** | Memory-efficient iterator-based parsing for large files |
 | **GEDZIP Support** | Read/write `.gdz` archives bundling GEDCOM data with media files |
 | **Multiple Encodings** | UTF-8, UTF-16, ISO-8859-1, ISO-8859-15 (Latin-9) |
 | **JSON Export** | Optional serde integration for JSON serialization |
@@ -34,20 +35,20 @@ Add to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-ged_io = "0.10"
+ged_io = "0.11"
 ```
 
 ### Optional Features
 
 ```toml
 # JSON serialization support
-ged_io = { version = "0.10", features = ["json"] }
+ged_io = { version = "0.11", features = ["json"] }
 
 # GEDZIP archive support (.gdz files)
-ged_io = { version = "0.10", features = ["gedzip"] }
+ged_io = { version = "0.11", features = ["gedzip"] }
 
 # Enable all features
-ged_io = { version = "0.10", features = ["json", "gedzip"] }
+ged_io = { version = "0.11", features = ["json", "gedzip"] }
 ```
 
 ---
@@ -201,6 +202,46 @@ media.insert("photos/grandpa.jpg".to_string(), std::fs::read("grandpa.jpg")?);
 let archive = write_gedzip_with_media(&data, &media)?;
 std::fs::write("new_family.gdz", archive)?;
 ```
+
+### 5. Streaming Large Files
+
+Process large GEDCOM files without loading everything into memory:
+
+```rust
+use ged_io::{GedcomStreamParser, GedcomRecord, GedcomData};
+use std::fs::File;
+use std::io::BufReader;
+
+// Stream records one at a time
+let file = File::open("huge_family.ged")?;
+let reader = BufReader::new(file);
+let parser = GedcomStreamParser::new(reader)?;
+
+for result in parser {
+    match result? {
+        GedcomRecord::Individual(indi) => {
+            println!("Found: {}", indi.full_name().unwrap_or_default());
+        }
+        GedcomRecord::Family(fam) => {
+            println!("Family: {}", fam.xref.as_deref().unwrap_or("?"));
+        }
+        _ => {} // Handle other record types
+    }
+}
+
+// Or collect into GedcomData when needed
+let file = File::open("huge_family.ged")?;
+let reader = BufReader::new(file);
+let parser = GedcomStreamParser::new(reader)?;
+let data: GedcomData = parser
+    .collect::<Result<Vec<_>, _>>()?
+    .into_iter()
+    .collect();
+```
+
+Note: The streaming parser requires UTF-8 input. For files with other encodings,
+read and convert to UTF-8 first, or use `GedcomBuilder::build_from_str()` which
+handles encoding detection automatically.
 
 ---
 
