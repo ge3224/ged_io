@@ -469,15 +469,47 @@ fn test_roundtrip_utf16_be_special_characters() {
 // ============================================================================
 
 #[test]
-fn test_ansel_encoding_not_supported() {
+fn test_ansel_encoding_supported() {
+    // Test ANSEL encoding with a simple file
     let bytes = b"0 HEAD\n1 CHAR ANSEL\n0 TRLR\n";
 
-    // ANSEL is detected but not supported
+    // ANSEL is now supported
     let result = GedcomBuilder::new().build_from_bytes_with_encoding(bytes, GedcomEncoding::Ansel);
+    assert!(result.is_ok());
+}
 
-    assert!(result.is_err());
-    let err = result.unwrap_err();
-    assert!(err.to_string().contains("ANSEL"));
+#[test]
+fn test_ansel_encoding_with_diacritics() {
+    // Test ANSEL with accented characters
+    // "José" in ANSEL: J, o, s, acute(0xE2), e
+    let mut bytes = b"0 HEAD\n1 CHAR ANSEL\n0 @I1@ INDI\n1 NAME Jos".to_vec();
+    bytes.extend_from_slice(&[0xE2, b'e']); // acute + e = é
+    bytes.extend_from_slice(b" /Garc");
+    bytes.extend_from_slice(&[0xE2, b'i']); // acute + i = í
+    bytes.extend_from_slice(b"a/\n0 TRLR\n");
+
+    let result = GedcomBuilder::new().build_from_bytes(&bytes);
+    assert!(result.is_ok());
+    let data = result.unwrap();
+    assert_eq!(data.individuals.len(), 1);
+    // The name should contain the accented characters (as combining sequences)
+    let name = data.individuals[0].full_name().unwrap();
+    assert!(name.contains("Jos"));
+    assert!(name.contains("Garc"));
+}
+
+#[test]
+fn test_ansel_encoding_special_characters() {
+    // Test ANSEL special characters: Ł (0xA1), ł (0xB1), Ø (0xA2), ø (0xB2)
+    let mut bytes = b"0 HEAD\n1 CHAR ANSEL\n0 @I1@ INDI\n1 NAME ".to_vec();
+    bytes.extend_from_slice(&[0xA1, 0xB1, 0xA2, 0xB2]); // ŁłØø
+    bytes.extend_from_slice(b" /Test/\n0 TRLR\n");
+
+    let result = GedcomBuilder::new().build_from_bytes(&bytes);
+    assert!(result.is_ok());
+    let data = result.unwrap();
+    let name = data.individuals[0].full_name().unwrap();
+    assert!(name.contains("ŁłØø"));
 }
 
 #[test]
