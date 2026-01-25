@@ -68,7 +68,11 @@ impl Parser for UserDefinedTag {
                     }
                 }
                 Token::LineValue(val) => {
-                    self.value = Some(val.to_string());
+                    // Some sources emit an empty value token at the end of a line.
+                    // Don't overwrite an existing value with "".
+                    if self.value.is_none() && !val.is_empty() {
+                        self.value = Some(val.to_string());
+                    }
                     tokenizer.next_token()?;
                 }
                 Token::Level(_) => tokenizer.next_token()?,

@@ -589,6 +589,10 @@ impl Parser for GedcomData {
     fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
         loop {
             let Token::Level(current_level) = tokenizer.current_token else {
+                if tokenizer.current_token == Token::EOF {
+                    // Accept EOF-terminated files (missing TRLR).
+                    break;
+                }
                 return Err(GedcomError::ParseError {
                     line: tokenizer.line,
                     message: format!(
@@ -622,6 +626,7 @@ impl Parser for GedcomData {
                     "OBJE" => self.add_multimedia(Multimedia::new(tokenizer, level, pointer)?),
                     // GEDCOM 7.0: Shared note record
                     "SNOTE" => self.add_shared_note(SharedNote::new(tokenizer, level, pointer)?),
+                    // Trailer is optional in the wild; allow EOF-terminated files.
                     "TRLR" => break,
                     _ => {
                         return Err(GedcomError::ParseError {
@@ -630,6 +635,11 @@ impl Parser for GedcomData {
                         })
                     }
                 }
+
+                // If we hit EOF after a record (i.e., missing TRLR), stop gracefully.
+                if tokenizer.current_token == Token::EOF {
+                    break;
+                }
             } else if let Token::CustomTag(tag) = &tokenizer.current_token {
                 let tag_clone = tag.clone();
                 self.add_custom_data(UserDefinedTag::new(tokenizer, level + 1, &tag_clone)?);
@@ -637,6 +647,9 @@ impl Parser for GedcomData {
                 while tokenizer.current_token != Token::Level(level) {
                     tokenizer.next_token()?;
                 }
+            } else if tokenizer.current_token == Token::EOF {
+                // Accept files without a TRLR.
+                break;
             } else {
                 return Err(GedcomError::ParseError {
                     line: tokenizer.line,
@@ -644,6 +657,7 @@ impl Parser for GedcomData {
                 });
             }
         }
+
         Ok(())
     }
 }

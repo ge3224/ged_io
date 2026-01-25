@@ -60,6 +60,12 @@ where
                 )?));
             }
             Token::Level(_) => tokenizer.next_token()?,
+            Token::LineValue(_) => {
+                // Be permissive: some files contain stray empty values where a tag is expected.
+                // Skip and continue parsing at the same level.
+                tokenizer.next_token()?;
+            }
+            Token::EOF => break,
             _ => {
                 return Err(GedcomError::ParseError {
                     line: tokenizer.line,

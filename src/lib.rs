@@ -233,7 +233,10 @@ pub use types::SourceCitationStats;
 pub use version::{detect_version, GedcomVersion, VersionFeatures};
 pub use writer::{GedcomWriter, WriterConfig};
 
-use crate::{tokenizer::Tokenizer, types::GedcomData};
+use crate::{
+    tokenizer::{Token, Tokenizer},
+    types::GedcomData,
+};
 use std::str::Chars;
 
 /// The main interface for parsing GEDCOM files into structured Rust data types.
@@ -283,6 +286,10 @@ impl<'a> Gedcom<'a> {
     ///
     /// Returns an error if the GEDCOM data is malformed.
     pub fn parse_data(&mut self) -> Result<GedcomData, GedcomError> {
+        // Accept EOF-terminated files (missing TRLR).
+        if self.tokenizer.current_token == Token::EOF {
+            return Ok(GedcomData::default());
+        }
         GedcomData::new(&mut self.tokenizer, 0)
     }
 }
