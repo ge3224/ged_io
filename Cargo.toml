@@ -4,13 +4,14 @@ version = "0.9.0"
 authors = [
     "Robert Pirtle <astropirtle@gmail.com>",
     "Jacob Benison <ge3224@gmail.com>",
+    "Pierre.erraud <trois.six+github@ik.me>",
 ]
 description = "A parser for GEDCOM files"
 keywords = ["genealogy", "gedcom", "parser", "family-trees"]
 categories = ["parser-implementations", "data-structures"]
 license = "MIT"
 readme = "README.md"
-repository = "https://github.com/ge3224/ged_io"
+repository = "https://github.com/trois-six/ged_io"
 edition = "2021"
 include = ["Cargo.toml", "src/**/*.rs"]
 
