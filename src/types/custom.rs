@@ -1,6 +1,6 @@
 use crate::{
     parser::Parser,
-    tokenizer::{Token, Tokenizer},
+    tokenizer::{Token, Tokenizer, TokenizerTrait},
     GedcomError,
 };
 #[cfg(feature = "json")]
@@ -39,8 +39,82 @@ impl UserDefinedTag {
         Ok(udd)
     }
 
+    /// Creates a new `UserDefinedTag` from any tokenizer implementing `TokenizerTrait`.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if parsing fails.
+    pub fn new_from_tokenizer<T: TokenizerTrait>(
+        tokenizer: &mut T,
+        level: u8,
+        tag: &str,
+    ) -> Result<UserDefinedTag, GedcomError> {
+        let mut udd = UserDefinedTag {
+            tag: tag.to_string(),
+            value: None,
+            children: Vec::new(),
+        };
+        udd.parse_stream(tokenizer, level)?;
+        Ok(udd)
+    }
+
     pub fn add_child(&mut self, child: UserDefinedTag) {
         self.children.push(Box::new(child));
+    }
+
+    /// Generic parsing implementation for any tokenizer.
+    fn parse_stream<T: TokenizerTrait>(
+        &mut self,
+        tokenizer: &mut T,
+        level: u8,
+    ) -> Result<(), GedcomError> {
+        // skip ahead of initial tag
+        tokenizer.next_token()?;
+
+        let mut has_child = false;
+        loop {
+            if let Token::Level(current) = tokenizer.current_token() {
+                if *current <= level {
+                    break;
+                }
+                if *current > level {
+                    has_child = true;
+                }
+            }
+
+            match tokenizer.current_token() {
+                Token::Tag(tag) | Token::CustomTag(tag) => {
+                    if has_child {
+                        let tag_clone = tag.clone();
+                        self.add_child(UserDefinedTag::new_from_tokenizer(
+                            tokenizer,
+                            level + 1,
+                            &tag_clone,
+                        )?);
+                    }
+                }
+                Token::LineValue(val) => {
+                    // Some sources emit an empty value token at the end of a line.
+                    // Don't overwrite an existing value with "".
+                    if self.value.is_none() && !val.is_empty() {
+                        self.value = Some(val.to_string());
+                    }
+                    tokenizer.next_token()?;
+                }
+                Token::Level(_) => tokenizer.next_token()?,
+                Token::EOF => break,
+                _ => {
+                    return Err(GedcomError::ParseError {
+                        line: tokenizer.line(),
+                        message: format!(
+                            "Unhandled Token in UserDefinedDataset: {:?}",
+                            tokenizer.current_token()
+                        ),
+                    })
+                }
+            }
+        }
+        Ok(())
     }
 }
 
