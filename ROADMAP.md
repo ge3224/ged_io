@@ -211,6 +211,7 @@ practical need:
 
 - Performance optimizations based on real-world usage patterns
 - Additional output formats or conversion utilities
+- Add helper functions to manipulate dates and calendars
 - Integration with genealogy software APIs
 - Advanced validation and data quality tools
 - WASM bindings for web applications
