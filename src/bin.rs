@@ -141,7 +141,6 @@ impl From<GedcomError> for CliError {
 fn main() {
     match run() {
         Ok(_) => {
-            println!("Parsing complete!");
             process::exit(0);
         }
         Err(e) => {
