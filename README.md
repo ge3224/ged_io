@@ -573,18 +573,31 @@ cargo install ged_io
 ged_io family.ged
 ```
 
-Output:
+Output (example `tests/fixtures/sample.ged`):
 ```
 ----------------------
 | GEDCOM Data Stats: |
 ----------------------
+  submissions: 0
   submitters: 1
-  individuals: 247
-  families: 89
-  sources: 12
-  repositories: 3
-  multimedia: 45
+  individuals: 3
+  families: 2
+  repositories: 1
+  sources (records): 1
+  source citations: 1
+  multimedia: 0
+  shared_notes: 0
 ----------------------
+| Citation Breakdown: |
+----------------------
+  on individuals: 0
+  on events: 1
+  on attributes: 0
+  on families: 0
+  on names: 0
+  on other: 0
+----------------------
+Parsing complete!
 ```
 
 ---
