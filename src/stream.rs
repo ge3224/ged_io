@@ -76,6 +76,7 @@ use crate::{
 /// ```
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[allow(clippy::large_enum_variant)]
 pub enum GedcomRecord {
     /// File header containing metadata.
     Header(Header),
