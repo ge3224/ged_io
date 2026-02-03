@@ -133,6 +133,42 @@ Add support for the GEDCOM 7.0 specification while maintaining backward compatib
 
 ---
 
+## v0.8: Comprehensive Tag Support
+
+Complete the GEDCOM tag coverage with additional record types, structures, and encodings.
+
+### Primary objectives
+
+- ✅ Implement complete GEDCOM 5.5.1 and 7.0 tag coverage
+- ✅ Add enhanced Name structure with TYPE and phonetic/romanized variations
+- ✅ Add enhanced Place structure with MAP coordinates and variations
+- ✅ Add source citation counting with detailed breakdown
+- ✅ Add ISO-8859-15 (Latin-9) encoding support
+- ✅ Add EVEN and ROLE support in source citations
+- ✅ Add additional record fields (UID, EXID, ALIA, ANCI, DESI)
+- ✅ Add event/attribute details (CAUS, RESN, AGE, AGNC, RELI)
+- ✅ Add Association (ASSO) support
+
+### Implemented features
+
+- UID, EXID, ALIA, ANCI, DESI tags for record identification
+- Name structure enhancements: TYPE, FONE (phonetic), ROMN (romanized)
+- Place structure enhancements: MAP, LATI, LONG, FONE, ROMN
+- Event/attribute details: CAUS (cause), RESN (restriction), AGE, AGNC (agency), RELI (religion)
+- EVEN (generic event) and ROLE (role in event) for source citations
+- ASSO (association) structure for linking individuals
+- ISO-8859-15 (Latin-9) encoding support for Western European languages
+- Source citation counting with breakdown by record type
+
+### Achieved outcomes
+
+- ✅ Complete GEDCOM tag coverage for both 5.5.1 and 7.0 specifications
+- ✅ Enhanced place and name structures with variations and coordinates
+- ✅ Better source citation analysis capabilities
+- ✅ Support for additional encodings beyond UTF-8
+
+---
+
 ## v0.9: GEDZIP Support ✅ COMPLETE
 
 Add support for GEDZIP file format - bundled GEDCOM data with media files.
@@ -152,6 +188,25 @@ Add support for GEDZIP file format - bundled GEDCOM data with media files.
 - ✅ Media files can be bundled with GEDCOM data
 - ✅ Convenience functions for simple read/write operations
 - ✅ Opt-in feature (`gedzip`) to avoid unnecessary dependencies
+
+---
+
+## v0.10: Parser Polish and CLI Enhancements
+
+Improve parsing robustness and CLI functionality.
+
+### Primary objectives
+
+- ✅ Accept trailing newline at EOF and ensure writer round-trips correctly
+- ✅ Relax parsing rules to handle files with missing HEAD/TRLR records
+- ✅ Add individual display options to CLI
+- ✅ Add name filtering capabilities to CLI
+
+### Achieved outcomes
+
+- ✅ More lenient parsing for real-world GEDCOM files
+- ✅ Better CLI tool for GEDCOM inspection and analysis
+- ✅ Improved round-trip fidelity
 
 ---
 
