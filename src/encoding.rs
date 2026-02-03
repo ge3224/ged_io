@@ -255,7 +255,7 @@ pub fn decode_with_encoding(
             }
             decoded.into_owned()
         }
-        GedcomEncoding::Ansel => decode_ansel(bytes)?,
+        GedcomEncoding::Ansel => decode_ansel(bytes),
         GedcomEncoding::Unknown => {
             // Try UTF-8 first, then fall back to ISO-8859-1
             if let Ok(s) = String::from_utf8(bytes.to_vec()) {
@@ -334,45 +334,42 @@ fn ansel_combining_mark(byte: u8) -> Option<char> {
 /// Maps ANSEL byte -> Unicode character.
 fn ansel_special_char(byte: u8) -> Option<char> {
     match byte {
-        0xA1 => Some('\u{0141}'), // Ł - Latin capital L with stroke
-        0xA2 => Some('\u{00D8}'), // Ø - Latin capital O with stroke
-        0xA3 => Some('\u{0110}'), // Đ - Latin capital D with stroke
-        0xA4 => Some('\u{00DE}'), // Þ - Latin capital Thorn
-        0xA5 => Some('\u{00C6}'), // Æ - Latin capital AE
-        0xA6 => Some('\u{0152}'), // Œ - Latin capital OE
-        0xA7 => Some('\u{02B9}'), // ʹ - modifier letter prime (soft sign)
-        0xA8 => Some('\u{00B7}'), // · - middle dot
-        0xA9 => Some('\u{266D}'), // ♭ - music flat sign
-        0xAA => Some('\u{00AE}'), // ® - registered sign
-        0xAB => Some('\u{00B1}'), // ± - plus-minus sign
-        0xAC => Some('\u{01A0}'), // Ơ - Latin capital O with horn
-        0xAD => Some('\u{01AF}'), // Ư - Latin capital U with horn
-        0xAE => Some('\u{02BC}'), // ʼ - modifier letter apostrophe (alif)
-        0xB0 => Some('\u{02BB}'), // ʻ - modifier letter turned comma (ayn)
-        0xB1 => Some('\u{0142}'), // ł - Latin small l with stroke
-        0xB2 => Some('\u{00F8}'), // ø - Latin small o with stroke
-        0xB3 => Some('\u{0111}'), // đ - Latin small d with stroke
-        0xB4 => Some('\u{00FE}'), // þ - Latin small thorn
-        0xB5 => Some('\u{00E6}'), // æ - Latin small ae
-        0xB6 => Some('\u{0153}'), // œ - Latin small oe
-        0xB7 => Some('\u{02BA}'), // ʺ - modifier letter double prime (hard sign)
-        0xB8 => Some('\u{0131}'), // ı - Latin small dotless i
-        0xB9 => Some('\u{00A3}'), // £ - pound sign
-        0xBA => Some('\u{00F0}'), // ð - Latin small eth
-        0xBC => Some('\u{01A1}'), // ơ - Latin small o with horn
-        0xBD => Some('\u{01B0}'), // ư - Latin small u with horn
-        0xC0 => Some('\u{00B0}'), // ° - degree sign
-        0xC1 => Some('\u{2113}'), // ℓ - script small l
-        0xC2 => Some('\u{2117}'), // ℗ - sound recording copyright
-        0xC3 => Some('\u{00A9}'), // © - copyright sign
-        0xC4 => Some('\u{266F}'), // ♯ - music sharp sign
-        0xC5 => Some('\u{00BF}'), // ¿ - inverted question mark
-        0xC6 => Some('\u{00A1}'), // ¡ - inverted exclamation mark
-        0xC7 => Some('\u{00DF}'), // ß - Latin small sharp s (eszett)
-        0xC8 => Some('\u{20AC}'), // € - euro sign
-        0xCD => Some('\u{0065}'), // e - (for ANSEL "combining" lowercase e?)
-        0xCE => Some('\u{006F}'), // o - (for ANSEL "combining" lowercase o?)
-        0xCF => Some('\u{00DF}'), // ß - eszett (alternate position)
+        0xA1 => Some('\u{0141}'),        // Ł - Latin capital L with stroke
+        0xA2 => Some('\u{00D8}'),        // Ø - Latin capital O with stroke
+        0xA3 => Some('\u{0110}'),        // Đ - Latin capital D with stroke
+        0xA4 => Some('\u{00DE}'),        // Þ - Latin capital Thorn
+        0xA5 => Some('\u{00C6}'),        // Æ - Latin capital AE
+        0xA6 => Some('\u{0152}'),        // Œ - Latin capital OE
+        0xA7 => Some('\u{02B9}'),        // ʹ - modifier letter prime (soft sign)
+        0xA8 => Some('\u{00B7}'),        // · - middle dot
+        0xA9 => Some('\u{266D}'),        // ♭ - music flat sign
+        0xAA => Some('\u{00AE}'),        // ® - registered sign
+        0xAB => Some('\u{00B1}'),        // ± - plus-minus sign
+        0xAC => Some('\u{01A0}'),        // Ơ - Latin capital O with horn
+        0xAD => Some('\u{01AF}'),        // Ư - Latin capital U with horn
+        0xAE => Some('\u{02BC}'),        // ʼ - modifier letter apostrophe (alif)
+        0xB0 => Some('\u{02BB}'),        // ʻ - modifier letter turned comma (ayn)
+        0xB1 => Some('\u{0142}'),        // ł - Latin small l with stroke
+        0xB2 => Some('\u{00F8}'),        // ø - Latin small o with stroke
+        0xB3 => Some('\u{0111}'),        // đ - Latin small d with stroke
+        0xB4 => Some('\u{00FE}'),        // þ - Latin small thorn
+        0xB5 => Some('\u{00E6}'),        // æ - Latin small ae
+        0xB6 => Some('\u{0153}'),        // œ - Latin small oe
+        0xB7 => Some('\u{02BA}'),        // ʺ - modifier letter double prime (hard sign)
+        0xB8 => Some('\u{0131}'),        // ı - Latin small dotless i
+        0xB9 => Some('\u{00A3}'),        // £ - pound sign
+        0xBA => Some('\u{00F0}'),        // ð - Latin small eth
+        0xBC => Some('\u{01A1}'),        // ơ - Latin small o with horn
+        0xBD => Some('\u{01B0}'),        // ư - Latin small u with horn
+        0xC0 => Some('\u{00B0}'),        // ° - degree sign
+        0xC1 => Some('\u{2113}'),        // ℓ - script small l
+        0xC2 => Some('\u{2117}'),        // ℗ - sound recording copyright
+        0xC3 => Some('\u{00A9}'),        // © - copyright sign
+        0xC4 => Some('\u{266F}'),        // ♯ - music sharp sign
+        0xC5 => Some('\u{00BF}'),        // ¿ - inverted question mark
+        0xC6 => Some('\u{00A1}'),        // ¡ - inverted exclamation mark
+        0xC7 | 0xCF => Some('\u{00DF}'), // ß - eszett (both positions)
+        0xC8 => Some('\u{20AC}'),        // € - euro sign
         // Extended characters that some GEDCOM files use
         0xFC => Some('\u{200D}'), // zero-width joiner (used in some implementations)
         0xFD => Some('\u{200C}'), // zero-width non-joiner
@@ -387,7 +384,7 @@ fn ansel_special_char(byte: u8) -> Option<char> {
 /// - ASCII for bytes 0x00-0x7F
 /// - Special characters in 0xA1-0xDF range
 /// - Combining diacritical marks in 0xE0-0xFE range (these precede the base character)
-fn decode_ansel(bytes: &[u8]) -> Result<String, GedcomError> {
+fn decode_ansel(bytes: &[u8]) -> String {
     let mut result = String::with_capacity(bytes.len());
     let mut pending_diacritics: Vec<char> = Vec::new();
     let mut i = 0;
@@ -432,14 +429,14 @@ fn decode_ansel(bytes: &[u8]) -> Result<String, GedcomError> {
         result.push(diacritic);
     }
 
-    Ok(result)
+    result
 }
 
 /// Encodes a UTF-8 string to ANSEL bytes.
 ///
 /// This performs a best-effort conversion. Characters that cannot be represented
 /// in ANSEL will be replaced with '?' or their closest ASCII equivalent.
-fn encode_ansel(content: &str) -> Result<Vec<u8>, GedcomError> {
+fn encode_ansel(content: &str) -> Vec<u8> {
     let mut result = Vec::with_capacity(content.len());
     let mut chars = content.chars().peekable();
 
@@ -479,7 +476,7 @@ fn encode_ansel(content: &str) -> Result<Vec<u8>, GedcomError> {
         }
     }
 
-    Ok(result)
+    result
 }
 
 /// Maps a Unicode base character to its ANSEL byte (if it's a special ANSEL character).
@@ -565,9 +562,23 @@ fn unicode_combining_to_ansel(ch: char) -> Option<u8> {
 /// Maps precomposed Unicode characters to ANSEL byte sequences.
 /// This handles common accented characters that are stored as single Unicode codepoints.
 fn unicode_precomposed_to_ansel(ch: char) -> Option<Vec<u8>> {
-    // Common precomposed characters -> ANSEL (diacritic + base)
+    acute_to_ansel(ch)
+        .or_else(|| grave_to_ansel(ch))
+        .or_else(|| circumflex_to_ansel(ch))
+        .or_else(|| tilde_to_ansel(ch))
+        .or_else(|| umlaut_to_ansel(ch))
+        .or_else(|| caron_to_ansel(ch))
+        .or_else(|| ring_to_ansel(ch))
+        .or_else(|| cedilla_to_ansel(ch))
+        .or_else(|| ogonek_to_ansel(ch))
+        .or_else(|| macron_to_ansel(ch))
+        .or_else(|| breve_to_ansel(ch))
+        .or_else(|| dot_above_to_ansel(ch))
+        .or_else(|| double_acute_to_ansel(ch))
+}
+
+fn acute_to_ansel(ch: char) -> Option<Vec<u8>> {
     match ch {
-        // Acute accent (0xE2)
         'Á' => Some(vec![0xE2, b'A']),
         'á' => Some(vec![0xE2, b'a']),
         'É' => Some(vec![0xE2, b'E']),
@@ -588,7 +599,12 @@ fn unicode_precomposed_to_ansel(ch: char) -> Option<Vec<u8>> {
         'ś' => Some(vec![0xE2, b's']),
         'Ź' => Some(vec![0xE2, b'Z']),
         'ź' => Some(vec![0xE2, b'z']),
-        // Grave accent (0xE1)
+        _ => None,
+    }
+}
+
+fn grave_to_ansel(ch: char) -> Option<Vec<u8>> {
+    match ch {
         'À' => Some(vec![0xE1, b'A']),
         'à' => Some(vec![0xE1, b'a']),
         'È' => Some(vec![0xE1, b'E']),
@@ -599,7 +615,12 @@ fn unicode_precomposed_to_ansel(ch: char) -> Option<Vec<u8>> {
         'ò' => Some(vec![0xE1, b'o']),
         'Ù' => Some(vec![0xE1, b'U']),
         'ù' => Some(vec![0xE1, b'u']),
-        // Circumflex (0xE3)
+        _ => None,
+    }
+}
+
+fn circumflex_to_ansel(ch: char) -> Option<Vec<u8>> {
+    match ch {
         'Â' => Some(vec![0xE3, b'A']),
         'â' => Some(vec![0xE3, b'a']),
         'Ê' => Some(vec![0xE3, b'E']),
@@ -610,14 +631,24 @@ fn unicode_precomposed_to_ansel(ch: char) -> Option<Vec<u8>> {
         'ô' => Some(vec![0xE3, b'o']),
         'Û' => Some(vec![0xE3, b'U']),
         'û' => Some(vec![0xE3, b'u']),
-        // Tilde (0xE4)
+        _ => None,
+    }
+}
+
+fn tilde_to_ansel(ch: char) -> Option<Vec<u8>> {
+    match ch {
         'Ã' => Some(vec![0xE4, b'A']),
         'ã' => Some(vec![0xE4, b'a']),
         'Ñ' => Some(vec![0xE4, b'N']),
         'ñ' => Some(vec![0xE4, b'n']),
         'Õ' => Some(vec![0xE4, b'O']),
         'õ' => Some(vec![0xE4, b'o']),
-        // Umlaut/diaeresis (0xE8)
+        _ => None,
+    }
+}
+
+fn umlaut_to_ansel(ch: char) -> Option<Vec<u8>> {
+    match ch {
         'Ä' => Some(vec![0xE8, b'A']),
         'ä' => Some(vec![0xE8, b'a']),
         'Ë' => Some(vec![0xE8, b'E']),
@@ -630,7 +661,12 @@ fn unicode_precomposed_to_ansel(ch: char) -> Option<Vec<u8>> {
         'ü' => Some(vec![0xE8, b'u']),
         'Ÿ' => Some(vec![0xE8, b'Y']),
         'ÿ' => Some(vec![0xE8, b'y']),
-        // Caron/hacek (0xE9)
+        _ => None,
+    }
+}
+
+fn caron_to_ansel(ch: char) -> Option<Vec<u8>> {
+    match ch {
         'Č' => Some(vec![0xE9, b'C']),
         'č' => Some(vec![0xE9, b'c']),
         'Ě' => Some(vec![0xE9, b'E']),
@@ -641,22 +677,42 @@ fn unicode_precomposed_to_ansel(ch: char) -> Option<Vec<u8>> {
         'š' => Some(vec![0xE9, b's']),
         'Ž' => Some(vec![0xE9, b'Z']),
         'ž' => Some(vec![0xE9, b'z']),
-        // Ring above (0xEA)
+        _ => None,
+    }
+}
+
+fn ring_to_ansel(ch: char) -> Option<Vec<u8>> {
+    match ch {
         'Å' => Some(vec![0xEA, b'A']),
         'å' => Some(vec![0xEA, b'a']),
         'Ů' => Some(vec![0xEA, b'U']),
         'ů' => Some(vec![0xEA, b'u']),
-        // Cedilla (0xF0)
+        _ => None,
+    }
+}
+
+fn cedilla_to_ansel(ch: char) -> Option<Vec<u8>> {
+    match ch {
         'Ç' => Some(vec![0xF0, b'C']),
         'ç' => Some(vec![0xF0, b'c']),
         'Ş' => Some(vec![0xF0, b'S']),
         'ş' => Some(vec![0xF0, b's']),
-        // Ogonek (0xF1)
+        _ => None,
+    }
+}
+
+fn ogonek_to_ansel(ch: char) -> Option<Vec<u8>> {
+    match ch {
         'Ą' => Some(vec![0xF1, b'A']),
         'ą' => Some(vec![0xF1, b'a']),
         'Ę' => Some(vec![0xF1, b'E']),
         'ę' => Some(vec![0xF1, b'e']),
-        // Macron (0xE5)
+        _ => None,
+    }
+}
+
+fn macron_to_ansel(ch: char) -> Option<Vec<u8>> {
+    match ch {
         'Ā' => Some(vec![0xE5, b'A']),
         'ā' => Some(vec![0xE5, b'a']),
         'Ē' => Some(vec![0xE5, b'E']),
@@ -667,15 +723,30 @@ fn unicode_precomposed_to_ansel(ch: char) -> Option<Vec<u8>> {
         'ō' => Some(vec![0xE5, b'o']),
         'Ū' => Some(vec![0xE5, b'U']),
         'ū' => Some(vec![0xE5, b'u']),
-        // Breve (0xE6)
+        _ => None,
+    }
+}
+
+fn breve_to_ansel(ch: char) -> Option<Vec<u8>> {
+    match ch {
         'Ă' => Some(vec![0xE6, b'A']),
         'ă' => Some(vec![0xE6, b'a']),
-        // Dot above (0xE7)
+        _ => None,
+    }
+}
+
+fn dot_above_to_ansel(ch: char) -> Option<Vec<u8>> {
+    match ch {
         'Ż' => Some(vec![0xE7, b'Z']),
         'ż' => Some(vec![0xE7, b'z']),
         'Ġ' => Some(vec![0xE7, b'G']),
         'ġ' => Some(vec![0xE7, b'g']),
-        // Double acute (0xEE)
+        _ => None,
+    }
+}
+
+fn double_acute_to_ansel(ch: char) -> Option<Vec<u8>> {
+    match ch {
         'Ő' => Some(vec![0xEE, b'O']),
         'ő' => Some(vec![0xEE, b'o']),
         'Ű' => Some(vec![0xEE, b'U']),
@@ -735,7 +806,7 @@ pub fn encode_to_bytes(content: &str, encoding: GedcomEncoding) -> Result<Vec<u8
             }
             Ok(encoded.into_owned())
         }
-        GedcomEncoding::Ansel => encode_ansel(content),
+        GedcomEncoding::Ansel => Ok(encode_ansel(content)),
     }
 }
 
@@ -907,7 +978,7 @@ mod tests {
     fn test_ansel_decode_basic() {
         // Simple ASCII text should pass through unchanged
         let bytes = b"0 HEAD\n1 NAME John Smith\n0 TRLR\n";
-        let result = decode_ansel(bytes).unwrap();
+        let result = decode_ansel(bytes);
         assert_eq!(result, "0 HEAD\n1 NAME John Smith\n0 TRLR\n");
     }
 
@@ -916,7 +987,7 @@ mod tests {
         // Test ANSEL special characters
         // Ł (0xA1), Ø (0xA2), æ (0xB5), ø (0xB2)
         let bytes = &[0xA1, 0xA2, 0xB5, 0xB2];
-        let result = decode_ansel(bytes).unwrap();
+        let result = decode_ansel(bytes);
         assert_eq!(result, "ŁØæø");
     }
 
@@ -925,7 +996,7 @@ mod tests {
         // Test combining diacritics: é is acute (0xE2) + e
         // In ANSEL, the diacritic precedes the base character
         let bytes = &[0xE2, b'e']; // acute + e = é
-        let result = decode_ansel(bytes).unwrap();
+        let result = decode_ansel(bytes);
         // Result should be 'e' followed by combining acute (U+0301)
         assert_eq!(result, "e\u{0301}");
     }
@@ -934,7 +1005,7 @@ mod tests {
     fn test_ansel_decode_jose() {
         // "José" in ANSEL: J, o, s, acute(0xE2), e
         let bytes = &[b'J', b'o', b's', 0xE2, b'e'];
-        let result = decode_ansel(bytes).unwrap();
+        let result = decode_ansel(bytes);
         assert_eq!(result, "Jose\u{0301}"); // José with combining acute
     }
 
@@ -943,14 +1014,14 @@ mod tests {
         // Multiple diacritics on same character
         // circumflex + umlaut + a
         let bytes = &[0xE3, 0xE8, b'a'];
-        let result = decode_ansel(bytes).unwrap();
+        let result = decode_ansel(bytes);
         assert_eq!(result, "a\u{0302}\u{0308}"); // a with circumflex and umlaut
     }
 
     #[test]
     fn test_ansel_encode_basic() {
         let content = "John Smith";
-        let bytes = encode_ansel(content).unwrap();
+        let bytes = encode_ansel(content);
         assert_eq!(bytes, b"John Smith");
     }
 
@@ -958,7 +1029,7 @@ mod tests {
     fn test_ansel_encode_special_chars() {
         // Test encoding special characters
         let content = "Łódź"; // Polish city name
-        let bytes = encode_ansel(content).unwrap();
+        let bytes = encode_ansel(content);
         // Ł = 0xA1, ó = acute + o, d = d, ź = acute + z
         assert_eq!(bytes, &[0xA1, 0xE2, b'o', b'd', 0xE2, b'z']);
     }
@@ -967,7 +1038,7 @@ mod tests {
     fn test_ansel_encode_precomposed() {
         // Test encoding precomposed characters
         let content = "José García";
-        let bytes = encode_ansel(content).unwrap();
+        let bytes = encode_ansel(content);
         // J, o, s, acute+e, space, G, a, r, c, acute+i, a
         assert_eq!(
             bytes,
@@ -979,9 +1050,9 @@ mod tests {
     fn test_ansel_roundtrip_special() {
         // Test roundtrip of special characters
         let original_bytes = &[0xA1, 0xB1, 0xA5, 0xB5]; // Ł, ł, Æ, æ
-        let decoded = decode_ansel(original_bytes).unwrap();
+        let decoded = decode_ansel(original_bytes);
         assert_eq!(decoded, "ŁłÆæ");
-        let encoded = encode_ansel(&decoded).unwrap();
+        let encoded = encode_ansel(&decoded);
         assert_eq!(encoded, original_bytes);
     }
 

@@ -310,7 +310,7 @@ impl<'a> Tokenizer<'a> {
         while self.current_char.is_ascii_digit() {
             level = level
                 .saturating_mul(10)
-                .saturating_add((self.current_char as u8 - b'0') as u32);
+                .saturating_add(u32::from(self.current_char as u8 - b'0'));
             self.next_char();
         }
 
@@ -683,7 +683,7 @@ impl<R: BufRead> StreamTokenizer<R> {
         while self.current_char.is_ascii_digit() {
             level = level
                 .saturating_mul(10)
-                .saturating_add((self.current_char as u8 - b'0') as u32);
+                .saturating_add(u32::from(self.current_char as u8 - b'0'));
             self.next_char()?;
         }
 

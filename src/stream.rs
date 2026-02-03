@@ -264,7 +264,7 @@ impl GedcomRecord {
 /// println!("Found {} individuals and {} families", individuals, families);
 /// ```
 ///
-/// # Collecting into GedcomData
+/// # Collecting into `GedcomData`
 ///
 /// If you need all records in a `GedcomData` structure, you can collect them:
 ///
@@ -380,18 +380,17 @@ impl<R: BufRead> GedcomStreamParser<R> {
         self.record_buffer.clear();
 
         // Start with peeked line or read a new one
-        let first_line = match self.peeked_line.take() {
-            Some(line) => line,
-            None => {
-                self.line_buffer.clear();
-                match self.reader.read_line(&mut self.line_buffer) {
-                    Ok(0) => return Ok(None), // EOF
-                    Ok(_) => {
-                        self.line_number += 1;
-                        std::mem::take(&mut self.line_buffer)
-                    }
-                    Err(e) => return Err(GedcomError::IoError(e.to_string())),
+        let first_line = if let Some(line) = self.peeked_line.take() {
+            line
+        } else {
+            self.line_buffer.clear();
+            match self.reader.read_line(&mut self.line_buffer) {
+                Ok(0) => return Ok(None),
+                Ok(_) => {
+                    self.line_number += 1;
+                    std::mem::take(&mut self.line_buffer)
                 }
+                Err(e) => return Err(GedcomError::IoError(e.to_string())),
             }
         };
 
@@ -433,16 +432,14 @@ impl<R: BufRead> GedcomStreamParser<R> {
         Ok(Some(std::mem::take(&mut self.record_buffer)))
     }
 
-    /// Parses a record text into a GedcomRecord.
+    /// Parses a record text into a `GedcomRecord`.
     fn parse_record_text(&self, text: &str) -> Result<GedcomRecord, GedcomError> {
-        // Add a fake TRLR to make it a valid GEDCOM document
+        use crate::tokenizer::Token;
+
         let doc_text = format!("{text}0 TRLR\n");
 
         let mut tokenizer = Tokenizer::new(doc_text.chars());
         tokenizer.next_token()?;
-
-        // Parse just the first record
-        use crate::tokenizer::Token;
 
         let Token::Level(level) = tokenizer.current_token else {
             if tokenizer.current_token == Token::EOF {
@@ -655,8 +652,7 @@ mod tests {
             // Message should indicate non-UTF-8 encoding (possibly UTF-16)
             assert!(
                 msg.contains("UTF-8") || msg.contains("UTF-16"),
-                "Expected encoding error message, got: {}",
-                msg
+                "Expected encoding error message, got: {msg}"
             );
         } else {
             panic!("Expected EncodingError");
