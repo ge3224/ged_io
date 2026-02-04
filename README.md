@@ -675,7 +675,7 @@ Output (example `tests/fixtures/sample.ged`):
 
 ```bash
 # Clone the repository
-git clone https://github.com/trois-six/ged_io.git
+git clone https://github.com/ge3224/ged_io.git
 cd ged_io
 
 # Build

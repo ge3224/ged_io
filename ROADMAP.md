@@ -4,8 +4,8 @@ This document outlines the planned development phases for the `ged_io` GEDCOM
 parsing library.
 
 For current work items and detailed task tracking, see [GitHub
-Issues](https://github.com/trois-six/ged_io/issues) and
-[Milestones](https://github.com/trois-six/ged_io/milestones).
+Issues](https://github.com/ge3224/ged_io/issues) and
+[Milestones](https://github.com/ge3224/ged_io/milestones).
 
 ---
 
