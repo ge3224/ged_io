@@ -742,6 +742,6 @@ This project is licensed under the [MIT License](LICENSE).
 
 ## Acknowledgments
 
-Originally forked from [`pirtleshell/rust-gedcom`](https://github.com/pirtleshell/rust-gedcom), then [`ge3224/ged_io`](https://github.com/ge3224/ged_io).
+Originally forked from [`pirtleshell/rust-gedcom`](https://github.com/pirtleshell/rust-gedcom).
 
 GEDCOM is a specification maintained by [FamilySearch](https://www.familysearch.org/).
