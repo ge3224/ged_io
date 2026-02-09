@@ -1,5 +1,8 @@
 pub mod change_date;
 
+#[cfg(feature = "calendar")]
+pub mod calendar;
+
 use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
@@ -8,6 +11,9 @@ use crate::{
 
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
+
+#[cfg(feature = "calendar")]
+pub use calendar::{Calendar, CalendarConversionError, DateQualifier, ParsedDateTime};
 
 /// Date encompasses a number of date formats, e.g. approximated, period, phrase and range.
 ///
@@ -58,6 +64,155 @@ impl Date {
             }
             None => None,
         }
+    }
+
+    /// Returns the calendar system used in this date, if one can be determined.
+    ///
+    /// This parses the date value to extract the calendar escape sequence.
+    /// Returns `None` if no value is present.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use ged_io::types::date::Date;
+    /// # #[cfg(feature = "calendar")]
+    /// # fn example() {
+    /// use ged_io::types::date::Calendar;
+    /// let date = Date {
+    ///     value: Some("@#DJULIAN@ 15 MAR 1582".to_string()),
+    ///     time: None,
+    ///     phrase: None,
+    /// };
+    /// assert_eq!(date.calendar(), Some(Calendar::Julian));
+    /// # }
+    /// ```
+    #[cfg(feature = "calendar")]
+    #[must_use]
+    pub fn calendar(&self) -> Option<Calendar> {
+        let value = self.value.as_ref()?;
+        if value.starts_with("@#D") {
+            if let Some(end) = value.find("@ ") {
+                let escape = &value[..=end];
+                return Calendar::from_gedcom_escape(escape);
+            } else if value.ends_with('@') {
+                return Calendar::from_gedcom_escape(value);
+            }
+        }
+        Some(Calendar::Gregorian)
+    }
+
+    /// Returns the date value without the calendar escape sequence.
+    ///
+    /// This strips the `@#DCALENDAR@` prefix from the date value if present.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use ged_io::types::date::Date;
+    /// let date = Date {
+    ///     value: Some("@#DJULIAN@ 15 MAR 1582".to_string()),
+    ///     time: None,
+    ///     phrase: None,
+    /// };
+    /// assert_eq!(date.value_without_calendar(), Some("15 MAR 1582".to_string()));
+    /// ```
+    #[must_use]
+    pub fn value_without_calendar(&self) -> Option<String> {
+        let value = self.value.as_ref()?;
+        if value.starts_with("@#D") {
+            if let Some(end) = value.find("@ ") {
+                return Some(value[end + 2..].to_string());
+            }
+        }
+        Some(value.clone())
+    }
+
+    /// Parse this date into a `ParsedDateTime` structure.
+    ///
+    /// This extracts the calendar, date components, time, and any qualifiers
+    /// from the date value and time strings.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the date cannot be parsed.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use ged_io::types::date::Date;
+    /// # #[cfg(feature = "calendar")]
+    /// # fn example() -> Result<(), ged_io::types::date::CalendarConversionError> {
+    /// let date = Date {
+    ///     value: Some("15 MAR 1820".to_string()),
+    ///     time: Some("12:34:56".to_string()),
+    ///     phrase: None,
+    /// };
+    /// let parsed = date.parse_datetime()?;
+    /// assert_eq!(parsed.year, Some(1820));
+    /// assert_eq!(parsed.month, Some(3));
+    /// assert_eq!(parsed.day, Some(15));
+    /// assert_eq!(parsed.hour, Some(12));
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[cfg(feature = "calendar")]
+    pub fn parse_datetime(&self) -> Result<ParsedDateTime, CalendarConversionError> {
+        let value = self
+            .value
+            .as_ref()
+            .ok_or(CalendarConversionError::ParseError {
+                message: "No date value".to_string(),
+            })?;
+
+        let mut parsed = ParsedDateTime::from_gedcom_date(value)?;
+
+        if let Some(time) = &self.time {
+            parsed.parse_time(time)?;
+        }
+
+        Ok(parsed)
+    }
+
+    /// Convert this date to a different calendar system.
+    ///
+    /// This parses the date, converts it to the target calendar, and returns
+    /// a new `Date` with the converted value.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - The date cannot be parsed
+    /// - The date is incomplete (missing year, month, or day)
+    /// - The date has a qualifier that prevents exact conversion (ABT, BEF, AFT, etc.)
+    /// - The date is a range (FROM/TO, BET/AND)
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// # use ged_io::types::date::Date;
+    /// # #[cfg(feature = "calendar")]
+    /// # fn example() -> Result<(), ged_io::types::date::CalendarConversionError> {
+    /// use ged_io::types::date::Calendar;
+    /// let date = Date {
+    ///     value: Some("@#DJULIAN@ 15 MAR 1582".to_string()),
+    ///     time: None,
+    ///     phrase: None,
+    /// };
+    /// let gregorian = date.convert_to(Calendar::Gregorian)?;
+    /// assert_eq!(gregorian.value, Some("25 MAR 1582".to_string()));
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[cfg(feature = "calendar")]
+    pub fn convert_to(&self, target: Calendar) -> Result<Date, CalendarConversionError> {
+        let parsed = self.parse_datetime()?;
+        let converted = parsed.convert_to(target)?;
+
+        Ok(Date {
+            value: Some(converted.to_gedcom_date()),
+            time: converted.to_gedcom_time(),
+            phrase: self.phrase.clone(),
+        })
     }
 }
 
