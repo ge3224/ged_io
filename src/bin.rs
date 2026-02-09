@@ -1,4 +1,5 @@
 use ged_io::Gedcom;
+use ged_io::GedcomBuilder;
 use ged_io::GedcomError;
 use std::env;
 use std::fmt;
@@ -12,7 +13,38 @@ struct CliArgs {
     individual_xref: Option<String>,
     individual_lastname: Option<String>,
     individual_firstname: Option<String>,
+    validate: bool,
+    validation_level: Option<ValidationLevel>,
     help: bool,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum ValidationLevel {
+    Strict,
+    Lenient,
+}
+
+impl ValidationLevel {
+    fn as_str(self) -> &'static str {
+        match self {
+            ValidationLevel::Strict => "strict",
+            ValidationLevel::Lenient => "lenient",
+        }
+    }
+}
+
+impl std::str::FromStr for ValidationLevel {
+    type Err = String;
+
+    fn from_str(input: &str) -> Result<Self, Self::Err> {
+        match input {
+            "strict" => Ok(ValidationLevel::Strict),
+            "lenient" => Ok(ValidationLevel::Lenient),
+            _ => Err(format!(
+                "Unknown validation level: {input} (expected: strict or lenient)"
+            )),
+        }
+    }
 }
 
 fn print_help() {
@@ -24,12 +56,16 @@ USAGE:\n\
   ged_io --individual <XREF> <file.ged>\n\
   ged_io --individual-lastname <LASTNAME> <file.ged>\n\
   ged_io --individual-firstname <FIRSTNAME> <file.ged>\n\
+  ged_io --validate <file.ged>\n\
+  ged_io --validate --validation-level strict <file.ged>\n\
 \n\
 OPTIONS:\n\
   -h, --help                        Print this help\n\
   --individual <XREF>               Display a single individual (e.g. @I1@)\n\
   --individual-lastname <LASTNAME>  Filter individuals by last name (case-insensitive)\n\
   --individual-firstname <FIRSTNAME> Filter individuals by first name (case-insensitive)\n\
+  --validate                        Validate GEDCOM compliance and output a report\n\
+  --validation-level <LEVEL>        Validation level: strict or lenient (default: lenient)\n\
 \n\
 NOTES:\n\
   If both --individual-lastname and --individual-firstname are set,\n\
@@ -66,6 +102,18 @@ fn parse_args(argv: &[String]) -> Result<CliArgs, CliError> {
                     CliError::Usage("--individual-firstname expects a FIRSTNAME".to_string())
                 })?;
                 out.individual_firstname = Some(val.clone());
+                i += 2;
+            }
+            "--validate" => {
+                out.validate = true;
+                i += 1;
+            }
+            "--validation-level" => {
+                let val = argv.get(i + 1).ok_or_else(|| {
+                    CliError::Usage("--validation-level expects strict or lenient".to_string())
+                })?;
+                let level = val.parse::<ValidationLevel>().map_err(CliError::Usage)?;
+                out.validation_level = Some(level);
                 i += 2;
             }
             other if other.starts_with('-') => {
@@ -140,8 +188,11 @@ impl From<GedcomError> for CliError {
 
 fn main() {
     match run() {
-        Ok(_) => {
+        Ok(RunOutcome::Success) => {
             process::exit(0);
+        }
+        Ok(RunOutcome::ValidationFailed) => {
+            process::exit(2);
         }
         Err(e) => {
             let exit_code = match &e {
@@ -155,7 +206,13 @@ fn main() {
     }
 }
 
-fn run() -> Result<(), CliError> {
+#[derive(Debug)]
+enum RunOutcome {
+    Success,
+    ValidationFailed,
+}
+
+fn run() -> Result<RunOutcome, CliError> {
     let argv: Vec<String> = env::args().collect();
     let args = parse_args(&argv)?;
 
@@ -170,6 +227,51 @@ fn run() -> Result<(), CliError> {
         .ok_or_else(|| CliError::Usage("Missing filename.".to_string()))?;
 
     let contents = read_relative(filename)?;
+
+    if !args.validate && args.validation_level.is_some() {
+        return Err(CliError::Usage(
+            "--validation-level requires --validate".to_string(),
+        ));
+    }
+
+    if args.validate {
+        if args.individual_xref.is_some()
+            || args.individual_lastname.is_some()
+            || args.individual_firstname.is_some()
+        {
+            return Err(CliError::Usage(
+                "--validate cannot be combined with --individual filters".to_string(),
+            ));
+        }
+
+        let validation_level = args.validation_level.unwrap_or(ValidationLevel::Lenient);
+        let builder = match validation_level {
+            ValidationLevel::Strict => GedcomBuilder::new()
+                .strict_mode(true)
+                .validate_references(true)
+                .ignore_unknown_tags(false)
+                .date_validation(true),
+            ValidationLevel::Lenient => GedcomBuilder::new()
+                .strict_mode(false)
+                .validate_references(true)
+                .ignore_unknown_tags(true)
+                .date_validation(false),
+        };
+
+        let mut errors = Vec::new();
+        let warnings: Vec<String> = Vec::new();
+
+        if let Err(err) = builder.build_from_str(&contents) {
+            errors.push(err.to_string());
+        }
+
+        print_validation_report(validation_level, &errors, &warnings);
+        if errors.is_empty() {
+            return Ok(RunOutcome::Success);
+        }
+        return Ok(RunOutcome::ValidationFailed);
+    }
+
     let mut doc = Gedcom::new(contents.chars())?;
     let data = doc.parse_data()?;
 
@@ -180,7 +282,7 @@ fn run() -> Result<(), CliError> {
             .find(|i| i.xref.as_deref() == Some(xref))
         {
             println!("{individual}");
-            return Ok(());
+            return Ok(RunOutcome::Success);
         }
         return Err(CliError::Usage(format!("Individual not found: {xref}")));
     }
@@ -227,12 +329,29 @@ fn run() -> Result<(), CliError> {
             }
         }
 
-        return Ok(());
+        return Ok(RunOutcome::Success);
     }
 
     data.stats();
 
-    Ok(())
+    Ok(RunOutcome::Success)
+}
+
+fn print_validation_report(level: ValidationLevel, errors: &[String], warnings: &[String]) {
+    println!(
+        "Validation: {} - errors: {}, warnings: {}",
+        level.as_str(),
+        errors.len(),
+        warnings.len()
+    );
+
+    for err in errors {
+        println!("error: {err}");
+    }
+
+    for warning in warnings {
+        println!("warning: {warning}");
+    }
 }
 
 fn read_relative(path: &str) -> Result<String, std::io::Error> {
