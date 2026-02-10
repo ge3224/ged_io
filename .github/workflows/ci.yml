@@ -100,3 +100,9 @@ jobs:
 
     - name: Run security audit
       run: cargo audit
+
+  trigger-release:
+    name: Trigger Release
+    needs: [test, cross-platform-test, security-audit]
+    if: startsWith(github.ref, 'refs/tags/v')
+    uses: ./.github/workflows/release.yml

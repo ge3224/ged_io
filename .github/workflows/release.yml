@@ -1,12 +1,6 @@
 name: Release on Tag
 
-on:
-  push:
-    tags:
-      - 'v*'
-  workflow_run:
-    workflows: [CI/CD Pipeline]
-    types: [completed]
+on: workflow_call
 
 permissions:
   contents: write
@@ -15,7 +9,6 @@ jobs:
   create-release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
       - name: Create Release
         uses: softprops/action-gh-release@v1
