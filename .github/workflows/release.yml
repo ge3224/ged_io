@@ -4,6 +4,9 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_run:
+    workflows: [CI/CD Pipeline]
+    types: [completed]
 
 permissions:
   contents: write
@@ -12,7 +15,7 @@ jobs:
   create-release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
-    needs: [test, cross-platform-test, security-audit]
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
       - name: Create Release
         uses: softprops/action-gh-release@v1
