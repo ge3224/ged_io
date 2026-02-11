@@ -1,13 +1,11 @@
 name: Build Artifacts
 
 on:
-  release:
-    types: [published]
   workflow_dispatch:
   workflow_call:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   build-artifacts:
