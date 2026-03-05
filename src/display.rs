@@ -132,25 +132,17 @@ impl fmt::Display for Individual {
 
         for event in &self.events {
             match event.event {
-                crate::types::event::Event::Birth => {
-                    if birth_date.is_none() {
-                        birth_date = event.date.as_ref().and_then(|d| d.value.as_deref());
-                    }
+                crate::types::event::Event::Birth if birth_date.is_none() => {
+                    birth_date = event.date.as_ref().and_then(|d| d.value.as_deref());
                 }
-                crate::types::event::Event::Baptism => {
-                    if baptism_date.is_none() {
-                        baptism_date = event.date.as_ref().and_then(|d| d.value.as_deref());
-                    }
+                crate::types::event::Event::Baptism if baptism_date.is_none() => {
+                    baptism_date = event.date.as_ref().and_then(|d| d.value.as_deref());
                 }
-                crate::types::event::Event::Death => {
-                    if death_date.is_none() {
-                        death_date = event.date.as_ref().and_then(|d| d.value.as_deref());
-                    }
+                crate::types::event::Event::Death if death_date.is_none() => {
+                    death_date = event.date.as_ref().and_then(|d| d.value.as_deref());
                 }
-                crate::types::event::Event::Burial => {
-                    if inhumation_date.is_none() {
-                        inhumation_date = event.date.as_ref().and_then(|d| d.value.as_deref());
-                    }
+                crate::types::event::Event::Burial if inhumation_date.is_none() => {
+                    inhumation_date = event.date.as_ref().and_then(|d| d.value.as_deref());
                 }
                 _ => {}
             }
@@ -243,30 +235,20 @@ impl fmt::Display for Family {
 
         for event in &self.events {
             match event.event {
-                crate::types::event::Event::Marriage => {
-                    if marriage_date.is_none() {
-                        marriage_date = event.date.as_ref().and_then(|d| d.value.as_deref());
-                    }
+                crate::types::event::Event::Marriage if marriage_date.is_none() => {
+                    marriage_date = event.date.as_ref().and_then(|d| d.value.as_deref());
                 }
-                crate::types::event::Event::Engagement => {
-                    if engagement_date.is_none() {
-                        engagement_date = event.date.as_ref().and_then(|d| d.value.as_deref());
-                    }
+                crate::types::event::Event::Engagement if engagement_date.is_none() => {
+                    engagement_date = event.date.as_ref().and_then(|d| d.value.as_deref());
                 }
-                crate::types::event::Event::Separated => {
-                    if separated_date.is_none() {
-                        separated_date = event.date.as_ref().and_then(|d| d.value.as_deref());
-                    }
+                crate::types::event::Event::Separated if separated_date.is_none() => {
+                    separated_date = event.date.as_ref().and_then(|d| d.value.as_deref());
                 }
-                crate::types::event::Event::Divorce => {
-                    if divorce_date.is_none() {
-                        divorce_date = event.date.as_ref().and_then(|d| d.value.as_deref());
-                    }
+                crate::types::event::Event::Divorce if divorce_date.is_none() => {
+                    divorce_date = event.date.as_ref().and_then(|d| d.value.as_deref());
                 }
-                crate::types::event::Event::Annulment => {
-                    if annulment_date.is_none() {
-                        annulment_date = event.date.as_ref().and_then(|d| d.value.as_deref());
-                    }
+                crate::types::event::Event::Annulment if annulment_date.is_none() => {
+                    annulment_date = event.date.as_ref().and_then(|d| d.value.as_deref());
                 }
                 _ => {}
             }

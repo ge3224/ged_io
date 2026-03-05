@@ -382,7 +382,7 @@ fn test_debug_trait_available() {
     let data = gedcom.parse_data().unwrap();
 
     // Debug formatting must work
-    let debug_str = format!("{:?}", data);
+    let debug_str = format!("{data:?}");
     assert!(!debug_str.is_empty());
 
     // Debug on individuals
@@ -398,7 +398,7 @@ fn test_display_trait_available() {
     let data = gedcom.parse_data().unwrap();
 
     // Display formatting must work
-    let display_str = format!("{}", data);
+    let display_str = format!("{data}");
     assert!(!display_str.is_empty());
     assert!(display_str.contains("GEDCOM Data"));
 }

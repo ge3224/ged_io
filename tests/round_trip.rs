@@ -303,9 +303,9 @@ fn test_round_trip_complete_gedcom() {
         .zip(data2.individuals.iter())
         .enumerate()
     {
-        assert_eq!(ind1.xref, ind2.xref, "Individual {} xref mismatch", i);
-        assert_eq!(ind1.name, ind2.name, "Individual {} name mismatch", i);
-        assert_eq!(ind1.sex, ind2.sex, "Individual {} sex mismatch", i);
+        assert_eq!(ind1.xref, ind2.xref, "Individual {i} xref mismatch");
+        assert_eq!(ind1.name, ind2.name, "Individual {i} name mismatch");
+        assert_eq!(ind1.sex, ind2.sex, "Individual {i} sex mismatch");
     }
 }
 

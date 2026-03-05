@@ -663,8 +663,7 @@ fn test_parse_simple_fixture_with_build_from_bytes() {
     let (_, encoding) = decode_gedcom_bytes(&bytes).unwrap();
     assert!(
         encoding == GedcomEncoding::Ascii || encoding == GedcomEncoding::Utf8,
-        "Expected ASCII or UTF-8, got {:?}",
-        encoding
+        "Expected ASCII or UTF-8, got {encoding:?}"
     );
 
     // Parse with build_from_bytes
