@@ -8,9 +8,11 @@ permissions:
   contents: write
 
 jobs:
-  create-release-and-build:
-    name: Create Release & Build Artifacts
+  create-release:
+    name: Create Release
     runs-on: ubuntu-latest
+    outputs:
+      tag_name: ${{ steps.create.outputs.tag_name }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -18,7 +20,7 @@ jobs:
           fetch-depth: 1
 
       - name: Create Release
-        id: create_release
+        id: create
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
@@ -26,6 +28,16 @@ jobs:
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-linux:
+    name: Build Linux
+    needs: create-release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
@@ -37,58 +49,136 @@ jobs:
             ~/.cargo/registry
             ~/.cargo/git
             target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          key: Linux-cargo-${{ hashFiles('**/Cargo.lock') }}
 
-      - name: Build Linux
-        if: steps.create_release.outputs.id
-        run: |
-          cargo build --release --target x86_64-unknown-linux-gnu
-          strip target/x86_64-unknown-linux-gnu/release/ged_io
-          tar -czvf ged_io-linux-x86_64.tar.gz -C target/x86_64-unknown-linux-gnu/release ged_io
+      - name: Build
+        run: cargo build --release --target x86_64-unknown-linux-gnu
 
-      - name: Build Windows
-        if: steps.create_release.outputs.id
-        run: |
-          cargo build --release --target x86_64-pc-windows-msvc
-        shell: bash
+      - name: Strip binary
+        run: strip target/x86_64-unknown-linux-gnu/release/ged_io
 
-      - name: Build macOS x86_64
-        if: steps.create_release.outputs.id
-        run: |
-          cargo build --release --target x86_64-apple-darwin
-          strip target/x86_64-apple-darwin/release/ged_io
-
-      - name: Build macOS ARM64
-        if: steps.create_release.outputs.id
-        run: |
-          cargo build --release --target aarch64-apple-darwin
-          strip target/aarch64-apple-darwin/release/ged_io
+      - name: Create archive
+        run: tar -czvf ged_io-linux-x86_64.tar.gz -C target/x86_64-unknown-linux-gnu/release ged_io
 
       - name: Upload Linux asset
-        if: steps.create_release.outputs.id
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.create_release.outputs.tag_name }}
-          files: |
-            ged_io-linux-x86_64.tar.gz
+          tag_name: ${{ needs.create-release.outputs.tag_name }}
+          files: ged_io-linux-x86_64.tar.gz
+          overwrite: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-windows:
+    name: Build Windows
+    needs: create-release
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: Windows-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build
+        run: cargo build --release --target x86_64-pc-windows-msvc
 
       - name: Upload Windows asset
-        if: steps.create_release.outputs.id
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.create_release.outputs.tag_name }}
+          tag_name: ${{ needs.create-release.outputs.tag_name }}
           files: target/x86_64-pc-windows-msvc/release/ged_io.exe
+          overwrite: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-macos-x86:
+    name: Build macOS x86_64
+    needs: create-release
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-apple-darwin
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: macOS-x86_64-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build
+        run: cargo build --release --target x86_64-apple-darwin
+
+      - name: Strip binary
+        run: strip target/x86_64-apple-darwin/release/ged_io
 
       - name: Upload macOS x86_64 asset
-        if: steps.create_release.outputs.id
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.create_release.outputs.tag_name }}
+          tag_name: ${{ needs.create-release.outputs.tag_name }}
           files: target/x86_64-apple-darwin/release/ged_io
+          overwrite: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  build-macos-arm:
+    name: Build macOS ARM64
+    needs: create-release
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: macOS-aarch64-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build
+        run: cargo build --release --target aarch64-apple-darwin
+
+      - name: Strip binary
+        run: strip target/aarch64-apple-darwin/release/ged_io
 
       - name: Upload macOS ARM64 asset
-        if: steps.create_release.outputs.id
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.create_release.outputs.tag_name }}
+          tag_name: ${{ needs.create-release.outputs.tag_name }}
           files: target/aarch64-apple-darwin/release/ged_io
+          overwrite: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
