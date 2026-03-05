@@ -20,6 +20,8 @@ jobs:
   build-and-attach:
     name: Build & Attach Artifacts
     needs: create-release
+    permissions:
+      contents: write
     uses: ./.github/workflows/ci-build.yml
 
   # publish-crate:
