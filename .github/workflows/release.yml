@@ -11,8 +11,6 @@ jobs:
   create-release:
     name: Create Release
     runs-on: ubuntu-latest
-    outputs:
-      tag_name: ${{ steps.create.outputs.tag_name }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -63,7 +61,6 @@ jobs:
       - name: Upload Linux asset
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ needs.create-release.outputs.tag_name }}
           files: ged_io-linux-x86_64.tar.gz
           overwrite: true
         env:
@@ -99,7 +96,6 @@ jobs:
       - name: Upload Windows asset
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ needs.create-release.outputs.tag_name }}
           files: target/x86_64-pc-windows-msvc/release/ged_io.exe
           overwrite: true
         env:
@@ -138,7 +134,6 @@ jobs:
       - name: Upload macOS x86_64 asset
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ needs.create-release.outputs.tag_name }}
           files: target/x86_64-apple-darwin/release/ged_io
           overwrite: true
         env:
@@ -177,7 +172,6 @@ jobs:
       - name: Upload macOS ARM64 asset
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ needs.create-release.outputs.tag_name }}
           files: target/aarch64-apple-darwin/release/ged_io
           overwrite: true
         env:
