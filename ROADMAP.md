@@ -1,277 +1,108 @@
-# ged_io Project Roadmap
+# ged_io Roadmap
 
-This document outlines the planned development phases for the `ged_io` GEDCOM
-parsing library.
-
-For current work items and detailed task tracking, see [GitHub
-Issues](https://github.com/ge3224/ged_io/issues) and
-[Milestones](https://github.com/ge3224/ged_io/milestones).
+Features identified by comparing with [gedcom-parse](https://github.com/geni-act/gedcom-parse) (C library) and adapting for a modern Rust GEDCOM library.
 
 ---
 
-## v0.3: Error Handling and Validation ✅ COMPLETE
+## Phase 1: Date Arithmetic & Age Parsing (v0.13)
 
-The current parser works but needs better error reporting and input validation
-before it can be considered reliable for production use.
+Dates are the backbone of genealogy. Every downstream app (timelines, reports, tree renderers) needs date comparison, sorting, and age calculation.
 
-### Primary objectives
+### Serial Day Number (SDN) Conversion
+- Add `to_day_number()` on `ParsedDateTime` (behind `calendar` feature)
+- Enables date comparison (`PartialOrd`/`Ord` on `Date`), difference calculation, chronological sorting
+- `calendrical_calculations` crate already in deps provides RD conversions
 
-- ✅ Improve `GedcomError` enum with specific error types that include context
-(line numbers, problematic values)
-- ✅ Implement validation against GEDCOM 5.5.1 specification rules
-- ✅ Add builder pattern for parser configuration
-- ✅ Implement standard traits (`Display`, `Debug`, `PartialEq`, `Clone`) on core types
-- ✅ Expand test coverage with real-world GEDCOM files and edge cases
+### Dedicated Age Parsing
+- New `Age` struct: `Child`, `Infant`, `Stillborn`, `Numeric { years, months, weeks, days }` with modifiers (`<`, `>`, exact)
+- `Age::parse()` and `Display` for round-trip
+- Support both 5.5.1 format and 7.0 format (`y`, `m`, `w`, `d` suffixes)
+- Replace `pub age: Option<String>` with `pub age: Option<Age>` in event detail
 
-### Expected outcomes
+### Day of Week Calculation
+- `day_of_week(&self) -> Option<Weekday>` on `ParsedDateTime`
+- Trivial once SDN exists (SDN mod 7), use `chrono::Weekday`
 
-- ✅ Parser handles malformed input gracefully without panicking
-- ✅ Clear error messages help users identify and fix data issues
-- ✅ Test suite covers common real-world scenarios
-- ✅ API is easier to use and configure
-
----
-
-## v0.4: Performance and Memory Usage ✅ COMPLETE
-
-Address performance bottlenecks and memory consumption, particularly for larger
-GEDCOM files.
-
-### Primary objectives
-
-- ✅ Set up benchmarking infrastructure using Criterion.rs
-- ✅ Profile memory usage and identify optimization opportunities
-- ✅ Implement memory-efficient string storage (`Box<str>`, string interning utilities)
-- ✅ Implement indexed lookups (`IndexedGedcomData`) for O(1) cross-reference resolution
-- ✅ Optimize hot paths identified through profiling
-
-### Achieved outcomes
-
-- ~40% faster parsing across all file sizes
-- ~4x faster lookups with `IndexedGedcomData`
-- Reduced memory footprint with `Box<str>` for token values
-- Comprehensive benchmark suite with Criterion.rs
-- Baseline performance metrics established for future comparisons
+### Date Normalization
+- `normalize(&self) -> Date` — uppercase month abbreviations, normalize whitespace, well-formed calendar escapes
 
 ---
 
-## v0.5: Write Support and Round-trip Integrity ✅ COMPLETE
+## Phase 2: Record Manipulation API (v0.14)
 
-Add the ability to write GEDCOM data back to files and ensure complete 5.5.1 specification compliance.
+ged_io is primarily read-only. Any app that edits genealogy data needs CRUD operations with referential integrity.
 
-### Primary objectives
+### Record CRUD on GedcomData
+- `add_individual()`, `add_family()`, `add_source()`, etc. — return `&mut T`
+- `remove_individual(xref)`, `remove_family(xref)`, etc. — return `Option<T>`
+- Auto-generate unique xrefs when not provided
+- Warn/clean up dangling cross-references on deletion
 
-- ✅ Implement complete GEDCOM 5.5.1 specification support
-- ✅ Add write functionality for `GedcomData` objects (`GedcomWriter`)
-- ✅ Ensure written files are specification-compliant
-- ✅ Create round-trip tests (parse → write → parse → compare)
-- ✅ Document any specification ambiguities or limitations
+### Cross-reference Linking/Unlinking
+- `link_child_to_family(indi_xref, fam_xref)` — adds CHIL to FAM and FAMC to INDI
+- `link_spouse_to_family(indi_xref, fam_xref, role)`
+- `unlink_individual_from_family(indi_xref, fam_xref)`
+- Maintains bidirectional referential integrity
 
-### Achieved outcomes
+### Sub-structure Mutation
+- Methods on `Individual`, `Family`, etc.: `add_event()`, `remove_event()`, `add_name()`, `reorder_events(from, to)`
 
-- ✅ Library can both read and write GEDCOM files
-- ✅ Round-trip operations preserve data integrity
-- ✅ Complete feature parity with GEDCOM 5.5.1 specification
-- ✅ Clear documentation of supported features
-
----
-
-## v0.6: GEDCOM 7.0 Support ✅ COMPLETE
-
-Add support for the GEDCOM 7.0 specification while maintaining backward compatibility.
-
-### Primary objectives
-
-- ✅ Create version detection module (`version.rs`)
-- ✅ Implement `GedcomVersion` enum with version-specific feature flags
-- ✅ Add `SCHMA` (schema) structure for extension tag definitions
-- ✅ Add `SNOTE` (shared note) record type
-- ✅ Add `ExternalId` structure for `EXID` tags
-- ✅ Add `NoteTranslation` structure for `TRAN` tags
-- ✅ Update data structures to accommodate remaining GEDCOM 7.0 features
-- ✅ Implement 7.0 parser with format auto-detection
-- ✅ Add 7.0 write support
-- ✅ Maintain compatibility with existing 5.5.1 functionality
-- ✅ Document migration path from 5.5.1 to 7.0 (MIGRATION.md)
-
-### Implemented features
-
-- `GedcomVersion` enum with `V5_5_1`, `V7_0`, and `Unknown` variants
-- `detect_version()` function for automatic version detection
-- `VersionFeatures` struct for checking version-specific capabilities
-- `Schema` and `TagDefinition` for GEDCOM 7.0 extension tag support
-- `SharedNote` record type with translations and external IDs
-- Header updates with `is_gedcom_7()` and `find_extension_uri()` methods
-- `GedcomData` updates with shared note support and version detection
-- `SortDate` structure for `SDATE` tags with sorting hints
-- `CreationDate` structure for `CREA` tags
-- `Crop` structure for image cropping in multimedia references
-- `NonEvent` structure for `NO` tags (assertions that events did not occur)
-- `Phrase` structure for `PHRASE` substructure on dates
-- Updated `Date` to support `PHRASE` substructure
-- Updated `Detail` (event) to support `SDATE` substructure
-- Updated `Individual` and `Family` to support `NO` (non-event) assertions
-- Updated `multimedia::Reference` to support `CROP` substructure
-- Updated tokenizer to gracefully handle non-continuation tags
-- Complete 7.0 writer support for all new structures
-- Comprehensive test suite with 30+ GEDCOM 7.0 specific tests
-
-### Additional features implemented
-
-- LDS ordinances support (`BAPL`, `CONL`, `INIL`, `ENDL`, `SLGC`, `SLGS`)
-- `INIL` (initiatory) ordinance for GEDCOM 7.0
-- Utility functions for GEDCOM 7.0 `@` sign handling (leading only)
-- Comprehensive migration documentation (MIGRATION.md)
-
-### Achieved outcomes
-
-- ✅ Library supports both GEDCOM 5.5.1 and 7.0 formats
-- ✅ Users can parse files without knowing the format version
-- ✅ Clear upgrade path for applications using the library
-- ✅ Full LDS ordinance support including GEDCOM 7.0 INIL
-- ✅ Comprehensive migration documentation
+### Index Sync
+- `IndexedGedcomData::rebuild_index()` or keep index in sync with mutations
 
 ---
 
-## v0.8: Comprehensive Tag Support
+## Phase 3: Error Handling Modes & Compatibility (v0.15)
 
-Complete the GEDCOM tag coverage with additional record types, structures, and encodings.
+Real-world GEDCOM files are messy. Granular error control and compat handling are essential for robust import.
 
-### Primary objectives
+### Granular Error Modes
+- Replace boolean `strict_mode` with `ErrorMode` enum:
+  - `Strict` — stop on first error
+  - `Deferred` — collect all errors, return `(GedcomData, Vec<GedcomError>)` with whatever could be parsed
+  - `Lenient` — log warnings, never fail
+- Builder API: `.error_mode(ErrorMode::Deferred)`
 
-- ✅ Implement complete GEDCOM 5.5.1 and 7.0 tag coverage
-- ✅ Add enhanced Name structure with TYPE and phonetic/romanized variations
-- ✅ Add enhanced Place structure with MAP coordinates and variations
-- ✅ Add source citation counting with detailed breakdown
-- ✅ Add ISO-8859-15 (Latin-9) encoding support
-- ✅ Add EVEN and ROLE support in source citations
-- ✅ Add additional record fields (UID, EXID, ALIA, ANCI, DESI)
-- ✅ Add event/attribute details (CAUS, RESN, AGE, AGNC, RELI)
-- ✅ Add Association (ASSO) support
+### Program-specific Compatibility Mode
+- `CompatibilityMode` enum with `Auto` detection
+- Focus on modern software: Ancestry, FamilySearch, Legacy, RootsMagic, GRAMPS
+- Auto-fix known quirks: non-standard dates, misplaced tags, wrong nesting
 
-### Implemented features
-
-- UID, EXID, ALIA, ANCI, DESI tags for record identification
-- Name structure enhancements: TYPE, FONE (phonetic), ROMN (romanized)
-- Place structure enhancements: MAP, LATI, LONG, FONE, ROMN
-- Event/attribute details: CAUS (cause), RESN (restriction), AGE, AGNC (agency), RELI (religion)
-- EVEN (generic event) and ROLE (role in event) for source citations
-- ASSO (association) structure for linking individuals
-- ISO-8859-15 (Latin-9) encoding support for Western European languages
-- Source citation counting with breakdown by record type
-
-### Achieved outcomes
-
-- ✅ Complete GEDCOM tag coverage for both 5.5.1 and 7.0 specifications
-- ✅ Enhanced place and name structures with variations and coordinates
-- ✅ Better source citation analysis capabilities
-- ✅ Support for additional encodings beyond UTF-8
+### GEDCOM Sanitizer CLI
+- `ged_io --sanitize <file.ged>` — parse with lenient/compat mode, write strict standard-compliant output
 
 ---
 
-## v0.9: GEDZIP Support ✅ COMPLETE
+## Phase 4: Conversion Tools & Visitor Pattern (v0.16+)
 
-Add support for GEDZIP file format - bundled GEDCOM data with media files.
+Specialized but valuable for power users and tool builders.
 
-### Primary objectives
+### GEDCOM Version Conversion
+- `ged_io --convert-to 7.0 <file.ged>` / `--convert-to 5.5.1`
+- Handle structural differences (SNOTE vs NOTE, SCHMA, encoding declarations)
 
-- ✅ Implement `GedzipReader` for reading GEDZIP archives
-- ✅ Implement `GedzipWriter` for creating GEDZIP archives
-- ✅ Add `build_from_gedzip()` method to `GedcomBuilder`
-- ✅ Support media file extraction and bundling
-- ✅ Comprehensive error handling with `GedzipError` type
-- ✅ Full test coverage
+### Visitor/Event-based Parser Interface
+- `GedcomVisitor` trait with `on_individual()`, `on_family()`, etc. returning `ControlFlow`
+- Complements existing iterator-based `GedcomStreamParser`
+- Enables early termination and selective processing
 
-### Achieved outcomes
-
-- ✅ Library can read and write GEDZIP (`.gdz`) files
-- ✅ Media files can be bundled with GEDCOM data
-- ✅ Convenience functions for simple read/write operations
-- ✅ Opt-in feature (`gedzip`) to avoid unnecessary dependencies
+### Encoding Conversion CLI
+- `ged_io --convert-encoding utf-8 <file.ged>` — convert ANSEL/ISO-8859 files to UTF-8
 
 ---
 
-## v0.10: Parser Polish and CLI Enhancements
+## Excluded
 
-Improve parsing robustness and CLI functionality.
-
-### Primary objectives
-
-- ✅ Accept trailing newline at EOF and ensure writer round-trips correctly
-- ✅ Relax parsing rules to handle files with missing HEAD/TRLR records
-- ✅ Add individual display options to CLI
-- ✅ Add name filtering capabilities to CLI
-
-### Achieved outcomes
-
-- ✅ More lenient parsing for real-world GEDCOM files
-- ✅ Better CLI tool for GEDCOM inspection and analysis
-- ✅ Improved round-trip fidelity
+- **Locale-aware string handling** — Rust uses UTF-8 natively; consuming apps handle display
+- **Raw SAX-like tag parser** — existing `GedcomStreamParser` (typed iterator) is superior; visitor pattern (Phase 4) covers the "subscribe to events" use case
 
 ---
 
-## v0.11: Streaming Parser & ANSEL Encoding ✅ COMPLETE
+## Summary
 
-Add memory-efficient streaming parser for processing large GEDCOM files,
-and support for ANSEL character encoding.
-
-### Primary objectives
-
-- ✅ Implement `GedcomStreamParser` for iterator-based record streaming
-- ✅ Add `TokenizerTrait` to abstract tokenizer operations
-- ✅ Add `StreamTokenizer` for reading from `BufRead` sources
-- ✅ Add `GedcomRecord` enum representing any top-level record type
-- ✅ Implement `FromIterator<GedcomRecord>` for `GedcomData`
-- ✅ Handle non-UTF-8 input with clear error messages
-- ✅ Add ANSEL (Z39.47) encoding support for legacy GEDCOM 5.x files
-- ✅ Full test coverage
-
-### Achieved outcomes
-
-- ✅ Library can process arbitrarily large GEDCOM files
-- ✅ Memory usage stays constant regardless of file size
-- ✅ Iterator-based API integrates naturally with Rust idioms
-- ✅ Records can be filtered/processed on-the-fly or collected into `GedcomData`
-- ✅ Clear error handling for encoding issues
-- ✅ ANSEL decoding with combining diacritical marks
-- ✅ ANSEL encoding for writing legacy files
-
----
-
-## v1.0: Documentation and Stability
-
-Focus on API stability, comprehensive documentation, and community preparation.
-
-### Primary objectives
-
-- Finalize public API with semantic versioning commitment
-- Write comprehensive documentation and examples
-- Create contribution guidelines and issue templates
-- Establish release process and version management
-- Publish to crates.io
-
-### Expected outcomes
-
-- Stable public API suitable for production use
-- Clear documentation for common use cases
-- Established processes for community contributions
-- Published crate available to Rust ecosystem
-
----
-
-## Post-1.0 Considerations
-
-Potential areas for future development, depending on community interest and
-practical need:
-
-- Performance optimizations based on real-world usage patterns
-- Additional output formats or conversion utilities
-- Add helper functions to manipulate dates and calendars
-- Integration with genealogy software APIs
-- Advanced validation and data quality tools
-- WASM bindings for web applications
-
----
-
-*This roadmap represents current intentions and may be adjusted based on
-development progress, community feedback, and changing requirements.*
+| Phase | Version | Theme | Key Deliverables |
+|-------|---------|-------|-----------------|
+| 1 | v0.13 | Date & Age | SDN conversion, `Age` struct, date ordering, day-of-week, normalization |
+| 2 | v0.14 | Record Mutation | CRUD for all records, xref linking/unlinking, sub-structure mutation |
+| 3 | v0.15 | Error & Compat | `ErrorMode` enum, program-specific compat, sanitizer CLI |
+| 4 | v0.16+ | Conversion & Visitor | Version conversion, `GedcomVisitor` trait, encoding conversion CLI |
