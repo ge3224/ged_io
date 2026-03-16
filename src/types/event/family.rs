@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
-    types::event::spouse::Spouse,
+    types::{age::Age, event::spouse::Spouse},
     GedcomError,
 };
 
@@ -12,8 +12,8 @@ use crate::{
 #[derive(Clone, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct FamilyEventDetail {
-    pub member: Spouse,
-    pub age: Option<String>,
+    pub member: Option<Spouse>,
+    pub age: Option<Age>,
 }
 
 impl FamilyEventDetail {
@@ -28,22 +28,26 @@ impl FamilyEventDetail {
         tag: &str,
     ) -> Result<FamilyEventDetail, GedcomError> {
         let mut fe = FamilyEventDetail {
-            member: Self::from_tag(tag),
+            member: Some(Self::from_tag(tag)?),
             age: None,
         };
         fe.parse(tokenizer, level)?;
         Ok(fe)
     }
 
-    /// # Panics
+    /// Converts a tag string to a `Spouse` variant.
     ///
-    /// Panics when encountering an unrecognized tag
-    #[must_use]
-    pub fn from_tag(tag: &str) -> Spouse {
+    /// # Errors
+    ///
+    /// Returns `GedcomError::ParseError` if the tag is not recognized.
+    pub fn from_tag(tag: &str) -> Result<Spouse, GedcomError> {
         match tag {
-            "HUSB" => Spouse::Spouse1,
-            "WIFE" => Spouse::Spouse2,
-            _ => panic!("{tag:?}, Unrecognized FamilyEventMember"),
+            "HUSB" => Ok(Spouse::Spouse1),
+            "WIFE" => Ok(Spouse::Spouse2),
+            _ => Err(GedcomError::ParseError {
+                line: 0,
+                message: format!("{tag:?}, Unrecognized FamilyEventMember"),
+            }),
         }
     }
 }
@@ -54,7 +58,7 @@ impl Parser for FamilyEventDetail {
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
             match tag {
-                "AGE" => self.age = Some(tokenizer.take_line_value()?),
+                "AGE" => self.age = Some(Age::new(tokenizer, level + 1)?),
                 _ => {
                     return Err(GedcomError::ParseError {
                         line: tokenizer.line,

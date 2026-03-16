@@ -21,9 +21,9 @@
 
 use crate::types::{
     address::Address,
+    age::Age,
     date::Date,
-    event::detail::Detail as EventDetail,
-    event::Event,
+    event::{detail::Detail as EventDetail, spouse::Spouse, Event},
     family::Family,
     gedcom7::{NonEvent, SortDate},
     header::{meta::HeadMeta, schema::Schema, source::HeadSour},
@@ -38,8 +38,7 @@ use crate::types::{
     note::Note,
     repository::Repository,
     shared_note::SharedNote,
-    source::quay::CertaintyAssessment,
-    source::{citation::Citation, Source},
+    source::{citation::Citation, quay::CertaintyAssessment, Source},
     submission::Submission,
     submitter::Submitter,
     GedcomData,
@@ -536,7 +535,14 @@ impl GedcomWriter {
         }
 
         if let Some(ref age) = event.age {
-            self.write_value_or_wrap(writer, level + 1, "AGE", Some(age))?;
+            self.write_value_or_wrap(writer, level + 1, "AGE", Some(&age.to_string()))?;
+            if let Age::Numeric {
+                phrase: Some(ref phrase),
+                ..
+            } = age
+            {
+                self.write_value_or_wrap(writer, level + 2, "PHRASE", Some(phrase))?;
+            }
         }
 
         if let Some(ref agency) = event.agency {
@@ -545,6 +551,25 @@ impl GedcomWriter {
 
         if let Some(ref religion) = event.religion {
             self.write_value_or_wrap(writer, level + 1, "RELI", Some(religion))?;
+        }
+
+        for detail in &event.family_event_details {
+            let tag = match detail.member {
+                Some(Spouse::Spouse1) => "HUSB",
+                Some(Spouse::Spouse2) => "WIFE",
+                None => continue,
+            };
+            self.write_line(writer, level + 1, tag, None)?;
+            if let Some(ref age) = detail.age {
+                self.write_value_or_wrap(writer, level + 2, "AGE", Some(&age.to_string()))?;
+                if let Age::Numeric {
+                    phrase: Some(phrase),
+                    ..
+                } = age
+                {
+                    self.write_value_or_wrap(writer, level + 3, "PHRASE", Some(phrase))?;
+                }
+            }
         }
 
         Ok(())

@@ -5,8 +5,8 @@ use crate::{
     parser::{parse_subset, Parser},
     tokenizer::{Token, Tokenizer},
     types::{
-        address::Address, date::Date, individual::attribute::IndividualAttribute, note::Note,
-        place::Place, source::citation::Citation,
+        address::Address, age::Age, date::Date, individual::attribute::IndividualAttribute,
+        note::Note, place::Place, source::citation::Citation,
     },
     GedcomError,
 };
@@ -49,7 +49,7 @@ pub struct AttributeDetail {
     /// Age at the time of the attribute (tag: AGE).
     ///
     /// The age of the individual at the time the attribute was recorded.
-    pub age: Option<String>,
+    pub age: Option<Age>,
     /// Physical address associated with this attribute (tag: ADDR).
     ///
     /// Commonly used with RESI (residence) attributes.
@@ -149,7 +149,7 @@ impl Parser for AttributeDetail {
                 "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
                 "TYPE" => self.attribute_type = Some(tokenizer.take_continued_text(level + 1)?),
                 "RESN" => self.restriction = Some(tokenizer.take_line_value()?),
-                "AGE" => self.age = Some(tokenizer.take_line_value()?),
+                "AGE" => self.age = Some(Age::new(tokenizer, level + 1)?),
                 "ADDR" => self.address = Some(Address::new(tokenizer, level + 1)?),
                 "CAUS" => self.cause = Some(tokenizer.take_continued_text(level + 1)?),
                 "AGNC" => self.agency = Some(tokenizer.take_line_value()?),

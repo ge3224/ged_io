@@ -6,6 +6,7 @@ use crate::{
     parser::{parse_subset, Parser},
     tokenizer::{Token, Tokenizer},
     types::{
+        age::Age,
         date::Date,
         event::{family::FamilyEventDetail, Event},
         gedcom7::SortDate,
@@ -86,7 +87,7 @@ pub struct Detail {
     /// Format examples: "25y", "25y 6m", "CHILD", "INFANT", "STILLBORN"
     ///
     /// See GEDCOM 5.5.1 spec, page 42; <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#AGE>
-    pub age: Option<String>,
+    pub age: Option<Age>,
     /// Responsible agency (tag: AGNC).
     ///
     /// The organization, institution, corporation, person, or other entity
@@ -254,7 +255,7 @@ impl Parser for Detail {
                     .push(Association::new(tokenizer, level + 1)?),
                 "CAUS" => self.cause = Some(tokenizer.take_continued_text(level + 1)?),
                 "RESN" => self.restriction = Some(tokenizer.take_line_value()?),
-                "AGE" => self.age = Some(tokenizer.take_line_value()?),
+                "AGE" => self.age = Some(Age::new(tokenizer, level + 1)?),
                 "AGNC" => self.agency = Some(tokenizer.take_line_value()?),
                 "RELI" => self.religion = Some(tokenizer.take_line_value()?),
                 _ => {
@@ -278,7 +279,10 @@ impl Parser for Detail {
 
 #[cfg(test)]
 mod tests {
-    use crate::Gedcom;
+    use crate::{
+        types::age::{Age, AgeModifier},
+        Gedcom,
+    };
 
     #[test]
     fn test_parse_event_with_cause() {
@@ -338,7 +342,17 @@ mod tests {
         let data = doc.parse_data().unwrap();
 
         let death = &data.individuals[0].events[0];
-        assert_eq!(death.age.as_ref().unwrap(), "75y 3m");
+        assert_eq!(
+            death.age.as_ref().unwrap(),
+            &Age::Numeric {
+                years: Some(75),
+                months: Some(3),
+                weeks: None,
+                days: None,
+                phrase: None,
+                modifier: AgeModifier::Exact,
+            }
+        )
     }
 
     #[test]
@@ -403,7 +417,17 @@ mod tests {
 
         let death = &data.individuals[0].events[0];
         assert_eq!(death.cause.as_ref().unwrap(), "Pneumonia");
-        assert_eq!(death.age.as_ref().unwrap(), "80y");
+        assert_eq!(
+            death.age.as_ref().unwrap(),
+            &Age::Numeric {
+                years: Some(80),
+                months: None,
+                weeks: None,
+                days: None,
+                phrase: None,
+                modifier: AgeModifier::Exact
+            }
+        );
         assert_eq!(
             death.agency.as_ref().unwrap(),
             "Massachusetts General Hospital"
