@@ -309,6 +309,17 @@ const FRENCH_REPUBLICAN_MONTHS: [&str; 13] = [
     "COMP", // Complementary days (13)
 ];
 
+/// Offset to convert between Rata Die (RD) and Julian Day Number (JDN).
+///
+/// RD and JDN are both serial day numbering systems that assign a unique integer to each day,
+/// differing only in their epoch:
+/// - **Rata Die**: January 1, 1 CE (used internally by this library)
+/// - **JDN**: January 1, 4713 BCE Julian (November 25, 4714 BCE Gregorian)
+///
+/// For computation within this library, use `to_rata_die()`. For interoperability with
+/// external systems that use JDN, use `to_julian_day_number()` and `from_julian_day_number()`.
+const RATA_DIE_TO_JDN_OFFSET: i64 = 1_721_425;
+
 impl ParsedDateTime {
     /// Parse a GEDCOM date string into a `ParsedDateTime`.
     ///
@@ -567,9 +578,13 @@ impl ParsedDateTime {
         Ok(result)
     }
 
-    /// Convert this date to `RataDie` (days since January 1, 1 CE).
+    /// Returns the Rata Die (RD) day number for this date.
+    ///
+    /// Rata Die counts days from January 1, 1 CE. It serves as a calendar-neutral serial day
+    /// number, enabling date comparison, difference calculation, and chronological sorting across
+    /// all supported calendar systems.
     #[cfg(feature = "calendar")]
-    fn to_rata_die(&self) -> Result<i64, CalendarConversionError> {
+    pub fn to_rata_die(&self) -> Result<i64, CalendarConversionError> {
         let year = self.year.ok_or(CalendarConversionError::IncompleteDate {
             year: self.year,
             month: self.month,
@@ -636,9 +651,21 @@ impl ParsedDateTime {
         }
     }
 
-    /// Create a `ParsedDateTime` from `RataDie` for the specified calendar.
+    /// Returns the Julian Day Number (JDN) for this date.
+    ///
+    /// JDN counts days from January 1, 4713 BCE. This epoch is widely used in astronomy
+    /// and genealogy software for date comparison and arithmetic.
     #[cfg(feature = "calendar")]
-    fn from_rata_die(
+    pub fn to_julian_day_number(&self) -> Result<i64, CalendarConversionError> {
+        self.to_rata_die().map(|rd| rd + RATA_DIE_TO_JDN_OFFSET)
+    }
+
+    /// Creates a `ParsedDateTime` from a Rata Die day number for the specified calendar.
+    ///
+    /// This is the inverse of `to_rata_die()`. The resulting `ParsedDateTime` will contain
+    /// only date components (year, month, day) for the specified calendar system.
+    #[cfg(feature = "calendar")]
+    pub fn from_rata_die(
         rata_die: i64,
         calendar: Calendar,
     ) -> Result<ParsedDateTime, CalendarConversionError> {
@@ -708,6 +735,15 @@ impl ParsedDateTime {
         }
 
         Ok(result)
+    }
+
+    /// Creates a `ParsedDateTime` from a Rata Die day number for the specified calendar.
+    #[cfg(feature = "calendar")]
+    pub fn from_julian_day_number(
+        jdn: i64,
+        calendar: Calendar,
+    ) -> Result<ParsedDateTime, CalendarConversionError> {
+        Self::from_rata_die(jdn - RATA_DIE_TO_JDN_OFFSET, calendar)
     }
 
     /// Format this date as a GEDCOM date string.
@@ -1155,6 +1191,74 @@ mod tests {
             assert!(matches!(
                 result,
                 Err(CalendarConversionError::QualifiedDate { .. })
+            ));
+        }
+    }
+
+    #[cfg(feature = "calendar")]
+    mod sdn_tests {
+        use super::*;
+
+        #[test]
+        fn test_known_rd_values() {
+            let date = ParsedDateTime::from_gedcom_date("1 JAN 2000").unwrap();
+            assert_eq!(date.to_rata_die().unwrap(), 730_120);
+        }
+
+        #[test]
+        fn test_jdn_offset() {
+            let date = ParsedDateTime::from_gedcom_date("23 MAR 2026").unwrap();
+            assert_eq!(
+                date.to_julian_day_number().unwrap() - date.to_rata_die().unwrap(),
+                1_721_425
+            );
+        }
+
+        #[test]
+        fn test_cross_calendar_equivalence() {
+            let greg = ParsedDateTime::from_gedcom_date("15 OCT 1582").unwrap();
+            let julian = ParsedDateTime::from_gedcom_date("@#DJULIAN@ 5 OCT 1582").unwrap();
+            assert_eq!(
+                greg.to_rata_die().unwrap() - julian.to_rata_die().unwrap(),
+                0
+            );
+        }
+
+        #[test]
+        fn test_day_difference() {
+            let first = ParsedDateTime::from_gedcom_date("2 JAN 2000").unwrap();
+            let second = ParsedDateTime::from_gedcom_date("3 JAN 2000").unwrap();
+            assert_eq!(
+                second.to_rata_die().unwrap() - first.to_rata_die().unwrap(),
+                1
+            )
+        }
+
+        #[test]
+        fn test_jdn_roundtrip() {
+            let original = ParsedDateTime::from_gedcom_date("15 MAR 1900").unwrap();
+            let jdn = original.to_julian_day_number().unwrap();
+            let restored =
+                ParsedDateTime::from_julian_day_number(jdn, Calendar::Gregorian).unwrap();
+            assert_eq!(restored.year, original.year);
+            assert_eq!(restored.month, original.month);
+            assert_eq!(restored.day, original.day);
+        }
+
+        #[test]
+        fn test_incomplete_date_conversion_error() {
+            let incomplete = ParsedDateTime {
+                calendar: Calendar::Gregorian,
+                year: Some(2011),
+                month: Some(3),
+                day: None,
+                ..Default::default()
+            };
+
+            let result = incomplete.to_rata_die();
+            assert!(matches!(
+                result,
+                Err(CalendarConversionError::IncompleteDate { .. })
             ));
         }
     }

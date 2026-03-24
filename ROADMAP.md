@@ -13,11 +13,12 @@ Dates are the backbone of genealogy. Every downstream app (timelines, reports, t
 - Enables date comparison (`PartialOrd`/`Ord` on `Date`), difference calculation, chronological sorting
 - `calendrical_calculations` crate already in deps provides RD conversions
 
-### Dedicated Age Parsing
-- New `Age` struct: `Child`, `Infant`, `Stillborn`, `Numeric { years, months, weeks, days }` with modifiers (`<`, `>`, exact)
-- `Age::parse()` and `Display` for round-trip
+### Dedicated Age Parsing ✅
+- `Age` enum: `Child`, `Infant`, `Stillborn`, `Numeric { years, months, weeks, days, modifier, phrase }`
+- `Age::new(tokenizer, level)` and `Display` for round-trip
 - Support both 5.5.1 format and 7.0 format (`y`, `m`, `w`, `d` suffixes)
-- Replace `pub age: Option<String>` with `pub age: Option<Age>` in event detail
+- GEDCOM 7 `PHRASE` substructure support (parsing and writing)
+- `pub age: Option<Age>` in event detail, family event detail, and attribute detail
 
 ### Day of Week Calculation
 - `day_of_week(&self) -> Option<Weekday>` on `ParsedDateTime`
