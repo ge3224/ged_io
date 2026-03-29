@@ -214,6 +214,21 @@ impl Date {
             phrase: self.phrase.clone(),
         })
     }
+
+    /// Compare two dates chronologically by parsing both into `ParsedDateTime`
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if either date cannot be parsed.
+    #[cfg(feature = "calendar")]
+    pub fn partial_cmp_parsed(
+        &self,
+        other: &Date,
+    ) -> Result<Option<std::cmp::Ordering>, CalendarConversionError> {
+        let self_parsed = self.parse_datetime()?;
+        let other_parsed = other.parse_datetime()?;
+        Ok(self_parsed.partial_cmp(&other_parsed))
+    }
 }
 
 impl Parser for Date {
@@ -358,6 +373,52 @@ mod tests {
                 date_str,
                 "{name} calendar date should be preserved exactly"
             );
+        }
+    }
+
+    #[cfg(feature = "calendar")]
+    mod comparison_tests {
+        use crate::types::date::Date;
+        use std::cmp::Ordering;
+
+        #[test]
+        fn test_partial_cmp_parsed() {
+            let a = Date {
+                value: Some("26 JUL 1981".to_string()),
+                time: None,
+                phrase: None,
+            };
+
+            let mut b = Date {
+                value: Some("27 JUL 1981".to_string()),
+                time: None,
+                phrase: None,
+            };
+
+            assert_eq!(a.partial_cmp_parsed(&b).unwrap(), Some(Ordering::Less));
+            assert_eq!(b.partial_cmp_parsed(&a).unwrap(), Some(Ordering::Greater));
+
+            b = Date {
+                value: Some("26 JUL 1981".to_string()),
+                time: None,
+                phrase: None,
+            };
+
+            assert_eq!(a.partial_cmp_parsed(&b).unwrap(), Some(Ordering::Equal));
+
+            b = Date {
+                value: Some("@#DJULIAN@ 13 JUL 1981".to_string()),
+                time: None,
+                phrase: None,
+            };
+            assert_eq!(a.partial_cmp_parsed(&b).unwrap(), Some(Ordering::Equal));
+
+            b = Date {
+                value: Some("1981".to_string()),
+                time: None,
+                phrase: None,
+            };
+            assert_eq!(a.partial_cmp_parsed(&b).unwrap(), None);
         }
     }
 }

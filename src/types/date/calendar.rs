@@ -22,6 +22,7 @@
 //! ```
 
 use crate::GedcomError;
+use std::cmp::Ordering;
 
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
@@ -196,7 +197,7 @@ impl DateQualifier {
 ///
 /// This struct represents a fully parsed GEDCOM date with all components
 /// separated out for easy manipulation and conversion.
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct ParsedDateTime {
     /// The calendar system for this date.
@@ -583,6 +584,10 @@ impl ParsedDateTime {
     /// Rata Die counts days from January 1, 1 CE. It serves as a calendar-neutral serial day
     /// number, enabling date comparison, difference calculation, and chronological sorting across
     /// all supported calendar systems.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the date is incomplete (missing year, month, or day).
     #[cfg(feature = "calendar")]
     pub fn to_rata_die(&self) -> Result<i64, CalendarConversionError> {
         let year = self.year.ok_or(CalendarConversionError::IncompleteDate {
@@ -655,6 +660,10 @@ impl ParsedDateTime {
     ///
     /// JDN counts days from January 1, 4713 BCE. This epoch is widely used in astronomy
     /// and genealogy software for date comparison and arithmetic.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the date is incomplete (missing year, month, or day).
     #[cfg(feature = "calendar")]
     pub fn to_julian_day_number(&self) -> Result<i64, CalendarConversionError> {
         self.to_rata_die().map(|rd| rd + RATA_DIE_TO_JDN_OFFSET)
@@ -664,6 +673,11 @@ impl ParsedDateTime {
     ///
     /// This is the inverse of `to_rata_die()`. The resulting `ParsedDateTime` will contain
     /// only date components (year, month, day) for the specified calendar system.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the rata die value cannot be converted to a valid date in the specified
+    /// calendar.
     #[cfg(feature = "calendar")]
     pub fn from_rata_die(
         rata_die: i64,
@@ -738,6 +752,11 @@ impl ParsedDateTime {
     }
 
     /// Creates a `ParsedDateTime` from a Rata Die day number for the specified calendar.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the Julian Day Number cannot be converted to a valid date in the
+    /// specified calendar.
     #[cfg(feature = "calendar")]
     pub fn from_julian_day_number(
         jdn: i64,
@@ -812,6 +831,102 @@ impl ParsedDateTime {
         }
 
         Some(time)
+    }
+
+    /// Returns the year as a signed integer, negated for BCE dates.
+    #[must_use]
+    fn effective_year(&self) -> Option<i32> {
+        self.year.map(|y| if self.bce { -y } else { y })
+    }
+
+    /// Returns a number of days from self to other, positive if `other` is later, negative if
+    /// earlier. Both dates must be complete.
+    ///
+    /// # Errors
+    /// Returns an error if either date is incomplete (missing year, month, or day).
+    #[cfg(feature = "calendar")]
+    pub fn days_between(&self, other: &ParsedDateTime) -> Result<i64, CalendarConversionError> {
+        let rd_self = self.to_rata_die()?;
+        let rd_other = other.to_rata_die()?;
+        Ok(rd_other - rd_self)
+    }
+
+    /// Returns a new day offset by the given number of days, in the same calendar. Preserves time
+    /// components.
+    ///
+    /// # Errors
+    /// Returns an error if the date is incomplete (missing year, month, or day).
+    #[cfg(feature = "calendar")]
+    pub fn add_days(&self, days: i64) -> Result<ParsedDateTime, CalendarConversionError> {
+        let rd = self.to_rata_die()?;
+        let mut result = ParsedDateTime::from_rata_die(rd + days, self.calendar)?;
+        result.hour = self.hour;
+        result.minute = self.minute;
+        result.second = self.second;
+        result.subsecond.clone_from(&self.subsecond);
+        Ok(result)
+    }
+
+    /// Returns a sortable key for chronological ordering. For complete dates, this is the Rata Die
+    /// value. For incomplete dates, missing components default to the earliest possible value
+    /// (month to January, day to 1), producing a Rata Die on the same scale. Returns `None` if no
+    /// year is present. (Use `is_complete()` to distinguish exact keys from estimated ones when
+    /// sorting if required.)
+    #[cfg(feature = "calendar")]
+    #[must_use]
+    pub fn ordering_key(&self) -> Option<i64> {
+        if let Ok(rd) = self.to_rata_die() {
+            return Some(rd);
+        }
+
+        let synthetic = ParsedDateTime {
+            calendar: self.calendar,
+            year: Some(self.year?),
+            month: Some(self.month.unwrap_or(1)),
+            day: Some(self.day.unwrap_or(1)),
+            ..Default::default()
+        };
+
+        synthetic.to_rata_die().ok()
+    }
+}
+
+impl PartialOrd for ParsedDateTime {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        // Complete dates: cross-calendar comparison via rata die
+        if self.is_complete() && other.is_complete() {
+            let rd_self = self.to_rata_die().ok()?;
+            let rd_other = other.to_rata_die().ok()?;
+            return rd_self.partial_cmp(&rd_other);
+        }
+
+        // Incomplete + different calendars: incomparable
+        if self.calendar != other.calendar {
+            return None;
+        }
+
+        // Same calendar: hierarchical component comparison
+        let sy = self.effective_year()?;
+        let oy = other.effective_year()?;
+        match sy.cmp(&oy) {
+            Ordering::Equal => {}
+            ord => return Some(ord),
+        }
+
+        match (self.month, other.month) {
+            (Some(sm), Some(om)) => match sm.cmp(&om) {
+                Ordering::Equal => {}
+                ord => return Some(ord),
+            },
+            (None, None) => return Some(Ordering::Equal),
+            _ => return None,
+        }
+
+        match (self.day, other.day) {
+            (Some(sd), Some(od)) => Some(sd.cmp(&od)),
+            (None, None) => Some(Ordering::Equal),
+            _ => None,
+        }
     }
 }
 
@@ -1215,7 +1330,7 @@ mod tests {
         }
 
         #[test]
-        fn test_cross_calendar_equivalence() {
+        fn test_cross_equivalence() {
             let greg = ParsedDateTime::from_gedcom_date("15 OCT 1582").unwrap();
             let julian = ParsedDateTime::from_gedcom_date("@#DJULIAN@ 5 OCT 1582").unwrap();
             assert_eq!(
@@ -1260,6 +1375,139 @@ mod tests {
                 result,
                 Err(CalendarConversionError::IncompleteDate { .. })
             ));
+        }
+
+        #[test]
+        fn test_partial_cmp() {
+            let mut a = ParsedDateTime::from_gedcom_date("11 JAN 1900").unwrap();
+            let mut b = ParsedDateTime::from_gedcom_date("11 JAN 1901").unwrap();
+            assert_eq!(a.partial_cmp(&b), Some(Ordering::Less));
+
+            a = ParsedDateTime::from_gedcom_date("15 OCT 1582").unwrap();
+            b = ParsedDateTime::from_gedcom_date("@#DJULIAN@ 5 OCT 1582").unwrap();
+            assert_eq!(a.partial_cmp(&b), Some(Ordering::Equal));
+
+            a = ParsedDateTime {
+                calendar: Calendar::Gregorian,
+                year: Some(1984),
+                ..Default::default()
+            };
+
+            b = ParsedDateTime {
+                calendar: Calendar::Gregorian,
+                year: Some(1984),
+                ..Default::default()
+            };
+
+            assert_eq!(a.partial_cmp(&b), Some(Ordering::Equal));
+
+            b = ParsedDateTime {
+                calendar: Calendar::Gregorian,
+                year: Some(1985),
+                ..Default::default()
+            };
+
+            assert_eq!(a.partial_cmp(&b), Some(Ordering::Less));
+            assert_eq!(b.partial_cmp(&a), Some(Ordering::Greater));
+
+            b = ParsedDateTime {
+                calendar: Calendar::Hebrew,
+                year: Some(5740),
+                ..Default::default()
+            };
+
+            assert_eq!(a.partial_cmp(&b), None);
+
+            b = ParsedDateTime {
+                calendar: Calendar::Gregorian,
+                year: Some(1984),
+                month: Some(3),
+                day: Some(15),
+                ..Default::default()
+            };
+
+            assert_eq!(a.partial_cmp(&b), None);
+
+            a = ParsedDateTime::from_gedcom_date("ABT 15 MAR 1820").unwrap();
+            b = ParsedDateTime::from_gedcom_date("15 MAR 1820").unwrap();
+            assert_eq!(a.partial_cmp(&b), Some(Ordering::Equal));
+        }
+
+        #[test]
+        fn test_days_between() {
+            let a = ParsedDateTime::from_gedcom_date("8 MAY 1980").unwrap();
+            let mut b = ParsedDateTime::from_gedcom_date("9 MAY 1980").unwrap();
+
+            assert_eq!(a.days_between(&b), Ok(1));
+            assert_eq!(b.days_between(&a), Ok(-1));
+
+            b = ParsedDateTime::from_gedcom_date("8 MAY 1980").unwrap();
+
+            assert_eq!(a.days_between(&b), Ok(0));
+
+            b = ParsedDateTime::from_gedcom_date("@#DJULIAN@ 25 APR 1980").unwrap();
+            assert_eq!(a.days_between(&b), Ok(0));
+
+            b = ParsedDateTime {
+                calendar: Calendar::Gregorian,
+                year: Some(1980),
+                ..Default::default()
+            };
+
+            assert!(a.days_between(&b).is_err());
+        }
+
+        #[test]
+        fn test_add_days() {
+            let mut a = ParsedDateTime::from_gedcom_date("11 SEP 2001").unwrap();
+            a.parse_time("08:46").unwrap();
+            let mut b = a.add_days(1).unwrap();
+
+            assert_eq!(b.year, Some(2001));
+            assert_eq!(b.month, Some(9));
+            assert_eq!(b.day, Some(12));
+            assert_eq!(b.hour, Some(8));
+            assert_eq!(b.minute, Some(46));
+
+            b = a.add_days(-1).unwrap();
+            assert_eq!(b.day, Some(10));
+
+            b = a.add_days(20).unwrap();
+            assert_eq!(b.month, Some(10));
+            assert_eq!(b.day, Some(1));
+
+            a = ParsedDateTime {
+                calendar: Calendar::Gregorian,
+                year: Some(2001),
+                ..Default::default()
+            };
+
+            let result = a.add_days(1);
+            assert!(result.is_err());
+        }
+
+        #[test]
+        fn test_ordering_key() {
+            let mut a = ParsedDateTime::from_gedcom_date("27 JAN 1986").unwrap();
+            let mut b = ParsedDateTime::from_gedcom_date("28 JAN 1986").unwrap();
+            assert!(a.ordering_key() < b.ordering_key());
+
+            b = ParsedDateTime::from_gedcom_date("FEB 1986").unwrap();
+            assert!(a.ordering_key() < b.ordering_key());
+
+            a = ParsedDateTime::from_gedcom_date("1986").unwrap();
+            assert!(a.ordering_key() < b.ordering_key());
+
+            b = ParsedDateTime::from_gedcom_date("1 JAN 1986").unwrap();
+            assert!(a.ordering_key() == b.ordering_key());
+            assert!(!a.is_complete());
+            assert!(b.is_complete());
+
+            b = ParsedDateTime {
+                calendar: Calendar::Gregorian,
+                ..Default::default()
+            };
+            assert_eq!(b.ordering_key(), None);
         }
     }
 }
