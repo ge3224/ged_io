@@ -27,6 +27,9 @@ use std::cmp::Ordering;
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "calendar")]
+use chrono::Weekday;
+
 /// The four calendar systems supported by GEDCOM.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
@@ -349,7 +352,7 @@ impl ParsedDateTime {
         let mut remaining = date_str;
 
         // Check for calendar escape at the beginning
-        if remaining.starts_with("@#D") {
+        if remaining.starts_with("@#D") || remaining.starts_with("@#d") {
             if let Some(end_pos) = remaining.find("@ ") {
                 let escape = &remaining[..=end_pos];
                 if let Some(cal) = Calendar::from_gedcom_escape(escape) {
@@ -888,6 +891,29 @@ impl ParsedDateTime {
         };
 
         synthetic.to_rata_die().ok()
+    }
+
+    /// Returns the day of the week for this date
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the date is incomplete
+    #[cfg(feature = "calendar")]
+    #[must_use]
+    pub fn day_of_week(&self) -> Option<Weekday> {
+        let rd = self.to_rata_die().ok()?;
+
+        // Rata Die epoch (Jan 1, 1 CE) is a Monday. rd % 7: 0=Mon, 1=Tue, ...
+        match rd.rem_euclid(7) {
+            0 => Some(Weekday::Sun),
+            1 => Some(Weekday::Mon),
+            2 => Some(Weekday::Tue),
+            3 => Some(Weekday::Wed),
+            4 => Some(Weekday::Thu),
+            5 => Some(Weekday::Fri),
+            6 => Some(Weekday::Sat),
+            _ => None,
+        }
     }
 }
 
@@ -1508,6 +1534,25 @@ mod tests {
                 ..Default::default()
             };
             assert_eq!(b.ordering_key(), None);
+        }
+
+        #[test]
+        fn test_day_of_weeks() {
+            let mut date = ParsedDateTime::from_gedcom_date("1 JAN 2000").unwrap();
+            assert_eq!(date.day_of_week(), Some(Weekday::Sat));
+
+            date = ParsedDateTime::from_gedcom_date("4 JUL 1776").unwrap();
+            assert_eq!(date.day_of_week(), Some(Weekday::Thu));
+
+            date = ParsedDateTime::from_gedcom_date("29 MAR 2026").unwrap();
+            assert_eq!(date.day_of_week(), Some(Weekday::Sun));
+
+            date = ParsedDateTime {
+                calendar: Calendar::Gregorian,
+                year: Some(1980),
+                ..Default::default()
+            };
+            assert_eq!(date.day_of_week(), None);
         }
     }
 }

@@ -229,6 +229,22 @@ impl Date {
         let other_parsed = other.parse_datetime()?;
         Ok(self_parsed.partial_cmp(&other_parsed))
     }
+
+    /// Normalize the date value — uppercase month abbreviations, normalize whitespace, well-formed
+    /// calendar escapes.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the date value cannot be parsed.
+    #[cfg(feature = "calendar")]
+    pub fn normalize(&self) -> Result<Date, CalendarConversionError> {
+        let parsed = self.parse_datetime()?;
+        Ok(Date {
+            value: Some(parsed.to_gedcom_date()),
+            time: parsed.to_gedcom_time().or(self.time.clone()),
+            phrase: self.phrase.clone(),
+        })
+    }
 }
 
 impl Parser for Date {
@@ -419,6 +435,48 @@ mod tests {
                 phrase: None,
             };
             assert_eq!(a.partial_cmp_parsed(&b).unwrap(), None);
+        }
+
+        #[test]
+        fn test_normalize() {
+            let cases = vec![
+                ("15 mar 1820", "15 MAR 1820"),
+                ("@#djulian@ 15 mar 1582", "@#DJULIAN@ 15 MAR 1582"),
+                ("15  MAR   1820", "15 MAR 1820"),
+                ("15 MAR 1820", "15 MAR 1820"),
+            ];
+
+            for (input, expected) in cases {
+                let date = Date {
+                    value: Some(input.to_string()),
+                    time: None,
+                    phrase: None,
+                };
+
+                assert_eq!(
+                    date.normalize().unwrap().value.unwrap(),
+                    expected,
+                    "failed for input: {input}"
+                );
+            }
+
+            let date = Date {
+                value: Some("15 mar 1820".to_string()),
+                time: Some("12:34:56".to_string()),
+                phrase: Some("The Ides of March".to_string()),
+            };
+            let normalized = date.normalize().unwrap();
+            assert_eq!(normalized.value.unwrap(), "15 MAR 1820");
+            assert_eq!(normalized.time.unwrap(), "12:34:56");
+            assert_eq!(normalized.phrase.unwrap(), "The Ides of March");
+
+            // No value → Err
+            let date = Date {
+                value: None,
+                time: None,
+                phrase: None,
+            };
+            assert!(date.normalize().is_err());
         }
     }
 }
