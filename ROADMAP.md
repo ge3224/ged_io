@@ -8,10 +8,13 @@ Features identified by comparing with [gedcom-parse](https://github.com/geni-act
 
 Dates are the backbone of genealogy. Every downstream app (timelines, reports, tree renderers) needs date comparison, sorting, and age calculation.
 
-### Serial Day Number (SDN) Conversion
-- Add `to_day_number()` on `ParsedDateTime` (behind `calendar` feature)
-- Enables date comparison (`PartialOrd`/`Ord` on `Date`), difference calculation, chronological sorting
-- `calendrical_calculations` crate already in deps provides RD conversions
+### Serial Day Number (SDN) Conversion ✅
+- `to_rata_die()` / `to_julian_day_number()` on `ParsedDateTime` (behind `calendar` feature)
+- `from_rata_die()` / `from_julian_day_number()` for reverse conversion
+- `PartialOrd` on `ParsedDateTime` (cross-calendar via RD, hierarchical fallback for incomplete dates)
+- `days_between()`, `add_days()` for date arithmetic
+- `ordering_key()` for chronological sorting
+- `partial_cmp_parsed()` convenience on `Date`
 
 ### Dedicated Age Parsing ✅
 - `Age` enum: `Child`, `Infant`, `Stillborn`, `Numeric { years, months, weeks, days, modifier, phrase }`
@@ -20,12 +23,13 @@ Dates are the backbone of genealogy. Every downstream app (timelines, reports, t
 - GEDCOM 7 `PHRASE` substructure support (parsing and writing)
 - `pub age: Option<Age>` in event detail, family event detail, and attribute detail
 
-### Day of Week Calculation
+### Day of Week Calculation ✅
 - `day_of_week(&self) -> Option<Weekday>` on `ParsedDateTime`
-- Trivial once SDN exists (SDN mod 7), use `chrono::Weekday`
+- Uses RD mod 7 with `chrono::Weekday`
 
-### Date Normalization
-- `normalize(&self) -> Date` — uppercase month abbreviations, normalize whitespace, well-formed calendar escapes
+### Date Normalization ✅
+- `normalize(&self) -> Result<Date>` — round-trip via `ParsedDateTime` for uppercase months, normalized whitespace, well-formed calendar escapes
+- Case-insensitive calendar escape parsing
 
 ---
 
