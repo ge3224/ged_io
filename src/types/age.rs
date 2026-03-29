@@ -288,7 +288,7 @@ mod test {
                 modifier: AgeModifier::Exact,
                 phrase: Some("STILLBORN".to_string()),
             }
-        )
+        );
     }
 
     #[test]

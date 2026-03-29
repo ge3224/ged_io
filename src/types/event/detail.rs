@@ -352,7 +352,7 @@ mod tests {
                 phrase: None,
                 modifier: AgeModifier::Exact,
             }
-        )
+        );
     }
 
     #[test]

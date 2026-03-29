@@ -1372,7 +1372,7 @@ mod tests {
             assert_eq!(
                 second.to_rata_die().unwrap() - first.to_rata_die().unwrap(),
                 1
-            )
+            );
         }
 
         #[test]
