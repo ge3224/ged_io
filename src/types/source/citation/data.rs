@@ -25,7 +25,10 @@ impl SourceCitationData {
     /// # Errors
     ///
     /// This function will return an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<SourceCitationData, GedcomError> {
+    pub fn new(
+        tokenizer: &mut Tokenizer<'_>,
+        level: u8,
+    ) -> Result<SourceCitationData, GedcomError> {
         let mut data = SourceCitationData {
             date: None,
             text: None,
@@ -36,10 +39,10 @@ impl SourceCitationData {
 }
 
 impl Parser for SourceCitationData {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
+    fn parse(&mut self, tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<(), GedcomError> {
         // skip because this DATA tag should have now line value
         tokenizer.next_token()?;
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             match tag {
                 "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
                 "TEXT" => self.text = Some(Text::new(tokenizer, level + 1)?),

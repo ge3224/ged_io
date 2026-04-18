@@ -49,6 +49,54 @@ pub enum Event {
     SourceData(String),
 }
 
+impl TryFrom<&str> for Event {
+    type Error = String;
+
+    fn try_from(tag: &str) -> Result<Self, Self::Error> {
+        let event = match tag {
+            "ADOP" => Event::Adoption,
+            "ANUL" => Event::Annulment,
+            "BAPM" => Event::Baptism,
+            "BARM" => Event::BarMitzvah,
+            "BASM" => Event::BasMitzvah,
+            "BIRT" => Event::Birth,
+            "BLES" => Event::Blessing,
+            "BURI" => Event::Burial,
+            "CENS" => Event::Census,
+            "CHR" => Event::Christening,
+            "CHRA" => Event::AdultChristening,
+            "CONF" => Event::Confirmation,
+            "CREM" => Event::Cremation,
+            "DEAT" => Event::Death,
+            "DIV" => Event::Divorce,
+            "DIVF" => Event::DivorceFiled,
+            "EMIG" => Event::Emigration,
+            "ENGA" => Event::Engagement,
+            "EVEN" => Event::Event,
+            "FCOM" => Event::FirstCommunion,
+            "GRAD" => Event::Graduation,
+            "IMMI" => Event::Immigration,
+            "MARB" => Event::MarriageBann,
+            "MARC" => Event::MarriageContract,
+            "MARL" => Event::MarriageLicense,
+            "MARR" => Event::Marriage,
+            "MARS" => Event::MarriageSettlement,
+            "NATU" => Event::Naturalization,
+            "ORDN" => Event::Ordination,
+            "OTHER" => Event::Other,
+            "PROB" => Event::Probate,
+            "RESI" => Event::Residence,
+            "RETI" => Event::Retired,
+            "SEP" => Event::Separated,
+            "WILL" => Event::Will,
+            _ => {
+                return Err(format!("Unrecognized EventType tag: {tag}"));
+            }
+        };
+        Ok(event)
+    }
+}
+
 impl std::fmt::Display for Event {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{self:?}")

@@ -140,7 +140,7 @@ impl Schema {
     /// # Errors
     ///
     /// Returns an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<Schema, GedcomError> {
+    pub fn new(tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<Schema, GedcomError> {
         let mut schema = Schema::default();
         schema.parse(tokenizer, level)?;
         Ok(schema)
@@ -204,11 +204,11 @@ impl Schema {
 
 impl Parser for Schema {
     /// Parses SCHMA structure from tokens.
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
+    fn parse(&mut self, tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<(), GedcomError> {
         // Skip over SCHMA tag name
         tokenizer.next_token()?;
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             match tag {
                 "TAG" => {
                     let payload = tokenizer.take_line_value()?;

@@ -77,7 +77,7 @@ impl Submitter {
     /// This function will return an error if parsing fails.
     #[allow(clippy::double_must_use)]
     pub fn new(
-        tokenizer: &mut Tokenizer,
+        tokenizer: &mut Tokenizer<'_>,
         level: u8,
         xref: Option<Xref>,
     ) -> Result<Submitter, GedcomError> {
@@ -94,11 +94,11 @@ impl Submitter {
 
 impl Parser for Submitter {
     /// Parse handles SUBM top-level tag
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
+    fn parse(&mut self, tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<(), GedcomError> {
         // skip over SUBM tag name
         tokenizer.next_token()?;
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             let mut pointer: Option<String> = None;
             if let Token::Pointer(xref) = &tokenizer.current_token {
                 pointer = Some(xref.to_string());

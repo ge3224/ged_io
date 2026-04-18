@@ -105,7 +105,7 @@ impl Repository {
     ///
     /// This function will return an error if parsing fails.
     pub fn new(
-        tokenizer: &mut Tokenizer,
+        tokenizer: &mut Tokenizer<'_>,
         level: u8,
         xref: Option<String>,
     ) -> Result<Repository, GedcomError> {
@@ -162,15 +162,11 @@ impl Repository {
 
 impl Parser for Repository {
     /// Parses REPO top-level tag.
-    fn parse(
-        &mut self,
-        tokenizer: &mut crate::tokenizer::Tokenizer,
-        level: u8,
-    ) -> Result<(), GedcomError> {
+    fn parse(&mut self, tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<(), GedcomError> {
         // skip REPO tag
         tokenizer.next_token()?;
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             match tag {
                 "NAME" => self.name = Some(tokenizer.take_line_value()?),
                 "ADDR" => self.address = Some(Address::new(tokenizer, level + 1)?),

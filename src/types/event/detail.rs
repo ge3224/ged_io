@@ -108,9 +108,12 @@ impl Detail {
     /// # Errors
     ///
     /// This function will return an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8, tag: &str) -> Result<Detail, GedcomError> {
+    pub fn new(tokenizer: &mut Tokenizer<'_>, level: u8, tag: &str) -> Result<Detail, GedcomError> {
         let mut event = Detail {
-            event: Self::from_tag(tag),
+            event: Event::try_from(tag).map_err(|msg| GedcomError::ParseError {
+                line: tokenizer.line,
+                message: msg,
+            })?,
             value: None,
             date: None,
             place: None,
@@ -135,51 +138,6 @@ impl Detail {
     /** converts an event to be of type `SourceData` with `value` as the data */
     pub fn with_source_data(&mut self, value: String) {
         self.event = Event::SourceData(value);
-    }
-
-    /// # Panics
-    ///
-    /// Panics when encountering an unrecognized tag
-    #[must_use]
-    pub fn from_tag(tag: &str) -> Event {
-        match tag {
-            "ADOP" => Event::Adoption,
-            "ANUL" => Event::Annulment,
-            "BAPM" => Event::Baptism,
-            "BARM" => Event::BarMitzvah,
-            "BASM" => Event::BasMitzvah,
-            "BIRT" => Event::Birth,
-            "BLES" => Event::Blessing,
-            "BURI" => Event::Burial,
-            "CENS" => Event::Census,
-            "CHR" => Event::Christening,
-            "CHRA" => Event::AdultChristening,
-            "CONF" => Event::Confirmation,
-            "CREM" => Event::Cremation,
-            "DEAT" => Event::Death,
-            "DIV" => Event::Divorce,
-            "DIVF" => Event::DivorceFiled,
-            "EMIG" => Event::Emigration,
-            "ENGA" => Event::Engagement,
-            "EVEN" => Event::Event,
-            "FCOM" => Event::FirstCommunion,
-            "GRAD" => Event::Graduation,
-            "IMMI" => Event::Immigration,
-            "MARB" => Event::MarriageBann,
-            "MARC" => Event::MarriageContract,
-            "MARL" => Event::MarriageLicense,
-            "MARR" => Event::Marriage,
-            "MARS" => Event::MarriageSettlement,
-            "NATU" => Event::Naturalization,
-            "ORDN" => Event::Ordination,
-            "OTHER" => Event::Other,
-            "PROB" => Event::Probate,
-            "RESI" => Event::Residence,
-            "RETI" => Event::Retired,
-            "SEP" => Event::Separated,
-            "WILL" => Event::Will,
-            _ => panic!("Unrecognized EventType tag: {tag}"),
-        }
     }
 
     pub fn add_citation(&mut self, citation: Citation) {
@@ -215,7 +173,7 @@ impl std::fmt::Debug for Detail {
 }
 
 impl Parser for Detail {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
+    fn parse(&mut self, tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<(), GedcomError> {
         tokenizer.next_token()?;
 
         // handle value on event line
@@ -226,7 +184,7 @@ impl Parser for Detail {
             tokenizer.next_token()?;
         }
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             let mut pointer: Option<String> = None;
             if let Token::Pointer(xref) = &tokenizer.current_token {
                 pointer = Some(xref.to_string());

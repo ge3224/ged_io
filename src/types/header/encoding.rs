@@ -26,7 +26,7 @@ impl Encoding {
     /// # Errors
     ///
     /// This function will return an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<Encoding, GedcomError> {
+    pub fn new(tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<Encoding, GedcomError> {
         let mut chars = Encoding::default();
         chars.parse(tokenizer, level)?;
         Ok(chars)
@@ -35,10 +35,10 @@ impl Encoding {
 
 impl Parser for Encoding {
     /// parse handles the parsing of the CHARS tag
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
+    fn parse(&mut self, tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<(), GedcomError> {
         self.value = Some(tokenizer.take_line_value()?);
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             match tag {
                 "VERS" => self.version = Some(tokenizer.take_line_value()?),
                 // SOUR is non-standard but used by some generators (e.g., Geneanet/GeneWeb)

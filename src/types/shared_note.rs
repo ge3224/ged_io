@@ -174,7 +174,7 @@ impl SharedNote {
     ///
     /// Returns an error if parsing fails.
     pub fn new(
-        tokenizer: &mut Tokenizer,
+        tokenizer: &mut Tokenizer<'_>,
         level: u8,
         xref: Option<String>,
     ) -> Result<SharedNote, GedcomError> {
@@ -306,11 +306,11 @@ fn remove_html_tags(input: &str) -> String {
 
 impl Parser for SharedNote {
     /// Parses SNOTE record from tokens.
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
+    fn parse(&mut self, tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<(), GedcomError> {
         // Get the note text (payload of SNOTE line)
         self.text = tokenizer.take_continued_text(level)?;
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             match tag {
                 "MIME" => {
                     self.mime = Some(tokenizer.take_line_value()?);

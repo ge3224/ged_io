@@ -24,7 +24,7 @@ impl HeadMeta {
     /// # Errors
     ///
     /// This function will return an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<HeadMeta, GedcomError> {
+    pub fn new(tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<HeadMeta, GedcomError> {
         let mut gedc = HeadMeta::default();
         gedc.parse(tokenizer, level)?;
         Ok(gedc)
@@ -33,11 +33,11 @@ impl HeadMeta {
 
 impl Parser for HeadMeta {
     /// parse handles parsing GEDC tag
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
+    fn parse(&mut self, tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<(), GedcomError> {
         // skip GEDC tag
         tokenizer.next_token()?;
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             match tag {
                 "VERS" => self.version = Some(tokenizer.take_line_value()?),
                 "FORM" => {

@@ -129,8 +129,13 @@ fn main() -> Result<(), Box<dyn Error>> {
 ```
 */
 
-#![deny(clippy::pedantic)]
-#![warn(missing_docs)]
+#![deny(
+    clippy::all,
+    clippy::cargo,
+    clippy::pedantic,
+    clippy::panic,
+)]
+#![deny(missing_docs)]
 
 /// Character encoding detection and conversion for GEDCOM files.
 ///

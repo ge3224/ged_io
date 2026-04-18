@@ -129,7 +129,7 @@ impl Header {
     /// # Errors
     ///
     /// This function will return an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<Header, GedcomError> {
+    pub fn new(tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<Header, GedcomError> {
         let mut header = Header::default();
         header.parse(tokenizer, level)?;
         Ok(header)
@@ -191,11 +191,11 @@ impl Header {
 impl Parser for Header {
     /// Parses HEAD top-level tag. See
     /// <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#HEADER>.
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
+    fn parse(&mut self, tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<(), GedcomError> {
         // skip over HEAD tag name
         tokenizer.next_token()?;
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             match tag {
                 "GEDC" => self.gedcom = Some(HeadMeta::new(tokenizer, level + 1)?),
                 "SCHMA" => self.schema = Some(Schema::new(tokenizer, level + 1)?),

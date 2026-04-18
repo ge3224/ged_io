@@ -16,7 +16,7 @@ pub trait Parser {
     /// # Errors
     ///
     /// This function will return an error if parsing fails.
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError>;
+    fn parse(&mut self, tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<(), GedcomError>;
 }
 
 /// Defines shared parsing functionality for GEDCOM records with any tokenizer.
@@ -45,12 +45,12 @@ pub trait StreamParser {
 /// Returns a `GedcomError` if an unhandled token is encountered or if `UserDefinedTag::new` fails.
 #[inline]
 pub fn parse_subset<F>(
-    tokenizer: &mut Tokenizer,
+    tokenizer: &mut Tokenizer<'_>,
     level: u8,
     mut tag_handler: F,
 ) -> Result<Vec<Box<UserDefinedTag>>, GedcomError>
 where
-    F: FnMut(&str, &mut Tokenizer) -> Result<(), GedcomError>,
+    F: FnMut(&str, &mut Tokenizer<'_>) -> Result<(), GedcomError>,
 {
     let mut non_standard_dataset = Vec::new();
     loop {
