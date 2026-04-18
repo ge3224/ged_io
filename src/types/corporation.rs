@@ -32,7 +32,7 @@ impl Corporation {
     /// # Errors
     ///
     /// This function will return an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<Corporation, GedcomError> {
+    pub fn new(tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<Corporation, GedcomError> {
         let mut corp = Corporation::default();
         corp.parse(tokenizer, level)?;
         Ok(corp)
@@ -41,10 +41,10 @@ impl Corporation {
 
 impl Parser for Corporation {
     /// parse is for a CORP tag within the SOUR tag of a HEADER
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
+    fn parse(&mut self, tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<(), GedcomError> {
         self.value = Some(tokenizer.take_line_value()?);
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             match tag {
                 "ADDR" => self.address = Some(Address::new(tokenizer, level + 1)?),
                 "PHON" => self.phone = Some(tokenizer.take_line_value()?),

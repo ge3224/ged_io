@@ -116,7 +116,7 @@ impl GedcomData {
     ///
     /// This function will return an error if parsing fails.
     #[allow(clippy::double_must_use)]
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<GedcomData, GedcomError> {
+    pub fn new(tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<GedcomData, GedcomError> {
         let mut data = GedcomData::default();
         data.parse(tokenizer, level)?;
         Ok(data)
@@ -587,7 +587,7 @@ impl GedcomData {
 
 impl Parser for GedcomData {
     /// Parses GEDCOM tokens into the data structure.
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
+    fn parse(&mut self, tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<(), GedcomError> {
         loop {
             let Token::Level(current_level) = tokenizer.current_token else {
                 if tokenizer.current_token == Token::EOF {

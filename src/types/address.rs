@@ -30,7 +30,7 @@ impl Address {
     /// # Errors
     ///
     /// This function will return an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<Address, GedcomError> {
+    pub fn new(tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<Address, GedcomError> {
         let mut addr = Address::default();
         addr.parse(tokenizer, level)?;
         Ok(addr)
@@ -39,7 +39,7 @@ impl Address {
 
 impl Parser for Address {
     /// parse handles ADDR tag
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
+    fn parse(&mut self, tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<(), GedcomError> {
         // skip ADDR tag
         tokenizer.next_token()?;
 
@@ -51,7 +51,7 @@ impl Parser for Address {
             tokenizer.next_token()?;
         }
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             match tag {
                 "CONT" | "CONC" => {
                     value.push('\n');

@@ -146,7 +146,7 @@ impl Individual {
     ///
     /// This function will return an error if parsing fails.
     pub fn new(
-        tokenizer: &mut Tokenizer,
+        tokenizer: &mut Tokenizer<'_>,
         level: u8,
         xref: Option<Xref>,
     ) -> Result<Individual, GedcomError> {
@@ -321,15 +321,11 @@ impl HasEvents for Individual {
 
 impl Parser for Individual {
     /// parse handles the INDI top-level tag
-    fn parse(
-        &mut self,
-        tokenizer: &mut crate::tokenizer::Tokenizer,
-        level: u8,
-    ) -> Result<(), GedcomError> {
+    fn parse(&mut self, tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<(), GedcomError> {
         // skip over INDI tag name
         tokenizer.next_token()?;
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             match tag {
                 // TODO handle xref
                 "NAME" => self.name = Some(Name::new(tokenizer, level + 1)?),

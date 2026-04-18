@@ -60,7 +60,7 @@ impl SortDate {
     /// # Errors
     ///
     /// Returns an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<SortDate, GedcomError> {
+    pub fn new(tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<SortDate, GedcomError> {
         let mut sort_date = SortDate::default();
         sort_date.parse(tokenizer, level)?;
         Ok(sort_date)
@@ -77,10 +77,10 @@ impl SortDate {
 }
 
 impl Parser for SortDate {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
+    fn parse(&mut self, tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<(), GedcomError> {
         self.value = Some(tokenizer.take_line_value()?);
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             match tag {
                 "TIME" => self.time = Some(tokenizer.take_line_value()?),
                 "PHRASE" => self.phrase = Some(tokenizer.take_line_value()?),
@@ -128,7 +128,7 @@ impl CreationDate {
     /// # Errors
     ///
     /// Returns an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<CreationDate, GedcomError> {
+    pub fn new(tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<CreationDate, GedcomError> {
         let mut creation_date = CreationDate::default();
         creation_date.parse(tokenizer, level)?;
         Ok(creation_date)
@@ -136,10 +136,10 @@ impl CreationDate {
 }
 
 impl Parser for CreationDate {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
+    fn parse(&mut self, tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<(), GedcomError> {
         tokenizer.next_token()?;
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             match tag {
                 "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
                 _ => {
@@ -204,7 +204,7 @@ impl Crop {
     /// # Errors
     ///
     /// Returns an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<Crop, GedcomError> {
+    pub fn new(tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<Crop, GedcomError> {
         let mut crop = Crop::default();
         crop.parse(tokenizer, level)?;
         Ok(crop)
@@ -253,10 +253,10 @@ impl Crop {
 }
 
 impl Parser for Crop {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
+    fn parse(&mut self, tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<(), GedcomError> {
         tokenizer.next_token()?;
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             let value_str = tokenizer.take_line_value()?;
             let value: f32 = value_str
                 .parse()
@@ -331,7 +331,7 @@ impl NonEvent {
     /// # Errors
     ///
     /// Returns an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<NonEvent, GedcomError> {
+    pub fn new(tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<NonEvent, GedcomError> {
         let mut non_event = NonEvent::default();
         non_event.parse(tokenizer, level)?;
         Ok(non_event)
@@ -368,11 +368,11 @@ impl NonEvent {
 }
 
 impl Parser for NonEvent {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
+    fn parse(&mut self, tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<(), GedcomError> {
         // The event type is the line value of the NO tag
         self.event_type = tokenizer.take_line_value()?;
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             match tag {
                 "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
                 "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
@@ -428,7 +428,7 @@ impl Phrase {
     /// # Errors
     ///
     /// Returns an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, _level: u8) -> Result<Phrase, GedcomError> {
+    pub fn new(tokenizer: &mut Tokenizer<'_>, _level: u8) -> Result<Phrase, GedcomError> {
         Ok(Phrase {
             value: tokenizer.take_line_value()?,
         })

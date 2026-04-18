@@ -33,7 +33,10 @@ impl CertaintyAssessment {
     ///
     /// This function will return an error if parsing fails.
     #[allow(clippy::double_must_use)]
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<CertaintyAssessment, GedcomError> {
+    pub fn new(
+        tokenizer: &mut Tokenizer<'_>,
+        level: u8,
+    ) -> Result<CertaintyAssessment, GedcomError> {
         let mut quay = CertaintyAssessment::None;
         quay.parse(tokenizer, level)?;
         Ok(quay)
@@ -58,7 +61,7 @@ impl std::fmt::Display for CertaintyAssessment {
 }
 
 impl Parser for CertaintyAssessment {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
+    fn parse(&mut self, tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<(), GedcomError> {
         tokenizer.next_token()?;
         if let Token::LineValue(val) = &tokenizer.current_token {
             *self = match val.as_ref() {

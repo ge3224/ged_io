@@ -105,7 +105,7 @@ impl MapCoordinates {
     /// # Errors
     ///
     /// Returns an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<MapCoordinates, GedcomError> {
+    pub fn new(tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<MapCoordinates, GedcomError> {
         let mut map = MapCoordinates::default();
         map.parse(tokenizer, level)?;
         Ok(map)
@@ -164,10 +164,10 @@ fn parse_coordinate(coord: &str) -> Option<f64> {
 }
 
 impl Parser for MapCoordinates {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
+    fn parse(&mut self, tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<(), GedcomError> {
         tokenizer.next_token()?;
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             match tag {
                 "LATI" => self.latitude = Some(tokenizer.take_line_value()?),
                 "LONG" => self.longitude = Some(tokenizer.take_line_value()?),
@@ -218,7 +218,7 @@ impl PlaceVariation {
     /// # Errors
     ///
     /// Returns an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<PlaceVariation, GedcomError> {
+    pub fn new(tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<PlaceVariation, GedcomError> {
         let mut variation = PlaceVariation {
             value: tokenizer.take_line_value()?,
             variation_type: None,
@@ -238,8 +238,8 @@ impl PlaceVariation {
 }
 
 impl Parser for PlaceVariation {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+    fn parse(&mut self, tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             match tag {
                 "TYPE" => self.variation_type = Some(tokenizer.take_line_value()?),
                 _ => {
@@ -264,7 +264,7 @@ impl Place {
     /// # Errors
     ///
     /// Returns an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<Place, GedcomError> {
+    pub fn new(tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<Place, GedcomError> {
         let mut place = Place {
             value: Some(tokenizer.take_line_value()?),
             ..Default::default()
@@ -330,8 +330,8 @@ impl Place {
 }
 
 impl Parser for Place {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+    fn parse(&mut self, tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             match tag {
                 "FORM" => self.form = Some(tokenizer.take_line_value()?),
                 "MAP" => self.map = Some(MapCoordinates::new(tokenizer, level + 1)?),

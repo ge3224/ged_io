@@ -63,7 +63,7 @@ impl Multimedia {
     ///
     /// This function will return an error if parsing fails.
     pub fn new(
-        tokenizer: &mut Tokenizer,
+        tokenizer: &mut Tokenizer<'_>,
         level: u8,
         xref: Option<Xref>,
     ) -> Result<Multimedia, GedcomError> {
@@ -74,11 +74,11 @@ impl Multimedia {
 }
 
 impl Parser for Multimedia {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
+    fn parse(&mut self, tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<(), GedcomError> {
         // skip current line
         tokenizer.next_token()?;
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             match tag {
                 "FILE" => self.file = Some(Reference::new(tokenizer, level + 1)?),
                 "FORM" => self.form = Some(Format::new(tokenizer, level + 1)?),

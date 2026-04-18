@@ -69,7 +69,7 @@ pub enum GedcomError {
 }
 
 impl fmt::Display for GedcomError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             GedcomError::ParseError { line, message } => {
                 write!(f, "Parse error at line {line}: {message}")

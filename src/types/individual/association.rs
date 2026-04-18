@@ -32,7 +32,7 @@ impl Association {
     /// # Errors
     ///
     /// This function will return an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<Association, GedcomError> {
+    pub fn new(tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<Association, GedcomError> {
         let mut association = Association {
             xref: tokenizer.take_line_value()?,
             relationship: None,
@@ -46,8 +46,8 @@ impl Association {
 }
 
 impl Parser for Association {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+    fn parse(&mut self, tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             match tag {
                 "RELA" => self.relationship = Some(tokenizer.take_line_value()?),
                 "TYPE" => self.association_type = Some(tokenizer.take_line_value()?),

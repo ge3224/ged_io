@@ -27,7 +27,7 @@ impl Translation {
     ///
     /// This function will return an error if parsing fails.
     #[allow(clippy::double_must_use)]
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<Translation, GedcomError> {
+    pub fn new(tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<Translation, GedcomError> {
         let mut tran = Translation::default();
         tran.parse(tokenizer, level)?;
         Ok(tran)
@@ -36,10 +36,10 @@ impl Translation {
 
 impl Parser for Translation {
     ///parse handles the TRAN tag
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
+    fn parse(&mut self, tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<(), GedcomError> {
         self.value = Some(tokenizer.take_line_value()?);
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             match tag {
                 "MIME" => self.mime = Some(tokenizer.take_line_value()?),
                 "LANG" => self.language = Some(tokenizer.take_line_value()?),
