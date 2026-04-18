@@ -1,8 +1,9 @@
 //! Benchmarks for GEDCOM tokenizer performance.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use ged_io::tokenizer::{Token, Tokenizer};
 use std::fs;
+use std::hint::black_box;
 
 /// Benchmark tokenization of different file sizes
 fn bench_tokenize_files(c: &mut Criterion) {
