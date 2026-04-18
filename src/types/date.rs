@@ -48,6 +48,10 @@ impl Date {
     }
 
     /// datetime returns Date and Date.time in a single string.
+    ///
+    /// # Panics
+    ///
+    /// Panics when encountering a None value
     #[must_use]
     pub fn datetime(&self) -> Option<String> {
         match &self.time {
