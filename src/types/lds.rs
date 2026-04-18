@@ -249,7 +249,7 @@ impl LdsOrdinance {
     ///
     /// Returns an error if parsing fails.
     pub fn new(
-        tokenizer: &mut Tokenizer,
+        tokenizer: &mut Tokenizer<'_>,
         level: u8,
         tag: &str,
     ) -> Result<LdsOrdinance, GedcomError> {
@@ -317,11 +317,11 @@ impl LdsOrdinance {
 }
 
 impl Parser for LdsOrdinance {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
+    fn parse(&mut self, tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<(), GedcomError> {
         // Skip over the ordinance tag
         tokenizer.next_token()?;
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             match tag {
                 "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
                 "TEMP" => self.temple = Some(tokenizer.take_line_value()?),

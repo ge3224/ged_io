@@ -25,7 +25,10 @@ impl UserReferenceNumber {
     /// # Errors
     ///
     /// This function will return an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<UserReferenceNumber, GedcomError> {
+    pub fn new(
+        tokenizer: &mut Tokenizer<'_>,
+        level: u8,
+    ) -> Result<UserReferenceNumber, GedcomError> {
         let mut refn = UserReferenceNumber::default();
         refn.parse(tokenizer, level)?;
         Ok(refn)
@@ -33,10 +36,10 @@ impl UserReferenceNumber {
 }
 
 impl Parser for UserReferenceNumber {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
+    fn parse(&mut self, tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<(), GedcomError> {
         self.value = Some(tokenizer.take_line_value()?);
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             match tag {
                 "TYPE" => self.user_reference_type = Some(tokenizer.take_line_value()?),
                 _ => {

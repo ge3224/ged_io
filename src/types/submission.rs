@@ -89,7 +89,7 @@ impl Submission {
     /// This function will return an error if parsing fails.
     #[allow(clippy::double_must_use)]
     pub fn new(
-        tokenizer: &mut Tokenizer,
+        tokenizer: &mut Tokenizer<'_>,
         level: u8,
         xref: Option<Xref>,
     ) -> Result<Submission, GedcomError> {
@@ -100,10 +100,10 @@ impl Submission {
 }
 
 impl Parser for Submission {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
+    fn parse(&mut self, tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<(), GedcomError> {
         tokenizer.next_token()?;
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             match tag {
                 "ANCE" => self.ancestor_generations = Some(tokenizer.take_line_value()?),
                 "CHAN" => self.change_date = Some(ChangeDate::new(tokenizer, level + 1)?),

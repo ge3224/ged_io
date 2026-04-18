@@ -34,7 +34,7 @@ impl HeadSour {
     /// # Errors
     ///
     /// This function will return an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<HeadSour, GedcomError> {
+    pub fn new(tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<HeadSour, GedcomError> {
         let mut head_sour = HeadSour::default();
         head_sour.parse(tokenizer, level)?;
         Ok(head_sour)
@@ -43,10 +43,10 @@ impl HeadSour {
 
 impl Parser for HeadSour {
     /// parse handles the SOUR tag in a header
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
+    fn parse(&mut self, tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<(), GedcomError> {
         self.value = Some(tokenizer.take_line_value()?);
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             match tag {
                 "VERS" => self.version = Some(tokenizer.take_line_value()?),
                 "NAME" => self.name = Some(tokenizer.take_line_value()?),

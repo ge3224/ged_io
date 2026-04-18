@@ -120,7 +120,7 @@ impl NameVariation {
     /// # Errors
     ///
     /// Returns an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<NameVariation, GedcomError> {
+    pub fn new(tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<NameVariation, GedcomError> {
         let mut variation = NameVariation {
             value: tokenizer.take_line_value()?,
             ..Default::default()
@@ -141,8 +141,8 @@ impl NameVariation {
 }
 
 impl Parser for NameVariation {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+    fn parse(&mut self, tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             match tag {
                 "TYPE" => self.variation_type = Some(tokenizer.take_line_value()?),
                 "GIVN" => self.given = Some(tokenizer.take_line_value()?),
@@ -235,7 +235,7 @@ impl Name {
     /// # Errors
     ///
     /// This function will return an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<Name, GedcomError> {
+    pub fn new(tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<Name, GedcomError> {
         let mut name = Name::default();
         name.parse(tokenizer, level)?;
         Ok(name)
@@ -280,10 +280,10 @@ impl Name {
 }
 
 impl Parser for Name {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
+    fn parse(&mut self, tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<(), GedcomError> {
         self.value = Some(tokenizer.take_line_value()?);
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             match tag {
                 "GIVN" => self.given = Some(tokenizer.take_line_value()?),
                 "NPFX" => self.prefix = Some(tokenizer.take_line_value()?),

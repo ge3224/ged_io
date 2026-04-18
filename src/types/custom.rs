@@ -26,7 +26,7 @@ impl UserDefinedTag {
     ///
     /// This function will return an error if parsing fails.
     pub fn new(
-        tokenizer: &mut Tokenizer,
+        tokenizer: &mut Tokenizer<'_>,
         level: u8,
         tag: &str,
     ) -> Result<UserDefinedTag, GedcomError> {
@@ -119,7 +119,7 @@ impl UserDefinedTag {
 }
 
 impl Parser for UserDefinedTag {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
+    fn parse(&mut self, tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<(), GedcomError> {
         // skip ahead of initial tag
         tokenizer.next_token()?;
 

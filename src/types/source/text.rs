@@ -25,7 +25,7 @@ impl Text {
     ///
     /// This function will return an error if parsing fails.
     #[allow(clippy::double_must_use)]
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<Text, GedcomError> {
+    pub fn new(tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<Text, GedcomError> {
         let mut text = Text { value: None };
         text.parse(tokenizer, level)?;
         Ok(text)
@@ -33,11 +33,11 @@ impl Text {
 }
 
 impl Parser for Text {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
+    fn parse(&mut self, tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<(), GedcomError> {
         let mut value = String::new();
         value.push_str(&tokenizer.take_line_value()?);
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             match tag {
                 "CONC" => value.push_str(&tokenizer.take_line_value()?),
                 "CONT" => {

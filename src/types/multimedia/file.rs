@@ -37,7 +37,7 @@ impl Reference {
     /// # Errors
     ///
     /// This function will return an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<Reference, GedcomError> {
+    pub fn new(tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<Reference, GedcomError> {
         let mut file = Reference::default();
         file.parse(tokenizer, level)?;
         Ok(file)
@@ -45,9 +45,9 @@ impl Reference {
 }
 
 impl Parser for Reference {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
+    fn parse(&mut self, tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<(), GedcomError> {
         self.value = Some(tokenizer.take_line_value()?);
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             match tag {
                 "TITL" => self.title = Some(tokenizer.take_line_value()?),
                 "FORM" => self.form = Some(Format::new(tokenizer, level + 1)?),

@@ -34,7 +34,7 @@ impl Age {
     /// # Errors
     ///
     /// Returns `GedcomError::ParseError` if the value is not a valid age.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<Age, GedcomError> {
+    pub fn new(tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<Age, GedcomError> {
         let value = &tokenizer.take_line_value()?;
 
         let mut age = match value.as_str() {

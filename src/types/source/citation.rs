@@ -48,7 +48,7 @@ impl Citation {
     /// # Errors
     ///
     /// This function will return an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<Citation, GedcomError> {
+    pub fn new(tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<Citation, GedcomError> {
         let mut citation = Citation {
             xref: tokenizer.take_line_value()?,
             page: None,
@@ -71,11 +71,11 @@ impl Citation {
 }
 
 impl Parser for Citation {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
+    fn parse(&mut self, tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<(), GedcomError> {
         // Note: Don't call next_token() here - the tokenizer is already positioned
         // at the next Level token after Citation::new() called take_line_value()
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             let mut pointer: Option<String> = None;
             if let Token::Pointer(xref) = &tokenizer.current_token {
                 pointer = Some(xref.to_string());

@@ -57,7 +57,11 @@ impl FamilyLink {
     /// # Errors
     ///
     /// This function will return an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8, tag: &str) -> Result<FamilyLink, GedcomError> {
+    pub fn new(
+        tokenizer: &mut Tokenizer<'_>,
+        level: u8,
+        tag: &str,
+    ) -> Result<FamilyLink, GedcomError> {
         let xref = tokenizer.take_line_value()?;
         let link_type = match tag {
             "FAMC" => FamilyLinkType::Child,
@@ -158,8 +162,8 @@ impl FamilyLink {
 }
 
 impl Parser for FamilyLink {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+    fn parse(&mut self, tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             match tag {
                 "PEDI" => {
                     self.set_pedigree(tokenizer.take_line_value()?.as_str(), tokenizer.line)?;

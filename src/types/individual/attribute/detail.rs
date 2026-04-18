@@ -67,7 +67,7 @@ impl AttributeDetail {
     ///
     /// This function will return an error if parsing fails.
     pub fn new(
-        tokenizer: &mut Tokenizer,
+        tokenizer: &mut Tokenizer<'_>,
         level: u8,
         tag: &str,
     ) -> Result<AttributeDetail, GedcomError> {
@@ -89,11 +89,6 @@ impl AttributeDetail {
         Ok(attribute)
     }
 
-    /// # Panics
-    ///
-    /// Will panic when encountering an unrecognized tag
-    /// Creates a new `IndividualAttribute` from a tag.
-    ///
     /// # Errors
     ///
     /// This function will return an error if the tag is unrecognized.
@@ -128,7 +123,7 @@ impl AttributeDetail {
 }
 
 impl Parser for AttributeDetail {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
+    fn parse(&mut self, tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<(), GedcomError> {
         tokenizer.next_token()?;
 
         let mut value = String::new();
@@ -138,7 +133,7 @@ impl Parser for AttributeDetail {
             tokenizer.next_token()?;
         }
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             match tag {
                 "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
                 "SOUR" => self.add_source_citation(Citation::new(tokenizer, level + 1)?),

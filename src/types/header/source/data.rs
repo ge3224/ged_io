@@ -28,7 +28,7 @@ impl HeadSourData {
     /// # Errors
     ///
     /// This function will return an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<HeadSourData, GedcomError> {
+    pub fn new(tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<HeadSourData, GedcomError> {
         let mut head_sour_data = HeadSourData::default();
         head_sour_data.parse(tokenizer, level)?;
         Ok(head_sour_data)
@@ -37,10 +37,10 @@ impl HeadSourData {
 
 impl Parser for HeadSourData {
     /// parse parses the DATA tag
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
+    fn parse(&mut self, tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<(), GedcomError> {
         self.value = Some(tokenizer.take_line_value()?);
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             match tag {
                 "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
                 "COPR" => self.copyright = Some(tokenizer.take_continued_text(level + 1)?),

@@ -41,17 +41,13 @@ impl Date {
     /// # Errors
     ///
     /// This function will return an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<Date, GedcomError> {
+    pub fn new(tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<Date, GedcomError> {
         let mut date = Date::default();
         date.parse(tokenizer, level)?;
         Ok(date)
     }
 
     /// datetime returns Date and Date.time in a single string.
-    ///
-    /// # Panics
-    ///
-    /// Panics when encountering a None value
     #[must_use]
     pub fn datetime(&self) -> Option<String> {
         match &self.time {
@@ -249,10 +245,10 @@ impl Date {
 
 impl Parser for Date {
     /// parse handles the DATE tag
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
+    fn parse(&mut self, tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<(), GedcomError> {
         self.value = Some(tokenizer.take_line_value()?);
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             match tag {
                 "TIME" => self.time = Some(tokenizer.take_line_value()?),
                 "PHRASE" => self.phrase = Some(tokenizer.take_line_value()?),

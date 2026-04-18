@@ -48,7 +48,7 @@ impl Gender {
     /// # Errors
     ///
     /// This function will return an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<Gender, GedcomError> {
+    pub fn new(tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<Gender, GedcomError> {
         let mut sex = Gender {
             value: GenderType::Unknown,
             fact: None,
@@ -65,7 +65,7 @@ impl Gender {
 }
 
 impl Parser for Gender {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
+    fn parse(&mut self, tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<(), GedcomError> {
         tokenizer.next_token()?;
 
         if let Token::LineValue(gender_string) = &tokenizer.current_token {
@@ -84,7 +84,7 @@ impl Parser for Gender {
             tokenizer.next_token()?;
         }
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             match tag {
                 "FACT" => self.fact = Some(tokenizer.take_continued_text(level + 1)?),
                 "SOUR" => self.add_source_citation(Citation::new(tokenizer, level + 1)?),
