@@ -1,6 +1,6 @@
 use crate::{
+    parser::ParserData,
     parser::{parse_subset, Parser},
-    tokenizer::Tokenizer,
     types::{source::Source, translation::Translation},
     GedcomError,
 };
@@ -52,25 +52,29 @@ impl Note {
     /// # Errors
     ///
     /// This function will return an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<Note, GedcomError> {
+    pub fn new(parser: &mut ParserData, level: u8) -> Result<Note, GedcomError> {
         let mut note = Note::default();
-        note.parse(tokenizer, level)?;
+        note.parse(parser, level)?;
         Ok(note)
     }
 }
 
 impl Parser for Note {
     /// parse handles the NOTE tag
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
-        self.value = Some(tokenizer.take_continued_text(level)?);
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+    fn parse(&mut self, parser: &mut ParserData, level: u8) -> Result<(), GedcomError> {
+        self.value = Some(parser.tokenizer.take_continued_text(level)?);
+        let handle_subset = |tag: &str, parser: &mut ParserData| -> Result<(), GedcomError> {
             match tag {
-                "MIME" => self.mime = Some(tokenizer.take_line_value()?),
-                "TRANS" => self.translation = Some(Translation::new(tokenizer, level + 1)?),
-                "LANG" => self.language = Some(tokenizer.take_line_value()?),
+                "MIME" => self.mime = Some(parser.tokenizer.take_line_value()?),
+                "TRANS" => self.translation = Some(Translation::new(parser, level + 1)?),
+                "LANG" => self.language = Some(parser.tokenizer.take_line_value()?),
                 _ => {
+                    if parser.config.ignore_unknown_tags {
+                        parser.tokenizer.take_line_value()?;
+                        return Ok(());
+                    }
                     return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
+                        line: parser.tokenizer.line,
                         message: format!("Unhandled Note Tag: {tag}"),
                     })
                 }
@@ -78,7 +82,7 @@ impl Parser for Note {
 
             Ok(())
         };
-        parse_subset(tokenizer, level, handle_subset)?;
+        parse_subset(parser, level, handle_subset)?;
 
         Ok(())
     }

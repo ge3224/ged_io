@@ -262,6 +262,7 @@ pub use version::{detect_version, GedcomVersion, VersionFeatures};
 pub use writer::{GedcomWriter, WriterConfig};
 
 use crate::{
+    parser::ParserData,
     tokenizer::{Token, Tokenizer},
     types::GedcomData,
 };
@@ -292,7 +293,7 @@ use std::str::Chars;
 /// assert_eq!(data.individuals.len(), 1);
 /// ```
 pub struct Gedcom<'a> {
-    tokenizer: Tokenizer<'a>,
+    parser: ParserData<'a>,
 }
 
 impl<'a> Gedcom<'a> {
@@ -302,9 +303,12 @@ impl<'a> Gedcom<'a> {
     ///
     /// Returns an error if the GEDCOM data is malformed.
     pub fn new(chars: Chars<'a>) -> Result<Gedcom<'a>, GedcomError> {
-        let mut tokenizer = Tokenizer::new(chars);
-        tokenizer.next_token()?;
-        Ok(Gedcom { tokenizer })
+        let mut parser = ParserData {
+            tokenizer: Tokenizer::new(chars),
+            config: ParserConfig::default(),
+        };
+        parser.tokenizer.next_token()?;
+        Ok(Gedcom { parser })
     }
 
     /// Processes the character data to produce a [`GedcomData`] object containing the parsed
@@ -315,10 +319,10 @@ impl<'a> Gedcom<'a> {
     /// Returns an error if the GEDCOM data is malformed.
     pub fn parse_data(&mut self) -> Result<GedcomData, GedcomError> {
         // Accept EOF-terminated files (missing TRLR).
-        if self.tokenizer.current_token == Token::EOF {
+        if self.parser.tokenizer.current_token == Token::EOF {
             return Ok(GedcomData::default());
         }
-        GedcomData::new(&mut self.tokenizer, 0)
+        GedcomData::new(&mut self.parser, 0)
     }
 }
 

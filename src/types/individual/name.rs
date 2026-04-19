@@ -2,8 +2,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    parser::ParserData,
     parser::{parse_subset, Parser},
-    tokenizer::Tokenizer,
     types::{custom::UserDefinedTag, note::Note, source::citation::Citation},
     GedcomError,
 };
@@ -120,12 +120,12 @@ impl NameVariation {
     /// # Errors
     ///
     /// Returns an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<NameVariation, GedcomError> {
+    pub fn new(parser: &mut ParserData, level: u8) -> Result<NameVariation, GedcomError> {
         let mut variation = NameVariation {
-            value: tokenizer.take_line_value()?,
+            value: parser.tokenizer.take_line_value()?,
             ..Default::default()
         };
-        variation.parse(tokenizer, level)?;
+        variation.parse(parser, level)?;
         Ok(variation)
     }
 
@@ -141,25 +141,31 @@ impl NameVariation {
 }
 
 impl Parser for NameVariation {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+    fn parse(&mut self, parser: &mut ParserData, level: u8) -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, parser: &mut ParserData| -> Result<(), GedcomError> {
             match tag {
-                "TYPE" => self.variation_type = Some(tokenizer.take_line_value()?),
-                "GIVN" => self.given = Some(tokenizer.take_line_value()?),
-                "SURN" => self.surname = Some(tokenizer.take_line_value()?),
-                "NPFX" => self.prefix = Some(tokenizer.take_line_value()?),
-                "SPFX" => self.surname_prefix = Some(tokenizer.take_line_value()?),
-                "NSFX" => self.suffix = Some(tokenizer.take_line_value()?),
-                "NICK" => self.nickname = Some(tokenizer.take_line_value()?),
+                "TYPE" => self.variation_type = Some(parser.tokenizer.take_line_value()?),
+                "GIVN" => self.given = Some(parser.tokenizer.take_line_value()?),
+                "SURN" => self.surname = Some(parser.tokenizer.take_line_value()?),
+                "NPFX" => self.prefix = Some(parser.tokenizer.take_line_value()?),
+                "SPFX" => self.surname_prefix = Some(parser.tokenizer.take_line_value()?),
+                "NSFX" => self.suffix = Some(parser.tokenizer.take_line_value()?),
+                "NICK" => self.nickname = Some(parser.tokenizer.take_line_value()?),
                 _ => {
-                    // Gracefully skip unknown tags
-                    tokenizer.take_line_value()?;
+                    if parser.config.ignore_unknown_tags {
+                        parser.tokenizer.take_line_value()?;
+                        return Ok(());
+                    }
+                    return Err(GedcomError::ParseError {
+                        line: parser.tokenizer.line,
+                        message: format!("Unhandled NameVariation Tag: {tag}"),
+                    })
                 }
             }
             Ok(())
         };
 
-        parse_subset(tokenizer, level, handle_subset)?;
+        parse_subset(parser, level, handle_subset)?;
 
         Ok(())
     }
@@ -235,9 +241,9 @@ impl Name {
     /// # Errors
     ///
     /// This function will return an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<Name, GedcomError> {
+    pub fn new(parser: &mut ParserData, level: u8) -> Result<Name, GedcomError> {
         let mut name = Name::default();
-        name.parse(tokenizer, level)?;
+        name.parse(parser, level)?;
         Ok(name)
     }
 
@@ -280,37 +286,43 @@ impl Name {
 }
 
 impl Parser for Name {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
-        self.value = Some(tokenizer.take_line_value()?);
+    fn parse(&mut self, parser: &mut ParserData, level: u8) -> Result<(), GedcomError> {
+        self.value = Some(parser.tokenizer.take_line_value()?);
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, parser: &mut ParserData| -> Result<(), GedcomError> {
             match tag {
-                "GIVN" => self.given = Some(tokenizer.take_line_value()?),
-                "NPFX" => self.prefix = Some(tokenizer.take_line_value()?),
-                "NSFX" => self.suffix = Some(tokenizer.take_line_value()?),
-                "SPFX" => self.surname_prefix = Some(tokenizer.take_line_value()?),
-                "SURN" => self.surname = Some(tokenizer.take_line_value()?),
-                "NICK" => self.nickname = Some(tokenizer.take_line_value()?),
-                "SOUR" => self.add_source_citation(Citation::new(tokenizer, level + 1)?),
-                "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
+                "GIVN" => self.given = Some(parser.tokenizer.take_line_value()?),
+                "NPFX" => self.prefix = Some(parser.tokenizer.take_line_value()?),
+                "NSFX" => self.suffix = Some(parser.tokenizer.take_line_value()?),
+                "SPFX" => self.surname_prefix = Some(parser.tokenizer.take_line_value()?),
+                "SURN" => self.surname = Some(parser.tokenizer.take_line_value()?),
+                "NICK" => self.nickname = Some(parser.tokenizer.take_line_value()?),
+                "SOUR" => self.add_source_citation(Citation::new(parser, level + 1)?),
+                "NOTE" => self.note = Some(Note::new(parser, level + 1)?),
                 "TYPE" => {
-                    let type_value = tokenizer.take_line_value()?;
+                    let type_value = parser.tokenizer.take_line_value()?;
                     self.name_type = Some(NameType::parse(&type_value));
                 }
                 "FONE" => self
                     .phonetic
-                    .push(NameVariation::new(tokenizer, level + 1)?),
+                    .push(NameVariation::new(parser, level + 1)?),
                 "ROMN" => self
                     .romanized
-                    .push(NameVariation::new(tokenizer, level + 1)?),
+                    .push(NameVariation::new(parser, level + 1)?),
                 _ => {
-                    // Gracefully skip unknown tags instead of failing
-                    tokenizer.take_line_value()?;
+                    if parser.config.ignore_unknown_tags {
+                        parser.tokenizer.take_line_value()?;
+                        return Ok(());
+                    }
+                    return Err(GedcomError::ParseError {
+                        line: parser.tokenizer.line,
+                        message: format!("Unhandled Name Tag: {tag}"),
+                    })
                 }
             }
             Ok(())
         };
-        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
+        self.custom_data = parse_subset(parser, level, handle_subset)?;
 
         Ok(())
     }

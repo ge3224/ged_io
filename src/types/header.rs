@@ -6,8 +6,8 @@ pub mod source;
 
 use super::UserDefinedTag;
 use crate::{
+    parser::ParserData,
     parser::{parse_subset, Parser},
-    tokenizer::Tokenizer,
     types::{
         date::Date,
         header::{
@@ -129,9 +129,9 @@ impl Header {
     /// # Errors
     ///
     /// This function will return an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<Header, GedcomError> {
+    pub fn new(parser: &mut ParserData, level: u8) -> Result<Header, GedcomError> {
         let mut header = Header::default();
-        header.parse(tokenizer, level)?;
+        header.parse(parser, level)?;
         Ok(header)
     }
 
@@ -191,28 +191,32 @@ impl Header {
 impl Parser for Header {
     /// Parses HEAD top-level tag. See
     /// <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#HEADER>.
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
+    fn parse(&mut self, parser: &mut ParserData, level: u8) -> Result<(), GedcomError> {
         // skip over HEAD tag name
-        tokenizer.next_token()?;
+        parser.tokenizer.next_token()?;
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, parser: &mut ParserData| -> Result<(), GedcomError> {
             match tag {
-                "GEDC" => self.gedcom = Some(HeadMeta::new(tokenizer, level + 1)?),
-                "SCHMA" => self.schema = Some(Schema::new(tokenizer, level + 1)?),
-                "SOUR" => self.source = Some(HeadSour::new(tokenizer, level + 1)?),
-                "DEST" => self.destination = Some(tokenizer.take_line_value()?),
-                "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
-                "SUBM" => self.submitter_tag = Some(tokenizer.take_line_value()?),
-                "SUBN" => self.submission_tag = Some(tokenizer.take_line_value()?),
-                "FILE" => self.filename = Some(tokenizer.take_line_value()?),
-                "COPR" => self.copyright = Some(tokenizer.take_continued_text(level + 1)?),
-                "CHAR" => self.encoding = Some(Encoding::new(tokenizer, level + 1)?),
-                "LANG" => self.language = Some(tokenizer.take_line_value()?),
-                "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
-                "PLAC" => self.place = Some(HeadPlac::new(tokenizer, level + 1)?),
+                "GEDC" => self.gedcom = Some(HeadMeta::new(parser, level + 1)?),
+                "SCHMA" => self.schema = Some(Schema::new(parser, level + 1)?),
+                "SOUR" => self.source = Some(HeadSour::new(parser, level + 1)?),
+                "DEST" => self.destination = Some(parser.tokenizer.take_line_value()?),
+                "DATE" => self.date = Some(Date::new(parser, level + 1)?),
+                "SUBM" => self.submitter_tag = Some(parser.tokenizer.take_line_value()?),
+                "SUBN" => self.submission_tag = Some(parser.tokenizer.take_line_value()?),
+                "FILE" => self.filename = Some(parser.tokenizer.take_line_value()?),
+                "COPR" => self.copyright = Some(parser.tokenizer.take_continued_text(level + 1)?),
+                "CHAR" => self.encoding = Some(Encoding::new(parser, level + 1)?),
+                "LANG" => self.language = Some(parser.tokenizer.take_line_value()?),
+                "NOTE" => self.note = Some(Note::new(parser, level + 1)?),
+                "PLAC" => self.place = Some(HeadPlac::new(parser, level + 1)?),
                 _ => {
+                    if parser.config.ignore_unknown_tags {
+                        parser.tokenizer.take_line_value()?;
+                        return Ok(());
+                    }
                     return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
+                        line: parser.tokenizer.line,
                         message: format!("Unhandled Header Tag: {tag}"),
                     })
                 }
@@ -220,7 +224,7 @@ impl Parser for Header {
             Ok(())
         };
 
-        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
+        self.custom_data = parse_subset(parser, level, handle_subset)?;
 
         Ok(())
     }

@@ -1,6 +1,6 @@
 use crate::{
-    parser::Parser,
-    tokenizer::{Token, Tokenizer, TokenizerTrait},
+    parser::{Parser, ParserData},
+    tokenizer::{Token, TokenizerTrait},
     GedcomError,
 };
 #[cfg(feature = "json")]
@@ -26,7 +26,7 @@ impl UserDefinedTag {
     ///
     /// This function will return an error if parsing fails.
     pub fn new(
-        tokenizer: &mut Tokenizer,
+        parser: &mut ParserData,
         level: u8,
         tag: &str,
     ) -> Result<UserDefinedTag, GedcomError> {
@@ -35,7 +35,7 @@ impl UserDefinedTag {
             value: None,
             children: Vec::new(),
         };
-        udd.parse(tokenizer, level)?;
+        udd.parse(parser, level)?;
         Ok(udd)
     }
 
@@ -44,8 +44,8 @@ impl UserDefinedTag {
     /// # Errors
     ///
     /// This function will return an error if parsing fails.
-    pub fn new_from_tokenizer<T: TokenizerTrait>(
-        tokenizer: &mut T,
+    pub fn new_from_parser(
+        parser: &mut ParserData,
         level: u8,
         tag: &str,
     ) -> Result<UserDefinedTag, GedcomError> {
@@ -54,7 +54,7 @@ impl UserDefinedTag {
             value: None,
             children: Vec::new(),
         };
-        udd.parse_stream(tokenizer, level)?;
+        udd.parse_stream(parser, level)?;
         Ok(udd)
     }
 
@@ -63,17 +63,17 @@ impl UserDefinedTag {
     }
 
     /// Generic parsing implementation for any tokenizer.
-    fn parse_stream<T: TokenizerTrait>(
+    fn parse_stream(
         &mut self,
-        tokenizer: &mut T,
+        parser: &mut ParserData,
         level: u8,
     ) -> Result<(), GedcomError> {
         // skip ahead of initial tag
-        tokenizer.next_token()?;
+        parser.tokenizer.next_token()?;
 
         let mut has_child = false;
         loop {
-            if let Token::Level(current) = tokenizer.current_token() {
+            if let Token::Level(current) = parser.tokenizer.current_token() {
                 if *current <= level {
                     break;
                 }
@@ -82,12 +82,12 @@ impl UserDefinedTag {
                 }
             }
 
-            match tokenizer.current_token() {
+            match parser.tokenizer.current_token() {
                 Token::Tag(tag) | Token::CustomTag(tag) => {
                     if has_child {
                         let tag_clone = tag.clone();
-                        self.add_child(UserDefinedTag::new_from_tokenizer(
-                            tokenizer,
+                        self.add_child(UserDefinedTag::new_from_parser(
+                            parser,
                             level + 1,
                             &tag_clone,
                         )?);
@@ -99,16 +99,20 @@ impl UserDefinedTag {
                     if self.value.is_none() && !val.is_empty() {
                         self.value = Some(val.to_string());
                     }
-                    tokenizer.next_token()?;
+                    parser.tokenizer.next_token()?;
                 }
-                Token::Level(_) => tokenizer.next_token()?,
+                Token::Level(_) => parser.tokenizer.next_token()?,
                 Token::EOF => break,
                 _ => {
+                    if parser.config.ignore_unknown_tags {
+                        parser.tokenizer.take_line_value()?;
+                        return Ok(());
+                    }
                     return Err(GedcomError::ParseError {
-                        line: tokenizer.line(),
+                        line: parser.tokenizer.line(),
                         message: format!(
                             "Unhandled Token in UserDefinedDataset: {:?}",
-                            tokenizer.current_token()
+                            parser.tokenizer.current_token()
                         ),
                     })
                 }
@@ -119,13 +123,13 @@ impl UserDefinedTag {
 }
 
 impl Parser for UserDefinedTag {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
+    fn parse(&mut self, parser: &mut ParserData, level: u8) -> Result<(), GedcomError> {
         // skip ahead of initial tag
-        tokenizer.next_token()?;
+        parser.tokenizer.next_token()?;
 
         let mut has_child = false;
         loop {
-            if let Token::Level(current) = tokenizer.current_token {
+            if let Token::Level(current) = parser.tokenizer.current_token {
                 if current <= level {
                     break;
                 }
@@ -134,11 +138,11 @@ impl Parser for UserDefinedTag {
                 }
             }
 
-            match &tokenizer.current_token {
+            match &parser.tokenizer.current_token {
                 Token::Tag(tag) | Token::CustomTag(tag) => {
                     if has_child {
                         let tag_clone = tag.clone();
-                        self.add_child(UserDefinedTag::new(tokenizer, level + 1, &tag_clone)?);
+                        self.add_child(UserDefinedTag::new(parser, level + 1, &tag_clone)?);
                     }
                 }
                 Token::LineValue(val) => {
@@ -147,16 +151,16 @@ impl Parser for UserDefinedTag {
                     if self.value.is_none() && !val.is_empty() {
                         self.value = Some(val.to_string());
                     }
-                    tokenizer.next_token()?;
+                    parser.tokenizer.next_token()?;
                 }
-                Token::Level(_) => tokenizer.next_token()?,
+                Token::Level(_) => parser.tokenizer.next_token()?,
                 Token::EOF => break,
                 _ => {
                     return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
+                        line: parser.tokenizer.line,
                         message: format!(
                             "Unhandled Token in UserDefinedDataset: {:?}",
-                            tokenizer.current_token
+                            parser.tokenizer.current_token
                         ),
                     })
                 }

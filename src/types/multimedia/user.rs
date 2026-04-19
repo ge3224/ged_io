@@ -2,8 +2,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    parser::ParserData,
     parser::{parse_subset, Parser},
-    tokenizer::Tokenizer,
     GedcomError,
 };
 
@@ -25,23 +25,27 @@ impl UserReferenceNumber {
     /// # Errors
     ///
     /// This function will return an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<UserReferenceNumber, GedcomError> {
+    pub fn new(parser: &mut ParserData, level: u8) -> Result<UserReferenceNumber, GedcomError> {
         let mut refn = UserReferenceNumber::default();
-        refn.parse(tokenizer, level)?;
+        refn.parse(parser, level)?;
         Ok(refn)
     }
 }
 
 impl Parser for UserReferenceNumber {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
-        self.value = Some(tokenizer.take_line_value()?);
+    fn parse(&mut self, parser: &mut ParserData, level: u8) -> Result<(), GedcomError> {
+        self.value = Some(parser.tokenizer.take_line_value()?);
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, parser: &mut ParserData| -> Result<(), GedcomError> {
             match tag {
-                "TYPE" => self.user_reference_type = Some(tokenizer.take_line_value()?),
+                "TYPE" => self.user_reference_type = Some(parser.tokenizer.take_line_value()?),
                 _ => {
+                    if parser.config.ignore_unknown_tags {
+                        parser.tokenizer.take_line_value()?;
+                        return Ok(());
+                    }
                     return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
+                        line: parser.tokenizer.line,
                         message: format!("Unhandled UserReferenceNumber Tag: {tag}"),
                     })
                 }
@@ -49,7 +53,7 @@ impl Parser for UserReferenceNumber {
             Ok(())
         };
 
-        parse_subset(tokenizer, level, handle_subset)?;
+        parse_subset(parser, level, handle_subset)?;
 
         Ok(())
     }

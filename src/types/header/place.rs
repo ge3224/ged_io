@@ -1,6 +1,6 @@
 use crate::{
+    parser::ParserData,
     parser::{parse_subset, Parser},
-    tokenizer::Tokenizer,
     GedcomError,
 };
 #[cfg(feature = "json")]
@@ -40,24 +40,24 @@ impl HeadPlac {
     /// # Errors
     ///
     /// This function will return an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<HeadPlac, GedcomError> {
+    pub fn new(parser: &mut ParserData, level: u8) -> Result<HeadPlac, GedcomError> {
         let mut head_plac = HeadPlac::default();
-        head_plac.parse(tokenizer, level)?;
+        head_plac.parse(parser, level)?;
         Ok(head_plac)
     }
 }
 
 impl Parser for HeadPlac {
     /// parse handles the PLAC tag when present in header
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
+    fn parse(&mut self, parser: &mut ParserData, level: u8) -> Result<(), GedcomError> {
         // In the header, PLAC should have no payload. See
         // https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#HEAD-PLAC
-        tokenizer.next_token()?;
+        parser.tokenizer.next_token()?;
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, parser: &mut ParserData| -> Result<(), GedcomError> {
             match tag {
                 "FORM" => {
-                    let form = tokenizer.take_line_value()?;
+                    let form = parser.tokenizer.take_line_value()?;
                     let jurisdictional_titles = form.split(',');
 
                     for t in jurisdictional_titles {
@@ -66,15 +66,19 @@ impl Parser for HeadPlac {
                     }
                 }
                 _ => {
+                    if parser.config.ignore_unknown_tags {
+                        parser.tokenizer.take_line_value()?;
+                        return Ok(());
+                    }
                     return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
+                        line: parser.tokenizer.line,
                         message: format!("Unhandled HeadPlace Tag: {tag}"),
                     })
                 }
             }
             Ok(())
         };
-        parse_subset(tokenizer, level, handle_subset)?;
+        parse_subset(parser, level, handle_subset)?;
 
         Ok(())
     }

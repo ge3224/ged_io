@@ -2,8 +2,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    parser::ParserData,
     parser::{parse_subset, Parser},
-    tokenizer::Tokenizer,
     types::{custom::UserDefinedTag, note::Note, Xref},
     GedcomError,
 };
@@ -71,10 +71,10 @@ impl Citation {
     /// # Errors
     ///
     /// This function will return an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<Citation, GedcomError> {
-        let xref = tokenizer.take_line_value()?;
+    pub fn new(parser: &mut ParserData, level: u8) -> Result<Citation, GedcomError> {
+        let xref = parser.tokenizer.take_line_value()?;
         let mut rc = Citation::with_xref(xref);
-        rc.parse(tokenizer, level)?;
+        rc.parse(parser, level)?;
         Ok(rc)
     }
 
@@ -111,24 +111,30 @@ impl Citation {
 }
 
 impl Parser for Citation {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+    fn parse(&mut self, parser: &mut ParserData, level: u8) -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, parser: &mut ParserData| -> Result<(), GedcomError> {
             match tag {
                 "CALN" => {
-                    self.call_number = Some(tokenizer.take_line_value()?);
+                    self.call_number = Some(parser.tokenizer.take_line_value()?);
                     // MEDI can be a substructure of CALN in some GEDCOM versions
                 }
-                "MEDI" => self.media_type = Some(tokenizer.take_line_value()?),
-                "NOTE" => self.notes.push(Note::new(tokenizer, level + 1)?),
+                "MEDI" => self.media_type = Some(parser.tokenizer.take_line_value()?),
+                "NOTE" => self.notes.push(Note::new(parser, level + 1)?),
                 _ => {
-                    // Gracefully skip unknown tags
-                    tokenizer.take_line_value()?;
+                    if parser.config.ignore_unknown_tags {
+                        parser.tokenizer.take_line_value()?;
+                        return Ok(());
+                    }
+                    return Err(GedcomError::ParseError {
+                        line: parser.tokenizer.line,
+                        message: format!("Unhandled Citation Tag: {tag}"),
+                    })
                 }
             }
             Ok(())
         };
 
-        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
+        self.custom_data = parse_subset(parser, level, handle_subset)?;
 
         Ok(())
     }

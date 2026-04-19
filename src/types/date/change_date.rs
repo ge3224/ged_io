@@ -2,8 +2,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    parser::ParserData,
     parser::{parse_subset, Parser},
-    tokenizer::Tokenizer,
     types::{date::Date, note::Note},
     GedcomError,
 };
@@ -36,24 +36,28 @@ impl ChangeDate {
     /// # Errors
     ///
     /// This function will return an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<ChangeDate, GedcomError> {
+    pub fn new(parser: &mut ParserData, level: u8) -> Result<ChangeDate, GedcomError> {
         let mut date = ChangeDate::default();
-        date.parse(tokenizer, level)?;
+        date.parse(parser, level)?;
         Ok(date)
     }
 }
 
 impl Parser for ChangeDate {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
-        tokenizer.next_token()?;
+    fn parse(&mut self, parser: &mut ParserData, level: u8) -> Result<(), GedcomError> {
+        parser.tokenizer.next_token()?;
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, parser: &mut ParserData| -> Result<(), GedcomError> {
             match tag {
-                "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
-                "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
+                "DATE" => self.date = Some(Date::new(parser, level + 1)?),
+                "NOTE" => self.note = Some(Note::new(parser, level + 1)?),
                 _ => {
+                    if parser.config.ignore_unknown_tags {
+                        parser.tokenizer.take_line_value()?;
+                        return Ok(());
+                    }
                     return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
+                        line: parser.tokenizer.line,
                         message: format!("Unhandled ChangeDate Tag: {tag}"),
                     })
                 }
@@ -61,7 +65,7 @@ impl Parser for ChangeDate {
             Ok(())
         };
 
-        parse_subset(tokenizer, level, handle_subset)?;
+        parse_subset(parser, level, handle_subset)?;
 
         Ok(())
     }

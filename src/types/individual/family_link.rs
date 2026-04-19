@@ -6,8 +6,8 @@ pub mod pedigree;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    parser::ParserData,
     parser::{parse_subset, Parser},
-    tokenizer::Tokenizer,
     types::{
         custom::UserDefinedTag,
         individual::family_link::{
@@ -57,14 +57,14 @@ impl FamilyLink {
     /// # Errors
     ///
     /// This function will return an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8, tag: &str) -> Result<FamilyLink, GedcomError> {
-        let xref = tokenizer.take_line_value()?;
+    pub fn new(parser: &mut ParserData, level: u8, tag: &str) -> Result<FamilyLink, GedcomError> {
+        let xref = parser.tokenizer.take_line_value()?;
         let link_type = match tag {
             "FAMC" => FamilyLinkType::Child,
             "FAMS" => FamilyLinkType::Spouse,
             _ => {
                 return Err(GedcomError::ParseError {
-                    line: tokenizer.line,
+                    line: parser.tokenizer.line,
                     message: format!("Unhandled FamilyLinkType Tag: {tag}"),
                 })
             }
@@ -78,7 +78,7 @@ impl FamilyLink {
             note: None,
             custom_data: Vec::new(),
         };
-        family_link.parse(tokenizer, level)?;
+        family_link.parse(parser, level)?;
         Ok(family_link)
     }
 
@@ -160,24 +160,31 @@ impl FamilyLink {
 }
 
 impl Parser for FamilyLink {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+    fn parse(&mut self, parser: &mut ParserData, level: u8) -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, parser: &mut ParserData| -> Result<(), GedcomError> {
             match tag {
                 "PEDI" => {
-                    self.set_pedigree(tokenizer.take_line_value()?.as_str(), tokenizer.line)?;
+                    self.set_pedigree(
+                        parser.tokenizer.take_line_value()?.as_str(),
+                        parser.tokenizer.line,
+                    )?;
                 }
                 "STAT" => self.set_child_linkage_status(
-                    tokenizer.take_line_value()?.as_str(),
-                    tokenizer.line,
+                    parser.tokenizer.take_line_value()?.as_str(),
+                    parser.tokenizer.line,
                 )?,
-                "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
+                "NOTE" => self.note = Some(Note::new(parser, level + 1)?),
                 "ADOP" => self.set_adopted_by_which_parent(
-                    tokenizer.take_line_value()?.as_str(),
-                    tokenizer.line,
+                    parser.tokenizer.take_line_value()?.as_str(),
+                    parser.tokenizer.line,
                 )?,
                 _ => {
+                    if parser.config.ignore_unknown_tags {
+                        parser.tokenizer.take_line_value()?;
+                        return Ok(());
+                    }
                     return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
+                        line: parser.tokenizer.line,
                         message: format!("Unhandled FamilyLink Tag: {tag}"),
                     })
                 }
@@ -185,7 +192,7 @@ impl Parser for FamilyLink {
             Ok(())
         };
 
-        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
+        self.custom_data = parse_subset(parser, level, handle_subset)?;
 
         Ok(())
     }

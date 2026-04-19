@@ -2,8 +2,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    parser::ParserData,
     parser::{parse_subset, Parser},
-    tokenizer::Tokenizer,
     types::{date::Date, source::text::Text},
     GedcomError,
 };
@@ -25,27 +25,31 @@ impl SourceCitationData {
     /// # Errors
     ///
     /// This function will return an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<SourceCitationData, GedcomError> {
+    pub fn new(parser: &mut ParserData, level: u8) -> Result<SourceCitationData, GedcomError> {
         let mut data = SourceCitationData {
             date: None,
             text: None,
         };
-        data.parse(tokenizer, level)?;
+        data.parse(parser, level)?;
         Ok(data)
     }
 }
 
 impl Parser for SourceCitationData {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
+    fn parse(&mut self, parser: &mut ParserData, level: u8) -> Result<(), GedcomError> {
         // skip because this DATA tag should have now line value
-        tokenizer.next_token()?;
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        parser.tokenizer.next_token()?;
+        let handle_subset = |tag: &str, parser: &mut ParserData| -> Result<(), GedcomError> {
             match tag {
-                "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
-                "TEXT" => self.text = Some(Text::new(tokenizer, level + 1)?),
+                "DATE" => self.date = Some(Date::new(parser, level + 1)?),
+                "TEXT" => self.text = Some(Text::new(parser, level + 1)?),
                 _ => {
+                    if parser.config.ignore_unknown_tags {
+                        parser.tokenizer.take_line_value()?;
+                        return Ok(());
+                    }
                     return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
+                        line: parser.tokenizer.line,
                         message: format!("Unhandled SourceCitationData Tag: {tag}"),
                     })
                 }
@@ -53,7 +57,7 @@ impl Parser for SourceCitationData {
             Ok(())
         };
 
-        parse_subset(tokenizer, level, handle_subset)?;
+        parse_subset(parser, level, handle_subset)?;
 
         Ok(())
     }

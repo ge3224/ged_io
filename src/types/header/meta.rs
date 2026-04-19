@@ -1,6 +1,6 @@
 use crate::{
+    parser::ParserData,
     parser::{parse_subset, Parser},
-    tokenizer::Tokenizer,
     GedcomError,
 };
 #[cfg(feature = "json")]
@@ -24,27 +24,27 @@ impl HeadMeta {
     /// # Errors
     ///
     /// This function will return an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<HeadMeta, GedcomError> {
+    pub fn new(parser: &mut ParserData, level: u8) -> Result<HeadMeta, GedcomError> {
         let mut gedc = HeadMeta::default();
-        gedc.parse(tokenizer, level)?;
+        gedc.parse(parser, level)?;
         Ok(gedc)
     }
 }
 
 impl Parser for HeadMeta {
     /// parse handles parsing GEDC tag
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
+    fn parse(&mut self, parser: &mut ParserData, level: u8) -> Result<(), GedcomError> {
         // skip GEDC tag
-        tokenizer.next_token()?;
+        parser.tokenizer.next_token()?;
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, parser: &mut ParserData| -> Result<(), GedcomError> {
             match tag {
-                "VERS" => self.version = Some(tokenizer.take_line_value()?),
+                "VERS" => self.version = Some(parser.tokenizer.take_line_value()?),
                 "FORM" => {
-                    let form = tokenizer.take_line_value()?;
+                    let form = parser.tokenizer.take_line_value()?;
                     if form.to_uppercase() != "LINEAGE-LINKED" {
                         return Err(GedcomError::ParseError {
-                            line: tokenizer.line,
+                            line: parser.tokenizer.line,
                             message: format!(
                                 "Unrecognized GEDCOM form. Expected LINEAGE-LINKED, found {form}"
                             ),
@@ -52,10 +52,13 @@ impl Parser for HeadMeta {
                     }
                     self.form = Some(form);
                 }
-                // _ => panic!("{} Unhandled GEDC Tag: {}", tokenizer.debug(), tag),
                 _ => {
+                    if parser.config.ignore_unknown_tags {
+                        parser.tokenizer.take_line_value()?;
+                        return Ok(());
+                    }
                     return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
+                        line: parser.tokenizer.line,
                         message: format!("Unhandled HeadMeta Tag: {tag}"),
                     })
                 }
@@ -64,7 +67,7 @@ impl Parser for HeadMeta {
             Ok(())
         };
 
-        parse_subset(tokenizer, level, handle_subset)?;
+        parse_subset(parser, level, handle_subset)?;
 
         Ok(())
     }

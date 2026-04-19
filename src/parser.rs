@@ -4,10 +4,17 @@
 //! Functions are optimized with inline hints for performance-critical paths.
 
 use crate::{
+    ParserConfig,
     tokenizer::{Token, Tokenizer, TokenizerTrait},
     types::custom::UserDefinedTag,
     GedcomError,
 };
+
+/// Tokenizer and Parser
+pub struct ParserData<'a> {
+    pub(crate) tokenizer: Tokenizer<'a>,
+    pub(crate) config: ParserConfig,
+}
 
 /// Defines shared parsing functionality for GEDCOM records.
 pub trait Parser {
@@ -16,7 +23,7 @@ pub trait Parser {
     /// # Errors
     ///
     /// This function will return an error if parsing fails.
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError>;
+    fn parse(&mut self, parser: &mut ParserData, level: u8) -> Result<(), GedcomError>;
 }
 
 /// Defines shared parsing functionality for GEDCOM records with any tokenizer.
@@ -45,45 +52,45 @@ pub trait StreamParser {
 /// Returns a `GedcomError` if an unhandled token is encountered or if `UserDefinedTag::new` fails.
 #[inline]
 pub fn parse_subset<F>(
-    tokenizer: &mut Tokenizer,
+    parser: &mut ParserData,
     level: u8,
     mut tag_handler: F,
 ) -> Result<Vec<Box<UserDefinedTag>>, GedcomError>
 where
-    F: FnMut(&str, &mut Tokenizer) -> Result<(), GedcomError>,
+    F: FnMut(&str, &mut ParserData) -> Result<(), GedcomError>,
 {
     let mut non_standard_dataset = Vec::new();
     loop {
-        if let Token::Level(curl_level) = tokenizer.current_token {
+        if let Token::Level(curl_level) = parser.tokenizer.current_token {
             if curl_level <= level {
                 break;
             }
         }
 
-        match &tokenizer.current_token {
+        match &parser.tokenizer.current_token {
             Token::Tag(tag) => {
                 let tag_clone = tag.clone();
-                tag_handler(tag_clone.as_ref(), tokenizer)?;
+                tag_handler(tag_clone.as_ref(), parser)?;
             }
             Token::CustomTag(tag) => {
                 let tag_clone = tag.clone();
                 non_standard_dataset.push(Box::new(UserDefinedTag::new(
-                    tokenizer,
+                    parser,
                     level + 1,
                     &tag_clone,
                 )?));
             }
-            Token::Level(_) => tokenizer.next_token()?,
+            Token::Level(_) => parser.tokenizer.next_token()?,
             Token::LineValue(_) => {
                 // Be permissive: some files contain stray empty values where a tag is expected.
                 // Skip and continue parsing at the same level.
-                tokenizer.next_token()?;
+                parser.tokenizer.next_token()?;
             }
             Token::EOF => break,
             _ => {
                 return Err(GedcomError::ParseError {
-                    line: tokenizer.line,
-                    message: format!("Unhandled Token: {:?}", tokenizer.current_token),
+                    line: parser.tokenizer.line,
+                    message: format!("Unhandled Token: {:?}", parser.tokenizer.current_token),
                 })
             }
         }
@@ -100,49 +107,49 @@ where
 ///
 /// # Errors
 ///
-/// Returns a `GedcomError` if an unhandled token is encountered or if `UserDefinedTag::new_from_tokenizer` fails.
+/// Returns a `GedcomError` if an unhandled token is encountered or if `UserDefinedTag::new_from_parser` fails.
 #[inline]
 pub fn parse_subset_stream<T, F>(
-    tokenizer: &mut T,
+    parser: &mut ParserData,
     level: u8,
     mut tag_handler: F,
 ) -> Result<Vec<Box<UserDefinedTag>>, GedcomError>
 where
     T: TokenizerTrait,
-    F: FnMut(&str, &mut T) -> Result<(), GedcomError>,
+    F: FnMut(&str, &mut ParserData) -> Result<(), GedcomError>,
 {
     let mut non_standard_dataset = Vec::new();
     loop {
-        if let Token::Level(curl_level) = tokenizer.current_token() {
+        if let Token::Level(curl_level) = parser.tokenizer.current_token() {
             if *curl_level <= level {
                 break;
             }
         }
 
-        match tokenizer.current_token() {
+        match parser.tokenizer.current_token() {
             Token::Tag(tag) => {
                 let tag_clone = tag.clone();
-                tag_handler(tag_clone.as_ref(), tokenizer)?;
+                tag_handler(tag_clone.as_ref(), parser)?;
             }
             Token::CustomTag(tag) => {
                 let tag_clone = tag.clone();
-                non_standard_dataset.push(Box::new(UserDefinedTag::new_from_tokenizer(
-                    tokenizer,
+                non_standard_dataset.push(Box::new(UserDefinedTag::new_from_parser(
+                    parser,
                     level + 1,
                     &tag_clone,
                 )?));
             }
-            Token::Level(_) => tokenizer.next_token()?,
+            Token::Level(_) => parser.tokenizer.next_token()?,
             Token::LineValue(_) => {
                 // Be permissive: some files contain stray empty values where a tag is expected.
                 // Skip and continue parsing at the same level.
-                tokenizer.next_token()?;
+                parser.tokenizer.next_token()?;
             }
             Token::EOF => break,
             _ => {
                 return Err(GedcomError::ParseError {
-                    line: tokenizer.line(),
-                    message: format!("Unhandled Token: {:?}", tokenizer.current_token()),
+                    line: parser.tokenizer.line(),
+                    message: format!("Unhandled Token: {:?}", parser.tokenizer.current_token()),
                 })
             }
         }

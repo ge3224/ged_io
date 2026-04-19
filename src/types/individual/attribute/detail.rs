@@ -2,8 +2,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    parser::{parse_subset, Parser},
-    tokenizer::{Token, Tokenizer},
+    parser::{parse_subset, Parser, ParserData},
+    tokenizer::Token,
     types::{
         address::Address, age::Age, date::Date, individual::attribute::IndividualAttribute,
         note::Note, place::Place, source::citation::Citation,
@@ -67,12 +67,12 @@ impl AttributeDetail {
     ///
     /// This function will return an error if parsing fails.
     pub fn new(
-        tokenizer: &mut Tokenizer,
+        parser: &mut ParserData,
         level: u8,
         tag: &str,
     ) -> Result<AttributeDetail, GedcomError> {
         let mut attribute = AttributeDetail {
-            attribute: Self::from_tag(tag, tokenizer.line)?,
+            attribute: Self::from_tag(tag, parser.tokenizer.line)?,
             place: None,
             value: None,
             date: None,
@@ -85,16 +85,10 @@ impl AttributeDetail {
             cause: None,
             agency: None,
         };
-        attribute.parse(tokenizer, level)?;
+        attribute.parse(parser, level)?;
         Ok(attribute)
     }
 
-    /// # Panics
-    ///
-    /// Will panic when encountering an unrecognized tag
-    /// Creates a new `IndividualAttribute` from a tag.
-    ///
-    /// # Errors
     ///
     /// This function will return an error if the tag is unrecognized.
     pub fn from_tag(tag: &str, line_number: u32) -> Result<IndividualAttribute, GedcomError> {
@@ -113,7 +107,6 @@ impl AttributeDetail {
             "SSN" => IndividualAttribute::SocialSecurityNumber,
             "TITL" => IndividualAttribute::NobilityTypeTitle,
             "FACT" => IndividualAttribute::Fact,
-            // _ => panic!("Unrecognized IndividualAttribute tag: {tag}"),
             _ => {
                 return Err(GedcomError::ParseError {
                     line: line_number,
@@ -131,38 +124,46 @@ impl AttributeDetail {
 }
 
 impl Parser for AttributeDetail {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
-        tokenizer.next_token()?;
+    fn parse(&mut self, parser: &mut ParserData, level: u8) -> Result<(), GedcomError> {
+        parser.tokenizer.next_token()?;
 
         let mut value = String::new();
 
-        if let Token::LineValue(val) = &tokenizer.current_token {
+        if let Token::LineValue(val) = &parser.tokenizer.current_token {
             value.push_str(val);
-            tokenizer.next_token()?;
+            parser.tokenizer.next_token()?;
         }
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, parser: &mut ParserData| -> Result<(), GedcomError> {
             match tag {
-                "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
-                "SOUR" => self.add_source_citation(Citation::new(tokenizer, level + 1)?),
-                "PLAC" => self.place = Some(Place::new(tokenizer, level + 1)?),
-                "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
-                "TYPE" => self.attribute_type = Some(tokenizer.take_continued_text(level + 1)?),
-                "RESN" => self.restriction = Some(tokenizer.take_line_value()?),
-                "AGE" => self.age = Some(Age::new(tokenizer, level + 1)?),
-                "ADDR" => self.address = Some(Address::new(tokenizer, level + 1)?),
-                "CAUS" => self.cause = Some(tokenizer.take_continued_text(level + 1)?),
-                "AGNC" => self.agency = Some(tokenizer.take_line_value()?),
+                "DATE" => self.date = Some(Date::new(parser, level + 1)?),
+                "SOUR" => self.add_source_citation(Citation::new(parser, level + 1)?),
+                "PLAC" => self.place = Some(Place::new(parser, level + 1)?),
+                "NOTE" => self.note = Some(Note::new(parser, level + 1)?),
+                "TYPE" => {
+                    self.attribute_type = Some(parser.tokenizer.take_continued_text(level + 1)?);
+                }
+                "RESN" => self.restriction = Some(parser.tokenizer.take_line_value()?),
+                "AGE" => self.age = Some(Age::new(parser, level + 1)?),
+                "ADDR" => self.address = Some(Address::new(parser, level + 1)?),
+                "CAUS" => self.cause = Some(parser.tokenizer.take_continued_text(level + 1)?),
+                "AGNC" => self.agency = Some(parser.tokenizer.take_line_value()?),
                 _ => {
-                    // Gracefully skip unknown tags instead of failing
-                    tokenizer.take_line_value()?;
+                    if parser.config.ignore_unknown_tags {
+                        parser.tokenizer.take_line_value()?;
+                        return Ok(());
+                    }
+                    return Err(GedcomError::ParseError {
+                        line: parser.tokenizer.line,
+                        message: format!("Unhandled AttributeDetail Tag: {tag}"),
+                    })
                 }
             }
 
             Ok(())
         };
 
-        parse_subset(tokenizer, level, handle_subset)?;
+        parse_subset(parser, level, handle_subset)?;
 
         if !value.is_empty() {
             self.value = Some(value);

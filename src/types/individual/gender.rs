@@ -2,8 +2,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    parser::{parse_subset, Parser},
-    tokenizer::{Token, Tokenizer},
+    parser::{parse_subset, Parser, ParserData},
+    tokenizer::Token,
     types::{custom::UserDefinedTag, source::citation::Citation},
     GedcomError,
 };
@@ -48,14 +48,14 @@ impl Gender {
     /// # Errors
     ///
     /// This function will return an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<Gender, GedcomError> {
+    pub fn new(parser: &mut ParserData, level: u8) -> Result<Gender, GedcomError> {
         let mut sex = Gender {
             value: GenderType::Unknown,
             fact: None,
             sources: Vec::new(),
             custom_data: Vec::new(),
         };
-        sex.parse(tokenizer, level)?;
+        sex.parse(parser, level)?;
         Ok(sex)
     }
 
@@ -65,10 +65,10 @@ impl Gender {
 }
 
 impl Parser for Gender {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
-        tokenizer.next_token()?;
+    fn parse(&mut self, parser: &mut ParserData, level: u8) -> Result<(), GedcomError> {
+        parser.tokenizer.next_token()?;
 
-        if let Token::LineValue(gender_string) = &tokenizer.current_token {
+        if let Token::LineValue(gender_string) = &parser.tokenizer.current_token {
             self.value = match gender_string.as_ref() {
                 "M" => GenderType::Male,
                 "F" => GenderType::Female,
@@ -76,21 +76,25 @@ impl Parser for Gender {
                 "U" => GenderType::Unknown,
                 _ => {
                     return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
+                        line: parser.tokenizer.line,
                         message: format!("Unknown gender value {gender_string}"),
                     })
                 }
             };
-            tokenizer.next_token()?;
+            parser.tokenizer.next_token()?;
         }
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, parser: &mut ParserData| -> Result<(), GedcomError> {
             match tag {
-                "FACT" => self.fact = Some(tokenizer.take_continued_text(level + 1)?),
-                "SOUR" => self.add_source_citation(Citation::new(tokenizer, level + 1)?),
+                "FACT" => self.fact = Some(parser.tokenizer.take_continued_text(level + 1)?),
+                "SOUR" => self.add_source_citation(Citation::new(parser, level + 1)?),
                 _ => {
+                    if parser.config.ignore_unknown_tags {
+                        parser.tokenizer.take_line_value()?;
+                        return Ok(());
+                    }
                     return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
+                        line: parser.tokenizer.line,
                         message: format!("Unhandled Gender Tag: {tag}"),
                     })
                 }
@@ -98,7 +102,7 @@ impl Parser for Gender {
             Ok(())
         };
 
-        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
+        self.custom_data = parse_subset(parser, level, handle_subset)?;
 
         Ok(())
     }

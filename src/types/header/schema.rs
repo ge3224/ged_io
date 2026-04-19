@@ -16,8 +16,8 @@
 //! See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#SCHMA>
 
 use crate::{
+    parser::ParserData,
     parser::{parse_subset, Parser},
-    tokenizer::Tokenizer,
     types::custom::UserDefinedTag,
     GedcomError,
 };
@@ -140,9 +140,9 @@ impl Schema {
     /// # Errors
     ///
     /// Returns an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<Schema, GedcomError> {
+    pub fn new(parser: &mut ParserData, level: u8) -> Result<Schema, GedcomError> {
         let mut schema = Schema::default();
-        schema.parse(tokenizer, level)?;
+        schema.parse(parser, level)?;
         Ok(schema)
     }
 
@@ -204,22 +204,26 @@ impl Schema {
 
 impl Parser for Schema {
     /// Parses SCHMA structure from tokens.
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
+    fn parse(&mut self, parser: &mut ParserData, level: u8) -> Result<(), GedcomError> {
         // Skip over SCHMA tag name
-        tokenizer.next_token()?;
+        parser.tokenizer.next_token()?;
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, parser: &mut ParserData| -> Result<(), GedcomError> {
             match tag {
                 "TAG" => {
-                    let payload = tokenizer.take_line_value()?;
+                    let payload = parser.tokenizer.take_line_value()?;
                     if let Some(definition) = TagDefinition::from_payload(&payload) {
                         self.tag_definitions.push(definition);
                     }
                     // Skip any substructures of TAG (none expected, but be tolerant)
                 }
                 _ => {
+                    if parser.config.ignore_unknown_tags {
+                        parser.tokenizer.take_line_value()?;
+                        return Ok(());
+                    }
                     return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
+                        line: parser.tokenizer.line,
                         message: format!("Unhandled Schema Tag: {tag}"),
                     })
                 }
@@ -227,7 +231,7 @@ impl Parser for Schema {
             Ok(())
         };
 
-        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
+        self.custom_data = parse_subset(parser, level, handle_subset)?;
 
         Ok(())
     }

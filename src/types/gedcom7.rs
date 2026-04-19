@@ -12,8 +12,8 @@
 //! See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html>
 
 use crate::{
+    parser::ParserData,
     parser::{parse_subset, Parser},
-    tokenizer::Tokenizer,
     types::{date::Date, note::Note},
     GedcomError,
 };
@@ -60,9 +60,9 @@ impl SortDate {
     /// # Errors
     ///
     /// Returns an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<SortDate, GedcomError> {
+    pub fn new(parser: &mut ParserData, level: u8) -> Result<SortDate, GedcomError> {
         let mut sort_date = SortDate::default();
-        sort_date.parse(tokenizer, level)?;
+        sort_date.parse(parser, level)?;
         Ok(sort_date)
     }
 
@@ -77,23 +77,27 @@ impl SortDate {
 }
 
 impl Parser for SortDate {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
-        self.value = Some(tokenizer.take_line_value()?);
+    fn parse(&mut self, parser: &mut ParserData, level: u8) -> Result<(), GedcomError> {
+        self.value = Some(parser.tokenizer.take_line_value()?);
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, parser: &mut ParserData| -> Result<(), GedcomError> {
             match tag {
-                "TIME" => self.time = Some(tokenizer.take_line_value()?),
-                "PHRASE" => self.phrase = Some(tokenizer.take_line_value()?),
+                "TIME" => self.time = Some(parser.tokenizer.take_line_value()?),
+                "PHRASE" => self.phrase = Some(parser.tokenizer.take_line_value()?),
                 _ => {
+                    if parser.config.ignore_unknown_tags {
+                        parser.tokenizer.take_line_value()?;
+                        return Ok(());
+                    }
                     return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
+                        line: parser.tokenizer.line,
                         message: format!("Unhandled SortDate Tag: {tag}"),
                     })
                 }
             }
             Ok(())
         };
-        parse_subset(tokenizer, level, handle_subset)?;
+        parse_subset(parser, level, handle_subset)?;
         Ok(())
     }
 }
@@ -128,23 +132,23 @@ impl CreationDate {
     /// # Errors
     ///
     /// Returns an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<CreationDate, GedcomError> {
+    pub fn new(parser: &mut ParserData, level: u8) -> Result<CreationDate, GedcomError> {
         let mut creation_date = CreationDate::default();
-        creation_date.parse(tokenizer, level)?;
+        creation_date.parse(parser, level)?;
         Ok(creation_date)
     }
 }
 
 impl Parser for CreationDate {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
-        tokenizer.next_token()?;
+    fn parse(&mut self, parser: &mut ParserData, level: u8) -> Result<(), GedcomError> {
+        parser.tokenizer.next_token()?;
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, parser: &mut ParserData| -> Result<(), GedcomError> {
             match tag {
-                "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
+                "DATE" => self.date = Some(Date::new(parser, level + 1)?),
                 _ => {
                     return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
+                        line: parser.tokenizer.line,
                         message: format!("Unhandled CreationDate Tag: {tag}"),
                     })
                 }
@@ -152,7 +156,7 @@ impl Parser for CreationDate {
             Ok(())
         };
 
-        parse_subset(tokenizer, level, handle_subset)?;
+        parse_subset(parser, level, handle_subset)?;
 
         Ok(())
     }
@@ -204,9 +208,9 @@ impl Crop {
     /// # Errors
     ///
     /// Returns an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<Crop, GedcomError> {
+    pub fn new(parser: &mut ParserData, level: u8) -> Result<Crop, GedcomError> {
         let mut crop = Crop::default();
-        crop.parse(tokenizer, level)?;
+        crop.parse(parser, level)?;
         Ok(crop)
     }
 
@@ -253,15 +257,15 @@ impl Crop {
 }
 
 impl Parser for Crop {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
-        tokenizer.next_token()?;
+    fn parse(&mut self, parser: &mut ParserData, level: u8) -> Result<(), GedcomError> {
+        parser.tokenizer.next_token()?;
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
-            let value_str = tokenizer.take_line_value()?;
+        let handle_subset = |tag: &str, parser: &mut ParserData| -> Result<(), GedcomError> {
+            let value_str = parser.tokenizer.take_line_value()?;
             let value: f32 = value_str
                 .parse()
                 .map_err(|_| GedcomError::InvalidValueFormat {
-                    line: tokenizer.line as usize,
+                    line: parser.tokenizer.line as usize,
                     value: value_str.clone(),
                     expected_format: "numeric value (0-100)".to_string(),
                 })?;
@@ -273,7 +277,7 @@ impl Parser for Crop {
                 "WIDTH" => self.width = Some(value),
                 _ => {
                     return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
+                        line: parser.tokenizer.line,
                         message: format!("Unhandled Crop Tag: {tag}"),
                     })
                 }
@@ -281,7 +285,7 @@ impl Parser for Crop {
             Ok(())
         };
 
-        parse_subset(tokenizer, level, handle_subset)?;
+        parse_subset(parser, level, handle_subset)?;
 
         Ok(())
     }
@@ -331,9 +335,9 @@ impl NonEvent {
     /// # Errors
     ///
     /// Returns an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<NonEvent, GedcomError> {
+    pub fn new(parser: &mut ParserData, level: u8) -> Result<NonEvent, GedcomError> {
         let mut non_event = NonEvent::default();
-        non_event.parse(tokenizer, level)?;
+        non_event.parse(parser, level)?;
         Ok(non_event)
     }
 
@@ -368,24 +372,28 @@ impl NonEvent {
 }
 
 impl Parser for NonEvent {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
+    fn parse(&mut self, parser: &mut ParserData, level: u8) -> Result<(), GedcomError> {
         // The event type is the line value of the NO tag
-        self.event_type = tokenizer.take_line_value()?;
+        self.event_type = parser.tokenizer.take_line_value()?;
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, parser: &mut ParserData| -> Result<(), GedcomError> {
             match tag {
-                "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
-                "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
+                "DATE" => self.date = Some(Date::new(parser, level + 1)?),
+                "NOTE" => self.note = Some(Note::new(parser, level + 1)?),
                 "SOUR" => {
                     self.source_citations
                         .push(crate::types::source::citation::Citation::new(
-                            tokenizer,
+                            parser,
                             level + 1,
                         )?);
                 }
                 _ => {
+                    if parser.config.ignore_unknown_tags {
+                        parser.tokenizer.take_line_value()?;
+                        return Ok(());
+                    }
                     return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
+                        line: parser.tokenizer.line,
                         message: format!("Unhandled NonEvent Tag: {tag}"),
                     })
                 }
@@ -393,7 +401,7 @@ impl Parser for NonEvent {
             Ok(())
         };
 
-        parse_subset(tokenizer, level, handle_subset)?;
+        parse_subset(parser, level, handle_subset)?;
 
         Ok(())
     }
@@ -428,9 +436,9 @@ impl Phrase {
     /// # Errors
     ///
     /// Returns an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, _level: u8) -> Result<Phrase, GedcomError> {
+    pub fn new(parser: &mut ParserData, _level: u8) -> Result<Phrase, GedcomError> {
         Ok(Phrase {
-            value: tokenizer.take_line_value()?,
+            value: parser.tokenizer.take_line_value()?,
         })
     }
 

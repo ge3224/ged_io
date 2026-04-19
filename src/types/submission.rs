@@ -1,6 +1,6 @@
 use crate::{
+    parser::ParserData,
     parser::{parse_subset, Parser},
-    tokenizer::Tokenizer,
     types::{custom::UserDefinedTag, date::change_date::ChangeDate, note::Note, Xref},
     GedcomError,
 };
@@ -89,34 +89,38 @@ impl Submission {
     /// This function will return an error if parsing fails.
     #[allow(clippy::double_must_use)]
     pub fn new(
-        tokenizer: &mut Tokenizer,
+        parser: &mut ParserData,
         level: u8,
         xref: Option<Xref>,
     ) -> Result<Submission, GedcomError> {
         let mut subn = Submission::with_xref(xref);
-        subn.parse(tokenizer, level)?;
+        subn.parse(parser, level)?;
         Ok(subn)
     }
 }
 
 impl Parser for Submission {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
-        tokenizer.next_token()?;
+    fn parse(&mut self, parser: &mut ParserData, level: u8) -> Result<(), GedcomError> {
+        parser.tokenizer.next_token()?;
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, parser: &mut ParserData| -> Result<(), GedcomError> {
             match tag {
-                "ANCE" => self.ancestor_generations = Some(tokenizer.take_line_value()?),
-                "CHAN" => self.change_date = Some(ChangeDate::new(tokenizer, level + 1)?),
-                "DESC" => self.descendant_generations = Some(tokenizer.take_line_value()?),
-                "FAMF" => self.family_file_name = Some(tokenizer.take_line_value()?),
-                "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
-                "ORDI" => self.ordinance_process_flag = Some(tokenizer.take_line_value()?),
-                "RIN" => self.automated_record_id = Some(tokenizer.take_line_value()?),
-                "SUBM" => self.submitter_ref = Some(tokenizer.take_line_value()?),
-                "TEMP" => self.temple_code = Some(tokenizer.take_line_value()?),
+                "ANCE" => self.ancestor_generations = Some(parser.tokenizer.take_line_value()?),
+                "CHAN" => self.change_date = Some(ChangeDate::new(parser, level + 1)?),
+                "DESC" => self.descendant_generations = Some(parser.tokenizer.take_line_value()?),
+                "FAMF" => self.family_file_name = Some(parser.tokenizer.take_line_value()?),
+                "NOTE" => self.note = Some(Note::new(parser, level + 1)?),
+                "ORDI" => self.ordinance_process_flag = Some(parser.tokenizer.take_line_value()?),
+                "RIN" => self.automated_record_id = Some(parser.tokenizer.take_line_value()?),
+                "SUBM" => self.submitter_ref = Some(parser.tokenizer.take_line_value()?),
+                "TEMP" => self.temple_code = Some(parser.tokenizer.take_line_value()?),
                 _ => {
+                    if parser.config.ignore_unknown_tags {
+                        parser.tokenizer.take_line_value()?;
+                        return Ok(());
+                    }
                     return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
+                        line: parser.tokenizer.line,
                         message: format!("Unhandled Submission Tag: {tag}"),
                     })
                 }
@@ -124,7 +128,7 @@ impl Parser for Submission {
             Ok(())
         };
 
-        self.custom = parse_subset(tokenizer, level, handle_subset)?;
+        self.custom = parse_subset(parser, level, handle_subset)?;
 
         Ok(())
     }

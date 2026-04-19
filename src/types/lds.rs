@@ -24,8 +24,8 @@
 //! See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#LDS_INDIVIDUAL_ORDINANCE>
 
 use crate::{
+    parser::ParserData,
     parser::{parse_subset, Parser},
-    tokenizer::Tokenizer,
     types::{date::Date, note::Note, source::citation::Citation},
     GedcomError,
 };
@@ -248,16 +248,12 @@ impl LdsOrdinance {
     /// # Errors
     ///
     /// Returns an error if parsing fails.
-    pub fn new(
-        tokenizer: &mut Tokenizer,
-        level: u8,
-        tag: &str,
-    ) -> Result<LdsOrdinance, GedcomError> {
+    pub fn new(parser: &mut ParserData, level: u8, tag: &str) -> Result<LdsOrdinance, GedcomError> {
         let mut ordinance = LdsOrdinance {
             ordinance_type: LdsOrdinanceType::from_tag(tag),
             ..Default::default()
         };
-        ordinance.parse(tokenizer, level)?;
+        ordinance.parse(parser, level)?;
         Ok(ordinance)
     }
 
@@ -317,27 +313,31 @@ impl LdsOrdinance {
 }
 
 impl Parser for LdsOrdinance {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
+    fn parse(&mut self, parser: &mut ParserData, level: u8) -> Result<(), GedcomError> {
         // Skip over the ordinance tag
-        tokenizer.next_token()?;
+        parser.tokenizer.next_token()?;
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, parser: &mut ParserData| -> Result<(), GedcomError> {
             match tag {
-                "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
-                "TEMP" => self.temple = Some(tokenizer.take_line_value()?),
+                "DATE" => self.date = Some(Date::new(parser, level + 1)?),
+                "TEMP" => self.temple = Some(parser.tokenizer.take_line_value()?),
                 "STAT" => {
-                    let status_str = tokenizer.take_line_value()?;
+                    let status_str = parser.tokenizer.take_line_value()?;
                     self.status = LdsOrdinanceStatus::parse(&status_str);
                 }
-                "FAMC" => self.family_xref = Some(tokenizer.take_line_value()?),
-                "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
+                "FAMC" => self.family_xref = Some(parser.tokenizer.take_line_value()?),
+                "NOTE" => self.note = Some(Note::new(parser, level + 1)?),
                 "SOUR" => {
                     self.source_citations
-                        .push(Citation::new(tokenizer, level + 1)?);
+                        .push(Citation::new(parser, level + 1)?);
                 }
                 _ => {
+                    if parser.config.ignore_unknown_tags {
+                        parser.tokenizer.take_line_value()?;
+                        return Ok(());
+                    }
                     return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
+                        line: parser.tokenizer.line,
                         message: format!("Unhandled LDS Ordinance Tag: {tag}"),
                     })
                 }
@@ -345,7 +345,7 @@ impl Parser for LdsOrdinance {
             Ok(())
         };
 
-        parse_subset(tokenizer, level, handle_subset)?;
+        parse_subset(parser, level, handle_subset)?;
 
         Ok(())
     }

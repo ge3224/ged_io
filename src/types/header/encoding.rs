@@ -1,6 +1,6 @@
 use crate::{
+    parser::ParserData,
     parser::{parse_subset, Parser},
-    tokenizer::Tokenizer,
     types::source::citation::Citation,
     GedcomError,
 };
@@ -26,32 +26,38 @@ impl Encoding {
     /// # Errors
     ///
     /// This function will return an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<Encoding, GedcomError> {
+    pub fn new(parser: &mut ParserData, level: u8) -> Result<Encoding, GedcomError> {
         let mut chars = Encoding::default();
-        chars.parse(tokenizer, level)?;
+        chars.parse(parser, level)?;
         Ok(chars)
     }
 }
 
 impl Parser for Encoding {
     /// parse handles the parsing of the CHARS tag
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
-        self.value = Some(tokenizer.take_line_value()?);
+    fn parse(&mut self, parser: &mut ParserData, level: u8) -> Result<(), GedcomError> {
+        self.value = Some(parser.tokenizer.take_line_value()?);
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, parser: &mut ParserData| -> Result<(), GedcomError> {
             match tag {
-                "VERS" => self.version = Some(tokenizer.take_line_value()?),
+                "VERS" => self.version = Some(parser.tokenizer.take_line_value()?),
                 // SOUR is non-standard but used by some generators (e.g., Geneanet/GeneWeb)
-                "SOUR" => self.source = Some(Citation::new(tokenizer, level + 1)?),
+                "SOUR" => self.source = Some(Citation::new(parser, level + 1)?),
                 _ => {
-                    // Gracefully skip unknown tags instead of failing
-                    tokenizer.take_line_value()?;
+                    if parser.config.ignore_unknown_tags {
+                        parser.tokenizer.take_line_value()?;
+                        return Ok(());
+                    }
+                    return Err(GedcomError::ParseError {
+                        line: parser.tokenizer.line,
+                        message: format!("Unhandled Encoding Tag: {tag}"),
+                    })
                 }
             }
             Ok(())
         };
 
-        parse_subset(tokenizer, level, handle_subset)?;
+        parse_subset(parser, level, handle_subset)?;
 
         Ok(())
     }

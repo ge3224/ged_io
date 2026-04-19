@@ -1,7 +1,7 @@
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 
-use crate::{parser::parse_subset, tokenizer::Tokenizer, GedcomError};
+use crate::{parser::{parse_subset, ParserData}, GedcomError};
 
 /// The age of the individual at the time an event occurred, or the age listed in a document.
 ///
@@ -34,8 +34,8 @@ impl Age {
     /// # Errors
     ///
     /// Returns `GedcomError::ParseError` if the value is not a valid age.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<Age, GedcomError> {
-        let value = &tokenizer.take_line_value()?;
+    pub fn new(parser: &mut ParserData, level: u8) -> Result<Age, GedcomError> {
+        let value = &parser.tokenizer.take_line_value()?;
 
         let mut age = match value.as_str() {
             "CHILD" => Age::Child,
@@ -71,7 +71,7 @@ impl Age {
 
                 if years.is_none() && months.is_none() && weeks.is_none() && days.is_none() {
                     return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
+                        line: parser.tokenizer.line,
                         message: format!("Invalid AGE value: {value}"),
                     });
                 }
@@ -87,10 +87,10 @@ impl Age {
             }
         };
 
-        parse_subset(tokenizer, level, |tag, handler| {
+        parse_subset(parser, level, |tag, parser| {
             if tag == "PHRASE" {
                 if let Age::Numeric { ref mut phrase, .. } = age {
-                    *phrase = Some(handler.take_line_value()?);
+                    *phrase = Some(parser.tokenizer.take_line_value()?);
                 }
             }
             Ok(())

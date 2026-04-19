@@ -1,6 +1,6 @@
 use crate::{
-    parser::{parse_subset, Parser},
-    tokenizer::{Token, Tokenizer},
+    parser::{parse_subset, Parser, ParserData},
+    tokenizer::Token,
     types::{
         address::Address, custom::UserDefinedTag, date::change_date::ChangeDate,
         multimedia::link::Link, note::Note, Xref,
@@ -77,12 +77,12 @@ impl Submitter {
     /// This function will return an error if parsing fails.
     #[allow(clippy::double_must_use)]
     pub fn new(
-        tokenizer: &mut Tokenizer,
+        parser: &mut ParserData,
         level: u8,
         xref: Option<Xref>,
     ) -> Result<Submitter, GedcomError> {
         let mut subm = Submitter::with_xref(xref);
-        subm.parse(tokenizer, level)?;
+        subm.parse(parser, level)?;
         Ok(subm)
     }
 
@@ -94,41 +94,47 @@ impl Submitter {
 
 impl Parser for Submitter {
     /// Parse handles SUBM top-level tag
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
+    fn parse(&mut self, parser: &mut ParserData, level: u8) -> Result<(), GedcomError> {
         // skip over SUBM tag name
-        tokenizer.next_token()?;
+        parser.tokenizer.next_token()?;
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, parser: &mut ParserData| -> Result<(), GedcomError> {
             let mut pointer: Option<String> = None;
-            if let Token::Pointer(xref) = &tokenizer.current_token {
+            if let Token::Pointer(xref) = &parser.tokenizer.current_token {
                 pointer = Some(xref.to_string());
-                tokenizer.next_token()?;
+                parser.tokenizer.next_token()?;
             }
             match tag {
-                "NAME" => self.name = Some(tokenizer.take_line_value()?),
-                "ADDR" => self.address = Some(Address::new(tokenizer, level + 1)?),
-                "OBJE" => self.add_multimedia(Link::new(tokenizer, level + 1, pointer)?),
-                "LANG" => self.language = Some(tokenizer.take_line_value()?),
-                "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
-                "CHAN" => self.change_date = Some(ChangeDate::new(tokenizer, level + 1)?),
-                "PHON" => self.phone.push(tokenizer.take_line_value()?),
-                "EMAIL" => self.email.push(tokenizer.take_line_value()?),
-                "FAX" => self.fax.push(tokenizer.take_line_value()?),
-                "WWW" => self.website.push(tokenizer.take_line_value()?),
-                "UID" => self.uid = Some(tokenizer.take_line_value()?),
-                "RIN" => self.automated_record_id = Some(tokenizer.take_line_value()?),
-                "RFN" => self.registered_refn = Some(tokenizer.take_line_value()?),
-                "REFN" => self.user_reference_number = Some(tokenizer.take_line_value()?),
+                "NAME" => self.name = Some(parser.tokenizer.take_line_value()?),
+                "ADDR" => self.address = Some(Address::new(parser, level + 1)?),
+                "OBJE" => self.add_multimedia(Link::new(parser, level + 1, pointer)?),
+                "LANG" => self.language = Some(parser.tokenizer.take_line_value()?),
+                "NOTE" => self.note = Some(Note::new(parser, level + 1)?),
+                "CHAN" => self.change_date = Some(ChangeDate::new(parser, level + 1)?),
+                "PHON" => self.phone.push(parser.tokenizer.take_line_value()?),
+                "EMAIL" => self.email.push(parser.tokenizer.take_line_value()?),
+                "FAX" => self.fax.push(parser.tokenizer.take_line_value()?),
+                "WWW" => self.website.push(parser.tokenizer.take_line_value()?),
+                "UID" => self.uid = Some(parser.tokenizer.take_line_value()?),
+                "RIN" => self.automated_record_id = Some(parser.tokenizer.take_line_value()?),
+                "RFN" => self.registered_refn = Some(parser.tokenizer.take_line_value()?),
+                "REFN" => self.user_reference_number = Some(parser.tokenizer.take_line_value()?),
                 _ => {
-                    // Gracefully skip unknown tags
-                    tokenizer.take_line_value()?;
+                    if parser.config.ignore_unknown_tags {
+                        parser.tokenizer.take_line_value()?;
+                        return Ok(());
+                    }
+                    return Err(GedcomError::ParseError {
+                        line: parser.tokenizer.line,
+                        message: format!("Unhandled Submitter Tag: {tag}"),
+                    })
                 }
             }
 
             Ok(())
         };
 
-        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
+        self.custom_data = parse_subset(parser, level, handle_subset)?;
 
         Ok(())
     }

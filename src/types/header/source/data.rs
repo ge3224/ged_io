@@ -2,8 +2,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    parser::ParserData,
     parser::{parse_subset, Parser},
-    tokenizer::Tokenizer,
     types::date::Date,
     GedcomError,
 };
@@ -28,25 +28,29 @@ impl HeadSourData {
     /// # Errors
     ///
     /// This function will return an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<HeadSourData, GedcomError> {
+    pub fn new(parser: &mut ParserData, level: u8) -> Result<HeadSourData, GedcomError> {
         let mut head_sour_data = HeadSourData::default();
-        head_sour_data.parse(tokenizer, level)?;
+        head_sour_data.parse(parser, level)?;
         Ok(head_sour_data)
     }
 }
 
 impl Parser for HeadSourData {
     /// parse parses the DATA tag
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
-        self.value = Some(tokenizer.take_line_value()?);
+    fn parse(&mut self, parser: &mut ParserData, level: u8) -> Result<(), GedcomError> {
+        self.value = Some(parser.tokenizer.take_line_value()?);
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, parser: &mut ParserData| -> Result<(), GedcomError> {
             match tag {
-                "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
-                "COPR" => self.copyright = Some(tokenizer.take_continued_text(level + 1)?),
+                "DATE" => self.date = Some(Date::new(parser, level + 1)?),
+                "COPR" => self.copyright = Some(parser.tokenizer.take_continued_text(level + 1)?),
                 _ => {
+                    if parser.config.ignore_unknown_tags {
+                        parser.tokenizer.take_line_value()?;
+                        return Ok(());
+                    }
                     return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
+                        line: parser.tokenizer.line,
                         message: format!("Unhandled HeadSourData Tag: {tag}"),
                     })
                 }
@@ -54,7 +58,7 @@ impl Parser for HeadSourData {
             Ok(())
         };
 
-        parse_subset(tokenizer, level, handle_subset)?;
+        parse_subset(parser, level, handle_subset)?;
 
         Ok(())
     }

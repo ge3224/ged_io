@@ -4,8 +4,8 @@ pub mod quay;
 pub mod text;
 
 use crate::{
-    parser::{parse_subset, Parser},
-    tokenizer::{Token, Tokenizer},
+    parser::{parse_subset, Parser, ParserData},
+    tokenizer::Token,
     types::{
         custom::UserDefinedTag, date::change_date::ChangeDate, event::detail::Detail,
         multimedia::Multimedia, note::Note, repository::citation::Citation, source::data::Data,
@@ -83,12 +83,12 @@ impl Source {
     /// This function will return an error if parsing fails.
     #[allow(clippy::double_must_use)]
     pub fn new(
-        tokenizer: &mut Tokenizer,
+        parser: &mut ParserData,
         level: u8,
         xref: Option<String>,
     ) -> Result<Source, GedcomError> {
         let mut sour = Source::with_xref(xref);
-        sour.parse(tokenizer, level)?;
+        sour.parse(parser, level)?;
         Ok(sour)
     }
 
@@ -106,59 +106,70 @@ impl Source {
 }
 
 impl Parser for Source {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
+    fn parse(&mut self, parser: &mut ParserData, level: u8) -> Result<(), GedcomError> {
         // skip SOUR tag
-        tokenizer.next_token()?;
+        parser.tokenizer.next_token()?;
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, parser: &mut ParserData| -> Result<(), GedcomError> {
             let mut pointer: Option<String> = None;
-            if let Token::Pointer(xref) = &tokenizer.current_token {
+            if let Token::Pointer(xref) = &parser.tokenizer.current_token {
                 pointer = Some(xref.to_string());
-                tokenizer.next_token()?;
+                parser.tokenizer.next_token()?;
             }
             match tag {
-                "DATA" => tokenizer.next_token()?,
+                "DATA" => parser.tokenizer.next_token()?,
                 "EVEN" => {
-                    let events_recorded = tokenizer.take_line_value()?;
-                    let mut event = Detail::new(tokenizer, level + 2, "OTHER")?;
+                    let events_recorded = parser.tokenizer.take_line_value()?;
+                    let mut event = Detail::new(parser, level + 2, "OTHER")?;
                     event.with_source_data(events_recorded);
                     self.data.add_event(event);
                     return Ok(());
                 }
-                "AGNC" => self.data.agency = Some(tokenizer.take_line_value()?),
-                "ABBR" => self.abbreviation = Some(tokenizer.take_continued_text(level + 1)?),
-                "CHAN" => self.change_date = Some(Box::new(ChangeDate::new(tokenizer, level + 1)?)),
-                "TITL" => self.title = Some(tokenizer.take_continued_text(level + 1)?),
-                "AUTH" => self.author = Some(tokenizer.take_continued_text(level + 1)?),
-                "PUBL" => self.publication_facts = Some(tokenizer.take_continued_text(level + 1)?),
-                "TEXT" => {
-                    self.citation_from_source = Some(tokenizer.take_continued_text(level + 1)?);
+                "AGNC" => self.data.agency = Some(parser.tokenizer.take_line_value()?),
+                "ABBR" => {
+                    self.abbreviation = Some(parser.tokenizer.take_continued_text(level + 1)?);
                 }
-                "OBJE" => self.add_multimedia(Multimedia::new(tokenizer, level + 1, pointer)?),
-                "NOTE" => self.add_note(Note::new(tokenizer, level + 1)?),
-                "REPO" => self.add_repo_citation(Citation::new(tokenizer, level + 1)?),
-                "RFN" => self.submitter_registered_rfn = Some(tokenizer.take_line_value()?),
+                "CHAN" => self.change_date = Some(Box::new(ChangeDate::new(parser, level + 1)?)),
+                "TITL" => self.title = Some(parser.tokenizer.take_continued_text(level + 1)?),
+                "AUTH" => self.author = Some(parser.tokenizer.take_continued_text(level + 1)?),
+                "PUBL" => {
+                    self.publication_facts = Some(parser.tokenizer.take_continued_text(level + 1)?);
+                }
+                "TEXT" => {
+                    self.citation_from_source =
+                        Some(parser.tokenizer.take_continued_text(level + 1)?);
+                }
+                "OBJE" => self.add_multimedia(Multimedia::new(parser, level + 1, pointer)?),
+                "NOTE" => self.add_note(Note::new(parser, level + 1)?),
+                "REPO" => self.add_repo_citation(Citation::new(parser, level + 1)?),
+                "RFN" => self.submitter_registered_rfn = Some(parser.tokenizer.take_line_value()?),
                 // Unique identifier (GEDCOM 7.0)
-                "UID" => self.uid = Some(tokenizer.take_line_value()?),
+                "UID" => self.uid = Some(parser.tokenizer.take_line_value()?),
                 // User reference number
                 "REFN" => {
-                    self.user_reference_number = Some(tokenizer.take_line_value()?);
+                    self.user_reference_number = Some(parser.tokenizer.take_line_value()?);
                     // Note: TYPE substructure would need to be parsed here
                 }
                 // Automated record ID
-                "RIN" => self.automated_record_id = Some(tokenizer.take_line_value()?),
+                "RIN" => self.automated_record_id = Some(parser.tokenizer.take_line_value()?),
                 // External identifier (GEDCOM 7.0)
-                "EXID" => self.external_ids.push(tokenizer.take_line_value()?),
+                "EXID" => self.external_ids.push(parser.tokenizer.take_line_value()?),
                 _ => {
-                    // Gracefully skip unknown tags
-                    tokenizer.take_line_value()?;
+                    if parser.config.ignore_unknown_tags {
+                        parser.tokenizer.take_line_value()?;
+                        return Ok(());
+                    }
+                    return Err(GedcomError::ParseError {
+                        line: parser.tokenizer.line,
+                        message: format!("Unhandled Source Tag: {tag}"),
+                    })
                 }
             }
 
             Ok(())
         };
 
-        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
+        self.custom_data = parse_subset(parser, level, handle_subset)?;
 
         Ok(())
     }

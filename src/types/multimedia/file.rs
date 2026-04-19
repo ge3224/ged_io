@@ -2,8 +2,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    parser::ParserData,
     parser::{parse_subset, Parser},
-    tokenizer::Tokenizer,
     types::{gedcom7::Crop, multimedia::Format},
     GedcomError,
 };
@@ -37,31 +37,35 @@ impl Reference {
     /// # Errors
     ///
     /// This function will return an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<Reference, GedcomError> {
+    pub fn new(parser: &mut ParserData, level: u8) -> Result<Reference, GedcomError> {
         let mut file = Reference::default();
-        file.parse(tokenizer, level)?;
+        file.parse(parser, level)?;
         Ok(file)
     }
 }
 
 impl Parser for Reference {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
-        self.value = Some(tokenizer.take_line_value()?);
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+    fn parse(&mut self, parser: &mut ParserData, level: u8) -> Result<(), GedcomError> {
+        self.value = Some(parser.tokenizer.take_line_value()?);
+        let handle_subset = |tag: &str, parser: &mut ParserData| -> Result<(), GedcomError> {
             match tag {
-                "TITL" => self.title = Some(tokenizer.take_line_value()?),
-                "FORM" => self.form = Some(Format::new(tokenizer, level + 1)?),
-                "CROP" => self.crop = Some(Crop::new(tokenizer, level + 1)?),
+                "TITL" => self.title = Some(parser.tokenizer.take_line_value()?),
+                "FORM" => self.form = Some(Format::new(parser, level + 1)?),
+                "CROP" => self.crop = Some(Crop::new(parser, level + 1)?),
                 _ => {
+                    if parser.config.ignore_unknown_tags {
+                        parser.tokenizer.take_line_value()?;
+                        return Ok(());
+                    }
                     return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
+                        line: parser.tokenizer.line,
                         message: format!("Unhandled MultimediaFileRefn Tag: {tag}"),
                     })
                 }
             }
             Ok(())
         };
-        parse_subset(tokenizer, level, handle_subset)?;
+        parse_subset(parser, level, handle_subset)?;
 
         Ok(())
     }

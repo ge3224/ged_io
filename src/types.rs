@@ -29,8 +29,8 @@ pub mod submitter;
 pub mod translation;
 
 use crate::{
-    parser::Parser,
-    tokenizer::{Token, Tokenizer},
+    parser::{Parser, ParserData},
+    tokenizer::Token,
     types::{
         custom::UserDefinedTag, family::Family, header::Header, individual::Individual,
         multimedia::Multimedia, repository::Repository, shared_note::SharedNote, source::Source,
@@ -116,9 +116,9 @@ impl GedcomData {
     ///
     /// This function will return an error if parsing fails.
     #[allow(clippy::double_must_use)]
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<GedcomData, GedcomError> {
+    pub fn new(parser: &mut ParserData, level: u8) -> Result<GedcomData, GedcomError> {
         let mut data = GedcomData::default();
-        data.parse(tokenizer, level)?;
+        data.parse(parser, level)?;
         Ok(data)
     }
 
@@ -587,74 +587,78 @@ impl GedcomData {
 
 impl Parser for GedcomData {
     /// Parses GEDCOM tokens into the data structure.
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
+    fn parse(&mut self, parser: &mut ParserData, level: u8) -> Result<(), GedcomError> {
         loop {
-            let Token::Level(current_level) = tokenizer.current_token else {
-                if tokenizer.current_token == Token::EOF {
+            let Token::Level(current_level) = parser.tokenizer.current_token else {
+                if parser.tokenizer.current_token == Token::EOF {
                     // Accept EOF-terminated files (missing TRLR).
                     break;
                 }
                 return Err(GedcomError::ParseError {
-                    line: tokenizer.line,
+                    line: parser.tokenizer.line,
                     message: format!(
                         "Expected Level, found {token:?}",
-                        token = tokenizer.current_token
+                        token = parser.tokenizer.current_token
                     ),
                 });
             };
 
-            tokenizer.next_token()?;
+            parser.tokenizer.next_token()?;
 
             let mut pointer: Option<String> = None;
-            if let Token::Pointer(xref) = &tokenizer.current_token {
+            if let Token::Pointer(xref) = &parser.tokenizer.current_token {
                 pointer = Some(xref.to_string());
-                tokenizer.next_token()?;
+                parser.tokenizer.next_token()?;
             }
 
-            if let Token::Tag(tag) = &tokenizer.current_token {
+            if let Token::Tag(tag) = &parser.tokenizer.current_token {
                 match tag.as_ref() {
-                    "HEAD" => self.header = Some(Header::new(tokenizer, level)?),
-                    "FAM" => self.add_family(Family::new(tokenizer, level, pointer)?),
+                    "HEAD" => self.header = Some(Header::new(parser, level)?),
+                    "FAM" => self.add_family(Family::new(parser, level, pointer)?),
                     "INDI" => {
-                        self.add_individual(Individual::new(tokenizer, current_level, pointer)?);
+                        self.add_individual(Individual::new(parser, current_level, pointer)?);
                     }
                     "REPO" => {
-                        self.add_repository(Repository::new(tokenizer, current_level, pointer)?);
+                        self.add_repository(Repository::new(parser, current_level, pointer)?);
                     }
-                    "SOUR" => self.add_source(Source::new(tokenizer, current_level, pointer)?),
-                    "SUBN" => self.add_submission(Submission::new(tokenizer, level, pointer)?),
-                    "SUBM" => self.add_submitter(Submitter::new(tokenizer, level, pointer)?),
-                    "OBJE" => self.add_multimedia(Multimedia::new(tokenizer, level, pointer)?),
+                    "SOUR" => self.add_source(Source::new(parser, current_level, pointer)?),
+                    "SUBN" => self.add_submission(Submission::new(parser, level, pointer)?),
+                    "SUBM" => self.add_submitter(Submitter::new(parser, level, pointer)?),
+                    "OBJE" => self.add_multimedia(Multimedia::new(parser, level, pointer)?),
                     // GEDCOM 7.0: Shared note record
-                    "SNOTE" => self.add_shared_note(SharedNote::new(tokenizer, level, pointer)?),
+                    "SNOTE" => self.add_shared_note(SharedNote::new(parser, level, pointer)?),
                     // Trailer is optional in the wild; allow EOF-terminated files.
                     "TRLR" => break,
                     _ => {
+                        if parser.config.ignore_unknown_tags {
+                            parser.tokenizer.take_line_value()?;
+                        } else {
                         return Err(GedcomError::ParseError {
-                            line: tokenizer.line,
+                            line: parser.tokenizer.line,
                             message: format!("Unhandled tag {tag}"),
-                        })
+                        });
+                        }
                     }
                 }
 
                 // If we hit EOF after a record (i.e., missing TRLR), stop gracefully.
-                if tokenizer.current_token == Token::EOF {
+                if parser.tokenizer.current_token == Token::EOF {
                     break;
                 }
-            } else if let Token::CustomTag(tag) = &tokenizer.current_token {
+            } else if let Token::CustomTag(tag) = &parser.tokenizer.current_token {
                 let tag_clone = tag.clone();
-                self.add_custom_data(UserDefinedTag::new(tokenizer, level + 1, &tag_clone)?);
+                self.add_custom_data(UserDefinedTag::new(parser, level + 1, &tag_clone)?);
                 // self.add_custom_data(parse_custom_tag(tokenizer, tag_clone));
-                while tokenizer.current_token != Token::Level(level) {
-                    tokenizer.next_token()?;
+                while parser.tokenizer.current_token != Token::Level(level) {
+                    parser.tokenizer.next_token()?;
                 }
-            } else if tokenizer.current_token == Token::EOF {
+            } else if parser.tokenizer.current_token == Token::EOF {
                 // Accept files without a TRLR.
                 break;
             } else {
                 return Err(GedcomError::ParseError {
-                    line: tokenizer.line,
-                    message: format!("Unhandled token {:?}", tokenizer.current_token),
+                    line: parser.tokenizer.line,
+                    message: format!("Unhandled token {:?}", parser.tokenizer.current_token),
                 });
             }
         }
@@ -666,6 +670,8 @@ impl Parser for GedcomData {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::tokenizer::Tokenizer;
+    use crate::ParserConfig;
 
     #[test]
     fn test_parse_shared_note() {
@@ -678,7 +684,11 @@ mod tests {
 
         let mut tokenizer = Tokenizer::new(sample.chars());
         tokenizer.next_token().unwrap();
-        let data = GedcomData::new(&mut tokenizer, 0).unwrap();
+        let mut parser = ParserData {
+            tokenizer,
+            config: ParserConfig::default(),
+        };
+        let data = GedcomData::new(&mut parser, 0).unwrap();
 
         assert_eq!(data.shared_notes.len(), 1);
         let note = &data.shared_notes[0];
@@ -697,7 +707,11 @@ mod tests {
 
         let mut tokenizer = Tokenizer::new(sample_v7.chars());
         tokenizer.next_token().unwrap();
-        let data = GedcomData::new(&mut tokenizer, 0).unwrap();
+        let mut parser = ParserData {
+            tokenizer,
+            config: ParserConfig::default(),
+        };
+        let data = GedcomData::new(&mut parser, 0).unwrap();
 
         assert!(data.is_gedcom_7());
         assert!(!data.is_gedcom_5());
@@ -713,7 +727,11 @@ mod tests {
 
         let mut tokenizer = Tokenizer::new(sample_v5.chars());
         tokenizer.next_token().unwrap();
-        let data = GedcomData::new(&mut tokenizer, 0).unwrap();
+        let mut parser = ParserData {
+            tokenizer,
+            config: ParserConfig::default(),
+        };
+        let data = GedcomData::new(&mut parser, 0).unwrap();
 
         assert!(!data.is_gedcom_7());
         assert!(data.is_gedcom_5());
@@ -731,7 +749,11 @@ mod tests {
 
         let mut tokenizer = Tokenizer::new(sample.chars());
         tokenizer.next_token().unwrap();
-        let data = GedcomData::new(&mut tokenizer, 0).unwrap();
+        let mut parser = ParserData {
+            tokenizer,
+            config: ParserConfig::default(),
+        };
+        let data = GedcomData::new(&mut parser, 0).unwrap();
 
         assert!(data.find_shared_note("@N1@").is_some());
         assert!(data.find_shared_note("@N2@").is_some());
@@ -750,7 +772,11 @@ mod tests {
 
         let mut tokenizer = Tokenizer::new(sample.chars());
         tokenizer.next_token().unwrap();
-        let data = GedcomData::new(&mut tokenizer, 0).unwrap();
+        let mut parser = ParserData {
+            tokenizer,
+            config: ParserConfig::default(),
+        };
+        let data = GedcomData::new(&mut parser, 0).unwrap();
 
         assert_eq!(data.total_records(), 2); // 1 individual + 1 shared note
     }

@@ -1,6 +1,6 @@
 use crate::{
+    parser::ParserData,
     parser::{parse_subset, Parser},
-    tokenizer::Tokenizer,
     types::address::Address,
     GedcomError,
 };
@@ -32,28 +32,32 @@ impl Corporation {
     /// # Errors
     ///
     /// This function will return an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<Corporation, GedcomError> {
+    pub fn new(parser: &mut ParserData, level: u8) -> Result<Corporation, GedcomError> {
         let mut corp = Corporation::default();
-        corp.parse(tokenizer, level)?;
+        corp.parse(parser, level)?;
         Ok(corp)
     }
 }
 
 impl Parser for Corporation {
     /// parse is for a CORP tag within the SOUR tag of a HEADER
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
-        self.value = Some(tokenizer.take_line_value()?);
+    fn parse(&mut self, parser: &mut ParserData, level: u8) -> Result<(), GedcomError> {
+        self.value = Some(parser.tokenizer.take_line_value()?);
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, parser: &mut ParserData| -> Result<(), GedcomError> {
             match tag {
-                "ADDR" => self.address = Some(Address::new(tokenizer, level + 1)?),
-                "PHON" => self.phone = Some(tokenizer.take_line_value()?),
-                "EMAIL" => self.email = Some(tokenizer.take_line_value()?),
-                "FAX" => self.fax = Some(tokenizer.take_line_value()?),
-                "WWW" => self.website = Some(tokenizer.take_line_value()?),
+                "ADDR" => self.address = Some(Address::new(parser, level + 1)?),
+                "PHON" => self.phone = Some(parser.tokenizer.take_line_value()?),
+                "EMAIL" => self.email = Some(parser.tokenizer.take_line_value()?),
+                "FAX" => self.fax = Some(parser.tokenizer.take_line_value()?),
+                "WWW" => self.website = Some(parser.tokenizer.take_line_value()?),
                 _ => {
+                    if parser.config.ignore_unknown_tags {
+                        parser.tokenizer.take_line_value()?;
+                        return Ok(());
+                    }
                     return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
+                        line: parser.tokenizer.line,
                         message: format!("Unhandled Corporation Tag: {tag}"),
                     })
                 }
@@ -61,7 +65,7 @@ impl Parser for Corporation {
             Ok(())
         };
 
-        parse_subset(tokenizer, level, handle_subset)?;
+        parse_subset(parser, level, handle_subset)?;
 
         Ok(())
     }

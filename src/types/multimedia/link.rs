@@ -2,8 +2,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    parser::ParserData,
     parser::{parse_subset, Parser},
-    tokenizer::Tokenizer,
     types::{
         multimedia::{Format, Reference},
         Xref,
@@ -37,7 +37,7 @@ impl Link {
     ///
     /// This function will return an error if parsing fails.
     pub fn new(
-        tokenizer: &mut Tokenizer,
+        parser: &mut ParserData,
         level: u8,
         xref: Option<Xref>,
     ) -> Result<Link, GedcomError> {
@@ -47,24 +47,28 @@ impl Link {
             form: None,
             title: None,
         };
-        obje.parse(tokenizer, level)?;
+        obje.parse(parser, level)?;
         Ok(obje)
     }
 }
 
 impl Parser for Link {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
+    fn parse(&mut self, parser: &mut ParserData, level: u8) -> Result<(), GedcomError> {
         // skip current line
-        tokenizer.next_token()?;
+        parser.tokenizer.next_token()?;
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, parser: &mut ParserData| -> Result<(), GedcomError> {
             match tag {
-                "FILE" => self.file = Some(Reference::new(tokenizer, level + 1)?),
-                "FORM" => self.form = Some(Format::new(tokenizer, level + 1)?),
-                "TITL" => self.title = Some(tokenizer.take_line_value()?),
+                "FILE" => self.file = Some(Reference::new(parser, level + 1)?),
+                "FORM" => self.form = Some(Format::new(parser, level + 1)?),
+                "TITL" => self.title = Some(parser.tokenizer.take_line_value()?),
                 _ => {
+                    if parser.config.ignore_unknown_tags {
+                        parser.tokenizer.take_line_value()?;
+                        return Ok(());
+                    }
                     return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
+                        line: parser.tokenizer.line,
                         message: format!("Unhandled Link Tag: {tag}"),
                     })
                 }
@@ -72,7 +76,7 @@ impl Parser for Link {
             Ok(())
         };
 
-        parse_subset(tokenizer, level, handle_subset)?;
+        parse_subset(parser, level, handle_subset)?;
 
         Ok(())
     }

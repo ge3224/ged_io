@@ -3,8 +3,8 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 
 use crate::{
-    parser::{parse_subset, Parser},
-    tokenizer::{Token, Tokenizer},
+    parser::{parse_subset, Parser, ParserData},
+    tokenizer::Token,
     types::UserDefinedTag,
     GedcomError,
 };
@@ -30,43 +30,47 @@ impl Address {
     /// # Errors
     ///
     /// This function will return an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<Address, GedcomError> {
+    pub fn new(parser: &mut ParserData, level: u8) -> Result<Address, GedcomError> {
         let mut addr = Address::default();
-        addr.parse(tokenizer, level)?;
+        addr.parse(parser, level)?;
         Ok(addr)
     }
 }
 
 impl Parser for Address {
     /// parse handles ADDR tag
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
+    fn parse(&mut self, parser: &mut ParserData, level: u8) -> Result<(), GedcomError> {
         // skip ADDR tag
-        tokenizer.next_token()?;
+        parser.tokenizer.next_token()?;
 
         let mut value = String::new();
 
         // handle value on ADDR line
-        if let Token::LineValue(addr) = &tokenizer.current_token {
+        if let Token::LineValue(addr) = &parser.tokenizer.current_token {
             value.push_str(addr);
-            tokenizer.next_token()?;
+            parser.tokenizer.next_token()?;
         }
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, parser: &mut ParserData| -> Result<(), GedcomError> {
             match tag {
                 "CONT" | "CONC" => {
                     value.push('\n');
-                    value.push_str(&tokenizer.take_line_value()?);
+                    value.push_str(&parser.tokenizer.take_line_value()?);
                 }
-                "ADR1" => self.adr1 = Some(tokenizer.take_line_value()?),
-                "ADR2" => self.adr2 = Some(tokenizer.take_line_value()?),
-                "ADR3" => self.adr3 = Some(tokenizer.take_line_value()?),
-                "CITY" => self.city = Some(tokenizer.take_line_value()?),
-                "STAE" => self.state = Some(tokenizer.take_line_value()?),
-                "POST" => self.post = Some(tokenizer.take_line_value()?),
-                "CTRY" => self.country = Some(tokenizer.take_line_value()?),
+                "ADR1" => self.adr1 = Some(parser.tokenizer.take_line_value()?),
+                "ADR2" => self.adr2 = Some(parser.tokenizer.take_line_value()?),
+                "ADR3" => self.adr3 = Some(parser.tokenizer.take_line_value()?),
+                "CITY" => self.city = Some(parser.tokenizer.take_line_value()?),
+                "STAE" => self.state = Some(parser.tokenizer.take_line_value()?),
+                "POST" => self.post = Some(parser.tokenizer.take_line_value()?),
+                "CTRY" => self.country = Some(parser.tokenizer.take_line_value()?),
                 _ => {
+                    if parser.config.ignore_unknown_tags {
+                        parser.tokenizer.take_line_value()?;
+                        return Ok(());
+                    }
                     return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
+                        line: parser.tokenizer.line,
                         message: format!("Unhandled Address Tag: {tag}"),
                     })
                 }
@@ -74,7 +78,7 @@ impl Parser for Address {
             Ok(())
         };
 
-        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
+        self.custom_data = parse_subset(parser, level, handle_subset)?;
 
         if !value.is_empty() {
             self.value = Some(value);

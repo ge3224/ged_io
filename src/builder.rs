@@ -26,6 +26,7 @@ use crate::{
     tokenizer::Tokenizer,
     types::GedcomData,
     GedcomError,
+    parser::ParserData,
 };
 use std::str::Chars;
 
@@ -353,8 +354,12 @@ impl GedcomBuilder {
     pub fn build(self, chars: Chars<'_>) -> Result<GedcomData, GedcomError> {
         let mut tokenizer = Tokenizer::new(chars);
         tokenizer.next_token()?;
+        let mut parser = ParserData {
+            tokenizer,
+            config: self.config.clone(),
+        };
 
-        let data = GedcomData::new(&mut tokenizer, 0)?;
+        let data = GedcomData::new(&mut parser, 0)?;
 
         // Post-parse validation if enabled
         if self.config.validate_references {

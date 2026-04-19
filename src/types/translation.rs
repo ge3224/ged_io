@@ -2,8 +2,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    parser::ParserData,
     parser::{parse_subset, Parser},
-    tokenizer::Tokenizer,
     GedcomError,
 };
 
@@ -27,32 +27,36 @@ impl Translation {
     ///
     /// This function will return an error if parsing fails.
     #[allow(clippy::double_must_use)]
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<Translation, GedcomError> {
+    pub fn new(parser: &mut ParserData, level: u8) -> Result<Translation, GedcomError> {
         let mut tran = Translation::default();
-        tran.parse(tokenizer, level)?;
+        tran.parse(parser, level)?;
         Ok(tran)
     }
 }
 
 impl Parser for Translation {
     ///parse handles the TRAN tag
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
-        self.value = Some(tokenizer.take_line_value()?);
+    fn parse(&mut self, parser: &mut ParserData, level: u8) -> Result<(), GedcomError> {
+        self.value = Some(parser.tokenizer.take_line_value()?);
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, parser: &mut ParserData| -> Result<(), GedcomError> {
             match tag {
-                "MIME" => self.mime = Some(tokenizer.take_line_value()?),
-                "LANG" => self.language = Some(tokenizer.take_line_value()?),
+                "MIME" => self.mime = Some(parser.tokenizer.take_line_value()?),
+                "LANG" => self.language = Some(parser.tokenizer.take_line_value()?),
                 _ => {
+                    if parser.config.ignore_unknown_tags {
+                        parser.tokenizer.take_line_value()?;
+                        return Ok(());
+                    }
                     return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
+                        line: parser.tokenizer.line,
                         message: format!("Unhandled Translation Tag: {tag}"),
                     })
                 }
             }
             Ok(())
         };
-        parse_subset(tokenizer, level, handle_subset)?;
+        parse_subset(parser, level, handle_subset)?;
 
         Ok(())
     }

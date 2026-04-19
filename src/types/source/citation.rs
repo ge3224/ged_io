@@ -4,8 +4,8 @@ pub mod data;
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    parser::{parse_subset, Parser},
-    tokenizer::{Token, Tokenizer},
+    parser::{parse_subset, Parser, ParserData},
+    tokenizer::Token,
     types::{
         custom::UserDefinedTag,
         multimedia::Multimedia,
@@ -48,9 +48,9 @@ impl Citation {
     /// # Errors
     ///
     /// This function will return an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<Citation, GedcomError> {
+    pub fn new(parser: &mut ParserData, level: u8) -> Result<Citation, GedcomError> {
         let mut citation = Citation {
-            xref: tokenizer.take_line_value()?,
+            xref: parser.tokenizer.take_line_value()?,
             page: None,
             data: None,
             note: None,
@@ -61,7 +61,7 @@ impl Citation {
             event_type: None,
             role: None,
         };
-        citation.parse(tokenizer, level)?;
+        citation.parse(parser, level)?;
         Ok(citation)
     }
 
@@ -71,42 +71,47 @@ impl Citation {
 }
 
 impl Parser for Citation {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
+    fn parse(&mut self, parser: &mut ParserData, level: u8) -> Result<(), GedcomError> {
         // Note: Don't call next_token() here - the tokenizer is already positioned
         // at the next Level token after Citation::new() called take_line_value()
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, parser: &mut ParserData| -> Result<(), GedcomError> {
             let mut pointer: Option<String> = None;
-            if let Token::Pointer(xref) = &tokenizer.current_token {
+            if let Token::Pointer(xref) = &parser.tokenizer.current_token {
                 pointer = Some(xref.to_string());
-                tokenizer.next_token()?;
+                parser.tokenizer.next_token()?;
             }
             match tag {
-                "PAGE" => self.page = Some(tokenizer.take_continued_text(level + 1)?),
-                "DATA" => self.data = Some(SourceCitationData::new(tokenizer, level + 1)?),
-                "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
+                "PAGE" => self.page = Some(parser.tokenizer.take_continued_text(level + 1)?),
+                "DATA" => self.data = Some(SourceCitationData::new(parser, level + 1)?),
+                "NOTE" => self.note = Some(Note::new(parser, level + 1)?),
                 "QUAY" => {
                     self.certainty_assessment =
-                        Some(CertaintyAssessment::new(tokenizer, level + 1)?);
+                        Some(CertaintyAssessment::new(parser, level + 1)?);
                 }
-                "RFN" => self.submitter_registered_rfn = Some(tokenizer.take_line_value()?),
-                "OBJE" => self.add_multimedia(Multimedia::new(tokenizer, level + 1, pointer)?),
+                "RFN" => self.submitter_registered_rfn = Some(parser.tokenizer.take_line_value()?),
+                "OBJE" => self.add_multimedia(Multimedia::new(parser, level + 1, pointer)?),
                 "EVEN" => {
-                    self.event_type = Some(tokenizer.take_line_value()?);
+                    self.event_type = Some(parser.tokenizer.take_line_value()?);
                     // Parse ROLE if it's a substructure of EVEN
                     // The ROLE tag should be at level + 2 (under EVEN at level + 1)
                 }
-                "ROLE" => self.role = Some(tokenizer.take_line_value()?),
+                "ROLE" => self.role = Some(parser.tokenizer.take_line_value()?),
                 _ => {
-                    // Gracefully skip unknown tags instead of failing
-                    // This handles non-standard extensions from various GEDCOM generators
-                    tokenizer.take_line_value()?;
+                    if parser.config.ignore_unknown_tags {
+                        parser.tokenizer.take_line_value()?;
+                        return Ok(());
+                    }
+                    return Err(GedcomError::ParseError {
+                        line: parser.tokenizer.line,
+                        message: format!("Unhandled Citation Tag: {tag}"),
+                    })
                 }
             }
 
             Ok(())
         };
-        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
+        self.custom_data = parse_subset(parser, level, handle_subset)?;
 
         Ok(())
     }

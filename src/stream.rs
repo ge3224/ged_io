@@ -43,6 +43,8 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     tokenizer::Tokenizer,
+    parser::ParserData,
+    ParserConfig,
     types::{
         custom::UserDefinedTag, family::Family, header::Header, individual::Individual,
         multimedia::Multimedia, repository::Repository, shared_note::SharedNote, source::Source,
@@ -439,11 +441,15 @@ impl<R: BufRead> GedcomStreamParser<R> {
 
         let doc_text = format!("{text}0 TRLR\n");
 
-        let mut tokenizer = Tokenizer::new(doc_text.chars());
-        tokenizer.next_token()?;
+        let tokenizer = Tokenizer::new(doc_text.chars());
+        let mut parser = ParserData {
+            tokenizer,
+            config: ParserConfig::default(),
+        };
+        parser.tokenizer.next_token()?;
 
-        let Token::Level(level) = tokenizer.current_token else {
-            if tokenizer.current_token == Token::EOF {
+        let Token::Level(level) = parser.tokenizer.current_token else {
+            if parser.tokenizer.current_token == Token::EOF {
                 return Err(GedcomError::ParseError {
                     line: self.line_number,
                     message: "Empty record".to_string(),
@@ -451,7 +457,7 @@ impl<R: BufRead> GedcomStreamParser<R> {
             }
             return Err(GedcomError::ParseError {
                 line: self.line_number,
-                message: format!("Expected Level, found {:?}", tokenizer.current_token),
+                message: format!("Expected Level, found {:?}", parser.tokenizer.current_token),
             });
         };
 
@@ -462,29 +468,29 @@ impl<R: BufRead> GedcomStreamParser<R> {
             });
         }
 
-        tokenizer.next_token()?;
+        parser.tokenizer.next_token()?;
 
         let mut pointer: Option<String> = None;
-        if let Token::Pointer(xref) = &tokenizer.current_token {
+        if let Token::Pointer(xref) = &parser.tokenizer.current_token {
             pointer = Some(xref.to_string());
-            tokenizer.next_token()?;
+            parser.tokenizer.next_token()?;
         }
 
-        if let Token::Tag(tag) = &tokenizer.current_token {
+        if let Token::Tag(tag) = &parser.tokenizer.current_token {
             let record = match tag.as_ref() {
-                "HEAD" => GedcomRecord::Header(Header::new(&mut tokenizer, 0)?),
-                "FAM" => GedcomRecord::Family(Family::new(&mut tokenizer, 0, pointer)?),
+                "HEAD" => GedcomRecord::Header(Header::new(&mut parser, 0)?),
+                "FAM" => GedcomRecord::Family(Family::new(&mut parser, 0, pointer)?),
                 "INDI" => {
-                    GedcomRecord::Individual(Individual::new(&mut tokenizer, level, pointer)?)
+                    GedcomRecord::Individual(Individual::new(&mut parser, level, pointer)?)
                 }
                 "REPO" => {
-                    GedcomRecord::Repository(Repository::new(&mut tokenizer, level, pointer)?)
+                    GedcomRecord::Repository(Repository::new(&mut parser, level, pointer)?)
                 }
-                "SOUR" => GedcomRecord::Source(Source::new(&mut tokenizer, level, pointer)?),
-                "SUBN" => GedcomRecord::Submission(Submission::new(&mut tokenizer, 0, pointer)?),
-                "SUBM" => GedcomRecord::Submitter(Submitter::new(&mut tokenizer, 0, pointer)?),
-                "OBJE" => GedcomRecord::Multimedia(Multimedia::new(&mut tokenizer, 0, pointer)?),
-                "SNOTE" => GedcomRecord::SharedNote(SharedNote::new(&mut tokenizer, 0, pointer)?),
+                "SOUR" => GedcomRecord::Source(Source::new(&mut parser, level, pointer)?),
+                "SUBN" => GedcomRecord::Submission(Submission::new(&mut parser, 0, pointer)?),
+                "SUBM" => GedcomRecord::Submitter(Submitter::new(&mut parser, 0, pointer)?),
+                "OBJE" => GedcomRecord::Multimedia(Multimedia::new(&mut parser, 0, pointer)?),
+                "SNOTE" => GedcomRecord::SharedNote(SharedNote::new(&mut parser, 0, pointer)?),
                 "TRLR" => {
                     return Err(GedcomError::ParseError {
                         line: self.line_number,
@@ -499,14 +505,14 @@ impl<R: BufRead> GedcomStreamParser<R> {
                 }
             };
             Ok(record)
-        } else if let Token::CustomTag(tag) = &tokenizer.current_token {
+        } else if let Token::CustomTag(tag) = &parser.tokenizer.current_token {
             let tag_clone = tag.clone();
             Ok(GedcomRecord::CustomData(Box::new(UserDefinedTag::new(
-                &mut tokenizer,
+                &mut parser,
                 1,
                 &tag_clone,
             )?)))
-        } else if tokenizer.current_token == Token::EOF {
+        } else if parser.tokenizer.current_token == Token::EOF {
             Err(GedcomError::ParseError {
                 line: self.line_number,
                 message: "Unexpected EOF".to_string(),
@@ -514,7 +520,7 @@ impl<R: BufRead> GedcomStreamParser<R> {
         } else {
             Err(GedcomError::ParseError {
                 line: self.line_number,
-                message: format!("Unhandled token {:?}", tokenizer.current_token),
+                message: format!("Unhandled token {:?}", parser.tokenizer.current_token),
             })
         }
     }

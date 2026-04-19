@@ -1,6 +1,6 @@
 use crate::{
-    parser::{parse_subset, Parser},
-    tokenizer::{Token, Tokenizer},
+    parser::{parse_subset, Parser, ParserData},
+    tokenizer::Token,
     types::{
         custom::UserDefinedTag,
         date::change_date::ChangeDate,
@@ -106,7 +106,7 @@ impl Family {
     /// This function will return an error if parsing fails.
     #[allow(clippy::double_must_use)]
     pub fn new(
-        tokenizer: &mut Tokenizer,
+        parser: &mut ParserData,
         level: u8,
         xref: Option<Xref>,
     ) -> Result<Family, GedcomError> {
@@ -117,7 +117,7 @@ impl Family {
         fam.multimedia = Vec::new();
         fam.notes = Vec::new();
         fam.custom_data = Vec::new();
-        fam.parse(tokenizer, level)?;
+        fam.parse(parser, level)?;
         Ok(fam)
     }
 
@@ -181,52 +181,58 @@ impl Family {
 
 impl Parser for Family {
     /// parse handles FAM top-level tag
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
+    fn parse(&mut self, parser: &mut ParserData, level: u8) -> Result<(), GedcomError> {
         // skip over FAM tag name
-        tokenizer.next_token()?;
+        parser.tokenizer.next_token()?;
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, parser: &mut ParserData| -> Result<(), GedcomError> {
             let mut pointer: Option<String> = None;
-            if let Token::Pointer(xref) = &tokenizer.current_token {
+            if let Token::Pointer(xref) = &parser.tokenizer.current_token {
                 pointer = Some(xref.to_string());
-                tokenizer.next_token()?;
+                parser.tokenizer.next_token()?;
             }
 
             match tag {
                 "MARR" | "ANUL" | "CENS" | "DIV" | "DIVF" | "ENGA" | "MARB" | "MARC" | "MARL"
                 | "MARS" | "RESI" | "EVEN" | "SEP" => {
-                    self.add_event(Detail::new(tokenizer, level + 1, tag)?);
+                    self.add_event(Detail::new(parser, level + 1, tag)?);
                 }
-                "HUSB" => self.set_individual1(tokenizer.take_line_value()?, tokenizer.line)?,
-                "WIFE" => self.set_individual2(tokenizer.take_line_value()?, tokenizer.line)?,
-                "CHIL" => self.add_child(tokenizer.take_line_value()?),
-                "NCHI" => self.num_children = Some(tokenizer.take_line_value()?),
-                "CHAN" => self.change_date = Some(ChangeDate::new(tokenizer, level + 1)?),
-                "SOUR" => self.add_source(Citation::new(tokenizer, level + 1)?),
-                "NOTE" => self.add_note(Note::new(tokenizer, level + 1)?),
-                "OBJE" => self.add_multimedia(Multimedia::new(tokenizer, level + 1, pointer)?),
-                "NO" => self.non_events.push(NonEvent::new(tokenizer, level + 1)?),
+                "HUSB" => self
+                    .set_individual1(parser.tokenizer.take_line_value()?, parser.tokenizer.line)?,
+                "WIFE" => self
+                    .set_individual2(parser.tokenizer.take_line_value()?, parser.tokenizer.line)?,
+                "CHIL" => self.add_child(parser.tokenizer.take_line_value()?),
+                "NCHI" => self.num_children = Some(parser.tokenizer.take_line_value()?),
+                "CHAN" => self.change_date = Some(ChangeDate::new(parser, level + 1)?),
+                "SOUR" => self.add_source(Citation::new(parser, level + 1)?),
+                "NOTE" => self.add_note(Note::new(parser, level + 1)?),
+                "OBJE" => self.add_multimedia(Multimedia::new(parser, level + 1, pointer)?),
+                "NO" => self.non_events.push(NonEvent::new(parser, level + 1)?),
                 // LDS Sealing to Spouse ordinance
                 "SLGS" => {
                     self.lds_ordinances
-                        .push(LdsOrdinance::new(tokenizer, level + 1, tag)?);
+                        .push(LdsOrdinance::new(parser, level + 1, tag)?);
                 }
                 // Unique identifier (GEDCOM 7.0)
-                "UID" => self.uid = Some(tokenizer.take_line_value()?),
+                "UID" => self.uid = Some(parser.tokenizer.take_line_value()?),
                 // Restriction notice
-                "RESN" => self.restriction = Some(tokenizer.take_line_value()?),
+                "RESN" => self.restriction = Some(parser.tokenizer.take_line_value()?),
                 // User reference number
                 "REFN" => {
-                    self.user_reference_number = Some(tokenizer.take_line_value()?);
+                    self.user_reference_number = Some(parser.tokenizer.take_line_value()?);
                     // Note: TYPE substructure would need to be parsed here
                 }
                 // Automated record ID
-                "RIN" => self.automated_record_id = Some(tokenizer.take_line_value()?),
+                "RIN" => self.automated_record_id = Some(parser.tokenizer.take_line_value()?),
                 // External identifier (GEDCOM 7.0)
-                "EXID" => self.external_ids.push(tokenizer.take_line_value()?),
+                "EXID" => self.external_ids.push(parser.tokenizer.take_line_value()?),
                 _ => {
+                    if parser.config.ignore_unknown_tags {
+                        parser.tokenizer.take_line_value()?;
+                        return Ok(());
+                    }
                     return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
+                        line: parser.tokenizer.line,
                         message: format!("Unhandled Family Tag: {tag}"),
                     })
                 }
@@ -235,7 +241,7 @@ impl Parser for Family {
             Ok(())
         };
 
-        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
+        self.custom_data = parse_subset(parser, level, handle_subset)?;
 
         Ok(())
     }

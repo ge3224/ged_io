@@ -3,8 +3,8 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 
 use crate::{
-    parser::{parse_subset, Parser},
-    tokenizer::{Token, Tokenizer},
+    parser::{parse_subset, Parser, ParserData},
+    tokenizer::Token,
     types::{
         age::Age,
         date::Date,
@@ -108,7 +108,7 @@ impl Detail {
     /// # Errors
     ///
     /// This function will return an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8, tag: &str) -> Result<Detail, GedcomError> {
+    pub fn new(parser: &mut ParserData, level: u8, tag: &str) -> Result<Detail, GedcomError> {
         let mut event = Detail {
             event: Self::from_tag(tag),
             value: None,
@@ -128,7 +128,7 @@ impl Detail {
             agency: None,
             religion: None,
         };
-        event.parse(tokenizer, level)?;
+        event.parse(parser, level)?;
         Ok(event)
     }
 
@@ -215,59 +215,64 @@ impl std::fmt::Debug for Detail {
 }
 
 impl Parser for Detail {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
-        tokenizer.next_token()?;
+    fn parse(&mut self, parser: &mut ParserData, level: u8) -> Result<(), GedcomError> {
+        parser.tokenizer.next_token()?;
 
         // handle value on event line
         let mut value = String::new();
 
-        if let Token::LineValue(val) = &tokenizer.current_token {
+        if let Token::LineValue(val) = &parser.tokenizer.current_token {
             value.push_str(val);
-            tokenizer.next_token()?;
+            parser.tokenizer.next_token()?;
         }
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, parser: &mut ParserData| -> Result<(), GedcomError> {
             let mut pointer: Option<String> = None;
-            if let Token::Pointer(xref) = &tokenizer.current_token {
+            if let Token::Pointer(xref) = &parser.tokenizer.current_token {
                 pointer = Some(xref.to_string());
-                tokenizer.next_token()?;
+                parser.tokenizer.next_token()?;
             }
             match tag {
-                "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
-                "PLAC" => self.place = Some(Place::new(tokenizer, level + 1)?),
-                "SOUR" => self.add_citation(Citation::new(tokenizer, level + 1)?),
-                "FAMC" => self.family_link = Some(FamilyLink::new(tokenizer, level + 1, tag)?),
+                "DATE" => self.date = Some(Date::new(parser, level + 1)?),
+                "PLAC" => self.place = Some(Place::new(parser, level + 1)?),
+                "SOUR" => self.add_citation(Citation::new(parser, level + 1)?),
+                "FAMC" => self.family_link = Some(FamilyLink::new(parser, level + 1, tag)?),
                 "HUSB" | "WIFE" => {
                     self.add_family_event_detail(FamilyEventDetail::new(
-                        tokenizer,
+                        parser,
                         level + 1,
                         tag,
                     )?);
                 }
-                "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
-                "TYPE" => self.event_type = Some(tokenizer.take_line_value()?),
+                "NOTE" => self.note = Some(Note::new(parser, level + 1)?),
+                "TYPE" => self.event_type = Some(parser.tokenizer.take_line_value()?),
                 "OBJE" => {
-                    self.add_multimedia_record(Multimedia::new(tokenizer, level + 1, pointer)?);
+                    self.add_multimedia_record(Multimedia::new(parser, level + 1, pointer)?);
                 }
-                "SDATE" => self.sort_date = Some(SortDate::new(tokenizer, level + 1)?),
+                "SDATE" => self.sort_date = Some(SortDate::new(parser, level + 1)?),
                 "ASSO" => self
                     .associations
-                    .push(Association::new(tokenizer, level + 1)?),
-                "CAUS" => self.cause = Some(tokenizer.take_continued_text(level + 1)?),
-                "RESN" => self.restriction = Some(tokenizer.take_line_value()?),
-                "AGE" => self.age = Some(Age::new(tokenizer, level + 1)?),
-                "AGNC" => self.agency = Some(tokenizer.take_line_value()?),
-                "RELI" => self.religion = Some(tokenizer.take_line_value()?),
+                    .push(Association::new(parser, level + 1)?),
+                "CAUS" => self.cause = Some(parser.tokenizer.take_continued_text(level + 1)?),
+                "RESN" => self.restriction = Some(parser.tokenizer.take_line_value()?),
+                "AGE" => self.age = Some(Age::new(parser, level + 1)?),
+                "AGNC" => self.agency = Some(parser.tokenizer.take_line_value()?),
+                "RELI" => self.religion = Some(parser.tokenizer.take_line_value()?),
                 _ => {
-                    // Gracefully skip unknown tags instead of failing
-                    // This handles non-standard extensions from various GEDCOM generators
-                    tokenizer.take_line_value()?;
+                    if parser.config.ignore_unknown_tags {
+                        parser.tokenizer.take_line_value()?;
+                        return Ok(());
+                    }
+                    return Err(GedcomError::ParseError {
+                        line: parser.tokenizer.line,
+                        message: format!("Unhandled Detail Tag: {tag}"),
+                    })
                 }
             }
             Ok(())
         };
 
-        parse_subset(tokenizer, level, handle_subset)?;
+        parse_subset(parser, level, handle_subset)?;
 
         if !value.is_empty() {
             self.value = Some(value);

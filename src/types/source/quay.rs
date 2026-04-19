@@ -2,8 +2,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    parser::Parser,
-    tokenizer::{Token, Tokenizer},
+    parser::{Parser, ParserData},
+    tokenizer::Token,
     GedcomError,
 };
 
@@ -33,9 +33,9 @@ impl CertaintyAssessment {
     ///
     /// This function will return an error if parsing fails.
     #[allow(clippy::double_must_use)]
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<CertaintyAssessment, GedcomError> {
+    pub fn new(parser: &mut ParserData, level: u8) -> Result<CertaintyAssessment, GedcomError> {
         let mut quay = CertaintyAssessment::None;
-        quay.parse(tokenizer, level)?;
+        quay.parse(parser, level)?;
         Ok(quay)
     }
 
@@ -58,9 +58,9 @@ impl std::fmt::Display for CertaintyAssessment {
 }
 
 impl Parser for CertaintyAssessment {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
-        tokenizer.next_token()?;
-        if let Token::LineValue(val) = &tokenizer.current_token {
+    fn parse(&mut self, parser: &mut ParserData, level: u8) -> Result<(), GedcomError> {
+        parser.tokenizer.next_token()?;
+        if let Token::LineValue(val) = &parser.tokenizer.current_token {
             *self = match val.as_ref() {
                 "0" => CertaintyAssessment::Unreliable,
                 "1" => CertaintyAssessment::Questionable,
@@ -68,7 +68,7 @@ impl Parser for CertaintyAssessment {
                 "3" => CertaintyAssessment::Direct,
                 _ => {
                     return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
+                        line: parser.tokenizer.line,
                         message: format!(
                             "Unknown CertaintyAssessment value: {val}; level: {level}",
                         ),
@@ -77,14 +77,14 @@ impl Parser for CertaintyAssessment {
             };
         } else {
             return Err(GedcomError::ParseError {
-                line: tokenizer.line,
+                line: parser.tokenizer.line,
                 message: format!(
                     "Expected CertaintyAssessment LineValue, found {:?}",
-                    tokenizer.current_token
+                    parser.tokenizer.current_token
                 ),
             });
         }
-        tokenizer.next_token()?;
+        parser.tokenizer.next_token()?;
 
         Ok(())
     }

@@ -5,8 +5,8 @@ pub mod gender;
 pub mod name;
 
 use crate::{
+    parser::ParserData,
     parser::{parse_subset, Parser},
-    tokenizer::Tokenizer,
     types::{
         custom::UserDefinedTag,
         date::change_date::ChangeDate,
@@ -146,12 +146,12 @@ impl Individual {
     ///
     /// This function will return an error if parsing fails.
     pub fn new(
-        tokenizer: &mut Tokenizer,
+        parser: &mut ParserData,
         level: u8,
         xref: Option<Xref>,
     ) -> Result<Individual, GedcomError> {
         let mut indi = Individual::with_xref(xref);
-        indi.parse(tokenizer, level)?;
+        indi.parse(parser, level)?;
         Ok(indi)
     }
 
@@ -323,70 +323,74 @@ impl Parser for Individual {
     /// parse handles the INDI top-level tag
     fn parse(
         &mut self,
-        tokenizer: &mut crate::tokenizer::Tokenizer,
+        parser: &mut ParserData,
         level: u8,
     ) -> Result<(), GedcomError> {
         // skip over INDI tag name
-        tokenizer.next_token()?;
+        parser.tokenizer.next_token()?;
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, parser: &mut ParserData| -> Result<(), GedcomError> {
             match tag {
                 // TODO handle xref
-                "NAME" => self.name = Some(Name::new(tokenizer, level + 1)?),
-                "SEX" => self.sex = Some(Gender::new(tokenizer, level + 1)?),
+                "NAME" => self.name = Some(Name::new(parser, level + 1)?),
+                "SEX" => self.sex = Some(Gender::new(parser, level + 1)?),
                 "ADOP" | "BIRT" | "BAPM" | "BARM" | "BASM" | "BLES" | "BURI" | "CENS" | "CHR"
                 | "CHRA" | "CONF" | "CREM" | "DEAT" | "EMIG" | "FCOM" | "GRAD" | "IMMI"
                 | "NATU" | "ORDN" | "RETI" | "PROB" | "WILL" | "EVEN" | "MARR" => {
-                    self.add_event(Detail::new(tokenizer, level + 1, tag)?);
+                    self.add_event(Detail::new(parser, level + 1, tag)?);
                 }
                 "CAST" | "DSCR" | "EDUC" | "IDNO" | "NATI" | "NCHI" | "NMR" | "OCCU" | "PROP"
                 | "RELI" | "RESI" | "SSN" | "TITL" | "FACT" => {
-                    self.add_attribute(AttributeDetail::new(tokenizer, level + 1, tag)?);
+                    self.add_attribute(AttributeDetail::new(parser, level + 1, tag)?);
                 }
                 "FAMC" | "FAMS" => {
-                    self.add_family(FamilyLink::new(tokenizer, level + 1, tag)?);
+                    self.add_family(FamilyLink::new(parser, level + 1, tag)?);
                 }
-                "CHAN" => self.change_date = Some(ChangeDate::new(tokenizer, level + 1)?),
+                "CHAN" => self.change_date = Some(ChangeDate::new(parser, level + 1)?),
                 "SOUR" => {
-                    self.add_source_citation(Citation::new(tokenizer, level + 1)?);
+                    self.add_source_citation(Citation::new(parser, level + 1)?);
                 }
-                "OBJE" => self.add_multimedia(Multimedia::new(tokenizer, level + 1, None)?),
-                "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
-                "NO" => self.non_events.push(NonEvent::new(tokenizer, level + 1)?),
+                "OBJE" => self.add_multimedia(Multimedia::new(parser, level + 1, None)?),
+                "NOTE" => self.note = Some(Note::new(parser, level + 1)?),
+                "NO" => self.non_events.push(NonEvent::new(parser, level + 1)?),
                 // LDS Ordinances (INIL is GEDCOM 7.0 only)
                 "BAPL" | "CONL" | "INIL" | "ENDL" | "SLGC" => {
                     self.lds_ordinances
-                        .push(LdsOrdinance::new(tokenizer, level + 1, tag)?);
+                        .push(LdsOrdinance::new(parser, level + 1, tag)?);
                 }
                 // Associations with other individuals
                 "ASSO" => {
                     self.associations
-                        .push(Association::new(tokenizer, level + 1)?);
+                        .push(Association::new(parser, level + 1)?);
                 }
                 // Unique identifier (GEDCOM 7.0)
-                "UID" => self.uid = Some(tokenizer.take_line_value()?),
+                "UID" => self.uid = Some(parser.tokenizer.take_line_value()?),
                 // Restriction notice
-                "RESN" => self.restriction = Some(tokenizer.take_line_value()?),
+                "RESN" => self.restriction = Some(parser.tokenizer.take_line_value()?),
                 // User reference number
                 "REFN" => {
-                    self.user_reference_number = Some(tokenizer.take_line_value()?);
+                    self.user_reference_number = Some(parser.tokenizer.take_line_value()?);
                     // Note: TYPE substructure would need to be parsed here
                 }
                 // Automated record ID
-                "RIN" => self.automated_record_id = Some(tokenizer.take_line_value()?),
+                "RIN" => self.automated_record_id = Some(parser.tokenizer.take_line_value()?),
                 // Ancestral File Number (LDS)
-                "AFN" => self.ancestral_file_number = Some(tokenizer.take_line_value()?),
+                "AFN" => self.ancestral_file_number = Some(parser.tokenizer.take_line_value()?),
                 // Alias pointer
-                "ALIA" => self.aliases.push(tokenizer.take_line_value()?),
+                "ALIA" => self.aliases.push(parser.tokenizer.take_line_value()?),
                 // Interest in ancestors
-                "ANCI" => self.ancestor_interest = Some(tokenizer.take_line_value()?),
+                "ANCI" => self.ancestor_interest = Some(parser.tokenizer.take_line_value()?),
                 // Interest in descendants
-                "DESI" => self.descendant_interest = Some(tokenizer.take_line_value()?),
+                "DESI" => self.descendant_interest = Some(parser.tokenizer.take_line_value()?),
                 // External identifier (GEDCOM 7.0)
-                "EXID" => self.external_ids.push(tokenizer.take_line_value()?),
+                "EXID" => self.external_ids.push(parser.tokenizer.take_line_value()?),
                 _ => {
+                    if parser.config.ignore_unknown_tags {
+                        parser.tokenizer.take_line_value()?;
+                        return Ok(());
+                    }
                     return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
+                        line: parser.tokenizer.line,
                         message: format!("Unhandled Individual Tag: {tag}"),
                     })
                 }
@@ -395,7 +399,7 @@ impl Parser for Individual {
             Ok(())
         };
 
-        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
+        self.custom_data = parse_subset(parser, level, handle_subset)?;
 
         Ok(())
     }

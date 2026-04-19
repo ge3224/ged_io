@@ -16,8 +16,8 @@
 //! See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#SHARED_NOTE_RECORD>
 
 use crate::{
+    parser::ParserData,
     parser::{parse_subset, Parser},
-    tokenizer::Tokenizer,
     types::{custom::UserDefinedTag, date::change_date::ChangeDate, source::citation::Citation},
     GedcomError,
 };
@@ -174,7 +174,7 @@ impl SharedNote {
     ///
     /// Returns an error if parsing fails.
     pub fn new(
-        tokenizer: &mut Tokenizer,
+        parser: &mut ParserData,
         level: u8,
         xref: Option<String>,
     ) -> Result<SharedNote, GedcomError> {
@@ -182,7 +182,7 @@ impl SharedNote {
             xref,
             ..Default::default()
         };
-        note.parse(tokenizer, level)?;
+        note.parse(parser, level)?;
         Ok(note)
     }
 
@@ -306,21 +306,21 @@ fn remove_html_tags(input: &str) -> String {
 
 impl Parser for SharedNote {
     /// Parses SNOTE record from tokens.
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
+    fn parse(&mut self, parser: &mut ParserData, level: u8) -> Result<(), GedcomError> {
         // Get the note text (payload of SNOTE line)
-        self.text = tokenizer.take_continued_text(level)?;
+        self.text = parser.tokenizer.take_continued_text(level)?;
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, parser: &mut ParserData| -> Result<(), GedcomError> {
             match tag {
                 "MIME" => {
-                    self.mime = Some(tokenizer.take_line_value()?);
+                    self.mime = Some(parser.tokenizer.take_line_value()?);
                 }
                 "LANG" => {
-                    self.language = Some(tokenizer.take_line_value()?);
+                    self.language = Some(parser.tokenizer.take_line_value()?);
                 }
                 "TRAN" => {
                     let translation = NoteTranslation {
-                        text: tokenizer.take_continued_text(level + 1)?,
+                        text: parser.tokenizer.take_continued_text(level + 1)?,
                         ..Default::default()
                     };
                     // Parse TRAN substructures would go here
@@ -328,24 +328,28 @@ impl Parser for SharedNote {
                 }
                 "SOUR" => {
                     self.source_citations
-                        .push(Citation::new(tokenizer, level + 1)?);
+                        .push(Citation::new(parser, level + 1)?);
                 }
                 "EXID" => {
-                    let id = tokenizer.take_line_value()?;
+                    let id = parser.tokenizer.take_line_value()?;
                     self.external_ids.push(ExternalId {
                         id,
                         type_uri: None, // TYPE substructure would be parsed here
                     });
                 }
                 "CHAN" => {
-                    self.change_date = Some(ChangeDate::new(tokenizer, level + 1)?);
+                    self.change_date = Some(ChangeDate::new(parser, level + 1)?);
                 }
                 "CREA" => {
-                    self.creation_date = Some(ChangeDate::new(tokenizer, level + 1)?);
+                    self.creation_date = Some(ChangeDate::new(parser, level + 1)?);
                 }
                 _ => {
+                    if parser.config.ignore_unknown_tags {
+                        parser.tokenizer.take_line_value()?;
+                        return Ok(());
+                    }
                     return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
+                        line: parser.tokenizer.line,
                         message: format!("Unhandled SharedNote Tag: {tag}"),
                     })
                 }
@@ -353,7 +357,7 @@ impl Parser for SharedNote {
             Ok(())
         };
 
-        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
+        self.custom_data = parse_subset(parser, level, handle_subset)?;
 
         Ok(())
     }

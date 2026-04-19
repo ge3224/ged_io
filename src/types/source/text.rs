@@ -2,8 +2,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    parser::ParserData,
     parser::{parse_subset, Parser},
-    tokenizer::Tokenizer,
     GedcomError,
 };
 
@@ -25,28 +25,32 @@ impl Text {
     ///
     /// This function will return an error if parsing fails.
     #[allow(clippy::double_must_use)]
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<Text, GedcomError> {
+    pub fn new(parser: &mut ParserData, level: u8) -> Result<Text, GedcomError> {
         let mut text = Text { value: None };
-        text.parse(tokenizer, level)?;
+        text.parse(parser, level)?;
         Ok(text)
     }
 }
 
 impl Parser for Text {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
+    fn parse(&mut self, parser: &mut ParserData, level: u8) -> Result<(), GedcomError> {
         let mut value = String::new();
-        value.push_str(&tokenizer.take_line_value()?);
+        value.push_str(&parser.tokenizer.take_line_value()?);
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, parser: &mut ParserData| -> Result<(), GedcomError> {
             match tag {
-                "CONC" => value.push_str(&tokenizer.take_line_value()?),
+                "CONC" => value.push_str(&parser.tokenizer.take_line_value()?),
                 "CONT" => {
                     value.push('\n');
-                    value.push_str(&tokenizer.take_line_value()?);
+                    value.push_str(&parser.tokenizer.take_line_value()?);
                 }
                 _ => {
+                    if parser.config.ignore_unknown_tags {
+                        parser.tokenizer.take_line_value()?;
+                        return Ok(());
+                    }
                     return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
+                        line: parser.tokenizer.line,
                         message: format!("Unhandled Text Tag: {tag}"),
                     })
                 }
@@ -55,7 +59,7 @@ impl Parser for Text {
             Ok(())
         };
 
-        parse_subset(tokenizer, level, handle_subset)?;
+        parse_subset(parser, level, handle_subset)?;
 
         if !value.is_empty() {
             self.value = Some(value);

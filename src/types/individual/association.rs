@@ -2,8 +2,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    parser::ParserData,
     parser::{parse_subset, Parser},
-    tokenizer::Tokenizer,
     types::{custom::UserDefinedTag, note::Note, Xref},
     GedcomError,
 };
@@ -32,29 +32,33 @@ impl Association {
     /// # Errors
     ///
     /// This function will return an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<Association, GedcomError> {
+    pub fn new(parser: &mut ParserData, level: u8) -> Result<Association, GedcomError> {
         let mut association = Association {
-            xref: tokenizer.take_line_value()?,
+            xref: parser.tokenizer.take_line_value()?,
             relationship: None,
             association_type: None,
             note: None,
             custom_data: Vec::new(),
         };
-        association.parse(tokenizer, level)?;
+        association.parse(parser, level)?;
         Ok(association)
     }
 }
 
 impl Parser for Association {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+    fn parse(&mut self, parser: &mut ParserData, level: u8) -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, parser: &mut ParserData| -> Result<(), GedcomError> {
             match tag {
-                "RELA" => self.relationship = Some(tokenizer.take_line_value()?),
-                "TYPE" => self.association_type = Some(tokenizer.take_line_value()?),
-                "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
+                "RELA" => self.relationship = Some(parser.tokenizer.take_line_value()?),
+                "TYPE" => self.association_type = Some(parser.tokenizer.take_line_value()?),
+                "NOTE" => self.note = Some(Note::new(parser, level + 1)?),
                 _ => {
+                    if parser.config.ignore_unknown_tags {
+                        parser.tokenizer.take_line_value()?;
+                        return Ok(());
+                    }
                     return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
+                        line: parser.tokenizer.line,
                         message: format!("Unhandled Association Tag: {tag}"),
                     })
                 }
@@ -62,7 +66,7 @@ impl Parser for Association {
             Ok(())
         };
 
-        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
+        self.custom_data = parse_subset(parser, level, handle_subset)?;
 
         Ok(())
     }

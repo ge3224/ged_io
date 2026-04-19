@@ -11,8 +11,8 @@
 //! See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#PLACE_STRUCTURE>
 
 use crate::{
+    parser::ParserData,
     parser::{parse_subset, Parser},
-    tokenizer::Tokenizer,
     types::{custom::UserDefinedTag, note::Note, source::citation::Citation},
     GedcomError,
 };
@@ -105,9 +105,9 @@ impl MapCoordinates {
     /// # Errors
     ///
     /// Returns an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<MapCoordinates, GedcomError> {
+    pub fn new(parser: &mut ParserData, level: u8) -> Result<MapCoordinates, GedcomError> {
         let mut map = MapCoordinates::default();
-        map.parse(tokenizer, level)?;
+        map.parse(parser, level)?;
         Ok(map)
     }
 
@@ -164,16 +164,20 @@ fn parse_coordinate(coord: &str) -> Option<f64> {
 }
 
 impl Parser for MapCoordinates {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
-        tokenizer.next_token()?;
+    fn parse(&mut self, parser: &mut ParserData, level: u8) -> Result<(), GedcomError> {
+        parser.tokenizer.next_token()?;
 
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, parser: &mut ParserData| -> Result<(), GedcomError> {
             match tag {
-                "LATI" => self.latitude = Some(tokenizer.take_line_value()?),
-                "LONG" => self.longitude = Some(tokenizer.take_line_value()?),
+                "LATI" => self.latitude = Some(parser.tokenizer.take_line_value()?),
+                "LONG" => self.longitude = Some(parser.tokenizer.take_line_value()?),
                 _ => {
+                    if parser.config.ignore_unknown_tags {
+                        parser.tokenizer.take_line_value()?;
+                        return Ok(());
+                    }
                     return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
+                        line: parser.tokenizer.line,
                         message: format!("Unhandled MapCoordinates Tag: {tag}"),
                     })
                 }
@@ -181,7 +185,7 @@ impl Parser for MapCoordinates {
             Ok(())
         };
 
-        parse_subset(tokenizer, level, handle_subset)?;
+        parse_subset(parser, level, handle_subset)?;
 
         Ok(())
     }
@@ -218,12 +222,12 @@ impl PlaceVariation {
     /// # Errors
     ///
     /// Returns an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<PlaceVariation, GedcomError> {
+    pub fn new(parser: &mut ParserData, level: u8) -> Result<PlaceVariation, GedcomError> {
         let mut variation = PlaceVariation {
-            value: tokenizer.take_line_value()?,
+            value: parser.tokenizer.take_line_value()?,
             variation_type: None,
         };
-        variation.parse(tokenizer, level)?;
+        variation.parse(parser, level)?;
         Ok(variation)
     }
 
@@ -238,13 +242,13 @@ impl PlaceVariation {
 }
 
 impl Parser for PlaceVariation {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+    fn parse(&mut self, parser: &mut ParserData, level: u8) -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, parser: &mut ParserData| -> Result<(), GedcomError> {
             match tag {
-                "TYPE" => self.variation_type = Some(tokenizer.take_line_value()?),
+                "TYPE" => self.variation_type = Some(parser.tokenizer.take_line_value()?),
                 _ => {
                     return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
+                        line: parser.tokenizer.line,
                         message: format!("Unhandled PlaceVariation Tag: {tag}"),
                     })
                 }
@@ -252,7 +256,7 @@ impl Parser for PlaceVariation {
             Ok(())
         };
 
-        parse_subset(tokenizer, level, handle_subset)?;
+        parse_subset(parser, level, handle_subset)?;
 
         Ok(())
     }
@@ -264,12 +268,12 @@ impl Place {
     /// # Errors
     ///
     /// Returns an error if parsing fails.
-    pub fn new(tokenizer: &mut Tokenizer, level: u8) -> Result<Place, GedcomError> {
+    pub fn new(parser: &mut ParserData, level: u8) -> Result<Place, GedcomError> {
         let mut place = Place {
-            value: Some(tokenizer.take_line_value()?),
+            value: Some(parser.tokenizer.take_line_value()?),
             ..Default::default()
         };
-        place.parse(tokenizer, level)?;
+        place.parse(parser, level)?;
         Ok(place)
     }
 
@@ -330,23 +334,23 @@ impl Place {
 }
 
 impl Parser for Place {
-    fn parse(&mut self, tokenizer: &mut Tokenizer, level: u8) -> Result<(), GedcomError> {
-        let handle_subset = |tag: &str, tokenizer: &mut Tokenizer| -> Result<(), GedcomError> {
+    fn parse(&mut self, parser: &mut ParserData, level: u8) -> Result<(), GedcomError> {
+        let handle_subset = |tag: &str, parser: &mut ParserData| -> Result<(), GedcomError> {
             match tag {
-                "FORM" => self.form = Some(tokenizer.take_line_value()?),
-                "MAP" => self.map = Some(MapCoordinates::new(tokenizer, level + 1)?),
+                "FORM" => self.form = Some(parser.tokenizer.take_line_value()?),
+                "MAP" => self.map = Some(MapCoordinates::new(parser, level + 1)?),
                 "FONE" => self
                     .phonetic
-                    .push(PlaceVariation::new(tokenizer, level + 1)?),
+                    .push(PlaceVariation::new(parser, level + 1)?),
                 "ROMN" => self
                     .romanized
-                    .push(PlaceVariation::new(tokenizer, level + 1)?),
-                "NOTE" => self.notes.push(Note::new(tokenizer, level + 1)?),
-                "SOUR" => self.citations.push(Citation::new(tokenizer, level + 1)?),
-                "EXID" => self.external_ids.push(tokenizer.take_line_value()?),
+                    .push(PlaceVariation::new(parser, level + 1)?),
+                "NOTE" => self.notes.push(Note::new(parser, level + 1)?),
+                "SOUR" => self.citations.push(Citation::new(parser, level + 1)?),
+                "EXID" => self.external_ids.push(parser.tokenizer.take_line_value()?),
                 _ => {
                     return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
+                        line: parser.tokenizer.line,
                         message: format!("Unhandled Place Tag: {tag}"),
                     })
                 }
@@ -354,7 +358,7 @@ impl Parser for Place {
             Ok(())
         };
 
-        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
+        self.custom_data = parse_subset(parser, level, handle_subset)?;
 
         Ok(())
     }
