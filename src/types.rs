@@ -232,9 +232,14 @@ impl GedcomData {
             // Direct citations on the individual
             stats.on_individuals += individual.source.len();
 
-            // Citations on name
-            if let Some(ref name) = individual.name {
+            // Citations on names
+            for name in &individual.names {
                 stats.on_names += name.source.len();
+            }
+            if individual.names.is_empty() {
+                if let Some(ref name) = individual.name {
+                    stats.on_names += name.source.len();
+                }
             }
 
             // Citations on gender
@@ -495,7 +500,15 @@ impl GedcomData {
         self.individuals
             .iter()
             .filter(|i| {
-                i.name.as_ref().is_some_and(|name| {
+                let names_to_search: Vec<&crate::types::individual::name::Name> =
+                    if !i.names.is_empty() {
+                        i.names.iter().collect()
+                    } else if let Some(ref name) = i.name {
+                        vec![name]
+                    } else {
+                        vec![]
+                    };
+                names_to_search.iter().any(|name| {
                     name.value
                         .as_ref()
                         .is_some_and(|v| v.to_lowercase().contains(&query_lower))
