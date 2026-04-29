@@ -8,7 +8,7 @@ use std::fmt;
 use crate::types::{
     family::Family,
     header::Header,
-    individual::{name::Name, Individual},
+    individual::{name::Name, GedcomName, Individual},
     multimedia::Multimedia,
     note::Note,
     repository::Repository,
@@ -162,43 +162,12 @@ impl fmt::Display for Individual {
 
 impl fmt::Display for Name {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(ref value) = self.value {
-            // GEDCOM names use slashes around surnames, e.g., "John /Doe/"
-            // We display them more naturally
-            let display_name = value.replace('/', "").trim().to_string();
-            if display_name.is_empty() {
-                write!(f, "(Unknown)")?;
-            } else {
-                write!(f, "{display_name}")?;
-            }
+        let gn = GedcomName::from(self);
+        if gn.given.is_empty() && gn.surname.is_none() && gn.suffix.is_none() {
+            write!(f, "(Unknown)")
         } else {
-            // Build from components if no full value
-            let mut parts = Vec::new();
-
-            if let Some(ref prefix) = self.prefix {
-                parts.push(prefix.clone());
-            }
-            if let Some(ref given) = self.given {
-                parts.push(given.clone());
-            }
-            if let Some(ref surname_prefix) = self.surname_prefix {
-                parts.push(surname_prefix.clone());
-            }
-            if let Some(ref surname) = self.surname {
-                parts.push(surname.clone());
-            }
-            if let Some(ref suffix) = self.suffix {
-                parts.push(suffix.clone());
-            }
-
-            if parts.is_empty() {
-                write!(f, "(Unknown)")?;
-            } else {
-                write!(f, "{}", parts.join(" "))?;
-            }
+            write!(f, "{gn}")
         }
-
-        Ok(())
     }
 }
 

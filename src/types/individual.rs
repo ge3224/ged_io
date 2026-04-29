@@ -2,7 +2,10 @@ pub mod association;
 pub mod attribute;
 pub mod family_link;
 pub mod gender;
+pub mod gedcom_name;
 pub mod name;
+
+pub use gedcom_name::GedcomName;
 
 use crate::{
     parser::{parse_subset, Parser},
@@ -229,15 +232,28 @@ impl Individual {
     /// ```
     #[must_use]
     pub fn full_name(&self) -> Option<Cow<'_, str>> {
-        self.name.as_ref().and_then(|n| {
-            n.value.as_ref().map(|v| {
-                if !v.contains('/') && v == v.trim() {
-                    Cow::Borrowed(v.as_str())
-                } else {
-                    Cow::Owned(v.replace('/', "").trim().to_string())
-                }
-            })
-        })
+        self.name.as_ref().map(|n| GedcomName::from(n).as_cow())
+    }
+
+    /// Gets a zero-allocation view of this individual's name.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use ged_io::Gedcom;
+    /// use ged_io::types::individual::GedcomName;
+    ///
+    /// let source = "0 HEAD\n1 GEDC\n2 VERS 5.5\n0 @I1@ INDI\n1 NAME John /Doe/\n0 TRLR";
+    /// let mut gedcom = Gedcom::new(source.chars()).unwrap();
+    /// let data = gedcom.parse_data().unwrap();
+    ///
+    /// let gn = data.individuals[0].gedcom_name().unwrap();
+    /// assert_eq!(gn.given, "John");
+    /// assert_eq!(gn.surname, Some("Doe"));
+    /// ```
+    #[must_use]
+    pub fn gedcom_name(&self) -> Option<GedcomName<'_>> {
+        self.name.as_ref().map(GedcomName::from)
     }
 
     /// Gets the given (first) name if available.

@@ -6,7 +6,7 @@
 
 use std::borrow::Cow;
 
-use ged_io::types::individual::Individual;
+use ged_io::types::individual::{GedcomName, Individual};
 use ged_io::types::shared_note::SharedNote;
 use ged_io::util::{escape_at_signs, unescape_at_signs};
 use ged_io::GedcomWriter;
@@ -86,6 +86,41 @@ fn main() {
     let name2 = data2.individuals[0].full_name().unwrap();
     assert!(matches!(name2, Cow::Owned(_)));
     println!("full_name('Jane /Smith/') → Owned: {name2}");
+
+    // --- 6. GedcomName — zero-allocation structural access ---
+    // `gedcom_name()` returns a `GedcomName<'_>` view that borrows from the
+    // stored name. Displaying it allocates nothing.
+    let source3 = "0 HEAD\n1 GEDC\n2 VERS 5.5\n0 @I3@ INDI\n1 NAME Robert /Johnson/ Jr.\n0 TRLR";
+    let mut gedcom3 = ged_io::Gedcom::new(source3.chars()).unwrap();
+    let data3 = gedcom3.parse_data().unwrap();
+    let gn = data3.individuals[0].gedcom_name().unwrap();
+
+    // Structural access — no parsing, no allocation
+    assert_eq!(gn.given, "Robert");
+    assert_eq!(gn.surname, Some("Johnson"));
+    assert_eq!(gn.suffix, Some("Jr."));
+    println!("gedcom_name → given='{}', surname={:?}, suffix={:?}", gn.given, gn.surname, gn.suffix);
+
+    // Display is zero-allocation — writes directly to the formatter
+    println!("Display via GedcomName → {}", gn);
+
+    // as_cow() allocates only when 2+ non-empty fields must be joined
+    assert!(matches!(gn.as_cow(), Cow::Owned(_)));
+    assert_eq!(gn.as_cow(), "Robert Johnson Jr.");
+
+    // Simple name: borrowed fast path
+    let source4 = "0 HEAD\n1 GEDC\n2 VERS 5.5\n0 @I4@ INDI\n1 NAME Alice\n0 TRLR";
+    let mut gedcom4 = ged_io::Gedcom::new(source4.chars()).unwrap();
+    let data4 = gedcom4.parse_data().unwrap();
+    let gn4 = data4.individuals[0].gedcom_name().unwrap();
+    assert!(matches!(gn4.as_cow(), Cow::Borrowed(_)));
+    println!("simple name → Borrowed: {}", gn4.as_cow());
+
+    // Raw parsing from a slash-delimited string
+    let gn_raw = GedcomName::from_raw("John /Doe/");
+    assert_eq!(gn_raw.given, "John");
+    assert_eq!(gn_raw.surname, Some("Doe"));
+    println!("GedcomName::from_raw('John /Doe/') → given='{}', surname={:?}", gn_raw.given, gn_raw.surname);
 
     println!("\nAll Cow usage demonstrations passed!");
 }

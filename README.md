@@ -335,6 +335,17 @@ let result = escape_at_signs("user@example.com", false);
 assert!(matches!(result, Cow::Owned(_)));
 ```
 
+For names, `GedcomName<'_>` provides a **zero-allocation structural view** that borrows sub-slices from the stored name. Use it when you need the given name, surname, or suffix individually, or when you want to display the full name without any allocation.
+
+```rust
+use ged_io::types::individual::GedcomName;
+
+let gn = individual.gedcom_name().unwrap();
+assert_eq!(gn.given, "John");           // borrowed, zero alloc
+assert_eq!(gn.surname, Some("Doe"));    // borrowed, zero alloc
+println!("{gn}");                       // zero-alloc Display
+```
+
 Run `cargo run --example cow_usage` to see a full demonstration.
 
 ---
