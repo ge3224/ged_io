@@ -607,32 +607,27 @@ pub fn needs_at_escaping(value: &str, is_gedcom_7: bool) -> bool {
     }
 }
 
-/// Case-insensitive substring search using Unicode case folding via unicase.
+/// ASCII case-insensitive substring search.
 ///
-/// Returns true if `needle` is found as a substring of `haystack` when
-/// comparing with full Unicode case folding (Unicode Default Caseless Matching).
+/// Returns true if `needle` appears as a substring of `haystack`, comparing
+/// ASCII letters case-insensitively. Non-ASCII bytes are compared exactly
+/// (no Unicode case folding) — consistent with `str::eq_ignore_ascii_case`.
 ///
-/// This is zero-allocation — no intermediate `String` or `Vec` is created.
+/// Zero-allocation, SIMD-friendly byte-level windowed search.
 #[must_use]
-pub fn contains_unicase(haystack: &str, needle: &str) -> bool {
+pub fn contains_ignore_ascii_case(haystack: &str, needle: &str) -> bool {
     if needle.is_empty() {
         return true;
     }
-    let needle_uc = unicase::UniCase::new(needle);
-    let needle_char_count = needle.chars().count();
+    if needle.len() > haystack.len() {
+        return false;
+    }
 
-    haystack.char_indices().any(|(i, _)| {
-        let remaining = &haystack[i..];
-        let mut iter = remaining.char_indices();
-        // Find the byte offset after `needle_char_count` characters
-        let end_byte = iter
-            .nth(needle_char_count - 1)
-            .map(|(idx, ch)| idx + ch.len_utf8());
-        let Some(end_byte) = end_byte else {
-            return false; // not enough chars remaining
-        };
-        unicase::UniCase::new(&remaining[..end_byte]) == needle_uc
-    })
+    let nb = needle.as_bytes();
+    haystack
+        .as_bytes()
+        .windows(nb.len())
+        .any(|w| w.eq_ignore_ascii_case(nb))
 }
 
 #[cfg(test)]

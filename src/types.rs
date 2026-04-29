@@ -500,7 +500,7 @@ impl GedcomData {
                 i.name.as_ref().is_some_and(|name| {
                     name.value
                         .as_ref()
-                        .is_some_and(|v| crate::util::contains_unicase(v, query))
+                        .is_some_and(|v| crate::util::contains_ignore_ascii_case(v, query))
                 })
             })
             .collect()
