@@ -23,6 +23,8 @@
 //!
 //! See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#LDS_INDIVIDUAL_ORDINANCE>
 
+use std::borrow::Cow;
+
 use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
@@ -272,9 +274,9 @@ impl LdsOrdinance {
 
     /// Sets the date of the ordinance.
     #[must_use]
-    pub fn with_date(mut self, date: &str) -> Self {
+    pub fn with_date(mut self, date: impl Into<Cow<'static, str>>) -> Self {
         self.date = Some(Date {
-            value: Some(date.to_string()),
+            value: Some(date.into().into_owned()),
             ..Default::default()
         });
         self
@@ -282,8 +284,8 @@ impl LdsOrdinance {
 
     /// Sets the temple code.
     #[must_use]
-    pub fn with_temple(mut self, temple: &str) -> Self {
-        self.temple = Some(temple.to_string());
+    pub fn with_temple(mut self, temple: impl Into<Cow<'static, str>>) -> Self {
+        self.temple = Some(temple.into().into_owned());
         self
     }
 

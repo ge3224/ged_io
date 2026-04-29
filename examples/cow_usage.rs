@@ -99,7 +99,12 @@ fn main() {
     assert_eq!(gn.given(), "Robert");
     assert_eq!(gn.surname(), Some("Johnson"));
     assert_eq!(gn.suffix(), Some("Jr."));
-    println!("gedcom_name → given='{}', surname={:?}, suffix={:?}", gn.given(), gn.surname(), gn.suffix());
+    println!(
+        "gedcom_name → given='{}', surname={:?}, suffix={:?}",
+        gn.given(),
+        gn.surname(),
+        gn.suffix()
+    );
 
     // Display is zero-allocation — writes directly to the formatter
     println!("Display via GedcomName → {}", gn);
@@ -120,7 +125,11 @@ fn main() {
     let gn_raw = GedcomName::from_raw("John /Doe/");
     assert_eq!(gn_raw.given(), "John");
     assert_eq!(gn_raw.surname(), Some("Doe"));
-    println!("GedcomName::from_raw('John /Doe/') → given='{}', surname={:?}", gn_raw.given(), gn_raw.surname());
+    println!(
+        "GedcomName::from_raw('John /Doe/') → given='{}', surname={:?}",
+        gn_raw.given(),
+        gn_raw.surname()
+    );
 
     println!("\nAll Cow usage demonstrations passed!");
 }

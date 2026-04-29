@@ -83,7 +83,11 @@ impl<'a> GedcomName<'a> {
             None
         } else {
             let s = &self.raw[self.surname.0 + 1..self.surname.1 - 1];
-            if s.is_empty() { None } else { Some(s) }
+            if s.is_empty() {
+                None
+            } else {
+                Some(s)
+            }
         }
     }
 
@@ -95,7 +99,11 @@ impl<'a> GedcomName<'a> {
             None
         } else {
             let s = self.raw[self.surname.1..].trim();
-            if s.is_empty() { None } else { Some(s) }
+            if s.is_empty() {
+                None
+            } else {
+                Some(s)
+            }
         }
     }
 
@@ -122,9 +130,8 @@ impl<'a> GedcomName<'a> {
             (false, false, true) => Cow::Borrowed(suffix),
             (false, false, false) => Cow::Borrowed(""),
             _ => {
-                let mut result = String::with_capacity(
-                    prefix.len() + surname.len() + suffix.len() + 2,
-                );
+                let mut result =
+                    String::with_capacity(prefix.len() + surname.len() + suffix.len() + 2);
                 if has_prefix {
                     result.push_str(prefix);
                 }
@@ -303,15 +310,15 @@ mod tests {
     fn display_emits_correct_format() {
         assert_eq!(format!("{}", GedcomName::from_raw("John Doe")), "John Doe");
         assert_eq!(format!("{}", GedcomName::from_raw("/Doe/")), "Doe");
-        assert_eq!(format!("{}", GedcomName::from_raw("John /Doe/")), "John Doe");
+        assert_eq!(
+            format!("{}", GedcomName::from_raw("John /Doe/")),
+            "John Doe"
+        );
         assert_eq!(
             format!("{}", GedcomName::from_raw("John /Doe/ Jr.")),
             "John Doe Jr."
         );
-        assert_eq!(
-            format!("{}", GedcomName::from_raw("/Doe/ Jr.")),
-            "Doe Jr."
-        );
+        assert_eq!(format!("{}", GedcomName::from_raw("/Doe/ Jr.")), "Doe Jr.");
         assert_eq!(format!("{}", GedcomName::from_raw("")), "");
         assert_eq!(
             format!("{}", GedcomName::from_raw("Dr. John /Doe/ Jr.")),

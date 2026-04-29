@@ -1,5 +1,7 @@
 pub mod citation;
 
+use std::borrow::Cow;
+
 use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
@@ -116,10 +118,13 @@ impl Repository {
 
     /// Creates a repository with the given xref and name.
     #[must_use]
-    pub fn with_name(xref: &str, name: &str) -> Self {
+    pub fn with_name(
+        xref: impl Into<Cow<'static, str>>,
+        name: impl Into<Cow<'static, str>>,
+    ) -> Self {
         Self {
-            xref: Some(xref.to_string()),
-            name: Some(name.to_string()),
+            xref: Some(xref.into().into_owned()),
+            name: Some(name.into().into_owned()),
             ..Default::default()
         }
     }

@@ -607,6 +607,34 @@ pub fn needs_at_escaping(value: &str, is_gedcom_7: bool) -> bool {
     }
 }
 
+/// Case-insensitive substring search using Unicode case folding via unicase.
+///
+/// Returns true if `needle` is found as a substring of `haystack` when
+/// comparing with full Unicode case folding (Unicode Default Caseless Matching).
+///
+/// This is zero-allocation — no intermediate `String` or `Vec` is created.
+#[must_use]
+pub fn contains_unicase(haystack: &str, needle: &str) -> bool {
+    if needle.is_empty() {
+        return true;
+    }
+    let needle_uc = unicase::UniCase::new(needle);
+    let needle_char_count = needle.chars().count();
+
+    haystack.char_indices().any(|(i, _)| {
+        let remaining = &haystack[i..];
+        let mut iter = remaining.char_indices();
+        // Find the byte offset after `needle_char_count` characters
+        let end_byte = iter
+            .nth(needle_char_count - 1)
+            .map(|(idx, ch)| idx + ch.len_utf8());
+        let Some(end_byte) = end_byte else {
+            return false; // not enough chars remaining
+        };
+        unicase::UniCase::new(&remaining[..end_byte]) == needle_uc
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

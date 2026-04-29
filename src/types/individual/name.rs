@@ -134,10 +134,13 @@ impl NameVariation {
 
     /// Creates a variation with the given value and type.
     #[must_use]
-    pub fn with_type(value: &str, variation_type: &str) -> Self {
+    pub fn with_type(
+        value: impl Into<Cow<'static, str>>,
+        variation_type: impl Into<Cow<'static, str>>,
+    ) -> Self {
         NameVariation {
-            value: value.to_string(),
-            variation_type: Some(variation_type.to_string()),
+            value: value.into().into_owned(),
+            variation_type: Some(variation_type.into().into_owned()),
             ..Default::default()
         }
     }
@@ -270,7 +273,9 @@ impl Name {
     /// (e.g., "John /Doe/" becomes "John Doe").
     #[must_use]
     pub fn full_name(&self) -> Option<Cow<'_, str>> {
-        self.value.as_ref().map(|v| GedcomName::from_raw(v).as_cow())
+        self.value
+            .as_ref()
+            .map(|v| GedcomName::from_raw(v).as_cow())
     }
 
     /// Returns true if this name has any phonetic variations.

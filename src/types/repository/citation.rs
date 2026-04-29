@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 
@@ -80,9 +82,9 @@ impl Citation {
 
     /// Creates a citation with the given repository xref.
     #[must_use]
-    pub fn for_repository(xref: &str) -> Self {
+    pub fn for_repository(xref: impl Into<Cow<'static, str>>) -> Self {
         Self {
-            xref: xref.to_string(),
+            xref: xref.into().into_owned(),
             ..Default::default()
         }
     }

@@ -1,8 +1,8 @@
 pub mod association;
 pub mod attribute;
 pub mod family_link;
-pub mod gender;
 pub mod gedcom_name;
+pub mod gender;
 pub mod name;
 
 pub use gedcom_name::GedcomName;

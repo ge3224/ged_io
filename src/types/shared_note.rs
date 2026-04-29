@@ -130,10 +130,13 @@ pub struct ExternalId {
 impl ExternalId {
     /// Creates a new external identifier.
     #[must_use]
-    pub fn new(id: &str, type_uri: Option<&str>) -> Self {
+    pub fn new(
+        id: impl Into<Cow<'static, str>>,
+        type_uri: Option<impl Into<Cow<'static, str>>>,
+    ) -> Self {
         ExternalId {
-            id: id.to_string(),
-            type_uri: type_uri.map(String::from),
+            id: id.into().into_owned(),
+            type_uri: type_uri.map(|t| t.into().into_owned()),
         }
     }
 
@@ -141,21 +144,25 @@ impl ExternalId {
     ///
     /// This concatenates the type URI with the identifier.
     #[must_use]
-    pub fn full_url(&self) -> Option<String> {
+    pub fn full_url(&self) -> Option<Cow<'_, str>> {
         self.type_uri
             .as_ref()
-            .map(|uri| format!("{}{}", uri, self.id))
+            .map(|uri| Cow::Owned(format!("{}{}", uri, self.id)))
     }
 }
 
 impl NoteTranslation {
     /// Creates a new note translation.
     #[must_use]
-    pub fn new(text: &str, mime: Option<&str>, language: Option<&str>) -> Self {
+    pub fn new(
+        text: impl Into<Cow<'static, str>>,
+        mime: Option<impl Into<Cow<'static, str>>>,
+        language: Option<impl Into<Cow<'static, str>>>,
+    ) -> Self {
         NoteTranslation {
-            text: text.to_string(),
-            mime: mime.map(String::from),
-            language: language.map(String::from),
+            text: text.into().into_owned(),
+            mime: mime.map(|m| m.into().into_owned()),
+            language: language.map(|l| l.into().into_owned()),
         }
     }
 
@@ -235,9 +242,9 @@ impl SharedNote {
     /// - Remove all other tags
     /// - Decode `&lt;`, `&gt;`, `&amp;`
     #[must_use]
-    pub fn to_plain_text(&self) -> String {
+    pub fn to_plain_text(&self) -> Cow<'_, str> {
         if !self.is_html() {
-            return self.text.clone();
+            return Cow::Borrowed(&self.text);
         }
 
         let mut result = self.text.clone();
@@ -266,7 +273,7 @@ impl SharedNote {
         result = result.replace("&gt;", ">");
         result = result.replace("&amp;", "&");
 
-        result.trim().to_string()
+        result.trim().to_owned().into()
     }
 }
 
@@ -376,16 +383,16 @@ mod tests {
 
     #[test]
     fn test_note_translation_is_valid() {
-        let valid1 = NoteTranslation::new("text", Some("text/plain"), None);
+        let valid1 = NoteTranslation::new("text", Some("text/plain"), Option::<&str>::None);
         assert!(valid1.is_valid());
 
-        let valid2 = NoteTranslation::new("text", None, Some("en"));
+        let valid2 = NoteTranslation::new("text", Option::<&str>::None, Some("en"));
         assert!(valid2.is_valid());
 
         let valid3 = NoteTranslation::new("text", Some("text/html"), Some("en"));
         assert!(valid3.is_valid());
 
-        let invalid = NoteTranslation::new("text", None, None);
+        let invalid = NoteTranslation::new("text", Option::<&str>::None, Option::<&str>::None);
         assert!(!invalid.is_valid());
     }
 
@@ -398,11 +405,11 @@ mod tests {
             Some("https://example.com/person/".to_string())
         );
         assert_eq!(
-            exid.full_url(),
-            Some("https://example.com/person/12345".to_string())
+            exid.full_url().as_deref(),
+            Some("https://example.com/person/12345")
         );
 
-        let exid_no_type = ExternalId::new("12345", None);
+        let exid_no_type: ExternalId = ExternalId::new("12345", Option::<&str>::None);
         assert_eq!(exid_no_type.full_url(), None);
     }
 
@@ -452,10 +459,14 @@ mod tests {
     fn test_add_methods() {
         let mut note = SharedNote::default();
 
-        note.add_translation(NoteTranslation::new("Translated", None, Some("de")));
+        note.add_translation(NoteTranslation::new(
+            "Translated",
+            Option::<&str>::None,
+            Some("de"),
+        ));
         assert_eq!(note.translations.len(), 1);
 
-        note.add_external_id(ExternalId::new("123", None));
+        note.add_external_id(ExternalId::new("123", Option::<&str>::None));
         assert_eq!(note.external_ids.len(), 1);
     }
 

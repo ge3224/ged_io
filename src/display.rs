@@ -177,19 +177,23 @@ impl fmt::Display for Family {
             write!(f, "{xref} ")?;
         }
 
-        let mut members = Vec::new();
+        let has_p1 = self.individual1.is_some();
+        let has_p2 = self.individual2.is_some();
 
-        if let Some(ref ind1) = self.individual1 {
-            members.push(format!("Partner 1: {ind1}"));
-        }
-        if let Some(ref ind2) = self.individual2 {
-            members.push(format!("Partner 2: {ind2}"));
-        }
-
-        if members.is_empty() {
+        if !has_p1 && !has_p2 {
             write!(f, "(No partners)")?;
         } else {
-            write!(f, "{}", members.join(", "))?;
+            let mut first = true;
+            if let Some(ref ind1) = self.individual1 {
+                write!(f, "Partner 1: {ind1}")?;
+                first = false;
+            }
+            if let Some(ref ind2) = self.individual2 {
+                if !first {
+                    write!(f, ", ")?;
+                }
+                write!(f, "Partner 2: {ind2}")?;
+            }
         }
 
         if !self.children.is_empty() {
@@ -349,7 +353,8 @@ impl fmt::Display for Note {
             // Truncate long notes for display
             const MAX_LEN: usize = 100;
             if value.len() > MAX_LEN {
-                write!(f, "{}...", &value[..MAX_LEN])?;
+                let boundary = value.floor_char_boundary(MAX_LEN);
+                write!(f, "{}...", &value[..boundary])?;
             } else {
                 write!(f, "{value}")?;
             }
