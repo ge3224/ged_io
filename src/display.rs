@@ -163,7 +163,7 @@ impl fmt::Display for Individual {
 impl fmt::Display for Name {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let gn = GedcomName::from(self);
-        if gn.given.is_empty() && gn.surname.is_none() && gn.suffix.is_none() {
+        if gn.given().is_empty() && gn.surname().is_none() && gn.suffix().is_none() {
             write!(f, "(Unknown)")
         } else {
             write!(f, "{gn}")

@@ -248,8 +248,8 @@ impl Individual {
     /// let data = gedcom.parse_data().unwrap();
     ///
     /// let gn = data.individuals[0].gedcom_name().unwrap();
-    /// assert_eq!(gn.given, "John");
-    /// assert_eq!(gn.surname, Some("Doe"));
+    /// assert_eq!(gn.given(), "John");
+    /// assert_eq!(gn.surname(), Some("Doe"));
     /// ```
     #[must_use]
     pub fn gedcom_name(&self) -> Option<GedcomName<'_>> {
