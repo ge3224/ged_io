@@ -607,13 +607,13 @@ pub fn needs_at_escaping(value: &str, is_gedcom_7: bool) -> bool {
     }
 }
 
-/// ASCII case-insensitive substring search.
+/// Case-insensitive substring search with Unicode case folding.
 ///
-/// Returns true if `needle` appears as a substring of `haystack`, comparing
-/// ASCII letters case-insensitively. Non-ASCII bytes are compared exactly
-/// (no Unicode case folding) — consistent with `str::eq_ignore_ascii_case`.
+/// Uses a zero-allocation SIMD-friendly byte-level windowed search for ASCII
+/// strings, falling back to full Unicode case folding via `to_lowercase()`
+/// when either string contains non-ASCII bytes.
 ///
-/// Zero-allocation, SIMD-friendly byte-level windowed search.
+/// The Unicode fallback is marked `#[cold]` to keep it out of the hot path.
 #[must_use]
 pub fn contains_ignore_ascii_case(haystack: &str, needle: &str) -> bool {
     if needle.is_empty() {
@@ -623,11 +623,23 @@ pub fn contains_ignore_ascii_case(haystack: &str, needle: &str) -> bool {
         return false;
     }
 
-    let nb = needle.as_bytes();
-    haystack
-        .as_bytes()
-        .windows(nb.len())
-        .any(|w| w.eq_ignore_ascii_case(nb))
+    // Fast path: both ASCII — zero-alloc byte-level windowed search.
+    if haystack.is_ascii() && needle.is_ascii() {
+        let nb = needle.as_bytes();
+        return haystack
+            .as_bytes()
+            .windows(nb.len())
+            .any(|w| w.eq_ignore_ascii_case(nb));
+    }
+
+    // Slow path: full Unicode case folding.
+    contains_ignore_ascii_case_slow(haystack, needle)
+}
+
+#[cold]
+#[inline(never)]
+fn contains_ignore_ascii_case_slow(haystack: &str, needle: &str) -> bool {
+    haystack.to_lowercase().contains(&needle.to_lowercase())
 }
 
 #[cfg(test)]

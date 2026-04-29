@@ -301,7 +301,11 @@ fn run() -> Result<RunOutcome, CliError> {
             let (first, last) = extract_first_last_name(&display_name);
 
             let matches_last = filter_last
-                .map(|f| last.as_deref().map(|l| ged_io::util::contains_ignore_ascii_case(l, f)).unwrap_or(false))
+                .map(|f| {
+                    last.as_deref()
+                        .map(|l| ged_io::util::contains_ignore_ascii_case(l, f))
+                        .unwrap_or(false)
+                })
                 .unwrap_or(true);
 
             let matches_first = filter_first
