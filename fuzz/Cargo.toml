@@ -1,0 +1,100 @@
+[package]
+name = "ged_io-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+arbitrary = { version = "1", features = ["derive"] }
+
+[dependencies.ged_io]
+path = ".."
+features = ["gedzip", "calendar"]
+
+[[bin]]
+name = "fuzz_target_1"
+path = "fuzz_targets/fuzz_target_1.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "parse_str"
+path = "fuzz_targets/parse_str.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "parse_bytes"
+path = "fuzz_targets/parse_bytes.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "stream_parser"
+path = "fuzz_targets/stream_parser.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "detect_encoding"
+path = "fuzz_targets/detect_encoding.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "detect_version"
+path = "fuzz_targets/detect_version.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "escape_at_roundtrip"
+path = "fuzz_targets/escape_at_roundtrip.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "name_parse"
+path = "fuzz_targets/name_parse.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "date_qualifier"
+path = "fuzz_targets/date_qualifier.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "writer_roundtrip"
+path = "fuzz_targets/writer_roundtrip.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "encode_decode_roundtrip"
+path = "fuzz_targets/encode_decode_roundtrip.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "gedzip_read"
+path = "fuzz_targets/gedzip_read.rs"
+test = false
+doc = false
+bench = false
