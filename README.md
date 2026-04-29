@@ -318,6 +318,25 @@ let person = indexed.find_individual("@I1@");
 let family = indexed.find_family("@F1@");
 ```
 
+### Cow-friendly APIs
+
+Several helpers use `std::borrow::Cow<'_, str>` to avoid unnecessary allocations. When the input does not need transformation, a zero-cost borrowed reference is returned; an owned `String` is allocated only when necessary.
+
+```rust
+use ged_io::util::escape_at_signs;
+use std::borrow::Cow;
+
+// Borrowed — no allocation when there are no @ signs
+let result = escape_at_signs("plain text", false);
+assert!(matches!(result, Cow::Borrowed(_)));
+
+// Owned — allocation only when @ signs need doubling
+let result = escape_at_signs("user@example.com", false);
+assert!(matches!(result, Cow::Owned(_)));
+```
+
+Run `cargo run --example cow_usage` to see a full demonstration.
+
 ---
 
 ## Supported GEDCOM Tags

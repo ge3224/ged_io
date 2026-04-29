@@ -23,7 +23,7 @@ fn test_find_individual() {
 
     let found = data.find_individual("@I1@");
     assert!(found.is_some());
-    assert_eq!(found.unwrap().full_name(), Some("John Doe".to_string()));
+    assert_eq!(found.unwrap().full_name().as_deref(), Some("John Doe"));
 
     let not_found = data.find_individual("@I999@");
     assert!(not_found.is_none());
@@ -208,11 +208,11 @@ fn test_get_spouse() {
 
     let spouse = data.get_spouse("@I1@", family);
     assert!(spouse.is_some());
-    assert_eq!(spouse.unwrap().full_name(), Some("Jane Doe".to_string()));
+    assert_eq!(spouse.unwrap().full_name().as_deref(), Some("Jane Doe"));
 
     let spouse = data.get_spouse("@I2@", family);
     assert!(spouse.is_some());
-    assert_eq!(spouse.unwrap().full_name(), Some("John Doe".to_string()));
+    assert_eq!(spouse.unwrap().full_name().as_deref(), Some("John Doe"));
 }
 
 #[test]
@@ -321,7 +321,7 @@ fn test_individual_full_name() {
     let data = gedcom.parse_data().unwrap();
 
     let name = data.individuals[0].full_name();
-    assert_eq!(name, Some("John Robert Doe Jr.".to_string()));
+    assert_eq!(name.as_deref(), Some("John Robert Doe Jr."));
 }
 
 #[test]
@@ -446,11 +446,11 @@ fn test_complex_family_navigation() {
     // Get children
     let children = data.get_children(family);
     assert_eq!(children.len(), 1);
-    assert_eq!(children[0].full_name(), Some("Child Doe".to_string()));
+    assert_eq!(children[0].full_name().as_deref(), Some("Child Doe"));
 
     // Get spouse of John
     let spouse = data.get_spouse("@I1@", family).unwrap();
-    assert_eq!(spouse.full_name(), Some("Jane Doe".to_string()));
+    assert_eq!(spouse.full_name().as_deref(), Some("Jane Doe"));
 
     // Check families as spouse
     let johns_families = data.get_families_as_spouse("@I1@");

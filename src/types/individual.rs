@@ -27,6 +27,7 @@ use crate::{
     },
     GedcomError,
 };
+use std::borrow::Cow;
 
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
@@ -140,6 +141,29 @@ impl Individual {
         }
     }
 
+    /// Creates a new `Individual` with the given cross-reference identifier.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use ged_io::types::individual::Individual;
+    ///
+    /// // Zero allocation from a static string
+    /// let indi = Individual::new_with_xref("@I1@");
+    /// assert_eq!(indi.xref.as_deref(), Some("@I1@"));
+    ///
+    /// // Also works with an owned String (no extra copy)
+    /// let indi = Individual::new_with_xref(format!("@I2@"));
+    /// assert_eq!(indi.xref.as_deref(), Some("@I2@"));
+    /// ```
+    #[must_use]
+    pub fn new_with_xref(xref: impl Into<Cow<'static, str>>) -> Self {
+        Self {
+            xref: Some(xref.into().into_owned()),
+            ..Default::default()
+        }
+    }
+
     /// Creates a new `Individual` from a `Tokenizer`.
     ///
     /// # Errors
@@ -201,14 +225,18 @@ impl Individual {
     /// let data = gedcom.parse_data().unwrap();
     ///
     /// let name = data.individuals[0].full_name();
-    /// assert_eq!(name, Some("John Doe".to_string()));
+    /// assert_eq!(name.as_deref(), Some("John Doe"));
     /// ```
     #[must_use]
-    pub fn full_name(&self) -> Option<String> {
+    pub fn full_name(&self) -> Option<Cow<'_, str>> {
         self.name.as_ref().and_then(|n| {
-            n.value
-                .as_ref()
-                .map(|v| v.replace('/', "").trim().to_string())
+            n.value.as_ref().map(|v| {
+                if !v.contains('/') && v == v.trim() {
+                    Cow::Borrowed(v.as_str())
+                } else {
+                    Cow::Owned(v.replace('/', "").trim().to_string())
+                }
+            })
         })
     }
 
@@ -591,5 +619,37 @@ mod tests {
             a_sour.note.as_ref().unwrap().value.as_ref().unwrap(),
             "A note\nNote continued here. The word TEST should not be broken!"
         );
+    }
+
+    #[test]
+    fn full_name_borrows_when_no_slashes() {
+        use super::*;
+        let name = Name {
+            value: Some("John Doe".to_string()),
+            ..Default::default()
+        };
+        let indi = Individual {
+            name: Some(name),
+            ..Default::default()
+        };
+        let result = indi.full_name().unwrap();
+        assert_eq!(result.as_ref(), "John Doe");
+        assert!(matches!(result, Cow::Borrowed(_)));
+    }
+
+    #[test]
+    fn full_name_owns_when_slashes() {
+        use super::*;
+        let name = Name {
+            value: Some("John /Doe/".to_string()),
+            ..Default::default()
+        };
+        let indi = Individual {
+            name: Some(name),
+            ..Default::default()
+        };
+        let result = indi.full_name().unwrap();
+        assert_eq!(result.as_ref(), "John Doe");
+        assert!(matches!(result, Cow::Owned(_)));
     }
 }

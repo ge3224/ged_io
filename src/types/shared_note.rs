@@ -21,6 +21,7 @@ use crate::{
     types::{custom::UserDefinedTag, date::change_date::ChangeDate, source::citation::Citation},
     GedcomError,
 };
+use std::borrow::Cow;
 
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
@@ -188,10 +189,13 @@ impl SharedNote {
 
     /// Creates a simple shared note with just text.
     #[must_use]
-    pub fn with_text(xref: &str, text: &str) -> Self {
+    pub fn with_text(
+        xref: impl Into<Cow<'static, str>>,
+        text: impl Into<Cow<'static, str>>,
+    ) -> Self {
         SharedNote {
-            xref: Some(xref.to_string()),
-            text: text.to_string(),
+            xref: Some(xref.into().into_owned()),
+            text: text.into().into_owned(),
             ..Default::default()
         }
     }

@@ -1,5 +1,6 @@
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 
 use crate::{
     parser::{parse_subset, Parser},
@@ -260,10 +261,14 @@ impl Name {
     /// This extracts the clean name from the GEDCOM format
     /// (e.g., "John /Doe/" becomes "John Doe").
     #[must_use]
-    pub fn full_name(&self) -> Option<String> {
-        self.value
-            .as_ref()
-            .map(|v| v.replace('/', "").trim().to_string())
+    pub fn full_name(&self) -> Option<Cow<'_, str>> {
+        self.value.as_ref().map(|v| {
+            if !v.contains('/') && v == v.trim() {
+                Cow::Borrowed(v.as_str())
+            } else {
+                Cow::Owned(v.replace('/', "").trim().to_string())
+            }
+        })
     }
 
     /// Returns true if this name has any phonetic variations.
@@ -418,7 +423,7 @@ mod tests {
             value: Some("John /Doe/".to_string()),
             ..Default::default()
         };
-        assert_eq!(name.full_name(), Some("John Doe".to_string()));
+        assert_eq!(name.full_name().as_deref(), Some("John Doe"));
     }
 
     #[test]
