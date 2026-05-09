@@ -1525,7 +1525,7 @@ mod tests {
             assert!(a.ordering_key() < b.ordering_key());
 
             b = ParsedDateTime::from_gedcom_date("1 JAN 1986").unwrap();
-            assert!(a.ordering_key() == b.ordering_key());
+            assert_eq!(a.ordering_key(), b.ordering_key());
             assert!(!a.is_complete());
             assert!(b.is_complete());
 
