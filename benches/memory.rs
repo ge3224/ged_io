@@ -5,7 +5,6 @@ use ged_io::{indexed::IndexedGedcomData, GedcomBuilder, GedcomWriter};
 use std::fs;
 use std::hint::black_box;
 
-
 /// Benchmark memory usage during parsing by measuring allocation patterns
 fn bench_parse_memory(c: &mut Criterion) {
     let mut group = c.benchmark_group("parse_memory");
