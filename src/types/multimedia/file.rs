@@ -53,10 +53,8 @@ impl Parser for Reference {
                 "FORM" => self.form = Some(Format::new(tokenizer, level + 1)?),
                 "CROP" => self.crop = Some(Crop::new(tokenizer, level + 1)?),
                 _ => {
-                    return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
-                        message: format!("Unhandled MultimediaFileRefn Tag: {tag}"),
-                    })
+                    // Gracefully skip unknown tags
+                    tokenizer.take_line_value()?;
                 }
             }
             Ok(())

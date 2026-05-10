@@ -381,10 +381,8 @@ impl Parser for Individual {
                 // External identifier (GEDCOM 7.0)
                 "EXID" => self.external_ids.push(tokenizer.take_line_value()?),
                 _ => {
-                    return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
-                        message: format!("Unhandled Individual Tag: {tag}"),
-                    })
+                    // Gracefully skip unknown tags
+                    tokenizer.take_line_value()?;
                 }
             }
 

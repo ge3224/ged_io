@@ -1,8 +1,9 @@
 //! Benchmarks for GEDCOM parsing performance.
 
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use ged_io::{Gedcom, GedcomBuilder};
 use std::fs;
+use std::hint::black_box;
 
 /// Benchmark parsing with the original Gedcom::new() API
 fn bench_parse_original_api(c: &mut Criterion) {

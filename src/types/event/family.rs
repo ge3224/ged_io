@@ -60,10 +60,8 @@ impl Parser for FamilyEventDetail {
             match tag {
                 "AGE" => self.age = Some(Age::new(tokenizer, level + 1)?),
                 _ => {
-                    return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
-                        message: format!("Unhandled FamilyEventDetail Tag: {tag}"),
-                    })
+                    // Gracefully skip unknown tags
+                    tokenizer.take_line_value()?;
                 }
             }
 

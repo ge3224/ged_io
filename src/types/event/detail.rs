@@ -160,7 +160,7 @@ impl Detail {
 
 impl std::fmt::Debug for Detail {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let event_type = format!("{:?} Event", &self.event);
+        let event_type = format!("{:?} Event", self.event);
         let mut debug = f.debug_struct(&event_type);
 
         fmt_optional_value!(debug, "date", &self.date);

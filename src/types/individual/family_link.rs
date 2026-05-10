@@ -67,10 +67,8 @@ impl FamilyLink {
             "FAMC" => FamilyLinkType::Child,
             "FAMS" => FamilyLinkType::Spouse,
             _ => {
-                return Err(GedcomError::ParseError {
-                    line: tokenizer.line,
-                    message: format!("Unhandled FamilyLinkType Tag: {tag}"),
-                })
+                // The caller already filters with FAMC | FAMS before calling
+                unreachable!()
             }
         };
         let mut family_link = FamilyLink {
@@ -180,10 +178,8 @@ impl Parser for FamilyLink {
                     tokenizer.line,
                 )?,
                 _ => {
-                    return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
-                        message: format!("Unhandled FamilyLink Tag: {tag}"),
-                    })
+                    // Gracefully skip unknown tags
+                    tokenizer.take_line_value()?;
                 }
             }
             Ok(())

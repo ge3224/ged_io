@@ -172,10 +172,8 @@ impl Parser for MapCoordinates {
                 "LATI" => self.latitude = Some(tokenizer.take_line_value()?),
                 "LONG" => self.longitude = Some(tokenizer.take_line_value()?),
                 _ => {
-                    return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
-                        message: format!("Unhandled MapCoordinates Tag: {tag}"),
-                    })
+                    // Gracefully skip unknown tags
+                    tokenizer.take_line_value()?;
                 }
             }
             Ok(())
@@ -243,10 +241,8 @@ impl Parser for PlaceVariation {
             match tag {
                 "TYPE" => self.variation_type = Some(tokenizer.take_line_value()?),
                 _ => {
-                    return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
-                        message: format!("Unhandled PlaceVariation Tag: {tag}"),
-                    })
+                    // Gracefully skip unknown tags
+                    tokenizer.take_line_value()?;
                 }
             }
             Ok(())
@@ -345,10 +341,8 @@ impl Parser for Place {
                 "SOUR" => self.citations.push(Citation::new(tokenizer, level + 1)?),
                 "EXID" => self.external_ids.push(tokenizer.take_line_value()?),
                 _ => {
-                    return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
-                        message: format!("Unhandled Place Tag: {tag}"),
-                    })
+                    // Gracefully skip unknown tags
+                    tokenizer.take_line_value()?;
                 }
             }
             Ok(())

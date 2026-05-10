@@ -115,10 +115,8 @@ impl Parser for Submission {
                 "SUBM" => self.submitter_ref = Some(tokenizer.take_line_value()?),
                 "TEMP" => self.temple_code = Some(tokenizer.take_line_value()?),
                 _ => {
-                    return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
-                        message: format!("Unhandled Submission Tag: {tag}"),
-                    })
+                    // Gracefully skip unknown tags
+                    tokenizer.take_line_value()?;
                 }
             }
             Ok(())

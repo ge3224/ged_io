@@ -259,4 +259,23 @@ mod tests {
 
         assert_eq!(quay.get_int().unwrap(), 1);
     }
+
+    #[test]
+    fn test_unknown_stdtag_inside_record_is_skipped() {
+        let sample = "\
+          0 HEAD\n\
+          1 GEDC\n\
+          2 VERS 5.5\n\
+          0 @S1@ SOUR\n\
+          1 TITL Real title\n\
+          1 BLAH unknown subtag value\n\
+          1 AUTH Real author\n\
+          0 TRLR";
+
+        let mut doc = Gedcom::new(sample.chars()).unwrap();
+        let data = doc.parse_data().unwrap();
+        let source = &data.sources[0];
+        assert_eq!(source.title.as_deref(), Some("Real title"));
+        assert_eq!(source.author.as_deref(), Some("Real author"));
+    }
 }

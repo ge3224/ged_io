@@ -336,10 +336,8 @@ impl Parser for LdsOrdinance {
                         .push(Citation::new(tokenizer, level + 1)?);
                 }
                 _ => {
-                    return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
-                        message: format!("Unhandled LDS Ordinance Tag: {tag}"),
-                    })
+                    // Gracefully skip unknown tags
+                    tokenizer.take_line_value()?;
                 }
             }
             Ok(())
