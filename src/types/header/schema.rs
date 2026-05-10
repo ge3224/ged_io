@@ -215,13 +215,10 @@ impl Parser for Schema {
                     if let Some(definition) = TagDefinition::from_payload(&payload) {
                         self.tag_definitions.push(definition);
                     }
-                    // Skip any substructures of TAG (none expected, but be tolerant)
                 }
                 _ => {
-                    return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
-                        message: format!("Unhandled Schema Tag: {tag}"),
-                    })
+                    // Gracefully skip unknown tags
+                    tokenizer.take_line_value()?;
                 }
             }
             Ok(())

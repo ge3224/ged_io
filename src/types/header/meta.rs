@@ -52,12 +52,9 @@ impl Parser for HeadMeta {
                     }
                     self.form = Some(form);
                 }
-                // _ => panic!("{} Unhandled GEDC Tag: {}", tokenizer.debug(), tag),
                 _ => {
-                    return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
-                        message: format!("Unhandled HeadMeta Tag: {tag}"),
-                    })
+                    // Gracefully skip unknown tags
+                    tokenizer.take_line_value()?;
                 }
             }
 

@@ -211,10 +211,8 @@ impl Parser for Header {
                 "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
                 "PLAC" => self.place = Some(HeadPlac::new(tokenizer, level + 1)?),
                 _ => {
-                    return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
-                        message: format!("Unhandled Header Tag: {tag}"),
-                    })
+                    // Gracefully skip unknown tags
+                    tokenizer.take_line_value()?;
                 }
             }
             Ok(())

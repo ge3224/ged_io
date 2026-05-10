@@ -53,10 +53,8 @@ impl Parser for HeadSour {
                 "CORP" => self.corporation = Some(Corporation::new(tokenizer, level + 1)?),
                 "DATA" => self.data = Some(HeadSourData::new(tokenizer, level + 1)?),
                 _ => {
-                    return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
-                        message: format!("Unhandled HeadSour Tag: {tag}"),
-                    })
+                    // Gracefully skip unknown tags
+                    tokenizer.take_line_value()?;
                 }
             }
             Ok(())
