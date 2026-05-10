@@ -128,12 +128,9 @@ fn main() -> Result<(), Box<dyn Error>> {
 }
 ```
 */
-
+#![cfg_attr(not(test), deny(clippy::cargo, clippy::pedantic, clippy::panic))]
 #![deny(
     clippy::all,
-    clippy::cargo,
-    clippy::pedantic,
-    clippy::panic,
 )]
 #![deny(missing_docs)]
 
