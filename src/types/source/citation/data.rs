@@ -44,10 +44,8 @@ impl Parser for SourceCitationData {
                 "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
                 "TEXT" => self.text = Some(Text::new(tokenizer, level + 1)?),
                 _ => {
-                    return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
-                        message: format!("Unhandled SourceCitationData Tag: {tag}"),
-                    })
+                    // Gracefully skip unknown tags
+                    tokenizer.take_line_value()?;
                 }
             }
             Ok(())

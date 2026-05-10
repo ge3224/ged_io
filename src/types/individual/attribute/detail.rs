@@ -97,7 +97,7 @@ impl AttributeDetail {
     /// # Errors
     ///
     /// This function will return an error if the tag is unrecognized.
-    pub fn from_tag(tag: &str, line_number: u32) -> Result<IndividualAttribute, GedcomError> {
+    pub fn from_tag(tag: &str, _line_number: u32) -> Result<IndividualAttribute, GedcomError> {
         let attribute = match tag {
             "CAST" => IndividualAttribute::CastName,
             "DSCR" => IndividualAttribute::PhysicalDescription,
@@ -113,12 +113,9 @@ impl AttributeDetail {
             "SSN" => IndividualAttribute::SocialSecurityNumber,
             "TITL" => IndividualAttribute::NobilityTypeTitle,
             "FACT" => IndividualAttribute::Fact,
-            // _ => panic!("Unrecognized IndividualAttribute tag: {tag}"),
             _ => {
-                return Err(GedcomError::ParseError {
-                    line: line_number,
-                    message: format!("Unhandled IndividualAttribute Tag: {tag}"),
-                })
+                // the caller already filters
+                unreachable!()
             }
         };
 

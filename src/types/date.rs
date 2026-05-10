@@ -257,10 +257,8 @@ impl Parser for Date {
                 "TIME" => self.time = Some(tokenizer.take_line_value()?),
                 "PHRASE" => self.phrase = Some(tokenizer.take_line_value()?),
                 _ => {
-                    return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
-                        message: format!("Unhandled Date Tag: {tag}"),
-                    })
+                    // Gracefully skip unknown tags
+                    tokenizer.take_line_value()?;
                 }
             }
             Ok(())

@@ -53,10 +53,8 @@ impl Parser for Association {
                 "TYPE" => self.association_type = Some(tokenizer.take_line_value()?),
                 "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
                 _ => {
-                    return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
-                        message: format!("Unhandled Association Tag: {tag}"),
-                    })
+                    // Gracefully skip unknown tags
+                    tokenizer.take_line_value()?;
                 }
             }
             Ok(())

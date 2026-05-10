@@ -52,10 +52,8 @@ impl Parser for ChangeDate {
                 "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
                 "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
                 _ => {
-                    return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
-                        message: format!("Unhandled ChangeDate Tag: {tag}"),
-                    })
+                    // Gracefully skip unknown tags
+                    tokenizer.take_line_value()?;
                 }
             }
             Ok(())

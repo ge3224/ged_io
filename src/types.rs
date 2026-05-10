@@ -666,6 +666,7 @@ impl Parser for GedcomData {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::Gedcom;
 
     #[test]
     fn test_parse_shared_note() {
@@ -753,5 +754,18 @@ mod tests {
         let data = GedcomData::new(&mut tokenizer, 0).unwrap();
 
         assert_eq!(data.total_records(), 2); // 1 individual + 1 shared note
+    }
+
+    #[test]
+    fn test_unknown_stdtag_at_level_zero_errors() {
+        let sample = "\
+          0 HEAD\n\
+          1 GEDC\n\
+          2 VERS 5.5\n\
+          0 BLAH something\n\
+          0 TRLR";
+
+        let mut doc = Gedcom::new(sample.chars()).unwrap();
+        assert!(doc.parse_data().is_err());
     }
 }

@@ -69,10 +69,8 @@ impl Parser for Note {
                 "TRANS" => self.translation = Some(Translation::new(tokenizer, level + 1)?),
                 "LANG" => self.language = Some(tokenizer.take_line_value()?),
                 _ => {
-                    return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
-                        message: format!("Unhandled Note Tag: {tag}"),
-                    })
+                    // Gracefully skip unknown tags
+                    tokenizer.take_line_value()?;
                 }
             }
 

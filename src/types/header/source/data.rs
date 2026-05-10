@@ -45,10 +45,8 @@ impl Parser for HeadSourData {
                 "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
                 "COPR" => self.copyright = Some(tokenizer.take_continued_text(level + 1)?),
                 _ => {
-                    return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
-                        message: format!("Unhandled HeadSourData Tag: {tag}"),
-                    })
+                    // Gracefully skip unknown tags
+                    tokenizer.take_line_value()?;
                 }
             }
             Ok(())

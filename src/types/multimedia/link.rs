@@ -63,10 +63,8 @@ impl Parser for Link {
                 "FORM" => self.form = Some(Format::new(tokenizer, level + 1)?),
                 "TITL" => self.title = Some(tokenizer.take_line_value()?),
                 _ => {
-                    return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
-                        message: format!("Unhandled Link Tag: {tag}"),
-                    })
+                    // Gracefully skip unknown tags
+                    tokenizer.take_line_value()?;
                 }
             }
             Ok(())
