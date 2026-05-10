@@ -2,6 +2,37 @@
 
 This guide explains the key differences between GEDCOM 5.5.1 and GEDCOM 7.0, and how to migrate your applications using the `ged_io` library.
 
+## Unreleased
+
+### Multiple `NAME` structures per `Individual`
+
+The `Individual` struct now has a new `names: Vec<Name>` field that holds all `NAME` structures
+parsed for an individual, in source order. This aligns with GEDCOM 5.5.1 and 7.0, both of which
+allow `{0:M}` `PERSONAL_NAME_STRUCTURE` per individual.
+
+The existing `name: Option<Name>` field is unchanged — it continues to hold the **last** parsed
+name, preserving backward compatibility. When `names` is non-empty, `name` will equal the last
+element of `names`.
+
+**Migration:** Code that reads `individual.name` will continue to work unchanged. New code can
+iterate `individual.names` to access all names:
+
+```rust
+// Old (still works)
+if let Some(name) = &individual.name {
+    println!("{}", name.value.unwrap_or_default());
+}
+
+// New — iterate all names
+for name in &individual.names {
+    println!("{}", name.value.as_deref().unwrap_or(""));
+}
+```
+
+When serializing older JSON that lacks the `names` field, deserialization will produce an empty
+`Vec` (the field is marked `#[serde(default)]`). When writing GEDCOM output, the writer iterates
+`names` if populated, falling back to `name` otherwise.
+
 ## Overview
 
 GEDCOM 7.0 was released in 2021 as a significant update to the GEDCOM standard. While `ged_io` supports both versions, understanding the differences will help you make the most of the new features and ensure compatibility.

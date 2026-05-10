@@ -355,7 +355,11 @@ impl GedcomWriter {
     ) -> Result<(), io::Error> {
         self.write_line_with_xref(writer, 0, individual.xref.as_deref(), "INDI", None)?;
 
-        if let Some(ref name) = individual.name {
+        if !individual.names.is_empty() {
+            for name in &individual.names {
+                self.write_name(writer, name)?;
+            }
+        } else if let Some(ref name) = individual.name {
             self.write_name(writer, name)?;
         }
 
