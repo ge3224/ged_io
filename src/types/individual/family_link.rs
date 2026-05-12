@@ -90,17 +90,19 @@ impl FamilyLink {
     ///
     /// This function will return an error if the pedigree text is unrecognized.
     pub fn set_pedigree(&mut self, pedigree_text: &str, line: u32) -> Result<(), GedcomError> {
-        self.pedigree_linkage_type = match pedigree_text.to_lowercase().as_str() {
-            "adopted" => Some(Pedigree::Adopted),
-            "birth" => Some(Pedigree::Birth),
-            "foster" => Some(Pedigree::Foster),
-            "sealing" => Some(Pedigree::Sealing),
-            _ => {
-                return Err(GedcomError::ParseError {
-                    line,
-                    message: format!("Unrecognized FamilyLink.pedigree code: {pedigree_text}"),
-                })
-            }
+        self.pedigree_linkage_type = if pedigree_text.eq_ignore_ascii_case("adopted") {
+            Some(Pedigree::Adopted)
+        } else if pedigree_text.eq_ignore_ascii_case("birth") {
+            Some(Pedigree::Birth)
+        } else if pedigree_text.eq_ignore_ascii_case("foster") {
+            Some(Pedigree::Foster)
+        } else if pedigree_text.eq_ignore_ascii_case("sealing") {
+            Some(Pedigree::Sealing)
+        } else {
+            return Err(GedcomError::ParseError {
+                line,
+                message: format!("Unrecognized FamilyLink.pedigree code: {pedigree_text}"),
+            });
         };
         Ok(())
     }
@@ -115,18 +117,19 @@ impl FamilyLink {
         status_text: &str,
         line: u32,
     ) -> Result<(), GedcomError> {
-        self.child_linkage_status = match status_text.to_lowercase().as_str() {
-            "challenged" => Some(ChildLinkStatus::Challenged),
-            "disproven" => Some(ChildLinkStatus::Disproven),
-            "proven" => Some(ChildLinkStatus::Proven),
-            _ => {
-                return Err(GedcomError::ParseError {
-                    line,
-                    message: format!(
-                        "Unrecognized FamilyLink.child_linkage_status code: {status_text}"
-                    ),
-                })
-            }
+        self.child_linkage_status = if status_text.eq_ignore_ascii_case("challenged") {
+            Some(ChildLinkStatus::Challenged)
+        } else if status_text.eq_ignore_ascii_case("disproven") {
+            Some(ChildLinkStatus::Disproven)
+        } else if status_text.eq_ignore_ascii_case("proven") {
+            Some(ChildLinkStatus::Proven)
+        } else {
+            return Err(GedcomError::ParseError {
+                line,
+                message: format!(
+                    "Unrecognized FamilyLink.child_linkage_status code: {status_text}"
+                ),
+            });
         };
         Ok(())
     }
@@ -141,16 +144,17 @@ impl FamilyLink {
         adopted_by_text: &str,
         line: u32,
     ) -> Result<(), GedcomError> {
-        self.adopted_by = match adopted_by_text.to_lowercase().as_str() {
-            "husb" => Some(AdoptedByWhichParent::Husband),
-            "wife" => Some(AdoptedByWhichParent::Wife),
-            "both" => Some(AdoptedByWhichParent::Both),
-            _ => {
-                return Err(GedcomError::ParseError {
-                    line,
-                    message: format!("Unrecognized FamilyLink.adopted_by code: {adopted_by_text}"),
-                })
-            }
+        self.adopted_by = if adopted_by_text.eq_ignore_ascii_case("husb") {
+            Some(AdoptedByWhichParent::Husband)
+        } else if adopted_by_text.eq_ignore_ascii_case("wife") {
+            Some(AdoptedByWhichParent::Wife)
+        } else if adopted_by_text.eq_ignore_ascii_case("both") {
+            Some(AdoptedByWhichParent::Both)
+        } else {
+            return Err(GedcomError::ParseError {
+                line,
+                message: format!("Unrecognized FamilyLink.adopted_by code: {adopted_by_text}"),
+            });
         };
         Ok(())
     }

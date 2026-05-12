@@ -387,7 +387,7 @@ mod tests {
 
         let john = indexed.find_individual("@I1@");
         assert!(john.is_some());
-        assert_eq!(john.unwrap().full_name(), Some("John Doe".to_string()));
+        assert_eq!(john.unwrap().full_name().as_deref(), Some("John Doe"));
 
         let none = indexed.find_individual("@I999@");
         assert!(none.is_none());
@@ -430,7 +430,7 @@ mod tests {
         let children = indexed.get_children(family);
 
         assert_eq!(children.len(), 1);
-        assert_eq!(children[0].full_name(), Some("Jimmy Doe".to_string()));
+        assert_eq!(children[0].full_name().as_deref(), Some("Jimmy Doe"));
     }
 
     #[test]
@@ -453,7 +453,7 @@ mod tests {
         let spouse = indexed.get_spouse("@I1@", family);
 
         assert!(spouse.is_some());
-        assert_eq!(spouse.unwrap().full_name(), Some("Jane Doe".to_string()));
+        assert_eq!(spouse.unwrap().full_name().as_deref(), Some("Jane Doe"));
     }
 
     #[test]

@@ -43,6 +43,7 @@ use crate::types::{
     submitter::Submitter,
     GedcomData,
 };
+use std::borrow::Cow;
 use std::fmt::Write;
 use std::io;
 
@@ -50,22 +51,22 @@ use std::io;
 #[derive(Debug, Clone)]
 pub struct WriterConfig {
     /// Line ending to use (default: "\n")
-    pub line_ending: String,
+    pub line_ending: Cow<'static, str>,
     /// Maximum line length before CONC/CONT wrapping (default: 255, GEDCOM spec max)
     pub max_line_length: usize,
     /// Whether to include empty optional fields (default: false)
     pub include_empty_fields: bool,
     /// GEDCOM version to write (default: "5.5.1")
-    pub gedcom_version: String,
+    pub gedcom_version: Cow<'static, str>,
 }
 
 impl Default for WriterConfig {
     fn default() -> Self {
         Self {
-            line_ending: "\n".to_string(),
+            line_ending: Cow::Borrowed("\n"),
             max_line_length: 255,
             include_empty_fields: false,
-            gedcom_version: "5.5.1".to_string(),
+            gedcom_version: Cow::Borrowed("5.5.1"),
         }
     }
 }
@@ -110,8 +111,8 @@ impl GedcomWriter {
     /// let writer = GedcomWriter::new().line_ending("\r\n");
     /// ```
     #[must_use]
-    pub fn line_ending(mut self, ending: &str) -> Self {
-        self.config.line_ending = ending.to_string();
+    pub fn line_ending(mut self, ending: impl Into<Cow<'static, str>>) -> Self {
+        self.config.line_ending = ending.into();
         self
     }
 
@@ -131,8 +132,8 @@ impl GedcomWriter {
 
     /// Sets the GEDCOM version to write.
     #[must_use]
-    pub fn gedcom_version(mut self, version: &str) -> Self {
-        self.config.gedcom_version = version.to_string();
+    pub fn gedcom_version(mut self, version: impl Into<Cow<'static, str>>) -> Self {
+        self.config.gedcom_version = version.into();
         self
     }
 
@@ -1462,9 +1463,24 @@ mod tests {
             .gedcom_version("5.5.1");
 
         let config = writer.config();
-        assert_eq!(config.line_ending, "\r\n");
+        assert_eq!(&*config.line_ending, "\r\n");
         assert_eq!(config.max_line_length, 100);
         assert!(config.include_empty_fields);
-        assert_eq!(config.gedcom_version, "5.5.1");
+        assert_eq!(&*config.gedcom_version, "5.5.1");
+    }
+
+    #[test]
+    fn writer_config_default_is_static() {
+        let cfg = WriterConfig::default();
+        assert!(matches!(cfg.line_ending, Cow::Borrowed(_)));
+        assert!(matches!(cfg.gedcom_version, Cow::Borrowed(_)));
+    }
+
+    #[test]
+    fn writer_accepts_static_and_owned() {
+        let _w1 = GedcomWriter::new().gedcom_version("7.0");
+        let _w2 = GedcomWriter::new().gedcom_version(String::from("7.0"));
+        let _w3 = GedcomWriter::new().line_ending("\r\n");
+        let _w4 = GedcomWriter::new().line_ending(String::from("\r\n"));
     }
 }

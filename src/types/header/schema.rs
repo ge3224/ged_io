@@ -15,6 +15,8 @@
 //!
 //! See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#SCHMA>
 
+use std::borrow::Cow;
+
 use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
@@ -86,10 +88,10 @@ impl TagDefinition {
     /// assert_eq!(def.uri, "http://xmlns.com/foaf/0.1/skypeID");
     /// ```
     #[must_use]
-    pub fn new(tag: &str, uri: &str) -> Self {
+    pub fn new(tag: impl Into<Cow<'static, str>>, uri: impl Into<Cow<'static, str>>) -> Self {
         TagDefinition {
-            tag: tag.to_string(),
-            uri: uri.to_string(),
+            tag: tag.into().into_owned(),
+            uri: uri.into().into_owned(),
         }
     }
 
@@ -111,7 +113,10 @@ impl TagDefinition {
             let tag = parts[0].trim();
             let uri = parts[1].trim();
             if !tag.is_empty() && !uri.is_empty() {
-                return Some(TagDefinition::new(tag, uri));
+                return Some(TagDefinition {
+                    tag: tag.to_string(),
+                    uri: uri.to_string(),
+                });
             }
         }
         None

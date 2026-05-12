@@ -8,7 +8,7 @@ use std::fmt;
 use crate::types::{
     family::Family,
     header::Header,
-    individual::{name::Name, Individual},
+    individual::{name::Name, GedcomName, Individual},
     multimedia::Multimedia,
     note::Note,
     repository::Repository,
@@ -162,43 +162,12 @@ impl fmt::Display for Individual {
 
 impl fmt::Display for Name {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(ref value) = self.value {
-            // GEDCOM names use slashes around surnames, e.g., "John /Doe/"
-            // We display them more naturally
-            let display_name = value.replace('/', "").trim().to_string();
-            if display_name.is_empty() {
-                write!(f, "(Unknown)")?;
-            } else {
-                write!(f, "{display_name}")?;
-            }
+        let gn = GedcomName::from(self);
+        if gn.given().is_empty() && gn.surname().is_none() && gn.suffix().is_none() {
+            write!(f, "(Unknown)")
         } else {
-            // Build from components if no full value
-            let mut parts = Vec::new();
-
-            if let Some(ref prefix) = self.prefix {
-                parts.push(prefix.clone());
-            }
-            if let Some(ref given) = self.given {
-                parts.push(given.clone());
-            }
-            if let Some(ref surname_prefix) = self.surname_prefix {
-                parts.push(surname_prefix.clone());
-            }
-            if let Some(ref surname) = self.surname {
-                parts.push(surname.clone());
-            }
-            if let Some(ref suffix) = self.suffix {
-                parts.push(suffix.clone());
-            }
-
-            if parts.is_empty() {
-                write!(f, "(Unknown)")?;
-            } else {
-                write!(f, "{}", parts.join(" "))?;
-            }
+            write!(f, "{gn}")
         }
-
-        Ok(())
     }
 }
 
@@ -208,19 +177,23 @@ impl fmt::Display for Family {
             write!(f, "{xref} ")?;
         }
 
-        let mut members = Vec::new();
+        let has_p1 = self.individual1.is_some();
+        let has_p2 = self.individual2.is_some();
 
-        if let Some(ref ind1) = self.individual1 {
-            members.push(format!("Partner 1: {ind1}"));
-        }
-        if let Some(ref ind2) = self.individual2 {
-            members.push(format!("Partner 2: {ind2}"));
-        }
-
-        if members.is_empty() {
+        if !has_p1 && !has_p2 {
             write!(f, "(No partners)")?;
         } else {
-            write!(f, "{}", members.join(", "))?;
+            let mut first = true;
+            if let Some(ref ind1) = self.individual1 {
+                write!(f, "Partner 1: {ind1}")?;
+                first = false;
+            }
+            if let Some(ref ind2) = self.individual2 {
+                if !first {
+                    write!(f, ", ")?;
+                }
+                write!(f, "Partner 2: {ind2}")?;
+            }
         }
 
         if !self.children.is_empty() {
@@ -380,7 +353,8 @@ impl fmt::Display for Note {
             // Truncate long notes for display
             const MAX_LEN: usize = 100;
             if value.len() > MAX_LEN {
-                write!(f, "{}...", &value[..MAX_LEN])?;
+                let boundary = value.floor_char_boundary(MAX_LEN);
+                write!(f, "{}...", &value[..boundary])?;
             } else {
                 write!(f, "{value}")?;
             }

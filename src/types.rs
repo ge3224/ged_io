@@ -491,14 +491,16 @@ impl GedcomData {
     /// ```
     #[must_use]
     pub fn search_individuals_by_name(&self, query: &str) -> Vec<&Individual> {
-        let query_lower = query.to_lowercase();
+        if query.is_empty() {
+            return Vec::new();
+        }
         self.individuals
             .iter()
             .filter(|i| {
                 i.name.as_ref().is_some_and(|name| {
                     name.value
                         .as_ref()
-                        .is_some_and(|v| v.to_lowercase().contains(&query_lower))
+                        .is_some_and(|v| crate::util::contains_ignore_ascii_case(v, query))
                 })
             })
             .collect()

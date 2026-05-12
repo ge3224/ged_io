@@ -10,6 +10,8 @@
 //!
 //! See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#PLACE_STRUCTURE>
 
+use std::borrow::Cow;
+
 use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
@@ -113,10 +115,13 @@ impl MapCoordinates {
 
     /// Creates coordinates with the given latitude and longitude.
     #[must_use]
-    pub fn with_coordinates(latitude: &str, longitude: &str) -> Self {
+    pub fn with_coordinates(
+        latitude: impl Into<Cow<'static, str>>,
+        longitude: impl Into<Cow<'static, str>>,
+    ) -> Self {
         MapCoordinates {
-            latitude: Some(latitude.to_string()),
-            longitude: Some(longitude.to_string()),
+            latitude: Some(latitude.into().into_owned()),
+            longitude: Some(longitude.into().into_owned()),
         }
     }
 
@@ -227,10 +232,13 @@ impl PlaceVariation {
 
     /// Creates a variation with the given value and type.
     #[must_use]
-    pub fn with_type(value: &str, variation_type: &str) -> Self {
+    pub fn with_type(
+        value: impl Into<Cow<'static, str>>,
+        variation_type: impl Into<Cow<'static, str>>,
+    ) -> Self {
         PlaceVariation {
-            value: value.to_string(),
-            variation_type: Some(variation_type.to_string()),
+            value: value.into().into_owned(),
+            variation_type: Some(variation_type.into().into_owned()),
         }
     }
 }
@@ -271,16 +279,19 @@ impl Place {
 
     /// Creates a place with the given value.
     #[must_use]
-    pub fn with_value(value: &str) -> Self {
+    pub fn with_value(value: impl Into<Cow<'static, str>>) -> Self {
         Place {
-            value: Some(value.to_string()),
+            value: Some(value.into().into_owned()),
             ..Default::default()
         }
     }
 
     /// Sets the geographic coordinates for this place.
     pub fn set_coordinates(&mut self, latitude: &str, longitude: &str) {
-        self.map = Some(MapCoordinates::with_coordinates(latitude, longitude));
+        self.map = Some(MapCoordinates {
+            latitude: Some(latitude.to_string()),
+            longitude: Some(longitude.to_string()),
+        });
     }
 
     /// Returns the latitude as a decimal value, if available.

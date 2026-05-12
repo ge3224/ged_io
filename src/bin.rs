@@ -288,14 +288,8 @@ fn run() -> Result<RunOutcome, CliError> {
     }
 
     if args.individual_lastname.is_some() || args.individual_firstname.is_some() {
-        let filter_last = args
-            .individual_lastname
-            .as_deref()
-            .map(|s| s.to_lowercase());
-        let filter_first = args
-            .individual_firstname
-            .as_deref()
-            .map(|s| s.to_lowercase());
+        let filter_last = args.individual_lastname.as_deref();
+        let filter_first = args.individual_firstname.as_deref();
 
         for individual in &data.individuals {
             let display_name = individual
@@ -306,20 +300,19 @@ fn run() -> Result<RunOutcome, CliError> {
 
             let (first, last) = extract_first_last_name(&display_name);
 
-            let first_lower = first.as_deref().map(|s| s.to_lowercase());
-            let last_lower = last.as_deref().map(|s| s.to_lowercase());
-
             let matches_last = filter_last
-                .as_ref()
-                .map(|f| last_lower.as_ref().map(|l| l.contains(f)).unwrap_or(false))
+                .map(|f| {
+                    last.as_deref()
+                        .map(|l| ged_io::util::contains_ignore_ascii_case(l, f))
+                        .unwrap_or(false)
+                })
                 .unwrap_or(true);
 
             let matches_first = filter_first
-                .as_ref()
                 .map(|f| {
-                    first_lower
-                        .as_ref()
-                        .map(|fi| fi.contains(f))
+                    first
+                        .as_deref()
+                        .map(|fi| ged_io::util::contains_ignore_ascii_case(fi, f))
                         .unwrap_or(false)
                 })
                 .unwrap_or(true);

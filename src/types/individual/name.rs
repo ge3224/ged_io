@@ -1,5 +1,6 @@
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 
 use crate::{
     parser::{parse_subset, Parser},
@@ -7,6 +8,8 @@ use crate::{
     types::{custom::UserDefinedTag, note::Note, source::citation::Citation},
     GedcomError,
 };
+
+use super::gedcom_name::GedcomName;
 
 /// Name type enumeration for GEDCOM 7.0.
 ///
@@ -131,10 +134,13 @@ impl NameVariation {
 
     /// Creates a variation with the given value and type.
     #[must_use]
-    pub fn with_type(value: &str, variation_type: &str) -> Self {
+    pub fn with_type(
+        value: impl Into<Cow<'static, str>>,
+        variation_type: impl Into<Cow<'static, str>>,
+    ) -> Self {
         NameVariation {
-            value: value.to_string(),
-            variation_type: Some(variation_type.to_string()),
+            value: value.into().into_owned(),
+            variation_type: Some(variation_type.into().into_owned()),
             ..Default::default()
         }
     }
@@ -255,15 +261,21 @@ impl Name {
         self.romanized.push(variation);
     }
 
+    /// Returns a zero-allocation view of this name.
+    #[must_use]
+    pub fn as_gedcom_name(&self) -> GedcomName<'_> {
+        GedcomName::from(self)
+    }
+
     /// Returns the full name with slashes removed.
     ///
     /// This extracts the clean name from the GEDCOM format
     /// (e.g., "John /Doe/" becomes "John Doe").
     #[must_use]
-    pub fn full_name(&self) -> Option<String> {
+    pub fn full_name(&self) -> Option<Cow<'_, str>> {
         self.value
             .as_ref()
-            .map(|v| v.replace('/', "").trim().to_string())
+            .map(|v| GedcomName::from_raw(v).as_cow())
     }
 
     /// Returns true if this name has any phonetic variations.
@@ -418,7 +430,7 @@ mod tests {
             value: Some("John /Doe/".to_string()),
             ..Default::default()
         };
-        assert_eq!(name.full_name(), Some("John Doe".to_string()));
+        assert_eq!(name.full_name().as_deref(), Some("John Doe"));
     }
 
     #[test]

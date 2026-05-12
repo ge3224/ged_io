@@ -9,6 +9,7 @@
 #![allow(clippy::too_many_lines)]
 #![allow(clippy::trivially_copy_pass_by_ref)]
 
+use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::RwLock;
 
@@ -515,6 +516,7 @@ pub fn to_optional_boxed_str(s: Option<&str>) -> Option<Box<str>> {
 /// # Examples
 ///
 /// ```
+/// use std::borrow::Cow;
 /// use ged_io::util::escape_at_signs;
 ///
 /// // GEDCOM 5.5.1: all @ doubled
@@ -524,19 +526,26 @@ pub fn to_optional_boxed_str(s: Option<&str>) -> Option<Box<str>> {
 /// // GEDCOM 7.0: only leading @ doubled
 /// assert_eq!(escape_at_signs("test@email.com", true), "test@email.com");
 /// assert_eq!(escape_at_signs("@ref", true), "@@ref");
+///
+/// // Zero-alloc fast path
+/// assert!(matches!(escape_at_signs("plain", false), Cow::Borrowed(_)));
 /// ```
 #[must_use]
-pub fn escape_at_signs(value: &str, is_gedcom_7: bool) -> String {
+pub fn escape_at_signs(value: &str, is_gedcom_7: bool) -> Cow<'_, str> {
     if is_gedcom_7 {
         // GEDCOM 7.0: only escape leading @
         if value.starts_with('@') {
-            format!("@{value}")
+            Cow::Owned(format!("@{value}"))
         } else {
-            value.to_string()
+            Cow::Borrowed(value)
         }
     } else {
         // GEDCOM 5.5.1: escape all @
-        value.replace('@', "@@")
+        if value.contains('@') {
+            Cow::Owned(value.replace('@', "@@"))
+        } else {
+            Cow::Borrowed(value)
+        }
     }
 }
 
@@ -553,6 +562,7 @@ pub fn escape_at_signs(value: &str, is_gedcom_7: bool) -> String {
 /// # Examples
 ///
 /// ```
+/// use std::borrow::Cow;
 /// use ged_io::util::unescape_at_signs;
 ///
 /// // GEDCOM 5.5.1: all @@ become @
@@ -562,19 +572,26 @@ pub fn escape_at_signs(value: &str, is_gedcom_7: bool) -> String {
 /// // GEDCOM 7.0: only leading @@ becomes @
 /// assert_eq!(unescape_at_signs("test@@email.com", true), "test@@email.com");
 /// assert_eq!(unescape_at_signs("@@ref", true), "@ref");
+///
+/// // Zero-alloc fast path
+/// assert!(matches!(unescape_at_signs("plain", false), Cow::Borrowed(_)));
 /// ```
 #[must_use]
-pub fn unescape_at_signs(value: &str, is_gedcom_7: bool) -> String {
+pub fn unescape_at_signs(value: &str, is_gedcom_7: bool) -> Cow<'_, str> {
     if is_gedcom_7 {
         // GEDCOM 7.0: only unescape leading @@
         if value.starts_with("@@") {
-            value[1..].to_string()
+            Cow::Owned(value[1..].to_string())
         } else {
-            value.to_string()
+            Cow::Borrowed(value)
         }
     } else {
         // GEDCOM 5.5.1: unescape all @@
-        value.replace("@@", "@")
+        if value.contains("@@") {
+            Cow::Owned(value.replace("@@", "@"))
+        } else {
+            Cow::Borrowed(value)
+        }
     }
 }
 
@@ -588,6 +605,41 @@ pub fn needs_at_escaping(value: &str, is_gedcom_7: bool) -> bool {
     } else {
         value.contains('@')
     }
+}
+
+/// Case-insensitive substring search with Unicode case folding.
+///
+/// Uses a zero-allocation SIMD-friendly byte-level windowed search for ASCII
+/// strings, falling back to full Unicode case folding via `to_lowercase()`
+/// when either string contains non-ASCII bytes.
+///
+/// The Unicode fallback is marked `#[cold]` to keep it out of the hot path.
+#[must_use]
+pub fn contains_ignore_ascii_case(haystack: &str, needle: &str) -> bool {
+    if needle.is_empty() {
+        return true;
+    }
+    if needle.len() > haystack.len() {
+        return false;
+    }
+
+    // Fast path: both ASCII — zero-alloc byte-level windowed search.
+    if haystack.is_ascii() && needle.is_ascii() {
+        let nb = needle.as_bytes();
+        return haystack
+            .as_bytes()
+            .windows(nb.len())
+            .any(|w| w.eq_ignore_ascii_case(nb));
+    }
+
+    // Slow path: full Unicode case folding.
+    contains_ignore_ascii_case_slow(haystack, needle)
+}
+
+#[cold]
+#[inline(never)]
+fn contains_ignore_ascii_case_slow(haystack: &str, needle: &str) -> bool {
+    haystack.to_lowercase().contains(&needle.to_lowercase())
 }
 
 #[cfg(test)]
@@ -696,5 +748,32 @@ mod tests {
         assert!(!needs_at_escaping("test", true));
         assert!(!needs_at_escaping("test@email.com", true));
         assert!(needs_at_escaping("@ref", true));
+    }
+
+    #[test]
+    fn escape_at_signs_no_alloc_when_nothing_to_do() {
+        assert!(matches!(escape_at_signs("plain", false), Cow::Borrowed(_)));
+        assert!(matches!(
+            escape_at_signs("no@leading", true),
+            Cow::Borrowed(_)
+        ));
+    }
+
+    #[test]
+    fn unescape_at_signs_no_alloc_when_nothing_to_do() {
+        assert!(matches!(
+            unescape_at_signs("plain", false),
+            Cow::Borrowed(_)
+        ));
+        assert!(matches!(
+            unescape_at_signs("no@@leading", true),
+            Cow::Borrowed(_)
+        ));
+    }
+
+    #[test]
+    fn escape_at_signs_allocates_when_needed() {
+        assert!(matches!(escape_at_signs("a@b", false), Cow::Owned(_)));
+        assert!(matches!(escape_at_signs("@ref", true), Cow::Owned(_)));
     }
 }

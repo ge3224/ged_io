@@ -11,6 +11,8 @@
 //!
 //! See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html>
 
+use std::borrow::Cow;
+
 use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
@@ -68,9 +70,9 @@ impl SortDate {
 
     /// Creates a `SortDate` with the given value.
     #[must_use]
-    pub fn with_value(value: &str) -> Self {
+    pub fn with_value(value: impl Into<Cow<'static, str>>) -> Self {
         SortDate {
-            value: Some(value.to_string()),
+            value: Some(value.into().into_owned()),
             ..Default::default()
         }
     }
@@ -333,9 +335,9 @@ impl NonEvent {
 
     /// Creates a `NonEvent` for the given event type.
     #[must_use]
-    pub fn for_event(event_type: &str) -> Self {
+    pub fn for_event(event_type: impl Into<Cow<'static, str>>) -> Self {
         NonEvent {
-            event_type: event_type.to_string(),
+            event_type: event_type.into().into_owned(),
             ..Default::default()
         }
     }
@@ -428,9 +430,9 @@ impl Phrase {
 
     /// Creates a `Phrase` with the given value.
     #[must_use]
-    pub fn with_value(value: &str) -> Self {
+    pub fn with_value(value: impl Into<Cow<'static, str>>) -> Self {
         Phrase {
-            value: value.to_string(),
+            value: value.into().into_owned(),
         }
     }
 }
