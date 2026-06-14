@@ -279,7 +279,7 @@ impl Name {
     }
 
     /// Parse the value to add the surname
-    fn parse_value(&mut self, value: String) {
+    fn parse_value(&mut self, value: &str) {
         self.value = Some(value.to_string());
         let Some(start) = value.find('/') else { return };
         let Some(end) = value[start + 1..].find('/') else {
@@ -295,7 +295,7 @@ impl Name {
 
 impl Parser for Name {
     fn parse(&mut self, tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<(), GedcomError> {
-        self.parse_value(tokenizer.take_line_value()?);
+        self.parse_value(&tokenizer.take_line_value()?);
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             match tag {
@@ -377,7 +377,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_name_and_fill_surname() {
+    fn test_parse_name_and_auto_surname() {
         let sample = "\
             0 HEAD\n\
             1 GEDC\n\
@@ -397,6 +397,28 @@ mod tests {
         assert_eq!(name.given.as_ref().unwrap(), "Mary");
         assert_eq!(name.surname.as_ref().unwrap(), "Smith"); // The surname between the slash in
                                                              // NAME
+    }
+
+    #[test]
+    fn test_parse_name_and_auto_empty_surname() {
+        let sample = "\
+            0 HEAD\n\
+            1 GEDC\n\
+            2 VERS 7.0\n\
+            0 @I1@ INDI\n\
+            1 NAME Mary //\n\
+            2 TYPE MAIDEN\n\
+            2 GIVN Mary\n\
+            0 TRLR";
+
+        let mut doc = Gedcom::new(sample.chars()).unwrap();
+        let data = doc.parse_data().unwrap();
+
+        let indi = &data.individuals[0];
+        let name = indi.name.as_ref().unwrap();
+        assert_eq!(name.name_type, Some(NameType::Maiden));
+        assert_eq!(name.given.as_ref().unwrap(), "Mary");
+        assert_eq!(name.surname, None); // The surname between the slash in NAME
     }
 
     #[test]
