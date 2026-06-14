@@ -205,12 +205,8 @@ impl Individual {
     /// ```
     #[must_use]
     pub fn full_name(&self) -> Option<String> {
-        self.name.as_ref().and_then(|n| {
-            n.value
-                .as_ref()
-                .map(|v| v.replace('/', "").trim().to_string())
-        })
-    }
+        self.name.as_ref().and_then(|name| name.full_name())
+   }
 
     /// Gets the given (first) name if available.
     #[must_use]
