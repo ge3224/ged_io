@@ -359,7 +359,7 @@ fn read_relative(path: &str) -> Result<String, std::io::Error> {
     let absolute_path: PathBuf = fs::canonicalize(path_buf)?;
     match fs::read_to_string(&absolute_path) {
         Ok(text) => Ok(text),
-        Err(e) => {
+        Err(_e) => {
             use encoding_rs::mem::decode_latin1;
 
             let bytes = fs::read(&absolute_path)?;
