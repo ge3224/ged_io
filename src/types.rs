@@ -627,7 +627,7 @@ impl Parser for GedcomData {
                     "OBJE" => self.add_multimedia(Multimedia::new(tokenizer, level, pointer)?),
                     // GEDCOM 7.0: Shared note record SNOTE
                     "NOTE" | "SNOTE" => {
-                        self.add_shared_note(SharedNote::new(tokenizer, level, pointer)?)
+                        self.add_shared_note(SharedNote::new(tokenizer, level, pointer)?);
                     }
                     // Trailer is optional in the wild; allow EOF-terminated files.
                     "TRLR" => break,
