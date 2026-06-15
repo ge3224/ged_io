@@ -625,9 +625,10 @@ impl Parser for GedcomData {
                     "SUBN" => self.add_submission(Submission::new(tokenizer, level, pointer)?),
                     "SUBM" => self.add_submitter(Submitter::new(tokenizer, level, pointer)?),
                     "OBJE" => self.add_multimedia(Multimedia::new(tokenizer, level, pointer)?),
-                    "NOTE" => self.add_shared_note(SharedNote::new(tokenizer, level, pointer)?),
-                    // GEDCOM 7.0: Shared note record
-                    "SNOTE" => self.add_shared_note(SharedNote::new(tokenizer, level, pointer)?),
+                    // GEDCOM 7.0: Shared note record SNOTE
+                    "NOTE" | "SNOTE" => {
+                        self.add_shared_note(SharedNote::new(tokenizer, level, pointer)?)
+                    }
                     // Trailer is optional in the wild; allow EOF-terminated files.
                     "TRLR" => break,
                     _ => {
