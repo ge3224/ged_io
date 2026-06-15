@@ -65,7 +65,10 @@ impl Age {
                         "m" => months = num_str.parse().ok(),
                         "w" => weeks = num_str.parse().ok(),
                         "d" => days = num_str.parse().ok(),
-                        _ => {}
+                        _ => {
+                            // Default to using years
+                            years = token.parse().ok();
+                        }
                     }
                 }
 
@@ -216,6 +219,21 @@ mod test {
     fn test_parse_numeric_years_only() {
         assert_eq!(
             help_parse_age("25y"),
+            Age::Numeric {
+                years: Some(25),
+                months: None,
+                weeks: None,
+                days: None,
+                modifier: AgeModifier::Exact,
+                phrase: None,
+            }
+        );
+    }
+
+    #[test]
+    fn test_parse_numeric_years_no_suffix() {
+        assert_eq!(
+            help_parse_age("25"),
             Age::Numeric {
                 years: Some(25),
                 months: None,
