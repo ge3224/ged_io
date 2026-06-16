@@ -47,7 +47,7 @@ use serde::{Deserialize, Serialize};
 pub struct Individual {
     pub xref: Option<Xref>,
     pub name: Option<Name>,
-    pub sex: Option<Gender>,
+    pub sex: Gender,
     pub families: Vec<FamilyLink>,
     pub attributes: Vec<AttributeDetail>,
     pub source: Vec<Citation>,
@@ -227,17 +227,13 @@ impl Individual {
     /// Checks if the individual is male.
     #[must_use]
     pub fn is_male(&self) -> bool {
-        self.sex
-            .as_ref()
-            .is_some_and(|s| matches!(s.value, GenderType::Male))
+        matches!(self.sex.value, GenderType::Male)
     }
 
     /// Checks if the individual is female.
     #[must_use]
     pub fn is_female(&self) -> bool {
-        self.sex
-            .as_ref()
-            .is_some_and(|s| matches!(s.value, GenderType::Female))
+        matches!(self.sex.value, GenderType::Female)
     }
 
     /// Gets the birth event details if available.
@@ -329,7 +325,7 @@ impl Parser for Individual {
             match tag {
                 // TODO handle xref
                 "NAME" => self.name = Some(Name::new(tokenizer, level + 1)?),
-                "SEX" => self.sex = Some(Gender::new(tokenizer, level + 1)?),
+                "SEX" => self.sex = Gender::new(tokenizer, level + 1)?,
                 "ADOP" | "BIRT" | "BAPM" | "BARM" | "BASM" | "BLES" | "BURI" | "CENS" | "CHR"
                 | "CHRA" | "CONF" | "CREM" | "DEAT" | "EMIG" | "FCOM" | "GRAD" | "IMMI"
                 | "NATU" | "ORDN" | "RETI" | "PROB" | "WILL" | "EVEN" | "MARR" => {
@@ -419,7 +415,7 @@ mod tests {
             indi.name.as_ref().unwrap().value.as_ref().unwrap(),
             "John Doe"
         );
-        assert_eq!(indi.sex.as_ref().unwrap().value.to_string(), "Male");
+        assert_eq!(indi.sex.value.to_string(), "Male");
     }
 
     #[test]
@@ -441,7 +437,7 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let sex = data.individuals[0].sex.as_ref().unwrap();
+        let sex = &data.individuals[0].sex;
         assert_eq!(sex.value.to_string(), "Male");
         assert_eq!(
             sex.fact.as_ref().unwrap(),

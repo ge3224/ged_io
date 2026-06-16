@@ -108,9 +108,7 @@ impl fmt::Debug for IndividualDebug<'_> {
             }
         }
 
-        if let Some(ref sex) = self.0.sex {
-            debug.field("sex", &format!("{}", sex.value));
-        }
+        debug.field("sex", &format!("{}", self.0.sex.value));
 
         if !self.0.events.is_empty() {
             debug.field("events", &format!("[{} events]", self.0.events.len()));

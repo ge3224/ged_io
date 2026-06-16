@@ -128,7 +128,7 @@ fn test_individual_access_pattern_unchanged() {
         indi.name.as_ref().unwrap().value.as_ref().unwrap(),
         "John Doe"
     );
-    assert_eq!(indi.sex.as_ref().unwrap().value.to_string(), "Male");
+    assert_eq!(indi.sex.value.to_string(), "Male");
 }
 
 #[test]

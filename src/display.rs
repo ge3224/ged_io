@@ -121,9 +121,7 @@ impl fmt::Display for Individual {
         }
 
         // Display sex if available
-        if let Some(ref sex) = self.sex {
-            write!(f, " ({})", sex.value)?;
-        }
+        write!(f, " ({})", self.sex.value)?;
 
         let mut birth_date: Option<&str> = None;
         let mut baptism_date: Option<&str> = None;
