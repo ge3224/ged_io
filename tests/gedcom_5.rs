@@ -3,7 +3,7 @@
 //! These tests verify that the library correctly parses GEDCOM 7.0 files
 //! and handles the differences between 5.5.1 and 7.0 specifications.
 
-use ged_io::{GedcomBuilder,GedcomWriter};
+use ged_io::{GedcomBuilder, GedcomWriter};
 
 /// Test round-trip for GEDCOM 5.x with shared notes.
 #[test]
