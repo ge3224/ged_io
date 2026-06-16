@@ -362,6 +362,32 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_note_record_gedcom() {
+        use crate::Gedcom;
+        let sample = "\
+            0 HEAD\n\
+            1 GEDC\n\
+            2 VERS 5.1\n\
+            0 @N1@ NOTE\n\
+            1 CONC Bill Clinton was born William Jefferson Blythe IV.  His last name wa\n\
+            1 CONC s legally\n\
+            1 CONT changed to Clinton on 12 June 1962 in Garland, Arkansas.  Won the 1992\n\
+            1 CONT election over then president George Bush (votes not currently availabl\n\
+            1 CONC e).\n\
+            1 CONT He was inaugurated as the 42nd President of the United States\n\
+            1 CONT on 20 January 1993.\n\
+            0 TRLR";
+
+        let mut doc = Gedcom::new(sample.chars()).unwrap();
+        let data = doc.parse_data().unwrap();
+
+        let note = &data.shared_notes[0];
+        assert_eq!(note.xref, Some("@N1@".to_string()));
+        assert_eq!(note.text, "Bill Clinton was born William Jefferson Blythe IV.  His last name was legally\nchanged to Clinton on 12 June 1962 in Garland, Arkansas.  Won the 1992\nelection over then president George Bush (votes not currently available).\nHe was inaugurated as the 42nd President of the United States\non 20 January 1993.");
+
+    }
+
+    #[test]
     fn test_shared_note_with_text() {
         let note = SharedNote::with_text("@N1@", "This is a test note.");
         assert_eq!(note.xref, Some("@N1@".to_string()));
