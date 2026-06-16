@@ -384,7 +384,6 @@ mod tests {
         let note = &data.shared_notes[0];
         assert_eq!(note.xref, Some("@N1@".to_string()));
         assert_eq!(note.text, "Bill Clinton was born William Jefferson Blythe IV.  His last name was legally\nchanged to Clinton on 12 June 1962 in Garland, Arkansas.  Won the 1992\nelection over then president George Bush (votes not currently available).\nHe was inaugurated as the 42nd President of the United States\non 20 January 1993.");
-
     }
 
     #[test]
