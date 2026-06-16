@@ -1453,8 +1453,7 @@ mod tests {
 
     #[test]
     fn test_round_trip_basic_without_sex() {
-        let original =
-            "0 HEAD\n1 GEDC\n2 VERS 5.5\n0 @I1@ INDI\n1 NAME John /Doe/\n0 TRLR";
+        let original = "0 HEAD\n1 GEDC\n2 VERS 5.5\n0 @I1@ INDI\n1 NAME John /Doe/\n0 TRLR";
         let data = GedcomBuilder::new().build_from_str(original).unwrap();
 
         let writer = GedcomWriter::new();
