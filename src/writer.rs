@@ -944,7 +944,11 @@ impl GedcomWriter {
         writer: &mut W,
         note: &SharedNote,
     ) -> Result<(), io::Error> {
-        self.write_line_with_xref(writer, 0, note.xref.as_deref(), "SNOTE", Some(&note.text))?;
+        if self.config.gedcom_version.starts_with('5') {
+            self.write_line_with_xref(writer, 0, note.xref.as_deref(), "NOTE", Some(&note.text))?;
+        } else {
+            self.write_line_with_xref(writer, 0, note.xref.as_deref(), "SNOTE", Some(&note.text))?;
+        }
 
         if let Some(ref mime) = note.mime {
             self.write_value_or_wrap(writer, 1, "MIME", Some(mime))?;
