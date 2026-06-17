@@ -243,6 +243,17 @@ mod test {
                 phrase: None,
             }
         );
+        assert_eq!(
+            help_parse_age("25 4m 3w 5d"),
+            Age::Numeric {
+                years: Some(25),
+                months: Some(4),
+                weeks: Some(3),
+                days: Some(5),
+                modifier: AgeModifier::Exact,
+                phrase: None,
+            }
+        );
     }
 
     #[test]
