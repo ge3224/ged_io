@@ -625,6 +625,8 @@ impl Parser for GedcomData {
                     "SUBN" => self.add_submission(Submission::new(tokenizer, level, pointer)?),
                     "SUBM" => self.add_submitter(Submitter::new(tokenizer, level, pointer)?),
                     "OBJE" => self.add_multimedia(Multimedia::new(tokenizer, level, pointer)?),
+                    // GEDCOM 5.1: NOTE_RECORD
+                    // is similar to
                     // GEDCOM 7.0: Shared note record SNOTE
                     "NOTE" | "SNOTE" => {
                         self.add_shared_note(SharedNote::new(tokenizer, level, pointer)?);
