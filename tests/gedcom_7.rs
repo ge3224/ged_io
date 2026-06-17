@@ -514,7 +514,7 @@ fn test_round_trip_shared_notes() {
     let data = GedcomBuilder::new().build_from_str(sample).unwrap();
     assert_eq!(data.shared_notes.len(), 1);
 
-    let writer = GedcomWriter::new();
+    let writer = GedcomWriter::new().gedcom_version("7.0");
     let output = writer.write_to_string(&data).unwrap();
 
     assert!(output.contains("SNOTE"));

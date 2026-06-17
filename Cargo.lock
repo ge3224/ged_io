@@ -306,7 +306,7 @@ dependencies = [
 
 [[package]]
 name = "ged_io"
-version = "0.14.2"
+version = "0.14.4"
 dependencies = [
  "calendrical_calculations",
  "calendrier",
