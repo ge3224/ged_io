@@ -357,5 +357,15 @@ fn print_validation_report(level: ValidationLevel, errors: &[String], warnings: 
 fn read_relative(path: &str) -> Result<String, std::io::Error> {
     let path_buf: PathBuf = PathBuf::from(path);
     let absolute_path: PathBuf = fs::canonicalize(path_buf)?;
-    fs::read_to_string(absolute_path)
+    match fs::read_to_string(&absolute_path) {
+        Ok(text) => Ok(text),
+        Err(_e) => {
+            use encoding_rs::mem::decode_latin1;
+
+            let bytes = fs::read(&absolute_path)?;
+            let text = decode_latin1(&bytes);
+
+            Ok(text.to_string())
+        }
+    }
 }
