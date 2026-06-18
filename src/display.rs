@@ -162,15 +162,8 @@ impl fmt::Display for Individual {
 
 impl fmt::Display for Name {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(ref value) = self.value {
-            // GEDCOM names use slashes around surnames, e.g., "John /Doe/"
-            // We display them more naturally
-            let display_name = value.replace('/', "").trim().to_string();
-            if display_name.is_empty() {
-                write!(f, "(Unknown)")?;
-            } else {
-                write!(f, "{display_name}")?;
-            }
+        if let Some(display_name) = self.full_name() {
+            write!(f, "{display_name}")?;
         } else {
             // Build from components if no full value
             let mut parts = Vec::new();
