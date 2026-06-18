@@ -262,7 +262,7 @@ impl Name {
     #[must_use]
     pub fn full_name(&self) -> Option<String> {
         self.value.as_ref().map(|v| {
-            let v = v.replace("/", " ");
+            let v = v.replace('/', " ");
             v.split_whitespace().collect::<Vec<_>>().join(" ")
         })
     }
@@ -337,13 +337,15 @@ mod tests {
     use crate::Gedcom;
 
     fn help_test_name(name: &str) -> Name {
-        let sample = format!("\
+        let sample = format!(
+            "\
             0 HEAD\n\
             1 GEDC\n\
             2 VERS 7.0\n\
             0 @I1@ INDI\n\
             1 NAME {name}\n\
-            0 TRLR");
+            0 TRLR"
+        );
 
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
@@ -356,12 +358,27 @@ mod tests {
     #[test]
     fn test_full_name() {
         assert_eq!(help_test_name("John Doe").full_name().unwrap(), "John Doe");
-        assert_eq!(help_test_name("John /Doe/").full_name().unwrap(), "John Doe");
+        assert_eq!(
+            help_test_name("John /Doe/").full_name().unwrap(),
+            "John Doe"
+        );
         assert_eq!(help_test_name("John/Doe/").full_name().unwrap(), "John Doe");
-        assert_eq!(help_test_name("John Doe Carter").full_name().unwrap(), "John Doe Carter");
-        assert_eq!(help_test_name("John /Doe/ Carter").full_name().unwrap(), "John Doe Carter");
-        assert_eq!(help_test_name("John/Doe/ Carter").full_name().unwrap(), "John Doe Carter");
-        assert_eq!(help_test_name("John/Doe/Carter").full_name().unwrap(), "John Doe Carter");
+        assert_eq!(
+            help_test_name("John Doe Carter").full_name().unwrap(),
+            "John Doe Carter"
+        );
+        assert_eq!(
+            help_test_name("John /Doe/ Carter").full_name().unwrap(),
+            "John Doe Carter"
+        );
+        assert_eq!(
+            help_test_name("John/Doe/ Carter").full_name().unwrap(),
+            "John Doe Carter"
+        );
+        assert_eq!(
+            help_test_name("John/Doe/Carter").full_name().unwrap(),
+            "John Doe Carter"
+        );
     }
 
     #[test]
