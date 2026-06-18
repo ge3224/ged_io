@@ -10,7 +10,7 @@ use crate::{
 
 /// `GenderType` is a set of enumerated values that indicate the sex of an individual at birth. See
 /// 5.5 specification, p. 61; <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#SEX>.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub enum GenderType {
     /// Tag 'M'
@@ -20,6 +20,7 @@ pub enum GenderType {
     /// Tag 'X'; "Does not fit the typical definition of only Male or only Female"
     Nonbinary,
     /// Tag 'U'; "Cannot be determined from available sources"
+    #[default]
     Unknown,
 }
 
@@ -33,7 +34,7 @@ impl std::fmt::Display for GenderType {
 /// Related concepts of gender identity or sexual preference are not currently given their own tag.
 /// Cultural or personal gender preference may be indicated using the FACT tag. See
 /// <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#SEX>.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Gender {
     pub value: GenderType,

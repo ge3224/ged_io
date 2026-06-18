@@ -1,6 +1,7 @@
 //! Benchmarks for memory usage and allocation patterns.
 
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
+use ged_io::types::individual::gender::GenderType;
 use ged_io::{indexed::IndexedGedcomData, GedcomBuilder, GedcomWriter};
 use std::fs;
 use std::hint::black_box;
@@ -355,7 +356,7 @@ fn bench_struct_sizes(c: &mut Criterion) {
                 if ind.name.is_some() {
                     total += 1;
                 }
-                if ind.sex.is_some() {
+                if ind.sex.value != GenderType::Unknown {
                     total += 1;
                 }
             }

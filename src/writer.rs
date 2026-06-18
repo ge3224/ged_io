@@ -359,9 +359,7 @@ impl GedcomWriter {
             self.write_name(writer, name)?;
         }
 
-        if let Some(ref sex) = individual.sex {
-            self.write_gender(writer, sex)?;
-        }
+        self.write_gender(writer, &individual.sex)?;
 
         for event in &individual.events {
             self.write_event(writer, 1, event)?;
@@ -1447,6 +1445,25 @@ mod tests {
 
         let writer = GedcomWriter::new();
         let written = writer.write_to_string(&data).unwrap();
+
+        // Parse the written output
+        let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();
+
+        // Compare key data
+        assert_eq!(data.individuals.len(), data2.individuals.len());
+        assert_eq!(data.individuals[0].xref, data2.individuals[0].xref);
+        assert_eq!(data.individuals[0].name, data2.individuals[0].name);
+    }
+
+    #[test]
+    fn test_round_trip_basic_without_sex() {
+        let original = "0 HEAD\n1 GEDC\n2 VERS 5.5\n0 @I1@ INDI\n1 NAME John /Doe/\n0 TRLR";
+        let data = GedcomBuilder::new().build_from_str(original).unwrap();
+
+        let writer = GedcomWriter::new();
+        let written = writer.write_to_string(&data).unwrap();
+
+        assert!(written.contains("SEX U")); // By default the sex is unknown
 
         // Parse the written output
         let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();

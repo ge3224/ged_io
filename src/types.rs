@@ -238,9 +238,7 @@ impl GedcomData {
             }
 
             // Citations on gender
-            if let Some(ref gender) = individual.sex {
-                stats.on_other += gender.sources.len();
-            }
+            stats.on_other += individual.sex.sources.len();
 
             // Citations on events
             for event in &individual.events {
