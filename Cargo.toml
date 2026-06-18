@@ -1,10 +1,11 @@
 [package]
 name = "ged_io"
-version = "0.14.4"
+version = "0.14.5"
 authors = [
     "Robert Pirtle <astropirtle@gmail.com>",
     "Jacob Benison <ge3224@gmail.com>",
     "Pierre Erraud <trois.six+github@ik.me>",
+    "n4n5 <its.just.n4n5@gmail.com>",
 ]
 description = "A parser for GEDCOM files"
 keywords = ["genealogy", "gedcom", "parser", "family-trees"]
