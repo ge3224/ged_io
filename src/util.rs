@@ -10,6 +10,7 @@
 #![allow(clippy::trivially_copy_pass_by_ref)]
 
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::RwLock;
 
 /// Macro for displaying `Option`s in debug mode without the text wrapping.
@@ -588,6 +589,16 @@ pub fn needs_at_escaping(value: &str, is_gedcom_7: bool) -> bool {
     } else {
         value.contains('@')
     }
+}
+
+/// Global counter for generating unique sub-structure identifiers.
+/// IDs are unique for the lifetime of the process and are not
+/// persisted to GEDCOM output.
+static NEXT_ID: AtomicU64 = AtomicU64::new(1);
+
+/// Returns the next unique sub-structure identifier
+pub fn next_id() -> u64 {
+    NEXT_ID.fetch_add(1, Ordering::Relaxed)
 }
 
 #[cfg(test)]

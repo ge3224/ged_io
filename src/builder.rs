@@ -16,7 +16,7 @@
 //!     .validate_references(true)
 //!     .build_from_str(source)?;
 //!
-//! println!("Parsed {} individuals", gedcom_data.individuals.len());
+//! println!("Parsed {} individuals", gedcom_data.count_individual());
 //! # Ok(())
 //! # }
 //! ```
@@ -354,7 +354,7 @@ impl GedcomBuilder {
         let mut tokenizer = Tokenizer::new(chars);
         tokenizer.next_token()?;
 
-        let data = GedcomData::new(&mut tokenizer, 0)?;
+        let data = GedcomData::new(&mut tokenizer)?;
 
         // Post-parse validation if enabled
         if self.config.validate_references {
@@ -529,7 +529,7 @@ impl GedcomBuilder {
     /// let bytes = std::fs::read("family.gdz")?;
     /// let data = GedcomBuilder::new()
     ///     .build_from_gedzip(&bytes)?;
-    /// println!("Found {} individuals", data.individuals.len());
+    ///     println!("Found {} individuals", data.count_individual());
     /// # Ok(())
     /// # }
     /// # #[cfg(not(feature = "gedzip"))]
@@ -566,44 +566,32 @@ impl GedcomBuilder {
         // Collect all xrefs
         let mut xrefs: HashSet<&str> = HashSet::new();
 
-        for individual in &data.individuals {
-            if let Some(ref xref) = individual.xref {
-                xrefs.insert(xref.as_str());
-            }
+        for individual in data.individuals.iter() {
+            xrefs.insert(individual.xref.as_str());
         }
 
-        for family in &data.families {
-            if let Some(ref xref) = family.xref {
-                xrefs.insert(xref.as_str());
-            }
+        for family in data.iter_families() {
+            xrefs.insert(family.xref.as_str());
         }
 
-        for source in &data.sources {
-            if let Some(ref xref) = source.xref {
-                xrefs.insert(xref.as_str());
-            }
+        for source in data.iter_sources() {
+            xrefs.insert(source.xref.as_str());
         }
 
-        for repo in &data.repositories {
-            if let Some(ref xref) = repo.xref {
-                xrefs.insert(xref.as_str());
-            }
+        for repo in data.iter_repositories() {
+            xrefs.insert(repo.xref.as_str());
         }
 
-        for submitter in &data.submitters {
-            if let Some(ref xref) = submitter.xref {
-                xrefs.insert(xref.as_str());
-            }
+        for submitter in data.iter_submitters() {
+            xrefs.insert(submitter.xref.as_str());
         }
 
-        for multimedia in &data.multimedia {
-            if let Some(ref xref) = multimedia.xref {
-                xrefs.insert(xref.as_str());
-            }
+        for multimedia in data.iter_multimedia() {
+            xrefs.insert(multimedia.xref.as_str());
         }
 
         // Validate family references
-        for family in &data.families {
+        for family in data.iter_families() {
             if let Some(ref husb) = family.individual1 {
                 if !xrefs.contains(husb.as_str()) {
                     return Err(GedcomError::InvalidFormat(format!(
@@ -628,7 +616,7 @@ impl GedcomBuilder {
         }
 
         // Validate individual family links
-        for individual in &data.individuals {
+        for individual in data.individuals.iter() {
             for family_link in &individual.families {
                 if !xrefs.contains(family_link.xref.as_str()) {
                     return Err(GedcomError::InvalidFormat(format!(

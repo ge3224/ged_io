@@ -24,7 +24,7 @@
 //! let file = File::open("family.gdz")?;
 //! let mut reader = GedzipReader::new(file)?;
 //! let data = reader.parse_gedcom()?;
-//! println!("Found {} individuals", data.individuals.len());
+//! println!("Found {} individuals", data.count_individual());
 //!
 //! // List media files in the archive
 //! for name in reader.media_files() {
@@ -137,7 +137,7 @@ impl From<std::io::Error> for GedzipError {
 ///
 /// // Parse the GEDCOM data
 /// let data = reader.parse_gedcom()?;
-/// println!("Individuals: {}", data.individuals.len());
+/// println!("Individuals: {}", data.count_individual());
 ///
 /// // Read a specific media file
 /// if let Ok(bytes) = reader.read_media_file("photos/grandpa.jpg") {
@@ -436,7 +436,7 @@ impl<W: Write + Seek> GedzipWriter<W> {
 ///
 /// let bytes = std::fs::read("family.gdz")?;
 /// let data = read_gedzip(&bytes)?;
-/// println!("Found {} individuals", data.individuals.len());
+/// println!("Found {} individuals", data.count_individual());
 /// # Ok(())
 /// # }
 /// # #[cfg(not(feature = "gedzip"))]

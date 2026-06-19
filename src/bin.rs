@@ -276,11 +276,7 @@ fn run() -> Result<RunOutcome, CliError> {
     let data = doc.parse_data()?;
 
     if let Some(xref) = args.individual_xref.as_deref() {
-        if let Some(individual) = data
-            .individuals
-            .iter()
-            .find(|i| i.xref.as_deref() == Some(xref))
-        {
+        if let Some(individual) = data.find_individual(xref) {
             println!("{individual}");
             return Ok(RunOutcome::Success);
         }
@@ -297,7 +293,7 @@ fn run() -> Result<RunOutcome, CliError> {
             .as_deref()
             .map(|s| s.to_lowercase());
 
-        for individual in &data.individuals {
+        for individual in data.iter_individuals() {
             let display_name = individual
                 .name
                 .as_ref()

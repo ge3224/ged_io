@@ -80,10 +80,10 @@ impl fmt::Debug for GedcomDataDebug<'_> {
             );
         }
 
-        if !self.0.custom_data.is_empty() {
+        if !self.0.user_defined_tags.is_empty() {
             debug.field(
                 "custom_data",
-                &format!("[{} records]", self.0.custom_data.len()),
+                &format!("[{} records]", self.0.user_defined_tags.len()),
             );
         }
 
@@ -98,9 +98,7 @@ impl fmt::Debug for IndividualDebug<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut debug = f.debug_struct("Individual");
 
-        if let Some(ref xref) = self.0.xref {
-            debug.field("xref", xref);
-        }
+        debug.field("xref", &self.0.xref);
 
         if let Some(ref name) = self.0.name {
             if let Some(ref value) = name.value {
@@ -138,9 +136,7 @@ impl fmt::Debug for FamilyDebug<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut debug = f.debug_struct("Family");
 
-        if let Some(ref xref) = self.0.xref {
-            debug.field("xref", xref);
-        }
+        debug.field("xref", &self.0.xref);
 
         if let Some(ref ind1) = self.0.individual1 {
             debug.field("individual1", ind1);
@@ -169,9 +165,7 @@ impl fmt::Debug for SourceDebug<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut debug = f.debug_struct("Source");
 
-        if let Some(ref xref) = self.0.xref {
-            debug.field("xref", xref);
-        }
+        debug.field("xref", &self.0.xref);
 
         if let Some(ref title) = self.0.title {
             debug.field("title", title);
@@ -196,9 +190,7 @@ impl fmt::Debug for RepositoryDebug<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut debug = f.debug_struct("Repository");
 
-        if let Some(ref xref) = self.0.xref {
-            debug.field("xref", xref);
-        }
+        debug.field("xref", &self.0.xref);
 
         if let Some(ref name) = self.0.name {
             debug.field("name", name);
@@ -219,9 +211,7 @@ impl fmt::Debug for MultimediaDebug<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut debug = f.debug_struct("Multimedia");
 
-        if let Some(ref xref) = self.0.xref {
-            debug.field("xref", xref);
-        }
+        debug.field("xref", &self.0.xref);
 
         if let Some(ref title) = self.0.title {
             debug.field("title", title);
@@ -285,9 +275,7 @@ impl fmt::Debug for SubmitterDebug<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut debug = f.debug_struct("Submitter");
 
-        if let Some(ref xref) = self.0.xref {
-            debug.field("xref", xref);
-        }
+        debug.field("xref", &self.0.xref);
 
         if let Some(ref name) = self.0.name {
             debug.field("name", name);
@@ -304,9 +292,7 @@ impl fmt::Debug for SubmissionDebug<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut debug = f.debug_struct("Submission");
 
-        if let Some(ref xref) = self.0.xref {
-            debug.field("xref", xref);
-        }
+        debug.field("xref", &self.0.xref);
 
         if let Some(ref family_file) = self.0.family_file_name {
             debug.field("family_file", family_file);
@@ -497,7 +483,7 @@ mod tests {
         let mut gedcom = Gedcom::new(sample.chars()).unwrap();
         let data = gedcom.parse_data().unwrap();
 
-        let debug_output = format!("{:?}", data.individuals[0].debug());
+        let debug_output = format!("{:?}", data.find_individual("@I1@").unwrap().debug());
         assert!(debug_output.contains("Individual"));
         assert!(debug_output.contains("@I1@"));
         assert!(debug_output.contains("John /Doe/"));
@@ -521,7 +507,7 @@ mod tests {
         let mut gedcom = Gedcom::new(sample.chars()).unwrap();
         let data = gedcom.parse_data().unwrap();
 
-        let debug_output = format!("{:?}", data.families[0].debug());
+        let debug_output = format!("{:?}", data.find_family("@F1@").unwrap().debug());
         assert!(debug_output.contains("Family"));
         assert!(debug_output.contains("@F1@"));
         assert!(debug_output.contains("@I1@"));
@@ -543,7 +529,7 @@ mod tests {
         let mut gedcom = Gedcom::new(sample.chars()).unwrap();
         let data = gedcom.parse_data().unwrap();
 
-        let debug_output = format!("{:?}", data.sources[0].debug());
+        let debug_output = format!("{:?}", data.find_source("@S1@").unwrap().debug());
         assert!(debug_output.contains("Source"));
         assert!(debug_output.contains("@S1@"));
         assert!(debug_output.contains("Census Records"));
@@ -604,6 +590,8 @@ mod tests {
             phonetic: Vec::new(),
             romanized: Vec::new(),
             custom_data: Vec::new(),
+            previous: None,
+            next: None,
         };
 
         let debug_output = format!("{:?}", name.debug());

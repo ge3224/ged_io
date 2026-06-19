@@ -22,6 +22,7 @@
 use crate::types::{
     address::Address,
     age::Age,
+    custom::UserDefinedTag,
     date::Date,
     event::{detail::Detail as EventDetail, spouse::Spouse, Event},
     family::Family,
@@ -34,7 +35,7 @@ use crate::types::{
         Individual,
     },
     lds::LdsOrdinance,
-    multimedia::Multimedia,
+    multimedia::{link::Link, Multimedia},
     note::Note,
     repository::Repository,
     shared_note::SharedNote,
@@ -163,43 +164,48 @@ impl GedcomWriter {
         self.write_header(writer, data)?;
 
         // Write submitters
-        for submitter in &data.submitters {
+        for submitter in data.iter_submitters() {
             self.write_submitter(writer, submitter)?;
         }
 
         // Write submissions
-        for submission in &data.submissions {
+        for submission in data.iter_submissions() {
             self.write_submission(writer, submission)?;
         }
 
         // Write individuals
-        for individual in &data.individuals {
+        for individual in data.individuals.iter() {
             self.write_individual(writer, individual)?;
         }
 
         // Write families
-        for family in &data.families {
+        for family in data.iter_families() {
             self.write_family(writer, family)?;
         }
 
         // Write sources
-        for source in &data.sources {
+        for source in data.iter_sources() {
             self.write_source(writer, source)?;
         }
 
         // Write repositories
-        for repo in &data.repositories {
+        for repo in data.iter_repositories() {
             self.write_repository(writer, repo)?;
         }
 
         // Write multimedia
-        for media in &data.multimedia {
+        for media in data.iter_multimedia() {
             self.write_multimedia(writer, media)?;
         }
 
         // Write shared notes (GEDCOM 7.0)
-        for shared_note in &data.shared_notes {
+        for shared_note in data.iter_shared_notes() {
             self.write_shared_note(writer, shared_note)?;
+        }
+
+        // Write user-defined tags
+        for user_defined_tag in data.iter_user_defined_tags() {
+            self.write_user_defined_tag(writer, user_defined_tag)?;
         }
 
         // Write trailer (final line; do not add a line terminator after TRLR)
@@ -353,7 +359,7 @@ impl GedcomWriter {
         writer: &mut W,
         individual: &Individual,
     ) -> Result<(), io::Error> {
-        self.write_line_with_xref(writer, 0, individual.xref.as_deref(), "INDI", None)?;
+        self.write_line_with_xref(writer, 0, Some(individual.xref.as_str()), "INDI", None)?;
 
         if let Some(ref name) = individual.name {
             self.write_name(writer, name)?;
@@ -390,7 +396,7 @@ impl GedcomWriter {
             self.write_citation(writer, 1, citation)?;
         }
 
-        for media in &individual.multimedia {
+        for media in &individual.multimedia_links {
             self.write_multimedia_link(writer, 1, media)?;
         }
 
@@ -640,7 +646,7 @@ impl GedcomWriter {
 
     /// Writes a family record.
     fn write_family<W: Write>(&self, writer: &mut W, family: &Family) -> Result<(), io::Error> {
-        self.write_line_with_xref(writer, 0, family.xref.as_deref(), "FAM", None)?;
+        self.write_line_with_xref(writer, 0, Some(family.xref.as_str()), "FAM", None)?;
 
         if let Some(ref husb) = family.individual1 {
             self.write_line(writer, 1, "HUSB", Some(husb))?;
@@ -672,7 +678,7 @@ impl GedcomWriter {
             self.write_citation(writer, 1, citation)?;
         }
 
-        for media in &family.multimedia {
+        for media in &family.multimedia_links {
             self.write_multimedia_link(writer, 1, media)?;
         }
 
@@ -692,7 +698,7 @@ impl GedcomWriter {
 
     /// Writes a source record.
     fn write_source<W: Write>(&self, writer: &mut W, source: &Source) -> Result<(), io::Error> {
-        self.write_line_with_xref(writer, 0, source.xref.as_deref(), "SOUR", None)?;
+        self.write_line_with_xref(writer, 0, Some(source.xref.as_str()), "SOUR", None)?;
 
         if let Some(ref title) = source.title {
             self.write_long_text(writer, 1, "TITL", title)?;
@@ -733,7 +739,7 @@ impl GedcomWriter {
         writer: &mut W,
         repo: &Repository,
     ) -> Result<(), io::Error> {
-        self.write_line_with_xref(writer, 0, repo.xref.as_deref(), "REPO", None)?;
+        self.write_line_with_xref(writer, 0, Some(repo.xref.as_str()), "REPO", None)?;
 
         if let Some(ref name) = repo.name {
             self.write_value_or_wrap(writer, 1, "NAME", Some(name))?;
@@ -752,7 +758,7 @@ impl GedcomWriter {
         writer: &mut W,
         submitter: &Submitter,
     ) -> Result<(), io::Error> {
-        self.write_line_with_xref(writer, 0, submitter.xref.as_deref(), "SUBM", None)?;
+        self.write_line_with_xref(writer, 0, Some(submitter.xref.as_str()), "SUBM", None)?;
 
         if let Some(ref name) = submitter.name {
             self.write_value_or_wrap(writer, 1, "NAME", Some(name))?;
@@ -788,7 +794,7 @@ impl GedcomWriter {
         writer: &mut W,
         submission: &Submission,
     ) -> Result<(), io::Error> {
-        self.write_line_with_xref(writer, 0, submission.xref.as_deref(), "SUBN", None)?;
+        self.write_line_with_xref(writer, 0, Some(submission.xref.as_str()), "SUBN", None)?;
 
         if let Some(ref subm) = submission.submitter_ref {
             self.write_value_or_wrap(writer, 1, "SUBM", Some(subm))?;
@@ -819,7 +825,7 @@ impl GedcomWriter {
         writer: &mut W,
         media: &Multimedia,
     ) -> Result<(), io::Error> {
-        self.write_line_with_xref(writer, 0, media.xref.as_deref(), "OBJE", None)?;
+        self.write_line_with_xref(writer, 0, Some(media.xref.as_str()), "OBJE", None)?;
 
         if let Some(ref file) = media.file {
             self.write_value_or_wrap(writer, 1, "FILE", file.value.as_deref())?;
@@ -849,7 +855,7 @@ impl GedcomWriter {
         &self,
         writer: &mut W,
         level: u8,
-        media: &Multimedia,
+        media: &Link,
     ) -> Result<(), io::Error> {
         if let Some(ref xref) = media.xref {
             self.write_line(writer, level, "OBJE", Some(xref))?;
@@ -945,9 +951,21 @@ impl GedcomWriter {
         note: &SharedNote,
     ) -> Result<(), io::Error> {
         if self.config.gedcom_version.starts_with('5') {
-            self.write_line_with_xref(writer, 0, note.xref.as_deref(), "NOTE", Some(&note.text))?;
+            self.write_line_with_xref(
+                writer,
+                0,
+                Some(note.xref.as_str()),
+                "NOTE",
+                Some(&note.text),
+            )?;
         } else {
-            self.write_line_with_xref(writer, 0, note.xref.as_deref(), "SNOTE", Some(&note.text))?;
+            self.write_line_with_xref(
+                writer,
+                0,
+                Some(note.xref.as_str()),
+                "SNOTE",
+                Some(&note.text),
+            )?;
         }
 
         if let Some(ref mime) = note.mime {
@@ -980,6 +998,20 @@ impl GedcomWriter {
         }
 
         Ok(())
+    }
+
+    /// Writes a user-defined tag record.
+    fn write_user_defined_tag<W: Write>(
+        &self,
+        writer: &mut W,
+        custom_tag: &UserDefinedTag,
+    ) -> Result<(), io::Error> {
+        match custom_tag.value.as_deref() {
+            Some(value) => {
+                self.write_value_or_wrap(writer, custom_tag.level, &custom_tag.tag, Some(value))
+            }
+            None => self.write_line(writer, custom_tag.level, &custom_tag.tag, None),
+        }
     }
 
     /// Writes a sort date structure (GEDCOM 7.0).
@@ -1469,8 +1501,10 @@ mod tests {
 
         // Compare key data
         assert_eq!(data.individuals.len(), data2.individuals.len());
-        assert_eq!(data.individuals[0].xref, data2.individuals[0].xref);
-        assert_eq!(data.individuals[0].name, data2.individuals[0].name);
+        let indi1 = data.individuals.iter().next().unwrap();
+        let indi2 = data2.individuals.iter().next().unwrap();
+        assert_eq!(indi1.xref, indi2.xref);
+        assert_eq!(indi1.name, indi2.name);
     }
 
     #[test]

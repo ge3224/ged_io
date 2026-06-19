@@ -29,49 +29,49 @@ impl fmt::Display for GedcomData {
 
         if !self.individuals.is_empty() {
             writeln!(f, "\nIndividuals ({}):", self.individuals.len())?;
-            for individual in &self.individuals {
+            for individual in self.individuals.iter() {
                 writeln!(f, "  {individual}")?;
             }
         }
 
         if !self.families.is_empty() {
             writeln!(f, "\nFamilies ({}):", self.families.len())?;
-            for family in &self.families {
+            for family in self.iter_families() {
                 writeln!(f, "  {family}")?;
             }
         }
 
         if !self.sources.is_empty() {
             writeln!(f, "\nSources ({}):", self.sources.len())?;
-            for source in &self.sources {
+            for source in self.iter_sources() {
                 writeln!(f, "  {source}")?;
             }
         }
 
         if !self.repositories.is_empty() {
             writeln!(f, "\nRepositories ({}):", self.repositories.len())?;
-            for repo in &self.repositories {
+            for repo in self.iter_repositories() {
                 writeln!(f, "  {repo}")?;
             }
         }
 
         if !self.multimedia.is_empty() {
             writeln!(f, "\nMultimedia ({}):", self.multimedia.len())?;
-            for media in &self.multimedia {
+            for media in self.iter_multimedia() {
                 writeln!(f, "  {media}")?;
             }
         }
 
         if !self.submitters.is_empty() {
             writeln!(f, "\nSubmitters ({}):", self.submitters.len())?;
-            for submitter in &self.submitters {
+            for submitter in self.submitters.iter() {
                 writeln!(f, "  {submitter}")?;
             }
         }
 
         if !self.submissions.is_empty() {
             writeln!(f, "\nSubmissions ({}):", self.submissions.len())?;
-            for submission in &self.submissions {
+            for submission in self.iter_submissions() {
                 writeln!(f, "  {submission}")?;
             }
         }
@@ -108,10 +108,7 @@ impl fmt::Display for Header {
 
 impl fmt::Display for Individual {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        // Start with xref if available
-        if let Some(ref xref) = self.xref {
-            write!(f, "{xref} ")?;
-        }
+        write!(f, "{} ", self.xref)?;
 
         // Display name
         if let Some(ref name) = self.name {
@@ -197,9 +194,7 @@ impl fmt::Display for Name {
 
 impl fmt::Display for Family {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(ref xref) = self.xref {
-            write!(f, "{xref} ")?;
-        }
+        write!(f, "{} ", self.xref)?;
 
         let mut members = Vec::new();
 
@@ -265,9 +260,7 @@ impl fmt::Display for Family {
 
 impl fmt::Display for Source {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(ref xref) = self.xref {
-            write!(f, "{xref} ")?;
-        }
+        write!(f, "{} ", self.xref)?;
 
         if let Some(ref title) = self.title {
             write!(f, "\"{title}\"")?;
@@ -287,9 +280,7 @@ impl fmt::Display for Source {
 
 impl fmt::Display for Repository {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(ref xref) = self.xref {
-            write!(f, "{xref} ")?;
-        }
+        write!(f, "{} ", self.xref)?;
 
         if let Some(ref name) = self.name {
             write!(f, "{name}")?;
@@ -309,9 +300,7 @@ impl fmt::Display for Repository {
 
 impl fmt::Display for Multimedia {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(ref xref) = self.xref {
-            write!(f, "{xref} ")?;
-        }
+        write!(f, "{} ", self.xref)?;
 
         if let Some(ref title) = self.title {
             write!(f, "\"{title}\"")?;
@@ -337,9 +326,7 @@ impl fmt::Display for Multimedia {
 
 impl fmt::Display for Submitter {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(ref xref) = self.xref {
-            write!(f, "{xref} ")?;
-        }
+        write!(f, "{} ", self.xref)?;
 
         if let Some(ref name) = self.name {
             write!(f, "{name}")?;
@@ -353,9 +340,7 @@ impl fmt::Display for Submitter {
 
 impl fmt::Display for Submission {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(ref xref) = self.xref {
-            write!(f, "{xref} ")?;
-        }
+        write!(f, "{} ", self.xref)?;
 
         if let Some(ref family_file) = self.family_file_name {
             write!(f, "Family File: {family_file}")?;
@@ -426,7 +411,8 @@ mod tests {
         let mut gedcom = Gedcom::new(sample.chars()).unwrap();
         let data = gedcom.parse_data().unwrap();
 
-        let display = format!("{}", data.individuals[0]);
+        let indi = data.find_individual("@I1@").unwrap();
+        let display = format!("{indi}");
         assert!(display.contains("@I1@"));
         assert!(display.contains("Jane Smith"));
         assert!(display.contains("Female"));
@@ -450,7 +436,8 @@ mod tests {
         let mut gedcom = Gedcom::new(sample.chars()).unwrap();
         let data = gedcom.parse_data().unwrap();
 
-        let display = format!("{}", data.families[0]);
+        let fam = data.find_family("@F1@").unwrap();
+        let display = format!("{fam}");
         assert!(display.contains("@F1@"));
         assert!(display.contains("@I1@"));
         assert!(display.contains("@I2@"));
@@ -474,7 +461,8 @@ mod tests {
         let mut gedcom = Gedcom::new(sample.chars()).unwrap();
         let data = gedcom.parse_data().unwrap();
 
-        let display = format!("{}", data.families[0]);
+        let fam = data.find_family("@F1@").unwrap();
+        let display = format!("{fam}");
         assert!(display.contains("rel. 1 JUN 1999"));
     }
 
@@ -494,7 +482,8 @@ mod tests {
         let mut gedcom = Gedcom::new(sample.chars()).unwrap();
         let data = gedcom.parse_data().unwrap();
 
-        let display = format!("{}", data.families[0]);
+        let fam = data.find_family("@F1@").unwrap();
+        let display = format!("{fam}");
         assert!(display.contains("sep. 1 JUN 2001"));
     }
 
@@ -514,7 +503,8 @@ mod tests {
         let mut gedcom = Gedcom::new(sample.chars()).unwrap();
         let data = gedcom.parse_data().unwrap();
 
-        let display = format!("{}", data.families[0]);
+        let fam = data.find_family("@F1@").unwrap();
+        let display = format!("{fam}");
         assert!(display.contains("div. 1 JUN 2002"));
     }
 
@@ -534,7 +524,8 @@ mod tests {
         let mut gedcom = Gedcom::new(sample.chars()).unwrap();
         let data = gedcom.parse_data().unwrap();
 
-        let display = format!("{}", data.families[0]);
+        let fam = data.find_family("@F1@").unwrap();
+        let display = format!("{fam}");
         assert!(display.contains("anul. 1 JUN 2003"));
     }
 
@@ -551,7 +542,8 @@ mod tests {
         let mut gedcom = Gedcom::new(sample.chars()).unwrap();
         let data = gedcom.parse_data().unwrap();
 
-        let name = data.individuals[0].name.as_ref().unwrap();
+        let indi = data.find_individual("@I1@").unwrap();
+        let name = indi.name.as_ref().unwrap();
         let display = format!("{name}");
         assert!(display.contains("Robert"));
         assert!(display.contains("Johnson"));
@@ -573,7 +565,7 @@ mod tests {
         let mut gedcom = Gedcom::new(sample.chars()).unwrap();
         let data = gedcom.parse_data().unwrap();
 
-        let display = format!("{}", data.sources[0]);
+        let display = format!("{}", data.find_source("@S1@").unwrap());
         assert!(display.contains("@S1@"));
         assert!(display.contains("Census Records 1900"));
         assert!(display.contains("by Government"));
