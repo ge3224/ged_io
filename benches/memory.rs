@@ -43,29 +43,6 @@ fn bench_parse_memory(c: &mut Criterion) {
     group.finish();
 }
 
-/// Benchmark clone operations (indicative of memory usage)
-fn bench_clone_memory(c: &mut Criterion) {
-    let mut group = c.benchmark_group("clone_memory");
-
-    let files = [
-        ("simple", "tests/fixtures/simple.ged"),
-        ("sample", "tests/fixtures/sample.ged"),
-        ("washington", "tests/fixtures/washington.ged"),
-    ];
-
-    for (name, path) in files {
-        if let Ok(content) = fs::read_to_string(path) {
-            let data = GedcomBuilder::new().build_from_str(&content).unwrap();
-
-            group.bench_with_input(BenchmarkId::new("clone_data", name), &data, |b, data| {
-                b.iter(|| black_box(data.clone()));
-            });
-        }
-    }
-
-    group.finish();
-}
-
 /// Benchmark string allocation patterns
 fn bench_string_allocations(c: &mut Criterion) {
     let mut group = c.benchmark_group("string_allocations");
@@ -223,9 +200,8 @@ fn bench_lookup_memory(c: &mut Criterion) {
         // Benchmark linear search (current implementation)
         group.bench_function("find_individual_linear", |b| {
             let xrefs: Vec<&str> = data
-                .individuals
-                .iter()
-                .filter_map(|i| i.xref.as_deref())
+                .iter_individuals()
+                .map(|i| i.xref.as_str())
                 .take(10)
                 .collect();
 
@@ -236,19 +212,11 @@ fn bench_lookup_memory(c: &mut Criterion) {
             });
         });
 
-        // Benchmark name search
-        group.bench_function("search_by_name", |b| {
-            b.iter(|| {
-                black_box(data.search_individuals_by_name("Washington"));
-            });
-        });
-
         // Benchmark family lookup
         group.bench_function("get_families_as_spouse", |b| {
             let xrefs: Vec<&str> = data
-                .individuals
-                .iter()
-                .filter_map(|i| i.xref.as_deref())
+                .iter_individuals()
+                .map(|i| i.xref.as_str())
                 .take(10)
                 .collect();
 
@@ -294,13 +262,13 @@ fn bench_indexed_vs_linear(c: &mut Criterion) {
     // Load a larger file for lookup tests
     if let Ok(content) = fs::read_to_string("tests/fixtures/washington.ged") {
         let data = GedcomBuilder::new().build_from_str(&content).unwrap();
-        let indexed = IndexedGedcomData::from(data.clone());
+        let indexed =
+            IndexedGedcomData::from(GedcomBuilder::new().build_from_str(&content).unwrap());
 
         // Get some xrefs to look up
         let xrefs: Vec<&str> = data
-            .individuals
-            .iter()
-            .filter_map(|i| i.xref.as_deref())
+            .iter_individuals()
+            .map(|i| i.xref.as_str())
             .take(50)
             .collect();
 
@@ -325,8 +293,8 @@ fn bench_indexed_vs_linear(c: &mut Criterion) {
         // Benchmark index creation overhead
         group.bench_function("index_creation", |b| {
             b.iter(|| {
-                let data_clone = data.clone();
-                black_box(IndexedGedcomData::from(data_clone))
+                let d = GedcomBuilder::new().build_from_str(&content).unwrap();
+                black_box(IndexedGedcomData::from(d))
             });
         });
     }
@@ -348,10 +316,8 @@ fn bench_struct_sizes(c: &mut Criterion) {
     group.bench_function("access_individuals", |b| {
         b.iter(|| {
             let mut total = 0;
-            for ind in &data.individuals {
-                if ind.xref.is_some() {
-                    total += 1;
-                }
+            for ind in data.iter_individuals() {
+                total += 1;
                 if ind.name.is_some() {
                     total += 1;
                 }
@@ -366,7 +332,7 @@ fn bench_struct_sizes(c: &mut Criterion) {
     // Measure field access patterns
     group.bench_function("access_names", |b| {
         b.iter(|| {
-            for ind in &data.individuals {
+            for ind in data.iter_individuals() {
                 black_box(ind.full_name());
             }
         });
@@ -374,7 +340,7 @@ fn bench_struct_sizes(c: &mut Criterion) {
 
     group.bench_function("access_events", |b| {
         b.iter(|| {
-            for ind in &data.individuals {
+            for ind in data.iter_individuals() {
                 black_box(ind.birth_date());
                 black_box(ind.death_date());
             }
@@ -387,7 +353,6 @@ fn bench_struct_sizes(c: &mut Criterion) {
 criterion_group!(
     benches,
     bench_parse_memory,
-    bench_clone_memory,
     bench_string_allocations,
     bench_vec_growth,
     bench_round_trip_memory,

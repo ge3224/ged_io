@@ -20,7 +20,7 @@ fn test_round_trip_note_record() {
         0 TRLR";
 
     let data = GedcomBuilder::new().build_from_str(sample).unwrap();
-    assert_eq!(data.shared_notes.len(), 1);
+    assert_eq!(data.iter_shared_notes().count(), 1);
 
     let writer = GedcomWriter::new().gedcom_version("5.1");
     let output = writer.write_to_string(&data).unwrap();

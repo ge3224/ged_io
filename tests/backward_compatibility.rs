@@ -36,7 +36,7 @@ fn test_gedcom_parse_data_unchanged() {
 
     assert!(data.is_ok());
     let data = data.unwrap();
-    assert_eq!(data.individuals.len(), 1);
+    assert_eq!(data.count_individual(), 1);
 }
 
 // =============================================================================
@@ -61,12 +61,12 @@ fn test_default_parsing_behavior_unchanged() {
 
     // Verify standard parsing behavior
     assert!(data.header.is_some());
-    assert_eq!(data.individuals.len(), 1);
-    assert_eq!(data.families.len(), 1);
+    assert_eq!(data.count_individual(), 1);
+    assert_eq!(data.count_family(), 1);
 
     // Verify individual data
-    let individual = &data.individuals[0];
-    assert_eq!(individual.xref.as_ref().unwrap(), "@I1@");
+    let individual = data.find_individual("@I1@").unwrap();
+    assert_eq!(individual.xref, "@I1@");
     assert_eq!(
         individual.name.as_ref().unwrap().value.as_ref().unwrap(),
         "John /Doe/"
@@ -122,8 +122,8 @@ fn test_individual_access_pattern_unchanged() {
     let data = gedcom.parse_data().unwrap();
 
     // Old access patterns must still work
-    let indi = &data.individuals[0];
-    assert_eq!(indi.xref.as_ref().unwrap(), "@PERSON1@");
+    let indi = data.find_individual("@PERSON1@").unwrap();
+    assert_eq!(indi.xref.as_str(), "@PERSON1@");
     assert_eq!(
         indi.name.as_ref().unwrap().value.as_ref().unwrap(),
         "John Doe"
@@ -146,8 +146,8 @@ fn test_family_access_pattern_unchanged() {
     let mut gedcom = Gedcom::new(source.chars()).unwrap();
     let data = gedcom.parse_data().unwrap();
 
-    let family = &data.families[0];
-    assert_eq!(family.xref.as_ref().unwrap(), "@F1@");
+    let family = data.find_family("@F1@").unwrap();
+    assert_eq!(family.xref, "@F1@");
     assert_eq!(family.individual1.as_ref().unwrap(), "@I1@");
     assert_eq!(family.individual2.as_ref().unwrap(), "@I2@");
     assert_eq!(family.children.len(), 1);
@@ -215,20 +215,20 @@ fn test_both_apis_produce_same_results() {
     let data_new = GedcomBuilder::new().build_from_str(source).unwrap();
 
     // Results should be identical
-    assert_eq!(data_old.individuals.len(), data_new.individuals.len());
-    assert_eq!(data_old.families.len(), data_new.families.len());
-    assert_eq!(data_old.sources.len(), data_new.sources.len());
-    assert_eq!(data_old.repositories.len(), data_new.repositories.len());
+    assert_eq!(data_old.count_individual(), data_new.count_individual());
+    assert_eq!(data_old.count_family(), data_new.count_family());
+    assert_eq!(data_old.count_source(), data_new.count_source());
+    assert_eq!(data_old.count_repository(), data_new.count_repository());
 
     // Individual data should match
-    for (old, new) in data_old.individuals.iter().zip(data_new.individuals.iter()) {
+    for (old, new) in data_old.iter_individuals().zip(data_new.iter_individuals()) {
         assert_eq!(old.xref, new.xref);
         assert_eq!(old.name, new.name);
         assert_eq!(old.sex, new.sex);
     }
 
     // Family data should match
-    for (old, new) in data_old.families.iter().zip(data_new.families.iter()) {
+    for (old, new) in data_old.iter_families().zip(data_new.iter_families()) {
         assert_eq!(old.xref, new.xref);
         assert_eq!(old.individual1, new.individual1);
         assert_eq!(old.individual2, new.individual2);
@@ -259,7 +259,7 @@ fn test_old_api_uses_default_configuration() {
         .build_from_str(source)
         .unwrap();
 
-    assert_eq!(data_old.individuals.len(), data_new.individuals.len());
+    assert_eq!(data_old.count_individual(), data_new.count_individual());
 }
 
 // =============================================================================
@@ -287,20 +287,20 @@ fn test_all_record_types_parsing() {
     let mut gedcom = Gedcom::new(source.chars()).unwrap();
     let data = gedcom.parse_data().unwrap();
 
-    assert_eq!(data.submitters.len(), 1);
-    assert_eq!(data.individuals.len(), 1);
-    assert_eq!(data.families.len(), 1);
-    assert_eq!(data.repositories.len(), 1);
-    assert_eq!(data.sources.len(), 1);
-    assert_eq!(data.multimedia.len(), 1);
+    assert_eq!(data.count_submitter(), 1);
+    assert_eq!(data.count_individual(), 1);
+    assert_eq!(data.count_family(), 1);
+    assert_eq!(data.count_repository(), 1);
+    assert_eq!(data.count_source(), 1);
+    assert_eq!(data.count_multimedia(), 1);
 
     // Verify xrefs
-    assert_eq!(data.submitters[0].xref.as_ref().unwrap(), "@SUBM1@");
-    assert_eq!(data.individuals[0].xref.as_ref().unwrap(), "@I1@");
-    assert_eq!(data.families[0].xref.as_ref().unwrap(), "@F1@");
-    assert_eq!(data.repositories[0].xref.as_ref().unwrap(), "@R1@");
-    assert_eq!(data.sources[0].xref.as_ref().unwrap(), "@S1@");
-    assert_eq!(data.multimedia[0].xref.as_ref().unwrap(), "@M1@");
+    assert_eq!(data.find_submitter("@SUBM1@").unwrap().xref, "@SUBM1@");
+    assert_eq!(data.find_individual("@I1@").unwrap().xref, "@I1@");
+    assert_eq!(data.find_family("@F1@").unwrap().xref, "@F1@");
+    assert_eq!(data.find_repository("@R1@").unwrap().xref, "@R1@");
+    assert_eq!(data.find_source("@S1@").unwrap().xref, "@S1@");
+    assert_eq!(data.find_multimedia("@M1@").unwrap().xref, "@M1@");
 }
 
 // =============================================================================
@@ -322,39 +322,24 @@ fn test_vec_iteration_unchanged() {
     let data = gedcom.parse_data().unwrap();
 
     // Standard iteration patterns must work
-    let count = data.individuals.len();
+    let count = data.count_individual();
     assert_eq!(count, 3);
 
     // Index access must work
-    let _first = &data.individuals[0];
-    let _last = &data.individuals[2];
+    let _first = data.find_individual("@I1@").unwrap();
+    let _last = data.find_individual("@I3@").unwrap();
 
     // For loop must work
     let mut xrefs = Vec::new();
-    for indi in &data.individuals {
-        if let Some(ref xref) = indi.xref {
-            xrefs.push(xref.clone());
-        }
+    for indi in data.iter_individuals() {
+        xrefs.push(indi.xref.clone());
     }
     assert_eq!(xrefs.len(), 3);
 }
 
 // =============================================================================
-// Test: Clone and PartialEq (if applicable)
+// Test: PartialEq
 // =============================================================================
-
-#[test]
-fn test_gedcom_data_clone() {
-    let source = "0 HEAD\n1 GEDC\n2 VERS 5.5\n0 @I1@ INDI\n1 NAME John /Doe/\n0 TRLR";
-
-    let mut gedcom = Gedcom::new(source.chars()).unwrap();
-    let data = gedcom.parse_data().unwrap();
-
-    // Clone must work
-    let cloned = data.clone();
-
-    assert_eq!(data.individuals.len(), cloned.individuals.len());
-}
 
 #[test]
 fn test_gedcom_data_partial_eq() {
@@ -386,7 +371,7 @@ fn test_debug_trait_available() {
     assert!(!debug_str.is_empty());
 
     // Debug on individuals
-    let indi_debug = format!("{:?}", data.individuals[0]);
+    let indi_debug = format!("{:?}", data.find_individual("@I1@").unwrap());
     assert!(!indi_debug.is_empty());
 }
 

@@ -33,8 +33,8 @@ fn test_parse_utf8_without_bom() {
 
     let data = GedcomBuilder::new().build_from_bytes(bytes).unwrap();
 
-    assert_eq!(data.individuals.len(), 1);
-    let name = data.individuals[0].name.as_ref().unwrap();
+    assert_eq!(data.count_individual(), 1);
+    let name = data.find_individual("@I1@").unwrap().name.as_ref().unwrap();
     assert_eq!(name.value.as_ref().unwrap(), "José /García/");
 }
 
@@ -46,8 +46,8 @@ fn test_parse_utf8_with_bom() {
 
     let data = GedcomBuilder::new().build_from_bytes(&bytes).unwrap();
 
-    assert_eq!(data.individuals.len(), 1);
-    let name = data.individuals[0].name.as_ref().unwrap();
+    assert_eq!(data.count_individual(), 1);
+    let name = data.find_individual("@I1@").unwrap().name.as_ref().unwrap();
     assert_eq!(name.value.as_ref().unwrap(), "Müller /Schröder/");
 }
 
@@ -58,8 +58,8 @@ fn test_parse_utf8_chinese_characters() {
 
     let data = GedcomBuilder::new().build_from_bytes(bytes).unwrap();
 
-    assert_eq!(data.individuals.len(), 1);
-    let name = data.individuals[0].name.as_ref().unwrap();
+    assert_eq!(data.count_individual(), 1);
+    let name = data.find_individual("@I1@").unwrap().name.as_ref().unwrap();
     assert_eq!(name.value.as_ref().unwrap(), "王 /伟/");
 }
 
@@ -70,8 +70,8 @@ fn test_parse_utf8_cyrillic_characters() {
 
     let data = GedcomBuilder::new().build_from_bytes(bytes).unwrap();
 
-    assert_eq!(data.individuals.len(), 1);
-    let name = data.individuals[0].name.as_ref().unwrap();
+    assert_eq!(data.count_individual(), 1);
+    let name = data.find_individual("@I1@").unwrap().name.as_ref().unwrap();
     assert_eq!(name.value.as_ref().unwrap(), "Иван /Петров/");
 }
 
@@ -89,7 +89,7 @@ fn test_parse_utf8_emoji() {
 
     let data = GedcomBuilder::new().build_from_bytes(bytes).unwrap();
 
-    assert_eq!(data.individuals.len(), 1);
+    assert_eq!(data.count_individual(), 1);
 }
 
 // ============================================================================
@@ -111,8 +111,8 @@ fn test_parse_iso8859_1_accented_characters() {
 
     let data = GedcomBuilder::new().build_from_bytes(bytes).unwrap();
 
-    assert_eq!(data.individuals.len(), 1);
-    let name = data.individuals[0].name.as_ref().unwrap();
+    assert_eq!(data.count_individual(), 1);
+    let name = data.find_individual("@I1@").unwrap().name.as_ref().unwrap();
     assert_eq!(name.value.as_ref().unwrap(), "José /García/");
 }
 
@@ -129,8 +129,8 @@ fn test_parse_iso8859_1_german_umlauts() {
 
     let data = GedcomBuilder::new().build_from_bytes(bytes).unwrap();
 
-    assert_eq!(data.individuals.len(), 1);
-    let name = data.individuals[0].name.as_ref().unwrap();
+    assert_eq!(data.count_individual(), 1);
+    let name = data.find_individual("@I1@").unwrap().name.as_ref().unwrap();
     assert_eq!(name.value.as_ref().unwrap(), "Müller /Schröder/");
 }
 
@@ -147,8 +147,8 @@ fn test_parse_iso8859_1_french_accents() {
 
     let data = GedcomBuilder::new().build_from_bytes(bytes).unwrap();
 
-    assert_eq!(data.individuals.len(), 1);
-    let name = data.individuals[0].name.as_ref().unwrap();
+    assert_eq!(data.count_individual(), 1);
+    let name = data.find_individual("@I1@").unwrap().name.as_ref().unwrap();
     assert_eq!(name.value.as_ref().unwrap(), "René /François/");
 }
 
@@ -165,8 +165,8 @@ fn test_parse_iso8859_1_nordic_characters() {
 
     let data = GedcomBuilder::new().build_from_bytes(bytes).unwrap();
 
-    assert_eq!(data.individuals.len(), 1);
-    let name = data.individuals[0].name.as_ref().unwrap();
+    assert_eq!(data.count_individual(), 1);
+    let name = data.find_individual("@I1@").unwrap().name.as_ref().unwrap();
     assert_eq!(name.value.as_ref().unwrap(), "Søren /Åberg/");
 }
 
@@ -183,8 +183,8 @@ fn test_parse_iso8859_1_with_latin1_tag() {
 
     let data = GedcomBuilder::new().build_from_bytes(bytes).unwrap();
 
-    assert_eq!(data.individuals.len(), 1);
-    let name = data.individuals[0].name.as_ref().unwrap();
+    assert_eq!(data.count_individual(), 1);
+    let name = data.find_individual("@I1@").unwrap().name.as_ref().unwrap();
     assert_eq!(name.value.as_ref().unwrap(), "José /García/");
 }
 
@@ -206,8 +206,8 @@ fn test_parse_iso8859_15_euro_sign() {
 
     let data = GedcomBuilder::new().build_from_bytes(bytes).unwrap();
 
-    assert_eq!(data.individuals.len(), 1);
-    let note = data.individuals[0].note.as_ref().unwrap();
+    assert_eq!(data.count_individual(), 1);
+    let note = data.find_individual("@I1@").unwrap().note.as_ref().unwrap();
     assert!(note.value.as_ref().unwrap().contains("100€"));
 }
 
@@ -224,8 +224,8 @@ fn test_parse_iso8859_15_oe_ligatures() {
 
     let data = GedcomBuilder::new().build_from_bytes(bytes).unwrap();
 
-    assert_eq!(data.individuals.len(), 1);
-    let name = data.individuals[0].name.as_ref().unwrap();
+    assert_eq!(data.count_individual(), 1);
+    let name = data.find_individual("@I1@").unwrap().name.as_ref().unwrap();
     assert_eq!(name.value.as_ref().unwrap(), "Test /Bœuf/");
 }
 
@@ -243,8 +243,8 @@ fn test_parse_iso8859_15_with_latin9_tag() {
 
     let data = GedcomBuilder::new().build_from_bytes(bytes).unwrap();
 
-    assert_eq!(data.individuals.len(), 1);
-    let note = data.individuals[0].note.as_ref().unwrap();
+    assert_eq!(data.count_individual(), 1);
+    let note = data.find_individual("@I1@").unwrap().note.as_ref().unwrap();
     assert!(note.value.as_ref().unwrap().contains("50€"));
 }
 
@@ -259,8 +259,8 @@ fn test_parse_utf16_le_with_bom() {
 
     let data = GedcomBuilder::new().build_from_bytes(&bytes).unwrap();
 
-    assert_eq!(data.individuals.len(), 1);
-    let name = data.individuals[0].name.as_ref().unwrap();
+    assert_eq!(data.count_individual(), 1);
+    let name = data.find_individual("@I1@").unwrap().name.as_ref().unwrap();
     assert_eq!(name.value.as_ref().unwrap(), "José /García/");
 }
 
@@ -271,8 +271,8 @@ fn test_parse_utf16_be_with_bom() {
 
     let data = GedcomBuilder::new().build_from_bytes(&bytes).unwrap();
 
-    assert_eq!(data.individuals.len(), 1);
-    let name = data.individuals[0].name.as_ref().unwrap();
+    assert_eq!(data.count_individual(), 1);
+    let name = data.find_individual("@I1@").unwrap().name.as_ref().unwrap();
     assert_eq!(name.value.as_ref().unwrap(), "Müller /Schröder/");
 }
 
@@ -283,8 +283,8 @@ fn test_parse_utf16_le_chinese_characters() {
 
     let data = GedcomBuilder::new().build_from_bytes(&bytes).unwrap();
 
-    assert_eq!(data.individuals.len(), 1);
-    let name = data.individuals[0].name.as_ref().unwrap();
+    assert_eq!(data.count_individual(), 1);
+    let name = data.find_individual("@I1@").unwrap().name.as_ref().unwrap();
     assert_eq!(name.value.as_ref().unwrap(), "王 /伟/");
 }
 
@@ -295,8 +295,8 @@ fn test_parse_utf16_be_cyrillic_characters() {
 
     let data = GedcomBuilder::new().build_from_bytes(&bytes).unwrap();
 
-    assert_eq!(data.individuals.len(), 1);
-    let name = data.individuals[0].name.as_ref().unwrap();
+    assert_eq!(data.count_individual(), 1);
+    let name = data.find_individual("@I1@").unwrap().name.as_ref().unwrap();
     assert_eq!(name.value.as_ref().unwrap(), "Иван /Петров/");
 }
 
@@ -376,8 +376,8 @@ fn test_build_with_explicit_utf8_encoding() {
         .build_from_bytes_with_encoding(bytes, GedcomEncoding::Utf8)
         .unwrap();
 
-    assert_eq!(data.individuals.len(), 1);
-    let name = data.individuals[0].name.as_ref().unwrap();
+    assert_eq!(data.count_individual(), 1);
+    let name = data.find_individual("@I1@").unwrap().name.as_ref().unwrap();
     assert_eq!(name.value.as_ref().unwrap(), "José /García/");
 }
 
@@ -394,8 +394,8 @@ fn test_build_with_explicit_iso8859_1_encoding() {
         .build_from_bytes_with_encoding(bytes, GedcomEncoding::Iso8859_1)
         .unwrap();
 
-    assert_eq!(data.individuals.len(), 1);
-    let name = data.individuals[0].name.as_ref().unwrap();
+    assert_eq!(data.count_individual(), 1);
+    let name = data.find_individual("@I1@").unwrap().name.as_ref().unwrap();
     assert_eq!(name.value.as_ref().unwrap(), "José /García/");
 }
 
@@ -408,8 +408,8 @@ fn test_build_with_explicit_utf16_le_encoding() {
         .build_from_bytes_with_encoding(&bytes, GedcomEncoding::Utf16Le)
         .unwrap();
 
-    assert_eq!(data.individuals.len(), 1);
-    let name = data.individuals[0].name.as_ref().unwrap();
+    assert_eq!(data.count_individual(), 1);
+    let name = data.find_individual("@I1@").unwrap().name.as_ref().unwrap();
     assert_eq!(name.value.as_ref().unwrap(), "José /García/");
 }
 
@@ -426,7 +426,7 @@ fn test_roundtrip_utf8_special_characters() {
     let data = GedcomBuilder::new().build_from_bytes(bytes).unwrap();
 
     // Verify
-    let name = data.individuals[0].name.as_ref().unwrap();
+    let name = data.find_individual("@I1@").unwrap().name.as_ref().unwrap();
     assert_eq!(name.value.as_ref().unwrap(), "José María /García López/");
 }
 
@@ -443,7 +443,7 @@ fn test_roundtrip_utf16_le_special_characters() {
 
     // Parse
     let data = GedcomBuilder::new().build_from_bytes(&bytes).unwrap();
-    let name = data.individuals[0].name.as_ref().unwrap();
+    let name = data.find_individual("@I1@").unwrap().name.as_ref().unwrap();
     assert_eq!(name.value.as_ref().unwrap(), "日本語 /テスト/");
 }
 
@@ -460,7 +460,7 @@ fn test_roundtrip_utf16_be_special_characters() {
 
     // Parse
     let data = GedcomBuilder::new().build_from_bytes(&bytes).unwrap();
-    let name = data.individuals[0].name.as_ref().unwrap();
+    let name = data.find_individual("@I1@").unwrap().name.as_ref().unwrap();
     assert_eq!(name.value.as_ref().unwrap(), "Ελληνικά /Κείμενο/");
 }
 
@@ -491,9 +491,9 @@ fn test_ansel_encoding_with_diacritics() {
     let result = GedcomBuilder::new().build_from_bytes(&bytes);
     assert!(result.is_ok());
     let data = result.unwrap();
-    assert_eq!(data.individuals.len(), 1);
+    assert_eq!(data.count_individual(), 1);
     // The name should contain the accented characters (as combining sequences)
-    let name = data.individuals[0].full_name().unwrap();
+    let name = data.find_individual("@I1@").unwrap().full_name().unwrap();
     assert!(name.contains("Jos"));
     assert!(name.contains("Garc"));
 }
@@ -508,7 +508,7 @@ fn test_ansel_encoding_special_characters() {
     let result = GedcomBuilder::new().build_from_bytes(&bytes);
     assert!(result.is_ok());
     let data = result.unwrap();
-    let name = data.individuals[0].full_name().unwrap();
+    let name = data.find_individual("@I1@").unwrap().full_name().unwrap();
     assert!(name.contains("ŁłØø"));
 }
 
@@ -544,8 +544,8 @@ fn test_mixed_encoding_header() {
 
     let data = GedcomBuilder::new().build_from_bytes(bytes).unwrap();
 
-    assert_eq!(data.individuals.len(), 1);
-    let name = data.individuals[0].name.as_ref().unwrap();
+    assert_eq!(data.count_individual(), 1);
+    let name = data.find_individual("@I1@").unwrap().name.as_ref().unwrap();
     assert_eq!(name.value.as_ref().unwrap(), "José /Martínez/");
 }
 
@@ -562,7 +562,7 @@ fn test_ansi_as_ascii() {
 
     let data = GedcomBuilder::new().build_from_bytes(bytes).unwrap();
 
-    assert_eq!(data.individuals.len(), 1);
+    assert_eq!(data.count_individual(), 1);
 }
 
 #[test]
@@ -581,7 +581,7 @@ fn test_unicode_as_utf16() {
 
     let data = GedcomBuilder::new().build_from_bytes(&bytes).unwrap();
 
-    assert_eq!(data.individuals.len(), 1);
+    assert_eq!(data.count_individual(), 1);
 }
 
 #[test]
@@ -618,11 +618,11 @@ fn test_parse_complete_gedcom_with_iso8859_1() {
         .build_from_bytes(bytes)
         .unwrap();
 
-    assert_eq!(data.individuals.len(), 2);
-    assert_eq!(data.families.len(), 1);
+    assert_eq!(data.count_individual(), 2);
+    assert_eq!(data.count_family(), 1);
 
     // Check José's details
-    let jose = &data.individuals[0];
+    let jose = data.find_individual("@I1@").unwrap();
     assert_eq!(
         jose.name.as_ref().unwrap().value.as_ref().unwrap(),
         "José /García/"
@@ -636,14 +636,14 @@ fn test_parse_complete_gedcom_with_iso8859_1() {
     );
 
     // Check María's details
-    let maria = &data.individuals[1];
+    let maria = data.find_individual("@I2@").unwrap();
     assert_eq!(
         maria.name.as_ref().unwrap().value.as_ref().unwrap(),
         "María /López/"
     );
 
     // Check marriage place
-    let family = &data.families[0];
+    let family = data.find_family("@F1@").unwrap();
     let marriage = &family.events[0];
     assert_eq!(
         marriage.place.as_ref().unwrap().value.as_ref().unwrap(),
@@ -669,8 +669,8 @@ fn test_parse_simple_fixture_with_build_from_bytes() {
     // Parse with build_from_bytes
     let data = GedcomBuilder::new().build_from_bytes(&bytes).unwrap();
 
-    assert_eq!(data.individuals.len(), 3);
-    assert_eq!(data.families.len(), 1);
+    assert_eq!(data.count_individual(), 3);
+    assert_eq!(data.count_family(), 1);
 }
 
 #[test]
@@ -680,6 +680,6 @@ fn test_parse_washington_fixture_with_build_from_bytes() {
     // Parse with build_from_bytes
     let data = GedcomBuilder::new().build_from_bytes(&bytes).unwrap();
 
-    assert_eq!(data.individuals.len(), 538);
-    assert_eq!(data.families.len(), 278);
+    assert_eq!(data.count_individual(), 538);
+    assert_eq!(data.count_family(), 278);
 }

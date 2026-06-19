@@ -89,14 +89,14 @@ fn test_parse_shared_notes() {
     let data = gedcom.parse_data().unwrap();
 
     assert!(data.is_gedcom_7());
-    assert_eq!(data.shared_notes.len(), 2);
+    assert_eq!(data.count_shared_note(), 2);
 
     let note1 = data.find_shared_note("@N1@").unwrap();
-    assert_eq!(note1.xref, Some("@N1@".to_string()));
+    assert_eq!(note1.xref, "@N1@");
     assert!(note1.text.contains("Gordon surname"));
 
     let note2 = data.find_shared_note("@N2@").unwrap();
-    assert_eq!(note2.xref, Some("@N2@".to_string()));
+    assert_eq!(note2.xref, "@N2@");
     assert_eq!(note2.text, "Another shared note.");
 }
 
@@ -115,8 +115,8 @@ fn test_parse_multiline_shared_note() {
     let mut gedcom = Gedcom::new(sample.chars()).unwrap();
     let data = gedcom.parse_data().unwrap();
 
-    assert_eq!(data.shared_notes.len(), 1);
-    let note = &data.shared_notes[0];
+    assert_eq!(data.count_shared_note(), 1);
+    let note = data.find_shared_note("@N1@").unwrap();
     assert!(note.text.contains("First line"));
     assert!(note.text.contains("Second line"));
     assert!(note.text.contains("Third line"));
@@ -162,8 +162,8 @@ fn test_shared_notes_in_total_records() {
 
     // 1 individual + 2 shared notes = 3 total records
     assert_eq!(data.total_records(), 3);
-    assert_eq!(data.individuals.len(), 1);
-    assert_eq!(data.shared_notes.len(), 2);
+    assert_eq!(data.count_individual(), 1);
+    assert_eq!(data.count_shared_note(), 2);
 }
 
 /// Test that header helper methods work correctly.
@@ -219,9 +219,9 @@ fn test_gedcom_7_with_individuals_and_families() {
     let data = GedcomBuilder::new().build_from_str(sample).unwrap();
 
     assert!(data.is_gedcom_7());
-    assert_eq!(data.individuals.len(), 2);
-    assert_eq!(data.families.len(), 1);
-    assert_eq!(data.shared_notes.len(), 1);
+    assert_eq!(data.count_individual(), 2);
+    assert_eq!(data.count_family(), 1);
+    assert_eq!(data.count_shared_note(), 1);
 
     // Verify we can find records
     assert!(data.find_individual("@I1@").is_some());
@@ -327,9 +327,9 @@ fn test_backward_compatibility_v5() {
 
     assert!(!data.is_gedcom_7());
     assert!(data.is_gedcom_5());
-    assert_eq!(data.individuals.len(), 1);
-    assert_eq!(data.submitters.len(), 1);
-    assert!(data.shared_notes.is_empty()); // No shared notes in 5.5.1
+    assert_eq!(data.count_individual(), 1);
+    assert_eq!(data.count_submitter(), 1);
+    assert_eq!(data.count_shared_note(), 0); // No shared notes in 5.5.1
 }
 
 /// Test that version 7.0.x variants are correctly detected as 7.0.
@@ -376,7 +376,7 @@ fn test_parse_sort_date() {
     let data = gedcom.parse_data().unwrap();
 
     assert!(data.is_gedcom_7());
-    let event = &data.individuals[0].events[0];
+    let event = &data.find_individual("@I1@").unwrap().events[0];
     assert!(event.sort_date.is_some());
     let sort_date = event.sort_date.as_ref().unwrap();
     assert_eq!(sort_date.value, Some("1818".to_string()));
@@ -399,7 +399,7 @@ fn test_parse_date_phrase() {
     let mut gedcom = Gedcom::new(sample.chars()).unwrap();
     let data = gedcom.parse_data().unwrap();
 
-    let event = &data.individuals[0].events[0];
+    let event = &data.find_individual("@I1@").unwrap().events[0];
     let date = event.date.as_ref().unwrap();
     assert_eq!(date.value, Some("15 MAR 1820".to_string()));
     assert_eq!(
@@ -426,9 +426,9 @@ fn test_parse_individual_non_event() {
     let data = gedcom.parse_data().unwrap();
 
     assert!(data.is_gedcom_7());
-    assert_eq!(data.individuals[0].non_events.len(), 1);
+    assert_eq!(data.find_individual("@I1@").unwrap().non_events.len(), 1);
 
-    let non_event = &data.individuals[0].non_events[0];
+    let non_event = &data.find_individual("@I1@").unwrap().non_events[0];
     assert_eq!(non_event.event_type, "MARR");
     assert!(non_event.date.is_some());
     assert_eq!(
@@ -460,9 +460,9 @@ fn test_parse_family_non_event() {
     let data = gedcom.parse_data().unwrap();
 
     assert!(data.is_gedcom_7());
-    assert_eq!(data.families[0].non_events.len(), 1);
+    assert_eq!(data.find_family("@F1@").unwrap().non_events.len(), 1);
 
-    let non_event = &data.families[0].non_events[0];
+    let non_event = &data.find_family("@F1@").unwrap().non_events[0];
     assert_eq!(non_event.event_type, "CHIL");
     assert!(non_event.note.is_some());
 }
@@ -486,8 +486,8 @@ fn test_parse_multimedia_crop() {
     let mut gedcom = Gedcom::new(sample.chars()).unwrap();
     let data = gedcom.parse_data().unwrap();
 
-    assert_eq!(data.multimedia.len(), 1);
-    let file = data.multimedia[0].file.as_ref().unwrap();
+    assert_eq!(data.count_multimedia(), 1);
+    let file = data.find_multimedia("@M1@").unwrap().file.as_ref().unwrap();
     assert!(file.crop.is_some());
 
     let crop = file.crop.as_ref().unwrap();
@@ -512,7 +512,7 @@ fn test_round_trip_shared_notes() {
         0 TRLR";
 
     let data = GedcomBuilder::new().build_from_str(sample).unwrap();
-    assert_eq!(data.shared_notes.len(), 1);
+    assert_eq!(data.count_shared_note(), 1);
 
     let writer = GedcomWriter::new().gedcom_version("7.0");
     let output = writer.write_to_string(&data).unwrap();
@@ -557,7 +557,7 @@ fn test_round_trip_non_events() {
         0 TRLR";
 
     let data = GedcomBuilder::new().build_from_str(sample).unwrap();
-    assert_eq!(data.individuals[0].non_events.len(), 1);
+    assert_eq!(data.find_individual("@I1@").unwrap().non_events.len(), 1);
 
     let writer = GedcomWriter::new();
     let output = writer.write_to_string(&data).unwrap();
@@ -580,7 +580,9 @@ fn test_round_trip_sort_date() {
         0 TRLR";
 
     let data = GedcomBuilder::new().build_from_str(sample).unwrap();
-    assert!(data.individuals[0].events[0].sort_date.is_some());
+    assert!(data.find_individual("@I1@").unwrap().events[0]
+        .sort_date
+        .is_some());
 
     let writer = GedcomWriter::new();
     let output = writer.write_to_string(&data).unwrap();
@@ -603,7 +605,10 @@ fn test_round_trip_date_phrase() {
         0 TRLR";
 
     let data = GedcomBuilder::new().build_from_str(sample).unwrap();
-    let date = data.individuals[0].events[0].date.as_ref().unwrap();
+    let date = data.find_individual("@I1@").unwrap().events[0]
+        .date
+        .as_ref()
+        .unwrap();
     assert!(date.phrase.is_some());
 
     let writer = GedcomWriter::new();
@@ -688,9 +693,9 @@ fn test_parse_lds_ordinances_v5() {
     let data = gedcom.parse_data().unwrap();
 
     assert!(!data.is_gedcom_7());
-    assert_eq!(data.individuals.len(), 1);
+    assert_eq!(data.count_individual(), 1);
 
-    let individual = &data.individuals[0];
+    let individual = data.find_individual("@I1@").unwrap();
     assert_eq!(individual.lds_ordinances.len(), 3);
 
     // Check BAPL
@@ -749,9 +754,9 @@ fn test_parse_inil_ordinance_v7() {
     let data = gedcom.parse_data().unwrap();
 
     assert!(data.is_gedcom_7());
-    assert_eq!(data.individuals.len(), 1);
+    assert_eq!(data.count_individual(), 1);
 
-    let individual = &data.individuals[0];
+    let individual = data.find_individual("@I1@").unwrap();
     assert_eq!(individual.lds_ordinances.len(), 4);
 
     // Check INIL (Initiatory) - GEDCOM 7.0 only
@@ -788,7 +793,7 @@ fn test_parse_slgc_ordinance() {
     let mut gedcom = Gedcom::new(sample.chars()).unwrap();
     let data = gedcom.parse_data().unwrap();
 
-    let individual = &data.individuals[0];
+    let individual = data.find_individual("@I1@").unwrap();
     assert_eq!(individual.lds_ordinances.len(), 1);
 
     let slgc = &individual.lds_ordinances[0];
@@ -819,9 +824,9 @@ fn test_parse_slgs_ordinance() {
     let mut gedcom = Gedcom::new(sample.chars()).unwrap();
     let data = gedcom.parse_data().unwrap();
 
-    assert_eq!(data.families.len(), 1);
+    assert_eq!(data.count_family(), 1);
 
-    let family = &data.families[0];
+    let family = data.find_family("@F1@").unwrap();
     assert_eq!(family.lds_ordinances.len(), 1);
 
     let slgs = &family.lds_ordinances[0];
@@ -866,8 +871,15 @@ fn test_round_trip_lds_ordinances() {
 
     // Parse the output and verify
     let reparsed = GedcomBuilder::new().build_from_str(&output).unwrap();
-    assert_eq!(reparsed.individuals.len(), 1);
-    assert_eq!(reparsed.individuals[0].lds_ordinances.len(), 2);
+    assert_eq!(reparsed.count_individual(), 1);
+    assert_eq!(
+        reparsed
+            .find_individual("@I1@")
+            .unwrap()
+            .lds_ordinances
+            .len(),
+        2
+    );
 }
 
 /// Test LDS ordinance type methods.

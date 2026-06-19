@@ -41,10 +41,19 @@ fn test_round_trip_individual() {
 
     let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();
 
-    assert_eq!(data1.individuals.len(), data2.individuals.len());
-    assert_eq!(data1.individuals[0].xref, data2.individuals[0].xref);
-    assert_eq!(data1.individuals[0].name, data2.individuals[0].name);
-    assert_eq!(data1.individuals[0].sex, data2.individuals[0].sex);
+    assert_eq!(data1.count_individual(), data2.count_individual());
+    assert_eq!(
+        data1.find_individual("@I1@").unwrap().xref,
+        data2.find_individual("@I1@").unwrap().xref
+    );
+    assert_eq!(
+        data1.find_individual("@I1@").unwrap().name,
+        data2.find_individual("@I1@").unwrap().name
+    );
+    assert_eq!(
+        data1.find_individual("@I1@").unwrap().sex,
+        data2.find_individual("@I1@").unwrap().sex
+    );
 }
 
 #[test]
@@ -70,15 +79,15 @@ fn test_round_trip_individual_with_events() {
 
     let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();
 
-    assert_eq!(data1.individuals.len(), data2.individuals.len());
+    assert_eq!(data1.count_individual(), data2.count_individual());
     assert_eq!(
-        data1.individuals[0].events.len(),
-        data2.individuals[0].events.len()
+        data1.find_individual("@I1@").unwrap().events.len(),
+        data2.find_individual("@I1@").unwrap().events.len()
     );
 
     // Verify birth event
-    let birth1 = data1.individuals[0].birth();
-    let birth2 = data2.individuals[0].birth();
+    let birth1 = data1.find_individual("@I1@").unwrap().birth();
+    let birth2 = data2.find_individual("@I1@").unwrap().birth();
     assert!(birth1.is_some());
     assert!(birth2.is_some());
     assert_eq!(birth1.unwrap().date, birth2.unwrap().date);
@@ -112,11 +121,11 @@ fn test_round_trip_family() {
 
     let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();
 
-    assert_eq!(data1.individuals.len(), data2.individuals.len());
-    assert_eq!(data1.families.len(), data2.families.len());
+    assert_eq!(data1.count_individual(), data2.count_individual());
+    assert_eq!(data1.count_family(), data2.count_family());
 
-    let fam1 = &data1.families[0];
-    let fam2 = &data2.families[0];
+    let fam1 = data1.find_family("@F1@").unwrap();
+    let fam2 = data2.find_family("@F1@").unwrap();
     assert_eq!(fam1.xref, fam2.xref);
     assert_eq!(fam1.individual1, fam2.individual1);
     assert_eq!(fam1.individual2, fam2.individual2);
@@ -143,10 +152,10 @@ fn test_round_trip_family_with_marriage() {
 
     let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();
 
-    assert_eq!(data1.families.len(), data2.families.len());
+    assert_eq!(data1.count_family(), data2.count_family());
     assert_eq!(
-        data1.families[0].events.len(),
-        data2.families[0].events.len()
+        data1.find_family("@F1@").unwrap().events.len(),
+        data2.find_family("@F1@").unwrap().events.len()
     );
 }
 
@@ -168,11 +177,23 @@ fn test_round_trip_source() {
 
     let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();
 
-    assert_eq!(data1.sources.len(), data2.sources.len());
-    assert_eq!(data1.sources[0].xref, data2.sources[0].xref);
-    assert_eq!(data1.sources[0].title, data2.sources[0].title);
-    assert_eq!(data1.sources[0].author, data2.sources[0].author);
-    assert_eq!(data1.sources[0].abbreviation, data2.sources[0].abbreviation);
+    assert_eq!(data1.count_source(), data2.count_source());
+    assert_eq!(
+        data1.find_source("@S1@").unwrap().xref,
+        data2.find_source("@S1@").unwrap().xref
+    );
+    assert_eq!(
+        data1.find_source("@S1@").unwrap().title,
+        data2.find_source("@S1@").unwrap().title
+    );
+    assert_eq!(
+        data1.find_source("@S1@").unwrap().author,
+        data2.find_source("@S1@").unwrap().author
+    );
+    assert_eq!(
+        data1.find_source("@S1@").unwrap().abbreviation,
+        data2.find_source("@S1@").unwrap().abbreviation
+    );
 }
 
 #[test]
@@ -195,9 +216,15 @@ fn test_round_trip_repository() {
 
     let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();
 
-    assert_eq!(data1.repositories.len(), data2.repositories.len());
-    assert_eq!(data1.repositories[0].xref, data2.repositories[0].xref);
-    assert_eq!(data1.repositories[0].name, data2.repositories[0].name);
+    assert_eq!(data1.count_repository(), data2.count_repository());
+    assert_eq!(
+        data1.find_repository("@R1@").unwrap().xref,
+        data2.find_repository("@R1@").unwrap().xref
+    );
+    assert_eq!(
+        data1.find_repository("@R1@").unwrap().name,
+        data2.find_repository("@R1@").unwrap().name
+    );
 }
 
 #[test]
@@ -217,9 +244,15 @@ fn test_round_trip_submitter() {
 
     let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();
 
-    assert_eq!(data1.submitters.len(), data2.submitters.len());
-    assert_eq!(data1.submitters[0].xref, data2.submitters[0].xref);
-    assert_eq!(data1.submitters[0].name, data2.submitters[0].name);
+    assert_eq!(data1.count_submitter(), data2.count_submitter());
+    assert_eq!(
+        data1.find_submitter("@SUBM1@").unwrap().xref,
+        data2.find_submitter("@SUBM1@").unwrap().xref
+    );
+    assert_eq!(
+        data1.find_submitter("@SUBM1@").unwrap().name,
+        data2.find_submitter("@SUBM1@").unwrap().name
+    );
 }
 
 #[test]
@@ -239,9 +272,15 @@ fn test_round_trip_multimedia() {
 
     let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();
 
-    assert_eq!(data1.multimedia.len(), data2.multimedia.len());
-    assert_eq!(data1.multimedia[0].xref, data2.multimedia[0].xref);
-    assert_eq!(data1.multimedia[0].title, data2.multimedia[0].title);
+    assert_eq!(data1.count_multimedia(), data2.count_multimedia());
+    assert_eq!(
+        data1.find_multimedia("@M1@").unwrap().xref,
+        data2.find_multimedia("@M1@").unwrap().xref
+    );
+    assert_eq!(
+        data1.find_multimedia("@M1@").unwrap().title,
+        data2.find_multimedia("@M1@").unwrap().title
+    );
 }
 
 // =============================================================================
@@ -290,17 +329,16 @@ fn test_round_trip_complete_gedcom() {
     let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();
 
     // Verify all record counts
-    assert_eq!(data1.submitters.len(), data2.submitters.len());
-    assert_eq!(data1.individuals.len(), data2.individuals.len());
-    assert_eq!(data1.families.len(), data2.families.len());
-    assert_eq!(data1.sources.len(), data2.sources.len());
-    assert_eq!(data1.repositories.len(), data2.repositories.len());
+    assert_eq!(data1.count_submitter(), data2.count_submitter());
+    assert_eq!(data1.count_individual(), data2.count_individual());
+    assert_eq!(data1.count_family(), data2.count_family());
+    assert_eq!(data1.count_source(), data2.count_source());
+    assert_eq!(data1.count_repository(), data2.count_repository());
 
     // Verify key data
     for (i, (ind1, ind2)) in data1
-        .individuals
-        .iter()
-        .zip(data2.individuals.iter())
+        .iter_individuals()
+        .zip(data2.iter_individuals())
         .enumerate()
     {
         assert_eq!(ind1.xref, ind2.xref, "Individual {i} xref mismatch");
@@ -394,9 +432,9 @@ fn test_round_trip_individual_no_name() {
 
     let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();
 
-    assert_eq!(data1.individuals.len(), data2.individuals.len());
-    assert!(data1.individuals[0].name.is_none());
-    assert!(data2.individuals[0].name.is_none());
+    assert_eq!(data1.count_individual(), data2.count_individual());
+    assert!(data1.find_individual("@I1@").unwrap().name.is_none());
+    assert!(data2.find_individual("@I1@").unwrap().name.is_none());
 }
 
 #[test]
@@ -416,8 +454,8 @@ fn test_round_trip_family_no_children() {
 
     let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();
 
-    assert_eq!(data1.families[0].children.len(), 0);
-    assert_eq!(data2.families[0].children.len(), 0);
+    assert_eq!(data1.find_family("@F1@").unwrap().children.len(), 0);
+    assert_eq!(data2.find_family("@F1@").unwrap().children.len(), 0);
 }
 
 #[test]
@@ -441,10 +479,13 @@ fn test_round_trip_multiple_children() {
     let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();
 
     assert_eq!(
-        data1.families[0].children.len(),
-        data2.families[0].children.len()
+        data1.find_family("@F1@").unwrap().children.len(),
+        data2.find_family("@F1@").unwrap().children.len()
     );
-    assert_eq!(data1.families[0].children, data2.families[0].children);
+    assert_eq!(
+        data1.find_family("@F1@").unwrap().children,
+        data2.find_family("@F1@").unwrap().children
+    );
 }
 
 #[test]

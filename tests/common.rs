@@ -21,20 +21,37 @@ mod tests {
 
         let mut doc = Gedcom::new(simple_ged.chars()).unwrap();
         let data = doc.parse_data().unwrap();
-        assert_eq!(data.individuals.len(), 3);
-        assert_eq!(data.families.len(), 1);
-        assert_eq!(data.submitters.len(), 1);
+        assert_eq!(data.count_individual(), 3);
+        assert_eq!(data.count_family(), 1);
+        assert_eq!(data.count_submitter(), 1);
 
-        let header = data.header.unwrap();
+        let header = data.header.as_ref().unwrap();
 
         // header
-        assert_eq!(header.encoding.unwrap().value.unwrap().as_str(), "ASCII");
-        assert_eq!(header.submitter_tag.unwrap().as_str(), "@SUBMITTER@");
-        assert_eq!(header.gedcom.unwrap().version.unwrap(), "5.5");
+        assert_eq!(
+            header
+                .encoding
+                .as_ref()
+                .unwrap()
+                .value
+                .as_ref()
+                .unwrap()
+                .as_str(),
+            "ASCII"
+        );
+        assert_eq!(
+            header.submitter_tag.as_ref().unwrap().as_str(),
+            "@SUBMITTER@"
+        );
+        assert_eq!(
+            header.gedcom.as_ref().unwrap().version.as_ref().unwrap(),
+            "5.5"
+        );
 
         // names
         assert_eq!(
-            data.individuals[0]
+            data.find_individual("@FATHER@")
+                .unwrap()
                 .name
                 .as_ref()
                 .unwrap()
@@ -46,7 +63,8 @@ mod tests {
 
         // addresses
         assert_eq!(
-            data.submitters[0]
+            data.find_submitter("@SUBMITTER@")
+                .unwrap()
                 .address
                 .as_ref()
                 .unwrap()
@@ -57,7 +75,7 @@ mod tests {
         );
 
         // events
-        let events = data.families[0].events();
+        let events = data.find_family("@FAMILY@").unwrap().events();
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].event.to_string(), "Marriage");
         assert_eq!(
@@ -73,20 +91,34 @@ mod tests {
 
         let mut doc = Gedcom::new(simple_ged.chars()).unwrap();
         let data = doc.parse_data().unwrap();
-        assert_eq!(data.individuals.len(), 538);
-        assert_eq!(data.families.len(), 278);
-        // assert_eq!(data.submitters.len(), 0);
+        assert_eq!(data.count_individual(), 538);
+        assert_eq!(data.count_family(), 278);
+        // assert_eq!(data.submitter_count(), 0);
 
-        let header = data.header.unwrap();
+        let header = data.header.as_ref().unwrap();
 
         // header
-        assert_eq!(header.encoding.unwrap().value.unwrap().as_str(), "UTF-8");
-        // assert_eq!(header.submitter_tag.unwrap().as_str(), "@SUBMITTER@");
-        assert_eq!(header.gedcom.unwrap().version.unwrap(), "5.5.1");
+        assert_eq!(
+            header
+                .encoding
+                .as_ref()
+                .unwrap()
+                .value
+                .as_ref()
+                .unwrap()
+                .as_str(),
+            "UTF-8"
+        );
+        // assert_eq!(header.submitter_tag.as_ref().unwrap().as_str(), "@SUBMITTER@");
+        assert_eq!(
+            header.gedcom.as_ref().unwrap().version.as_ref().unwrap(),
+            "5.5.1"
+        );
 
         // names
         assert_eq!(
-            data.individuals[0]
+            data.find_individual("@I1@")
+                .unwrap()
                 .name
                 .as_ref()
                 .unwrap()
@@ -97,7 +129,7 @@ mod tests {
         );
 
         // events
-        let events = data.families[0].events();
+        let events = data.find_family("@F1@").unwrap().events();
         assert_eq!(events.len(), 1);
         assert_eq!(events[0].event.to_string(), "Marriage");
         assert_eq!(
