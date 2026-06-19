@@ -8,7 +8,7 @@ use crate::{
     tokenizer::{Token, Tokenizer},
     types::{
         custom::UserDefinedTag, date::change_date::ChangeDate, event::detail::Detail,
-        multimedia::Multimedia, note::Note, repository::citation::Citation, source::data::Data,
+        multimedia::link::Link, note::Note, repository::citation::Citation, source::data::Data,
         Xref,
     },
     GedcomError,
@@ -23,10 +23,10 @@ use serde::{Deserialize, Serialize};
 /// from which you have obtained your genealogical information.
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#SOURCE_RECORD>
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Debug, Default, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Source {
-    pub xref: Option<String>,
+    pub xref: String,
     pub data: Data,
     pub abbreviation: Option<String>,
     pub title: Option<String>,
@@ -34,7 +34,7 @@ pub struct Source {
     pub publication_facts: Option<String>,
     pub citation_from_source: Option<String>,
     pub change_date: Option<Box<ChangeDate>>,
-    pub multimedia: Vec<Multimedia>,
+    pub multimedia: Vec<Link>,
     pub notes: Vec<Note>,
     pub repo_citations: Vec<Citation>,
     /// handles "RFN" tag; found in Ancestry.com export
@@ -68,10 +68,12 @@ pub struct Source {
 }
 
 impl Source {
+    pub(crate) const RECORD_TYPE: &'static str = "Source";
+
     #[must_use]
-    fn with_xref(xref: Option<Xref>) -> Self {
+    fn with_xref(xref: impl Into<Xref>) -> Self {
         Self {
-            xref,
+            xref: xref.into(),
             ..Default::default()
         }
     }
@@ -85,14 +87,14 @@ impl Source {
     pub fn new(
         tokenizer: &mut Tokenizer<'_>,
         level: u8,
-        xref: Option<String>,
+        xref: Xref,
     ) -> Result<Source, GedcomError> {
         let mut sour = Source::with_xref(xref);
         sour.parse(tokenizer, level)?;
         Ok(sour)
     }
 
-    pub fn add_multimedia(&mut self, media: Multimedia) {
+    pub fn add_multimedia(&mut self, media: Link) {
         self.multimedia.push(media);
     }
 
@@ -134,7 +136,7 @@ impl Parser for Source {
                 "TEXT" => {
                     self.citation_from_source = Some(tokenizer.take_continued_text(level + 1)?);
                 }
-                "OBJE" => self.add_multimedia(Multimedia::new(tokenizer, level + 1, pointer)?),
+                "OBJE" => self.add_multimedia(Link::new(tokenizer, level + 1, pointer)?),
                 "NOTE" => self.add_note(Note::new(tokenizer, level + 1)?),
                 "REPO" => self.add_repo_citation(Citation::new(tokenizer, level + 1)?),
                 "RFN" => self.submitter_registered_rfn = Some(tokenizer.take_line_value()?),
@@ -183,8 +185,9 @@ mod tests {
         let mut ged = Gedcom::new(sample.chars()).unwrap();
         let data = ged.parse_data().unwrap();
 
-        assert_eq!(data.individuals[0].source[0].xref, "@SOURCE1@");
-        assert_eq!(data.individuals[0].source[0].page.as_ref().unwrap(), "42");
+        let indi = data.find_individual("@PERSON1@").unwrap();
+        assert_eq!(indi.source[0].xref, "@SOURCE1@");
+        assert_eq!(indi.source[0].page.as_ref().unwrap(), "42");
     }
     #[test]
     fn test_parse_source_citation_data_record() {
@@ -202,7 +205,10 @@ mod tests {
 
         let mut ged = Gedcom::new(sample.chars()).unwrap();
         let data = ged.parse_data().unwrap();
-        let citation_data = data.individuals[0].source[0].data.as_ref().unwrap();
+        let citation_data = data.find_individual("@PERSON1@").unwrap().source[0]
+            .data
+            .as_ref()
+            .unwrap();
 
         assert_eq!(
             citation_data.date.as_ref().unwrap().value.as_ref().unwrap(),
@@ -229,7 +235,10 @@ mod tests {
 
         let mut ged = Gedcom::new(sample.chars()).unwrap();
         let data = ged.parse_data().unwrap();
-        let citation_data = data.individuals[0].source[0].data.as_ref().unwrap();
+        let citation_data = data.find_individual("@PERSON1@").unwrap().source[0]
+            .data
+            .as_ref()
+            .unwrap();
 
         assert_eq!(
             citation_data.text.as_ref().unwrap().value.as_ref().unwrap(),
@@ -252,7 +261,7 @@ mod tests {
 
         let mut ged = Gedcom::new(sample.chars()).unwrap();
         let data = ged.parse_data().unwrap();
-        let quay = data.individuals[0].source[0]
+        let quay = data.find_individual("@PERSON1@").unwrap().source[0]
             .certainty_assessment
             .as_ref()
             .unwrap();
@@ -274,7 +283,7 @@ mod tests {
 
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
-        let source = &data.sources[0];
+        let source = data.find_source("@S1@").unwrap();
         assert_eq!(source.title.as_deref(), Some("Real title"));
         assert_eq!(source.author.as_deref(), Some("Real author"));
     }

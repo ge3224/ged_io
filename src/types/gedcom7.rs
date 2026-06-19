@@ -299,7 +299,7 @@ impl Parser for Crop {
 /// ```
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#NO>
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Debug, Default, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct NonEvent {
     /// The event type that did not occur.

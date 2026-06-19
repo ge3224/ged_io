@@ -30,7 +30,7 @@ use serde::{Deserialize, Serialize};
 /// - `LANG` and `PLAC` give default values for the rest of the document
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#HEADER>.
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Debug, Default, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Header {
     /// tag: GEDC

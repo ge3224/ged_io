@@ -11,7 +11,7 @@ use crate::{
         event::{family::FamilyEventDetail, Event},
         gedcom7::SortDate,
         individual::{association::Association, family_link::FamilyLink},
-        multimedia::Multimedia,
+        multimedia::link::Link,
         note::Note,
         place::Place,
         source::citation::Citation,
@@ -33,7 +33,7 @@ use crate::{
 /// - `SDATE` - A sort date used for ordering events when the actual date is vague
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#INDIVIDUAL_EVENT_STRUCTURE>
-#[derive(Clone, PartialEq)]
+#[derive(PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Detail {
     pub event: Event,
@@ -55,7 +55,7 @@ pub struct Detail {
     /// or FACT tags are used. T. See GEDCOM 5.5 spec, page 35 and 49.
     pub event_type: Option<String>,
     pub citations: Vec<Citation>,
-    pub multimedia: Vec<Multimedia>,
+    pub multimedia: Vec<Link>,
     /// A sort date used for ordering events (GEDCOM 7.0).
     ///
     /// This is intended for use when the actual date is vague (e.g., "before 1820")
@@ -148,13 +148,13 @@ impl Detail {
         self.family_event_details.push(detail);
     }
 
-    pub fn add_multimedia_record(&mut self, m: Multimedia) {
+    pub fn add_multimedia_record(&mut self, m: Link) {
         self.multimedia.push(m);
     }
 
     #[must_use]
-    pub fn get_citations(&self) -> Vec<Citation> {
-        self.citations.clone()
+    pub fn get_citations(&self) -> &[Citation] {
+        &self.citations
     }
 }
 
@@ -205,7 +205,7 @@ impl Parser for Detail {
                 "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
                 "TYPE" => self.event_type = Some(tokenizer.take_line_value()?),
                 "OBJE" => {
-                    self.add_multimedia_record(Multimedia::new(tokenizer, level + 1, pointer)?);
+                    self.add_multimedia_record(Link::new(tokenizer, level + 1, pointer)?);
                 }
                 "SDATE" => self.sort_date = Some(SortDate::new(tokenizer, level + 1)?),
                 "ASSO" => self
@@ -259,7 +259,7 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let death = &data.individuals[0].events[0];
+        let death = &data.find_individual("@I1@").unwrap().events[0];
         assert_eq!(death.cause.as_ref().unwrap(), "Heart failure");
     }
 
@@ -279,7 +279,7 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let birth = &data.individuals[0].events[0];
+        let birth = &data.find_individual("@I1@").unwrap().events[0];
         assert_eq!(birth.restriction.as_ref().unwrap(), "confidential");
     }
 
@@ -299,7 +299,7 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let death = &data.individuals[0].events[0];
+        let death = &data.find_individual("@I1@").unwrap().events[0];
         assert_eq!(
             death.age.as_ref().unwrap(),
             &Age::Numeric {
@@ -329,7 +329,7 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let grad = &data.individuals[0].events[0];
+        let grad = &data.find_individual("@I1@").unwrap().events[0];
         assert_eq!(grad.agency.as_ref().unwrap(), "Harvard University");
     }
 
@@ -349,7 +349,7 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let chr = &data.individuals[0].events[0];
+        let chr = &data.find_individual("@I1@").unwrap().events[0];
         assert_eq!(chr.religion.as_ref().unwrap(), "Catholic");
     }
 
@@ -373,7 +373,7 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let death = &data.individuals[0].events[0];
+        let death = &data.find_individual("@I1@").unwrap().events[0];
         assert_eq!(death.cause.as_ref().unwrap(), "Pneumonia");
         assert_eq!(
             death.age.as_ref().unwrap(),

@@ -14,7 +14,7 @@ use crate::{
 /// referenced repository and provides details about how to find it there.
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#SOURCE_REPOSITORY_CITATION>
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Debug, Default, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Citation {
     /// Reference to the `Repository`

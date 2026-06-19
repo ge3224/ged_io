@@ -18,7 +18,9 @@
 use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
-    types::{custom::UserDefinedTag, date::change_date::ChangeDate, source::citation::Citation},
+    types::{
+        custom::UserDefinedTag, date::change_date::ChangeDate, source::citation::Citation, Xref,
+    },
     GedcomError,
 };
 
@@ -40,11 +42,11 @@ use serde::{Deserialize, Serialize};
 /// This structure is only valid in GEDCOM 7.0 and later.
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#SHARED_NOTE_RECORD>
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Debug, Default, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct SharedNote {
     /// The cross-reference identifier for this shared note (e.g., `@N1@`).
-    pub xref: Option<String>,
+    pub xref: Xref,
 
     /// The text content of the note.
     ///
@@ -92,7 +94,7 @@ pub struct SharedNote {
 /// If either is missing, it is assumed to have the same value as the superstructure.
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#NOTE-TRAN>
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Debug, Default, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct NoteTranslation {
     /// The translated text.
@@ -113,7 +115,7 @@ pub struct NoteTranslation {
 /// originated independently.
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#EXID>
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Debug, Default, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct ExternalId {
     /// The external identifier value.
@@ -168,6 +170,8 @@ impl NoteTranslation {
 }
 
 impl SharedNote {
+    pub(crate) const RECORD_TYPE: &'static str = "SharedNote";
+
     /// Creates a new `SharedNote` from a `Tokenizer`.
     ///
     /// # Errors
@@ -176,7 +180,7 @@ impl SharedNote {
     pub fn new(
         tokenizer: &mut Tokenizer<'_>,
         level: u8,
-        xref: Option<String>,
+        xref: Xref,
     ) -> Result<SharedNote, GedcomError> {
         let mut note = SharedNote {
             xref,
@@ -190,7 +194,7 @@ impl SharedNote {
     #[must_use]
     pub fn with_text(xref: &str, text: &str) -> Self {
         SharedNote {
-            xref: Some(xref.to_string()),
+            xref: xref.to_string(),
             text: text.to_string(),
             ..Default::default()
         }
@@ -381,15 +385,15 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let note = &data.shared_notes[0];
-        assert_eq!(note.xref, Some("@N1@".to_string()));
+        let note = &data.shared_notes.iter().next().unwrap();
+        assert_eq!(note.xref, "@N1@".to_string());
         assert_eq!(note.text, "Bill Clinton was born William Jefferson Blythe IV.  His last name was legally\nchanged to Clinton on 12 June 1962 in Garland, Arkansas.  Won the 1992\nelection over then president George Bush (votes not currently available).\nHe was inaugurated as the 42nd President of the United States\non 20 January 1993.");
     }
 
     #[test]
     fn test_shared_note_with_text() {
         let note = SharedNote::with_text("@N1@", "This is a test note.");
-        assert_eq!(note.xref, Some("@N1@".to_string()));
+        assert_eq!(note.xref, "@N1@".to_string());
         assert_eq!(note.text, "This is a test note.");
     }
 

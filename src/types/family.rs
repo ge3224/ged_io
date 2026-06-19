@@ -1,4 +1,5 @@
 use crate::{
+    arena::Arena,
     parser::{parse_subset, Parser},
     tokenizer::{Token, Tokenizer},
     types::{
@@ -7,7 +8,7 @@ use crate::{
         event::{detail::Detail, util::HasEvents},
         gedcom7::NonEvent,
         lds::LdsOrdinance,
-        multimedia::Multimedia,
+        multimedia::link::Link,
         note::Note,
         source::citation::Citation,
         Xref,
@@ -29,10 +30,10 @@ use serde::{Deserialize, Serialize};
 /// - `NO` - Non-event assertions (e.g., "NO CHIL" means no children)
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#NO>
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Debug)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Family {
-    pub xref: Option<Xref>,
+    pub xref: Xref,
     pub individual1: Option<Xref>, // mapped from HUSB
     pub individual2: Option<Xref>, // mapped from WIFE
     pub family_event: Vec<Detail>,
@@ -41,9 +42,10 @@ pub struct Family {
     pub change_date: Option<ChangeDate>,
     pub events: Vec<Detail>,
     pub sources: Vec<Citation>,
-    pub multimedia: Vec<Multimedia>,
+    pub multimedia_links: Vec<Link>,
     pub notes: Vec<Note>,
-    pub custom_data: Vec<Box<UserDefinedTag>>,
+    #[cfg_attr(feature = "json", serde(skip))]
+    pub user_defined_tags: Arena<UserDefinedTag>,
     /// Non-event assertions for GEDCOM 7.0.
     ///
     /// These assert that specific events did NOT occur (e.g., "NO CHIL" means
@@ -91,11 +93,33 @@ pub struct Family {
 }
 
 impl Family {
+    pub(crate) const RECORD_TYPE: &'static str = "Family";
+
+    /// Creates an empty record with a newly minted runtime id for [`Family`]
+    /// and no `xref`.
     #[must_use]
-    fn with_xref(xref: Option<Xref>) -> Self {
+    pub fn new(xref: impl Into<Xref>) -> Self {
         Self {
-            xref,
-            ..Default::default()
+            xref: xref.into(),
+            individual1: Option::default(),
+            individual2: Option::default(),
+            family_event: Vec::default(),
+            children: Vec::default(),
+            num_children: Option::default(),
+            change_date: Option::default(),
+            events: Vec::default(),
+            sources: Vec::default(),
+            multimedia_links: Vec::default(),
+            notes: Vec::default(),
+            user_defined_tags: Arena::default(),
+            non_events: Vec::default(),
+            lds_ordinances: Vec::default(),
+            uid: Option::default(),
+            restriction: Option::default(),
+            user_reference_number: Option::default(),
+            user_reference_type: Option::default(),
+            automated_record_id: Option::default(),
+            external_ids: Vec::default(),
         }
     }
 
@@ -105,18 +129,12 @@ impl Family {
     ///
     /// This function will return an error if parsing fails.
     #[allow(clippy::double_must_use)]
-    pub fn new(
-        tokenizer: &mut Tokenizer<'_>,
+    pub fn from_tokenizer(
+        tokenizer: &mut Tokenizer,
         level: u8,
-        xref: Option<Xref>,
+        xref: Xref,
     ) -> Result<Family, GedcomError> {
-        let mut fam = Family::with_xref(xref);
-        fam.children = Vec::new();
-        fam.events = Vec::new();
-        fam.sources = Vec::new();
-        fam.multimedia = Vec::new();
-        fam.notes = Vec::new();
-        fam.custom_data = Vec::new();
+        let mut fam = Family::new(xref);
         fam.parse(tokenizer, level)?;
         Ok(fam)
     }
@@ -165,8 +183,8 @@ impl Family {
         self.sources.push(sour);
     }
 
-    pub fn add_multimedia(&mut self, media: Multimedia) {
-        self.multimedia.push(media);
+    pub fn add_multimedia(&mut self, media: Link) {
+        self.multimedia_links.push(media);
     }
 
     pub fn add_note(&mut self, note: Note) {
@@ -176,6 +194,31 @@ impl Family {
     #[must_use]
     pub fn events(&self) -> &[Detail] {
         &self.events
+    }
+}
+
+impl PartialEq for Family {
+    fn eq(&self, other: &Self) -> bool {
+        self.xref == other.xref
+            && self.individual1 == other.individual1
+            && self.individual2 == other.individual2
+            && self.family_event == other.family_event
+            && self.children == other.children
+            && self.num_children == other.num_children
+            && self.change_date == other.change_date
+            && self.events == other.events
+            && self.sources == other.sources
+            && self.multimedia_links == other.multimedia_links
+            && self.notes == other.notes
+            && self.user_defined_tags == other.user_defined_tags
+            && self.non_events == other.non_events
+            && self.lds_ordinances == other.lds_ordinances
+            && self.uid == other.uid
+            && self.restriction == other.restriction
+            && self.user_reference_number == other.user_reference_number
+            && self.user_reference_type == other.user_reference_type
+            && self.automated_record_id == other.automated_record_id
+            && self.external_ids == other.external_ids
     }
 }
 
@@ -204,7 +247,7 @@ impl Parser for Family {
                 "CHAN" => self.change_date = Some(ChangeDate::new(tokenizer, level + 1)?),
                 "SOUR" => self.add_source(Citation::new(tokenizer, level + 1)?),
                 "NOTE" => self.add_note(Note::new(tokenizer, level + 1)?),
-                "OBJE" => self.add_multimedia(Multimedia::new(tokenizer, level + 1, pointer)?),
+                "OBJE" => self.add_multimedia(Link::new(tokenizer, level + 1, pointer)?),
                 "NO" => self.non_events.push(NonEvent::new(tokenizer, level + 1)?),
                 // LDS Sealing to Spouse ordinance
                 "SLGS" => {
@@ -233,7 +276,9 @@ impl Parser for Family {
             Ok(())
         };
 
-        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
+        for udt in parse_subset(tokenizer, level, handle_subset)? {
+            self.user_defined_tags.insert(*udt);
+        }
 
         Ok(())
     }
@@ -251,7 +296,7 @@ impl HasEvents for Family {
         }
         self.events.push(event);
     }
-    fn events(&self) -> Vec<Detail> {
-        self.events.clone()
+    fn events(&self) -> &[Detail] {
+        &self.events
     }
 }

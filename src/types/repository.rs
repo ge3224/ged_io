@@ -18,11 +18,11 @@ use serde::{Deserialize, Serialize};
 /// repository itself, not its holdings.
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#REPOSITORY_RECORD>
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Debug, Default, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Repository {
     /// Optional reference to link to this repo (e.g., `@R1@`).
-    pub xref: Option<Xref>,
+    pub xref: Xref,
 
     /// Name of the repository (tag: NAME).
     pub name: Option<String>,
@@ -91,10 +91,12 @@ pub struct Repository {
 }
 
 impl Repository {
+    pub(crate) const RECORD_TYPE: &'static str = "Repository";
+
     #[must_use]
-    fn with_xref(xref: Option<Xref>) -> Self {
+    fn with_xref(xref: impl Into<Xref>) -> Self {
         Self {
-            xref,
+            xref: xref.into(),
             ..Default::default()
         }
     }
@@ -107,7 +109,7 @@ impl Repository {
     pub fn new(
         tokenizer: &mut Tokenizer<'_>,
         level: u8,
-        xref: Option<String>,
+        xref: Xref,
     ) -> Result<Repository, GedcomError> {
         let mut repo = Repository::with_xref(xref);
         repo.parse(tokenizer, level)?;
@@ -118,7 +120,7 @@ impl Repository {
     #[must_use]
     pub fn with_name(xref: &str, name: &str) -> Self {
         Self {
-            xref: Some(xref.to_string()),
+            xref: xref.to_string(),
             name: Some(name.to_string()),
             ..Default::default()
         }
@@ -224,9 +226,9 @@ mod tests {
         let data = doc.parse_data().unwrap();
 
         assert_eq!(data.repositories.len(), 1);
-        let repo = &data.repositories[0];
+        let repo = data.find_repository("@R1@").unwrap();
 
-        assert_eq!(repo.xref.as_ref().unwrap(), "@R1@");
+        assert_eq!(repo.xref, "@R1@");
         assert_eq!(repo.name.as_ref().unwrap(), "National Archives");
         assert!(repo.address.is_some());
         assert_eq!(repo.phone.len(), 1);
@@ -253,7 +255,7 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let repo = &data.repositories[0];
+        let repo = data.find_repository("@R1@").unwrap();
         assert_eq!(repo.notes.len(), 1);
         assert!(repo.notes[0]
             .value
@@ -281,7 +283,7 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let repo = &data.repositories[0];
+        let repo = data.find_repository("@R1@").unwrap();
         assert!(repo.change_date.is_some());
         let change_date = repo.change_date.as_ref().unwrap().date.as_ref().unwrap();
         assert_eq!(change_date.value.as_ref().unwrap(), "1 JAN 2024");
@@ -292,7 +294,7 @@ mod tests {
     #[test]
     fn test_repository_with_name() {
         let repo = super::Repository::with_name("@R1@", "Test Repository");
-        assert_eq!(repo.xref, Some("@R1@".to_string()));
+        assert_eq!(repo.xref, "@R1@".to_string());
         assert_eq!(repo.name, Some("Test Repository".to_string()));
     }
 

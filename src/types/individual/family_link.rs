@@ -39,7 +39,7 @@ impl std::fmt::Display for FamilyLinkType {
 /// to a family through either the FAMC tag or the FAMS tag. The FAMC tag provides a pointer to a
 /// family where this person is a child. The FAMS tag provides a pointer to a family where this
 /// person is a spouse or parent. See GEDCOM 5.5 spec, page 26.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Debug, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct FamilyLink {
     pub xref: Xref,

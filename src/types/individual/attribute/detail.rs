@@ -18,7 +18,7 @@ use crate::{
 /// and/or address, etc. to be transmitted, just as the events are. Previous versions, which
 /// handled just a tag and value, can be read as usual by handling the subordinate attribute detail
 /// as an exception. . See GEDCOM 5.5 spec, page 69.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Debug, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct AttributeDetail {
     pub attribute: IndividualAttribute,
@@ -184,7 +184,7 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let occu = &data.individuals[0].attributes[0];
+        let occu = &data.find_individual("@I1@").unwrap().attributes[0];
         assert_eq!(occu.value.as_ref().unwrap(), "Software Engineer");
         assert_eq!(occu.restriction.as_ref().unwrap(), "privacy");
     }
@@ -210,7 +210,7 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let resi = &data.individuals[0].attributes[0];
+        let resi = &data.find_individual("@I1@").unwrap().attributes[0];
         assert!(resi.address.is_some());
         let addr = resi.address.as_ref().unwrap();
         assert_eq!(addr.city.as_ref().unwrap(), "New York");
@@ -236,7 +236,7 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let resi = &data.individuals[0].attributes[0];
+        let resi = &data.find_individual("@I1@").unwrap().attributes[0];
         assert!(resi.place.is_some());
         let place = resi.place.as_ref().unwrap();
         assert_eq!(place.value.as_ref().unwrap(), "Paris, France");

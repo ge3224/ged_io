@@ -11,7 +11,7 @@ use crate::{
 /// Association (tag: ASSO) is an optional pointer to an individual with whom this
 /// individual has some relationship not covered by other standard tags.
 /// See GEDCOM 5.5.1 specification, page 58.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Debug, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Association {
     /// Reference to associated individual
@@ -85,7 +85,7 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let individual = &data.individuals[0];
+        let individual = data.find_individual("@I1@").unwrap();
         assert_eq!(individual.associations.len(), 1);
         assert_eq!(individual.associations[0].xref, "@I2@");
         assert_eq!(

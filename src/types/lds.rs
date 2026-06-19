@@ -207,7 +207,7 @@ impl std::fmt::Display for LdsOrdinanceStatus {
 /// ```
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#LDS_INDIVIDUAL_ORDINANCE>
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Debug, Default, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct LdsOrdinance {
     /// The type of ordinance.

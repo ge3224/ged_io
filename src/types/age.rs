@@ -186,7 +186,10 @@ mod test {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        data.individuals[0].events[0].age.clone().unwrap()
+        data.find_individual("@I1@").unwrap().events[0]
+            .age
+            .clone()
+            .unwrap()
     }
 
     #[test]
@@ -323,7 +326,10 @@ mod test {
         let sample = "0 HEAD\n1 GEDC\n2 VERS 7.0\n0 @I1@ INDI\n1 NAME Test /Person/\n1 DEAT Y\n2 AGE 0y\n3 PHRASE STILLBORN\n0 TRLR";
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
-        let age = data.individuals[0].events[0].age.clone().unwrap();
+        let age = data.find_individual("@I1@").unwrap().events[0]
+            .age
+            .clone()
+            .unwrap();
         assert_eq!(
             age,
             Age::Numeric {

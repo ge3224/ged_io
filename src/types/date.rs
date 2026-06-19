@@ -3,6 +3,9 @@ pub mod change_date;
 #[cfg(feature = "calendar")]
 pub mod calendar;
 
+#[cfg(feature = "calendar")]
+pub use calendar::{Calendar, CalendarConversionError, DateQualifier, ParsedDateTime};
+
 use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
@@ -11,9 +14,6 @@ use crate::{
 
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
-
-#[cfg(feature = "calendar")]
-pub use calendar::{Calendar, CalendarConversionError, DateQualifier, ParsedDateTime};
 
 /// Date encompasses a number of date formats, e.g. approximated, period, phrase and range.
 ///
@@ -288,7 +288,10 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let birt_date = data.individuals[0].events[0].date.as_ref().unwrap();
+        let birt_date = data.find_individual("@I1@").unwrap().events[0]
+            .date
+            .as_ref()
+            .unwrap();
         assert_eq!(birt_date.value.as_ref().unwrap(), "15 MAR 1820");
         assert_eq!(
             birt_date.phrase.as_ref().unwrap(),
@@ -316,13 +319,19 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let head_date = data.header.unwrap().date.unwrap();
+        let head_date = data.header.as_ref().unwrap().date.as_ref().unwrap().clone();
         assert_eq!(head_date.value.unwrap(), "2 Oct 2019");
 
-        let birt_date = data.individuals[0].events[0].date.as_ref().unwrap();
+        let birt_date = data.find_individual("@I1@").unwrap().events[0]
+            .date
+            .as_ref()
+            .unwrap();
         assert_eq!(birt_date.value.as_ref().unwrap(), "BEF 1828");
 
-        let resi_date = data.individuals[0].attributes[0].date.as_ref().unwrap();
+        let resi_date = data.find_individual("@I1@").unwrap().attributes[0]
+            .date
+            .as_ref()
+            .unwrap();
         assert_eq!(resi_date.value.as_ref().unwrap(), "from 1900 to 1905");
     }
 
@@ -345,7 +354,7 @@ mod tests {
         let gedcom_data = doc.parse_data().unwrap();
         assert_eq!(gedcom_data.multimedia.len(), 1);
 
-        let object = &gedcom_data.multimedia[0];
+        let object = gedcom_data.find_multimedia("@MEDIA1@").unwrap();
 
         let chan = object.change_date.as_ref().unwrap();
         let date = chan.date.as_ref().unwrap();
@@ -381,7 +390,10 @@ mod tests {
             let mut doc = Gedcom::new(sample.chars()).unwrap();
             let gedcom_data = doc.parse_data().unwrap();
 
-            let birt_date = gedcom_data.individuals[0].events[0].date.as_ref().unwrap();
+            let birt_date = gedcom_data.find_individual("@I1@").unwrap().events[0]
+                .date
+                .as_ref()
+                .unwrap();
             assert_eq!(
                 birt_date.value.as_ref().unwrap(),
                 date_str,

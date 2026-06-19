@@ -25,7 +25,7 @@ use serde::{Deserialize, Serialize};
 /// Conforms to the GEDCOM `NOTE_STRUCTURE` specification.
 /// See: <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#NOTE>
 /// See: <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#NOTE_STRUCTURE>
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Debug, Default, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Note {
     pub value: Option<String>,

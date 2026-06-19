@@ -33,7 +33,7 @@ impl std::fmt::Display for GenderType {
 /// Related concepts of gender identity or sexual preference are not currently given their own tag.
 /// Cultural or personal gender preference may be indicated using the FACT tag. See
 /// <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#SEX>.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Debug, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Gender {
     pub value: GenderType,

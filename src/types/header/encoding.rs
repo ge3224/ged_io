@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 /// Encoding (tag: CHAR) is a code value that represents the character set to be used to
 /// interpret this data. See GEDCOM 5.5.1 specification, p. 44
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Debug, Default, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Encoding {
     pub value: Option<String>,

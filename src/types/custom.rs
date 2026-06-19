@@ -1,168 +1,116 @@
 use crate::{
-    parser::Parser,
-    tokenizer::{Token, Tokenizer, TokenizerTrait},
+    tokenizer::{Token, TokenizerTrait},
     GedcomError,
 };
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 
-/// Handles a user-defined tag that is contained in the GEDCOM current transmission. This tag must
-/// begin with an underscore (_) and should only be interpreted in the context of the sending
-/// system.
+/// Handles a user-defined tag that is contained in the GEDCOM current
+/// transmission. This tag must begin with an underscore (_) and should only be
+/// interpreted in the context of the sending system.
 ///
 /// See <https://gedcom.io/specifications/ged55.pdf> (page 49).
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Debug, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct UserDefinedTag {
     pub tag: String,
+    pub level: u8,
     pub value: Option<String>,
-    pub children: Vec<Box<UserDefinedTag>>,
 }
 
 impl UserDefinedTag {
-    /// Creates a new `UserDefinedTag` from a `Tokenizer`.
+    /// Creates a bare `UserDefinedTag` with the given tag name and a fresh
+    /// runtime id. No value, no children — the caller is expected to populate
+    /// those via direct field access or helper methods.
+    ///
+    /// Use this for programmatic construction. For parsing from a GEDCOM
+    /// stream, use [`UserDefinedTag::drain_subtree`].
+    pub fn new(tag: impl Into<String>, level: u8) -> Self {
+        Self {
+            tag: tag.into(),
+            level,
+            value: None,
+        }
+    }
+
+    /// Parses a subtree of custom tags from a tokenizer.
     ///
     /// # Errors
     ///
-    /// This function will return an error if parsing fails.
-    pub fn new(
-        tokenizer: &mut Tokenizer<'_>,
-        level: u8,
-        tag: &str,
-    ) -> Result<UserDefinedTag, GedcomError> {
-        let mut udd = UserDefinedTag {
-            tag: tag.to_string(),
-            value: None,
-            children: Vec::new(),
-        };
-        udd.parse(tokenizer, level)?;
-        Ok(udd)
-    }
-
-    /// Creates a new `UserDefinedTag` from any tokenizer implementing `TokenizerTrait`.
-    ///
-    /// # Errors
-    ///
-    /// This function will return an error if parsing fails.
-    pub fn new_from_tokenizer<T: TokenizerTrait>(
+    /// Returns [`GedcomError::ParseError`] if an unexpected token is encountered
+    /// while parsing the subtree.
+    pub fn drain_subtree<T: TokenizerTrait>(
         tokenizer: &mut T,
-        level: u8,
-        tag: &str,
-    ) -> Result<UserDefinedTag, GedcomError> {
-        let mut udd = UserDefinedTag {
-            tag: tag.to_string(),
-            value: None,
-            children: Vec::new(),
-        };
-        udd.parse_stream(tokenizer, level)?;
-        Ok(udd)
-    }
-
-    pub fn add_child(&mut self, child: UserDefinedTag) {
-        self.children.push(Box::new(child));
-    }
-
-    /// Generic parsing implementation for any tokenizer.
-    fn parse_stream<T: TokenizerTrait>(
-        &mut self,
-        tokenizer: &mut T,
-        level: u8,
-    ) -> Result<(), GedcomError> {
-        // skip ahead of initial tag
+        entry_level: u8,
+        entry_tag: &str,
+    ) -> Result<Vec<UserDefinedTag>, GedcomError> {
+        let mut out = Vec::new();
+        let mut cur_level = entry_level;
+        let mut cur_tag = entry_tag.to_string();
         tokenizer.next_token()?;
 
-        let mut has_child = false;
         loop {
-            if let Token::Level(current) = tokenizer.current_token() {
-                if *current <= level {
-                    break;
-                }
-                if *current > level {
-                    has_child = true;
-                }
-            }
-
+            let mut udt = UserDefinedTag::new(cur_tag.clone(), cur_level);
             match tokenizer.current_token() {
-                Token::Tag(tag) | Token::CustomTag(tag) => {
-                    if has_child {
-                        let tag_clone = tag.clone();
-                        self.add_child(UserDefinedTag::new_from_tokenizer(
-                            tokenizer,
-                            level + 1,
-                            &tag_clone,
-                        )?);
-                    }
-                }
-                Token::LineValue(val) => {
-                    // Some sources emit an empty value token at the end of a line.
-                    // Don't overwrite an existing value with "".
-                    if self.value.is_none() && !val.is_empty() {
-                        self.value = Some(val.to_string());
+                Token::LineValue(v) => {
+                    if !v.is_empty() {
+                        udt.value = Some(v.to_string());
                     }
                     tokenizer.next_token()?;
                 }
-                Token::Level(_) => tokenizer.next_token()?,
+                Token::Pointer(p) => {
+                    udt.value = Some(p.to_string());
+                    tokenizer.next_token()?;
+                }
+                _ => {}
+            }
+            out.push(udt);
+
+            // peek the next line's level; stop when we've backed out of the subtree
+            match tokenizer.current_token() {
+                Token::Level(l) if *l <= entry_level => break, // sibling/uncle of the entry — done
+                Token::Level(l) => {
+                    cur_level = *l;
+                    tokenizer.next_token()?;
+                }
                 Token::EOF => break,
                 _ => {
                     return Err(GedcomError::ParseError {
                         line: tokenizer.line(),
                         message: format!(
-                            "Unhandled Token in UserDefinedDataset: {:?}",
+                            "Expected a level or end of input in custom subtree under `{entry_tag}`, found {:?}",
+                            tokenizer.current_token()
+                        ),
+                    })
+                }
+            }
+            match tokenizer.current_token() {
+                Token::Tag(t) | Token::CustomTag(t) => {
+                    cur_tag = t.clone().to_string();
+                    tokenizer.next_token()?;
+                }
+                _ => {
+                    return Err(GedcomError::ParseError {
+                        line: tokenizer.line(),
+                        message: format!(
+                            "Expected a tag after level {cur_level} in custom subtree under `{entry_tag}`, found {:?}",
                             tokenizer.current_token()
                         ),
                     })
                 }
             }
         }
-        Ok(())
+        Ok(out)
     }
 }
 
-impl Parser for UserDefinedTag {
-    fn parse(&mut self, tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<(), GedcomError> {
-        // skip ahead of initial tag
-        tokenizer.next_token()?;
-
-        let mut has_child = false;
-        loop {
-            if let Token::Level(current) = tokenizer.current_token {
-                if current <= level {
-                    break;
-                }
-                if current > level {
-                    has_child = true;
-                }
-            }
-
-            match &tokenizer.current_token {
-                Token::Tag(tag) | Token::CustomTag(tag) => {
-                    if has_child {
-                        let tag_clone = tag.clone();
-                        self.add_child(UserDefinedTag::new(tokenizer, level + 1, &tag_clone)?);
-                    }
-                }
-                Token::LineValue(val) => {
-                    // Some sources emit an empty value token at the end of a line.
-                    // Don't overwrite an existing value with "".
-                    if self.value.is_none() && !val.is_empty() {
-                        self.value = Some(val.to_string());
-                    }
-                    tokenizer.next_token()?;
-                }
-                Token::Level(_) => tokenizer.next_token()?,
-                Token::EOF => break,
-                _ => {
-                    return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
-                        message: format!(
-                            "Unhandled Token in UserDefinedDataset: {:?}",
-                            tokenizer.current_token
-                        ),
-                    })
-                }
-            }
+impl Clone for UserDefinedTag {
+    fn clone(&self) -> Self {
+        Self {
+            tag: self.tag.clone(),
+            level: self.level,
+            value: self.value.clone(),
         }
-        Ok(())
     }
 }
 
@@ -189,24 +137,26 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let custom = &data.individuals[0].custom_data;
-        assert_eq!(custom.len(), 1);
-        assert_eq!(custom[0].as_ref().tag, "_MILT");
+        let indi = data.find_individual("@P10@").unwrap();
+        let custom: Vec<_> = indi.user_defined_tags.iter().collect();
+        assert_eq!(custom.len(), 5);
 
-        let cs_date = custom[0].as_ref().children[0].as_ref();
-        assert_eq!(cs_date.tag, "DATE");
-        assert_eq!(cs_date.value.as_ref().unwrap(), "3 Nov 1947");
+        assert_eq!(custom[0].tag, "_MILT");
+        assert!(custom[0].value.is_none());
 
-        let cs_plac = custom[0].as_ref().children[1].as_ref();
-        assert_eq!(cs_plac.tag, "PLAC");
-        assert_eq!(cs_plac.value.as_ref().unwrap(), "Rochester, New York, USA");
+        assert_eq!(custom[1].tag, "DATE");
+        assert_eq!(custom[1].value.as_ref().unwrap(), "3 Nov 1947");
 
-        let cs_sour = custom[0].as_ref().children[2].as_ref();
-        assert_eq!(cs_sour.tag, "SOUR");
-        assert_eq!(cs_sour.value.as_ref().unwrap(), "@S1207169483@");
+        assert_eq!(custom[2].tag, "PLAC");
+        assert_eq!(
+            custom[2].value.as_ref().unwrap(),
+            "Rochester, New York, USA"
+        );
 
-        let cs_sour_page = cs_sour.children[0].as_ref();
-        assert_eq!(cs_sour_page.tag, "PAGE");
-        assert_eq!(cs_sour_page.value.as_ref().unwrap(), "New York State Archives; Albany, New York; Collection: New York, New York National Guard Service Cards, 1917-1954; Series: Xxxxx; Film Number: Xx");
+        assert_eq!(custom[3].tag, "SOUR");
+        assert_eq!(custom[3].value.as_ref().unwrap(), "@S1207169483@");
+
+        assert_eq!(custom[4].tag, "PAGE");
+        assert_eq!(custom[4].value.as_ref().unwrap(), "New York State Archives; Albany, New York; Collection: New York, New York National Guard Service Cards, 1917-1954; Series: Xxxxx; Film Number: Xx");
     }
 }

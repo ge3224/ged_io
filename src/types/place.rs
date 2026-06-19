@@ -30,7 +30,7 @@ use serde::{Deserialize, Serialize};
 /// beyond the lowest-to-highest order noted above.
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#PLACE_STRUCTURE>
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Debug, Default, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Place {
     /// The place name value, typically a comma-separated list of jurisdictions

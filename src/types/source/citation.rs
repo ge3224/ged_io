@@ -8,7 +8,7 @@ use crate::{
     tokenizer::{Token, Tokenizer},
     types::{
         custom::UserDefinedTag,
-        multimedia::Multimedia,
+        multimedia::link::Link,
         note::Note,
         source::{citation::data::SourceCitationData, quay::CertaintyAssessment},
         Xref,
@@ -18,7 +18,7 @@ use crate::{
 
 /// The data provided in the `SourceCitation` structure is source-related information specific to
 /// the data being cited. (See GEDCOM 5.5 Specification page 39.)
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Debug, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Citation {
     /// Reference to the `Source`
@@ -30,7 +30,7 @@ pub struct Citation {
     pub certainty_assessment: Option<CertaintyAssessment>,
     /// handles "RFN" tag; found in Ancestry.com export
     pub submitter_registered_rfn: Option<String>,
-    pub multimedia: Vec<Multimedia>,
+    pub multimedia: Vec<Link>,
     pub custom_data: Vec<Box<UserDefinedTag>>,
     /// Event type cited from the source (tag: EVEN).
     ///
@@ -65,7 +65,7 @@ impl Citation {
         Ok(citation)
     }
 
-    pub fn add_multimedia(&mut self, m: Multimedia) {
+    pub fn add_multimedia(&mut self, m: Link) {
         self.multimedia.push(m);
     }
 }
@@ -90,7 +90,7 @@ impl Parser for Citation {
                         Some(CertaintyAssessment::new(tokenizer, level + 1)?);
                 }
                 "RFN" => self.submitter_registered_rfn = Some(tokenizer.take_line_value()?),
-                "OBJE" => self.add_multimedia(Multimedia::new(tokenizer, level + 1, pointer)?),
+                "OBJE" => self.add_multimedia(Link::new(tokenizer, level + 1, pointer)?),
                 "EVEN" => {
                     self.event_type = Some(tokenizer.take_line_value()?);
                     // Parse ROLE if it's a substructure of EVEN
@@ -137,7 +137,7 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let indi = &data.individuals[0];
+        let indi = data.find_individual("@I1@").unwrap();
         let birt = &indi.events[0];
         let sour = &birt.citations[0];
 

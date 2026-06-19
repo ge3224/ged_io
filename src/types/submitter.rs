@@ -17,11 +17,11 @@ use serde::{Deserialize, Serialize};
 /// specific record points at a different `SUBMITTER` record.
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#SUBMITTER_RECORD>
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Debug, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Submitter {
-    /// Optional reference to link to this submitter
-    pub xref: Option<Xref>,
+    /// Cross-reference to link to this submitter
+    pub xref: Xref,
     /// Name of the submitter
     pub name: Option<String>,
     /// Physical address of the submitter
@@ -62,11 +62,27 @@ pub struct Submitter {
 }
 
 impl Submitter {
+    pub(crate) const RECORD_TYPE: &'static str = "Submitter";
+
     #[must_use]
-    fn with_xref(xref: Option<Xref>) -> Self {
+    fn with_xref(xref: impl Into<Xref>) -> Self {
         Self {
-            xref,
-            ..Default::default()
+            address: None,
+            automated_record_id: None,
+            change_date: None,
+            email: Vec::new(),
+            fax: Vec::new(),
+            language: None,
+            multimedia: Vec::new(),
+            name: None,
+            note: None,
+            phone: Vec::new(),
+            registered_refn: None,
+            uid: None,
+            user_reference_number: None,
+            website: Vec::new(),
+            xref: xref.into(),
+            custom_data: Vec::new(),
         }
     }
 
@@ -79,7 +95,7 @@ impl Submitter {
     pub fn new(
         tokenizer: &mut Tokenizer<'_>,
         level: u8,
-        xref: Option<Xref>,
+        xref: Xref,
     ) -> Result<Submitter, GedcomError> {
         let mut subm = Submitter::with_xref(xref);
         subm.parse(tokenizer, level)?;
