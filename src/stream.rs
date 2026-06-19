@@ -74,7 +74,7 @@ use crate::{
 ///     }
 /// }
 /// ```
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Debug, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 #[allow(clippy::large_enum_variant)]
 pub enum GedcomRecord {
@@ -97,7 +97,7 @@ pub enum GedcomRecord {
     /// A shared note record (GEDCOM 7.0 only).
     SharedNote(SharedNote),
     /// A custom/user-defined record.
-    CustomData(Box<UserDefinedTag>),
+    CustomData(Vec<UserDefinedTag>),
 }
 
 impl GedcomRecord {
@@ -434,6 +434,7 @@ impl<R: BufRead> GedcomStreamParser<R> {
     }
 
     /// Parses a record text into a `GedcomRecord`.
+    #[allow(clippy::too_many_lines)]
     fn parse_record_text(&self, text: &str) -> Result<GedcomRecord, GedcomError> {
         use crate::tokenizer::Token;
 
@@ -473,18 +474,66 @@ impl<R: BufRead> GedcomStreamParser<R> {
         if let Token::Tag(tag) = &tokenizer.current_token {
             let record = match tag.as_ref() {
                 "HEAD" => GedcomRecord::Header(Header::new(&mut tokenizer, 0)?),
-                "FAM" => GedcomRecord::Family(Family::new(&mut tokenizer, 0, pointer)?),
+                "FAM" => {
+                    let xref = pointer.ok_or_else(|| GedcomError::MissingRequiredValue {
+                        line: self.line_number as usize,
+                        tag: "FAM".to_string(),
+                    })?;
+                    GedcomRecord::Family(Family::from_tokenizer(&mut tokenizer, 0, xref)?)
+                }
                 "INDI" => {
-                    GedcomRecord::Individual(Individual::new(&mut tokenizer, level, pointer)?)
+                    let xref = pointer.ok_or_else(|| GedcomError::MissingRequiredValue {
+                        line: self.line_number as usize,
+                        tag: "INDI".to_string(),
+                    })?;
+                    GedcomRecord::Individual(Individual::from_tokenizer(
+                        &mut tokenizer,
+                        level,
+                        xref,
+                    )?)
                 }
                 "REPO" => {
-                    GedcomRecord::Repository(Repository::new(&mut tokenizer, level, pointer)?)
+                    let xref = pointer.ok_or_else(|| GedcomError::MissingRequiredValue {
+                        line: self.line_number as usize,
+                        tag: "REPO".to_string(),
+                    })?;
+                    GedcomRecord::Repository(Repository::new(&mut tokenizer, level, xref)?)
                 }
-                "SOUR" => GedcomRecord::Source(Source::new(&mut tokenizer, level, pointer)?),
-                "SUBN" => GedcomRecord::Submission(Submission::new(&mut tokenizer, 0, pointer)?),
-                "SUBM" => GedcomRecord::Submitter(Submitter::new(&mut tokenizer, 0, pointer)?),
-                "OBJE" => GedcomRecord::Multimedia(Multimedia::new(&mut tokenizer, 0, pointer)?),
-                "SNOTE" => GedcomRecord::SharedNote(SharedNote::new(&mut tokenizer, 0, pointer)?),
+                "SOUR" => {
+                    let xref = pointer.ok_or_else(|| GedcomError::MissingRequiredValue {
+                        line: self.line_number as usize,
+                        tag: "SOUR".to_string(),
+                    })?;
+                    GedcomRecord::Source(Source::new(&mut tokenizer, level, xref)?)
+                }
+                "SUBN" => {
+                    let xref = pointer.ok_or_else(|| GedcomError::MissingRequiredValue {
+                        line: self.line_number as usize,
+                        tag: "SUBN".to_string(),
+                    })?;
+                    GedcomRecord::Submission(Submission::new(&mut tokenizer, 0, xref)?)
+                }
+                "SUBM" => {
+                    let xref = pointer.ok_or_else(|| GedcomError::MissingRequiredValue {
+                        line: self.line_number as usize,
+                        tag: "SUBM".to_string(),
+                    })?;
+                    GedcomRecord::Submitter(Submitter::new(&mut tokenizer, 0, xref)?)
+                }
+                "OBJE" => {
+                    let xref = pointer.ok_or_else(|| GedcomError::MissingRequiredValue {
+                        line: self.line_number as usize,
+                        tag: "OBJE".to_string(),
+                    })?;
+                    GedcomRecord::Multimedia(Multimedia::new(&mut tokenizer, 0, xref)?)
+                }
+                "SNOTE" => {
+                    let xref = pointer.ok_or_else(|| GedcomError::MissingRequiredValue {
+                        line: self.line_number as usize,
+                        tag: "SNOTE".to_string(),
+                    })?;
+                    GedcomRecord::SharedNote(SharedNote::new(&mut tokenizer, 0, xref)?)
+                }
                 "TRLR" => {
                     return Err(GedcomError::ParseError {
                         line: self.line_number,
@@ -501,11 +550,11 @@ impl<R: BufRead> GedcomStreamParser<R> {
             Ok(record)
         } else if let Token::CustomTag(tag) = &tokenizer.current_token {
             let tag_clone = tag.clone();
-            Ok(GedcomRecord::CustomData(Box::new(UserDefinedTag::new(
+            Ok(GedcomRecord::CustomData(UserDefinedTag::drain_subtree(
                 &mut tokenizer,
-                1,
+                0,
                 &tag_clone,
-            )?)))
+            )?))
         } else if tokenizer.current_token == Token::EOF {
             Err(GedcomError::ParseError {
                 line: self.line_number,
@@ -555,15 +604,35 @@ impl FromIterator<GedcomRecord> for GedcomData {
         for record in iter {
             match record {
                 GedcomRecord::Header(h) => data.header = Some(h),
-                GedcomRecord::Individual(i) => data.add_individual(i),
-                GedcomRecord::Family(f) => data.add_family(f),
-                GedcomRecord::Source(s) => data.add_source(s),
-                GedcomRecord::Repository(r) => data.add_repository(r),
-                GedcomRecord::Submitter(s) => data.add_submitter(s),
-                GedcomRecord::Submission(s) => data.add_submission(s),
-                GedcomRecord::Multimedia(m) => data.add_multimedia(m),
-                GedcomRecord::SharedNote(n) => data.add_shared_note(n),
-                GedcomRecord::CustomData(c) => data.add_custom_data(*c),
+                GedcomRecord::Individual(i) => {
+                    let _ = data.add_individual(i);
+                }
+                GedcomRecord::Family(f) => {
+                    let _ = data.add_family(f);
+                }
+                GedcomRecord::Source(s) => {
+                    let _ = data.add_source(s);
+                }
+                GedcomRecord::Repository(r) => {
+                    let _ = data.add_repository(r);
+                }
+                GedcomRecord::Submitter(s) => {
+                    let _ = data.add_submitter(s);
+                }
+                GedcomRecord::Submission(s) => {
+                    let _ = data.add_submission(s);
+                }
+                GedcomRecord::Multimedia(m) => {
+                    let _ = data.add_multimedia(m);
+                }
+                GedcomRecord::SharedNote(n) => {
+                    let _ = data.add_shared_note(n);
+                }
+                GedcomRecord::CustomData(c) => {
+                    for udt in c {
+                        let _ = data.add_user_defined_tags(udt);
+                    }
+                }
             }
         }
         data
@@ -613,10 +682,10 @@ mod tests {
 
         // Check individual names
         let indi1 = records[1].as_individual().unwrap();
-        assert_eq!(indi1.xref.as_deref(), Some("@I1@"));
+        assert_eq!(indi1.xref.as_str(), "@I1@");
 
         let indi2 = records[2].as_individual().unwrap();
-        assert_eq!(indi2.xref.as_deref(), Some("@I2@"));
+        assert_eq!(indi2.xref.as_str(), "@I2@");
     }
 
     #[test]
@@ -769,8 +838,8 @@ mod tests {
 
         assert_eq!(records.len(), 2); // Header + Custom
         if let GedcomRecord::CustomData(c) = &records[1] {
-            assert_eq!(c.tag, "_CUSTOM");
-            assert_eq!(c.value.as_deref(), Some("MyValue"));
+            assert_eq!(c[0].tag, "_CUSTOM");
+            assert_eq!(c[0].value.as_deref(), Some("MyValue"));
         } else {
             panic!("Expected CustomData");
         }

@@ -67,11 +67,11 @@ where
             }
             Token::CustomTag(tag) => {
                 let tag_clone = tag.clone();
-                non_standard_dataset.push(Box::new(UserDefinedTag::new(
-                    tokenizer,
-                    level + 1,
-                    &tag_clone,
-                )?));
+                non_standard_dataset.extend(
+                    UserDefinedTag::drain_subtree(tokenizer, level + 1, &tag_clone)?
+                        .into_iter()
+                        .map(Box::new),
+                );
             }
             Token::Level(_) => tokenizer.next_token()?,
             Token::LineValue(_) => {
@@ -126,11 +126,11 @@ where
             }
             Token::CustomTag(tag) => {
                 let tag_clone = tag.clone();
-                non_standard_dataset.push(Box::new(UserDefinedTag::new_from_tokenizer(
-                    tokenizer,
-                    level + 1,
-                    &tag_clone,
-                )?));
+                non_standard_dataset.extend(
+                    UserDefinedTag::drain_subtree(tokenizer, level + 1, &tag_clone)?
+                        .into_iter()
+                        .map(Box::new),
+                );
             }
             Token::Level(_) => tokenizer.next_token()?,
             Token::LineValue(_) => {

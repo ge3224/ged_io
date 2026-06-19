@@ -7,6 +7,7 @@
 //! work with either implementation.
 
 use crate::GedcomError;
+use std::collections::HashMap;
 use std::io::BufRead;
 use std::str::Chars;
 
@@ -157,6 +158,8 @@ pub struct Tokenizer<'a> {
     chars: Chars<'a>,
     /// The current line number of the file we are parsing
     pub line: u32,
+
+    pub(crate) pending_uses: HashMap<Box<str>, usize>,
 }
 
 impl<'a> Tokenizer<'a> {
@@ -168,6 +171,7 @@ impl<'a> Tokenizer<'a> {
             current_token: Token::None,
             chars,
             line: 0,
+            pending_uses: HashMap::default(),
         }
     }
 
@@ -263,7 +267,11 @@ impl<'a> Tokenizer<'a> {
                 {
                     Token::LineValue("".into())
                 } else {
-                    Token::LineValue(self.extract_value_with_capacity(VALUE_CAPACITY))
+                    let v = self.extract_value_with_capacity(VALUE_CAPACITY);
+                    if is_pointer_use(&v) {
+                        *self.pending_uses.entry(v.clone()).or_insert(0) += 1;
+                    }
+                    Token::LineValue(v)
                 }
             }
             _ => {
@@ -432,6 +440,16 @@ impl<'a> Tokenizer<'a> {
         }
         Ok(value)
     }
+}
+
+fn is_pointer_use(v: &str) -> bool {
+    let b = v.as_bytes();
+    b.len() >= 3
+        && b[0] == b'@'
+        && b[1].is_ascii_alphanumeric()
+        && b[b.len() - 1] == b'@'
+        && !b[1..b.len() - 1].contains(&b'@')
+        && !b[1..b.len() - 1].iter().any(u8::is_ascii_whitespace)
 }
 
 impl TokenizerTrait for Tokenizer<'_> {
