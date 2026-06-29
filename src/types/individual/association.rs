@@ -15,7 +15,7 @@ use crate::{
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Association {
     /// Reference to associated individual
-    pub xref: Xref,
+    pub target: AssociationTarget,
     /// tag: RELA, relationship to this individual
     pub relationship: Option<String>,
     /// tag: TYPE, indicator of the type of association
@@ -33,8 +33,14 @@ impl Association {
     ///
     /// This function will return an error if parsing fails.
     pub fn new(tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<Association, GedcomError> {
+        let raw = tokenizer.take_line_value()?;
+        let target = if raw == "@VOID@" {
+            AssociationTarget::Void
+        } else {
+            AssociationTarget::Record(raw)
+        };
         let mut association = Association {
-            xref: tokenizer.take_line_value()?,
+            target,
             relationship: None,
             association_type: None,
             note: None,
@@ -42,6 +48,16 @@ impl Association {
         };
         association.parse(tokenizer, level)?;
         Ok(association)
+    }
+
+    pub(crate) fn with_target(target: Xref) -> Self {
+        Association {
+            target: AssociationTarget::Record(target),
+            relationship: None,
+            association_type: None,
+            note: None,
+            custom_data: Vec::new(),
+        }
     }
 }
 
@@ -66,9 +82,21 @@ impl Parser for Association {
     }
 }
 
+/// The forms an association pointer can take. It normally references an
+/// individual record, but may also be a placeholder for an association to a
+/// person who has no record of their own.
+#[derive(Debug, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+pub enum AssociationTarget {
+    /// Refernces an individual record
+    Record(Xref),
+    /// Placeholder for a person with no record
+    Void,
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::Gedcom;
+    use crate::{types::individual::association::AssociationTarget, Gedcom};
 
     #[test]
     fn test_parse_association() {
@@ -87,7 +115,10 @@ mod tests {
 
         let individual = data.find_individual("@I1@").unwrap();
         assert_eq!(individual.associations.len(), 1);
-        assert_eq!(individual.associations[0].xref, "@I2@");
+        assert_eq!(
+            individual.associations[0].target,
+            AssociationTarget::Record("@I2@".to_string())
+        );
         assert_eq!(
             individual.associations[0].relationship.clone().unwrap(),
             "FRIEND"

@@ -35,11 +35,18 @@ use crate::types::{
         Individual,
     },
     lds::LdsOrdinance,
-    multimedia::{link::Link, Multimedia},
+    multimedia::{
+        link::{Link, LinkTarget},
+        Multimedia,
+    },
     note::Note,
     repository::Repository,
     shared_note::SharedNote,
-    source::{citation::Citation, quay::CertaintyAssessment, Source},
+    source::{
+        citation::{Citation, CitationSource},
+        quay::CertaintyAssessment,
+        Source,
+    },
     submission::Submission,
     submitter::Submitter,
     GedcomData,
@@ -857,15 +864,17 @@ impl GedcomWriter {
         level: u8,
         media: &Link,
     ) -> Result<(), io::Error> {
-        if let Some(ref xref) = media.xref {
-            self.write_line(writer, level, "OBJE", Some(xref))?;
-        } else {
-            self.write_line(writer, level, "OBJE", None)?;
-            if let Some(ref file) = media.file {
-                self.write_value_or_wrap(writer, level + 1, "FILE", file.value.as_deref())?;
-            }
-            if let Some(ref title) = media.title {
-                self.write_value_or_wrap(writer, level + 1, "TITL", Some(title))?;
+        match media.link {
+            LinkTarget::Record(ref x) => self.write_line(writer, level, "OBJE", Some(x))?,
+            LinkTarget::Void => self.write_line(writer, level, "OBJE", Some("@VOID@"))?,
+            LinkTarget::Inline => {
+                self.write_line(writer, level, "OBJE", None)?;
+                if let Some(ref file) = media.file {
+                    self.write_value_or_wrap(writer, level + 1, "FILE", file.value.as_deref())?;
+                }
+                if let Some(ref title) = media.title {
+                    self.write_value_or_wrap(writer, level + 1, "TITL", Some(title))?;
+                }
             }
         }
         Ok(())
@@ -878,7 +887,11 @@ impl GedcomWriter {
         level: u8,
         citation: &Citation,
     ) -> Result<(), io::Error> {
-        self.write_line(writer, level, "SOUR", Some(&citation.xref))?;
+        match &citation.source {
+            CitationSource::Record(x) => self.write_line(writer, level, "SOUR", Some(x))?,
+            CitationSource::Void => self.write_line(writer, level, "SOUR", Some("@VOID@"))?,
+            CitationSource::Description(s) => self.write_long_text(writer, level, "SOUR", s)?,
+        }
 
         if let Some(ref page) = citation.page {
             self.write_value_or_wrap(writer, level + 1, "PAGE", Some(page))?;

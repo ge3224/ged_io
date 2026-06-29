@@ -1,7 +1,7 @@
 use crate::{
     arena::Arena,
     parser::{parse_subset, Parser},
-    tokenizer::{Token, Tokenizer},
+    tokenizer::Tokenizer,
     types::{
         custom::UserDefinedTag,
         date::change_date::ChangeDate,
@@ -229,12 +229,6 @@ impl Parser for Family {
         tokenizer.next_token()?;
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
-            let mut pointer: Option<String> = None;
-            if let Token::Pointer(xref) = &tokenizer.current_token {
-                pointer = Some(xref.to_string());
-                tokenizer.next_token()?;
-            }
-
             match tag {
                 "MARR" | "ANUL" | "CENS" | "DIV" | "DIVF" | "ENGA" | "MARB" | "MARC" | "MARL"
                 | "MARS" | "RESI" | "EVEN" | "SEP" => {
@@ -247,7 +241,7 @@ impl Parser for Family {
                 "CHAN" => self.change_date = Some(ChangeDate::new(tokenizer, level + 1)?),
                 "SOUR" => self.add_source(Citation::new(tokenizer, level + 1)?),
                 "NOTE" => self.add_note(Note::new(tokenizer, level + 1)?),
-                "OBJE" => self.add_multimedia(Link::new(tokenizer, level + 1, pointer)?),
+                "OBJE" => self.add_multimedia(Link::new(tokenizer, level + 1)?),
                 "NO" => self.non_events.push(NonEvent::new(tokenizer, level + 1)?),
                 // LDS Sealing to Spouse ordinance
                 "SLGS" => {

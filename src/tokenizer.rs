@@ -6,6 +6,7 @@
 //! Both tokenizers implement the [`TokenizerTrait`] trait, allowing parsers to
 //! work with either implementation.
 
+use crate::util::is_real_reference;
 use crate::GedcomError;
 use std::collections::HashMap;
 use std::io::BufRead;
@@ -268,7 +269,7 @@ impl<'a> Tokenizer<'a> {
                     Token::LineValue("".into())
                 } else {
                     let v = self.extract_value_with_capacity(VALUE_CAPACITY);
-                    if is_pointer_use(&v) {
+                    if is_real_reference(&v) {
                         *self.pending_uses.entry(v.clone()).or_insert(0) += 1;
                     }
                     Token::LineValue(v)
@@ -440,16 +441,6 @@ impl<'a> Tokenizer<'a> {
         }
         Ok(value)
     }
-}
-
-fn is_pointer_use(v: &str) -> bool {
-    let b = v.as_bytes();
-    b.len() >= 3
-        && b[0] == b'@'
-        && b[1].is_ascii_alphanumeric()
-        && b[b.len() - 1] == b'@'
-        && !b[1..b.len() - 1].contains(&b'@')
-        && !b[1..b.len() - 1].iter().any(u8::is_ascii_whitespace)
 }
 
 impl TokenizerTrait for Tokenizer<'_> {

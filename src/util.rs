@@ -601,6 +601,20 @@ pub fn next_id() -> u64 {
     NEXT_ID.fetch_add(1, Ordering::Relaxed)
 }
 
+pub(crate) fn is_real_reference(s: &str) -> bool {
+    s != "@VOID@" && is_pointer_use(s)
+}
+
+pub(crate) fn is_pointer_use(s: &str) -> bool {
+    let b = s.as_bytes();
+    b.len() >= 3
+        && b[0] == b'@'
+        && b[1].is_ascii_alphanumeric()
+        && b[b.len() - 1] == b'@'
+        && !b[1..b.len() - 1].contains(&b'@')
+        && !b[1..b.len() - 1].iter().any(u8::is_ascii_whitespace)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

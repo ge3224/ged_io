@@ -185,11 +185,6 @@ impl Parser for Detail {
         }
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
-            let mut pointer: Option<String> = None;
-            if let Token::Pointer(xref) = &tokenizer.current_token {
-                pointer = Some(xref.to_string());
-                tokenizer.next_token()?;
-            }
             match tag {
                 "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
                 "PLAC" => self.place = Some(Place::new(tokenizer, level + 1)?),
@@ -205,7 +200,7 @@ impl Parser for Detail {
                 "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
                 "TYPE" => self.event_type = Some(tokenizer.take_line_value()?),
                 "OBJE" => {
-                    self.add_multimedia_record(Link::new(tokenizer, level + 1, pointer)?);
+                    self.add_multimedia_record(Link::new(tokenizer, level + 1)?);
                 }
                 "SDATE" => self.sort_date = Some(SortDate::new(tokenizer, level + 1)?),
                 "ASSO" => self

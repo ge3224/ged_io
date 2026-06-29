@@ -5,7 +5,7 @@ pub mod text;
 
 use crate::{
     parser::{parse_subset, Parser},
-    tokenizer::{Token, Tokenizer},
+    tokenizer::Tokenizer,
     types::{
         custom::UserDefinedTag, date::change_date::ChangeDate, event::detail::Detail,
         multimedia::link::Link, note::Note, repository::citation::Citation, source::data::Data,
@@ -113,11 +113,6 @@ impl Parser for Source {
         tokenizer.next_token()?;
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
-            let mut pointer: Option<String> = None;
-            if let Token::Pointer(xref) = &tokenizer.current_token {
-                pointer = Some(xref.to_string());
-                tokenizer.next_token()?;
-            }
             match tag {
                 "DATA" => tokenizer.next_token()?,
                 "EVEN" => {
@@ -136,7 +131,7 @@ impl Parser for Source {
                 "TEXT" => {
                     self.citation_from_source = Some(tokenizer.take_continued_text(level + 1)?);
                 }
-                "OBJE" => self.add_multimedia(Link::new(tokenizer, level + 1, pointer)?),
+                "OBJE" => self.add_multimedia(Link::new(tokenizer, level + 1)?),
                 "NOTE" => self.add_note(Note::new(tokenizer, level + 1)?),
                 "REPO" => self.add_repo_citation(Citation::new(tokenizer, level + 1)?),
                 "RFN" => self.submitter_registered_rfn = Some(tokenizer.take_line_value()?),
@@ -168,7 +163,7 @@ impl Parser for Source {
 
 #[cfg(test)]
 mod tests {
-    use crate::Gedcom;
+    use crate::{types::source::citation::CitationSource, Gedcom};
 
     #[test]
     fn test_parse_source_citation_record() {
@@ -186,7 +181,11 @@ mod tests {
         let data = ged.parse_data().unwrap();
 
         let indi = data.find_individual("@PERSON1@").unwrap();
-        assert_eq!(indi.source[0].xref, "@SOURCE1@");
+
+        let CitationSource::Record(x) = &indi.source[0].source else {
+            panic!("expected a Record citation");
+        };
+        assert_eq!(x, "@SOURCE1@");
         assert_eq!(indi.source[0].page.as_ref().unwrap(), "42");
     }
     #[test]

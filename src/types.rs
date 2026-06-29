@@ -34,13 +34,20 @@ use crate::{
         family::Family,
         header::Header,
         individual::{
+            association::{Association, AssociationTarget},
             family_link::{FamilyLink, FamilyLinkType},
             Individual,
         },
-        multimedia::Multimedia,
+        multimedia::{
+            link::{Link, LinkTarget},
+            Multimedia,
+        },
         repository::Repository,
         shared_note::SharedNote,
-        source::Source,
+        source::{
+            citation::{Citation, CitationSource},
+            Source,
+        },
         submission::Submission,
         submitter::Submitter,
     },
@@ -587,6 +594,192 @@ impl GedcomData {
 
         i.descendant_interest.retain(|s| s != &submitter_xref);
         self.xrefs.decrement(&submitter_xref);
+
+        Ok(())
+    }
+
+    /// Records a source citation (`SOUR`) on an individual, pointing at a
+    /// source.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`GedcomError::XrefNotFound`] if either xref (individual or
+    /// source) does not resolve to a record.
+    pub fn link_individual_and_source(
+        &mut self,
+        individual: impl Into<Xref>,
+        source: impl Into<Xref>,
+    ) -> Result<(), GedcomError> {
+        let individual_xref = individual.into();
+        let source_xref = source.into();
+
+        let Some(AnyHandle::Individual(individual_handle)) = self.xrefs.handle(&individual_xref)
+        else {
+            return Err(GedcomError::XrefNotFound {
+                xref: individual_xref,
+                record_type: Individual::RECORD_TYPE.to_string(),
+            });
+        };
+
+        let Some(AnyHandle::Source(_)) = self.xrefs.handle(&source_xref) else {
+            return Err(GedcomError::XrefNotFound {
+                xref: source_xref,
+                record_type: Source::RECORD_TYPE.to_string(),
+            });
+        };
+
+        let Some(i) = self.individuals.get_mut(individual_handle) else {
+            unreachable!("xref map and arena are out of sync");
+        };
+
+        self.xrefs.bump(&source_xref);
+        i.source.push(Citation::with_source(source_xref));
+
+        Ok(())
+    }
+
+    /// Decouples an individual from a citation source.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`GedcomError::XrefNotFound`] if either xref does not resolve to
+    /// a record, or [`GedcomError::NotLinked`] if the individual holds no
+    /// citation pointing at that source.
+    pub fn unlink_individual_and_source(
+        &mut self,
+        individual: impl Into<Xref>,
+        source: impl Into<Xref>,
+    ) -> Result<(), GedcomError> {
+        let individual_xref = individual.into();
+        let source_xref = source.into();
+
+        let Some(AnyHandle::Individual(individual_handle)) = self.xrefs.handle(&individual_xref)
+        else {
+            return Err(GedcomError::XrefNotFound {
+                xref: individual_xref,
+                record_type: Individual::RECORD_TYPE.to_string(),
+            });
+        };
+
+        let Some(AnyHandle::Source(_)) = self.xrefs.handle(&source_xref) else {
+            return Err(GedcomError::XrefNotFound {
+                xref: source_xref,
+                record_type: Source::RECORD_TYPE.to_string(),
+            });
+        };
+
+        let Some(i) = self.individuals.get_mut(individual_handle) else {
+            unreachable!("xref map and arena are out of sync");
+        };
+
+        let pos = i
+            .source
+            .iter()
+            .position(|c| matches!(&c.source, CitationSource::Record(x) if x == &source_xref));
+
+        let Some(pos) = pos else {
+            return Err(GedcomError::NotLinked {
+                from_xref: individual_xref,
+                to_xref: source_xref,
+                link_type: "source".to_string(),
+            });
+        };
+
+        i.source.remove(pos);
+        self.xrefs.decrement(&source_xref);
+
+        Ok(())
+    }
+
+    /// Records an association (`ASSO`) on one individual that references
+    /// another by cross reference.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`GedcomError::XrefNotFound`] if either xref (individual or
+    /// associate) does not resolve to a record.
+    pub fn link_individual_and_association(
+        &mut self,
+        individual: impl Into<Xref>,
+        associate: impl Into<Xref>,
+    ) -> Result<(), GedcomError> {
+        let individual_xref = individual.into();
+        let associate_xref = associate.into();
+
+        let Some(AnyHandle::Individual(individual_handle)) = self.xrefs.handle(&individual_xref)
+        else {
+            return Err(GedcomError::XrefNotFound {
+                xref: individual_xref,
+                record_type: Individual::RECORD_TYPE.to_string(),
+            });
+        };
+
+        let Some(AnyHandle::Individual(_)) = self.xrefs.handle(&associate_xref) else {
+            return Err(GedcomError::XrefNotFound {
+                xref: associate_xref,
+                record_type: Individual::RECORD_TYPE.to_string(),
+            });
+        };
+
+        let Some(i) = self.individuals.get_mut(individual_handle) else {
+            unreachable!("xref map and arena are out of sync")
+        };
+
+        self.xrefs.bump(&associate_xref);
+        i.associations
+            .push(Association::with_target(associate_xref));
+
+        Ok(())
+    }
+
+    /// Decouples an individual from an associated individual (`ASSO`).
+    ///
+    /// # Errors
+    ///
+    /// Returns [`GedcomError::XrefNotFound`] if either xref does not resolve to
+    /// a record, or [`GedcomError::NotLinked`] if the individual holds no
+    /// association pointing to the given individual.
+    pub fn unlink_individual_and_association(
+        &mut self,
+        individual: impl Into<Xref>,
+        associate: impl Into<Xref>,
+    ) -> Result<(), GedcomError> {
+        let individual_xref = individual.into();
+        let associate_xref = associate.into();
+
+        let Some(AnyHandle::Individual(individual_handle)) = self.xrefs.handle(&individual_xref)
+        else {
+            return Err(GedcomError::XrefNotFound {
+                xref: individual_xref,
+                record_type: Individual::RECORD_TYPE.to_string(),
+            });
+        };
+
+        let Some(AnyHandle::Individual(_)) = self.xrefs.handle(&associate_xref) else {
+            return Err(GedcomError::XrefNotFound {
+                xref: associate_xref,
+                record_type: Individual::RECORD_TYPE.to_string(),
+            });
+        };
+
+        let Some(i) = self.individuals.get_mut(individual_handle) else {
+            unreachable!("xref map and arena are out of sync")
+        };
+
+        let pos = i.associations.iter().position(
+            |a| matches!(&a.target, AssociationTarget::Record(x) if x == &associate_xref),
+        );
+
+        let Some(pos) = pos else {
+            return Err(GedcomError::NotLinked {
+                from_xref: individual_xref,
+                to_xref: associate_xref,
+                link_type: "association".to_string(),
+            });
+        };
+
+        i.associations.remove(pos);
+        self.xrefs.decrement(&associate_xref);
 
         Ok(())
     }
@@ -1342,6 +1535,99 @@ impl GedcomData {
 
         i.aliases.retain(|a| a != &alias_xref);
         self.xrefs.decrement(&alias_xref);
+
+        Ok(())
+    }
+
+    /// Records a multimedia link (`OBJE`) on an individual that references a
+    /// multimedia record by cross reference.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`GedcomError::XrefNotFound`] if either xref (individual or
+    /// multimedia) does not resolve to a record
+    pub fn link_individual_and_multimedia(
+        &mut self,
+        individual: impl Into<Xref>,
+        multimedia: impl Into<Xref>,
+    ) -> Result<(), GedcomError> {
+        let individual_xref = individual.into();
+        let multimedia_xref = multimedia.into();
+
+        let Some(AnyHandle::Individual(individual_handle)) = self.xrefs.handle(&individual_xref)
+        else {
+            return Err(GedcomError::XrefNotFound {
+                xref: individual_xref,
+                record_type: Individual::RECORD_TYPE.to_string(),
+            });
+        };
+
+        let Some(AnyHandle::Multimedia(_)) = self.xrefs.handle(&multimedia_xref) else {
+            return Err(GedcomError::XrefNotFound {
+                xref: multimedia_xref,
+                record_type: Multimedia::RECORD_TYPE.to_string(),
+            });
+        };
+
+        let Some(i) = self.individuals.get_mut(individual_handle) else {
+            unreachable!("xref map and arena are out of sync")
+        };
+
+        self.xrefs.bump(&multimedia_xref);
+        i.multimedia_links.push(Link::with_record(multimedia_xref));
+
+        Ok(())
+    }
+
+    /// Decouples a multimedia link (`OBJE`) from an individual.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`GedcomError::XrefNotFound`] if either xref does not resolve to
+    /// a record, or [`GedcomError::NotLinked`] if the individual holds no
+    /// multimedia link pointing to that multimedia record.
+    pub fn unlink_individual_and_multimedia(
+        &mut self,
+        individual: impl Into<Xref>,
+        multimedia: impl Into<Xref>,
+    ) -> Result<(), GedcomError> {
+        let individual_xref = individual.into();
+        let multimedia_xref = multimedia.into();
+
+        let Some(AnyHandle::Individual(individual_handle)) = self.xrefs.handle(&individual_xref)
+        else {
+            return Err(GedcomError::XrefNotFound {
+                xref: individual_xref,
+                record_type: Individual::RECORD_TYPE.to_string(),
+            });
+        };
+
+        let Some(AnyHandle::Multimedia(_)) = self.xrefs.handle(&multimedia_xref) else {
+            return Err(GedcomError::XrefNotFound {
+                xref: multimedia_xref,
+                record_type: Multimedia::RECORD_TYPE.to_string(),
+            });
+        };
+
+        let Some(i) = self.individuals.get_mut(individual_handle) else {
+            unreachable!("xref map and arena are out of sync")
+        };
+
+        let pos = i
+            .multimedia_links
+            .iter()
+            .position(|m| matches!(&m.link, LinkTarget::Record(x) if x == &multimedia_xref));
+
+        let Some(pos) = pos else {
+            return Err(GedcomError::NotLinked {
+                from_xref: individual_xref,
+                to_xref: multimedia_xref,
+                link_type: "multimedia".to_string(),
+            });
+        };
+
+        i.multimedia_links.remove(pos);
+        self.xrefs.decrement(&multimedia_xref);
 
         Ok(())
     }
@@ -2423,5 +2709,220 @@ mod tests {
             .map(|t| t.tag.as_str())
             .collect();
         assert_eq!(tags, vec!["_A", "_B", "_C"]);
+    }
+
+    fn unlinked_spouse() -> GedcomData {
+        let sample = "\
+           0 HEAD\n\
+           1 GEDC\n\
+           2 VERS 5.5\n\
+           0 @I1@ INDI\n\
+           1 FAMS @F1@\n\
+           0 @F1@ FAM\n\
+           1 HUSB @I1@\n\
+           0 @I2@ INDI\n\
+           0 TRLR";
+        Gedcom::new(sample.chars()).unwrap().parse_data().unwrap()
+    }
+
+    #[test]
+    fn unlinked_spouse_use_count_unbumped() {
+        let data = unlinked_spouse();
+        assert_eq!(data.xrefs.use_count("@I2@"), 0);
+    }
+
+    #[test]
+    fn unlinked_family_use_count_unbumped() {
+        let data = unlinked_spouse();
+        assert_eq!(data.xrefs.use_count("@F1@"), 1);
+    }
+
+    #[test]
+    fn link_unknown_xref_errs() {
+        let mut data = unlinked_spouse();
+        assert!(data.link_spouse_and_family("@I3@", "@F1@").is_err());
+    }
+
+    #[test]
+    fn unlink_unlinked_spouse_errs() {
+        let mut data = unlinked_spouse();
+        assert!(data.unlink_spouse_and_family("@I2@", "@F1@").is_err());
+    }
+
+    #[test]
+    fn link_spouse_and_family() {
+        let mut data = unlinked_spouse();
+        data.link_spouse_and_family("@I2@", "@F1@").unwrap();
+
+        let spouse = data
+            .find_family("@F1@")
+            .unwrap()
+            .individual2
+            .as_ref()
+            .unwrap();
+
+        assert_eq!(spouse, "@I2@");
+    }
+
+    #[test]
+    fn link_spouse_bumps_spouse_use_count() {
+        let mut data = unlinked_spouse();
+        data.link_spouse_and_family("@I2@", "@F1@").unwrap();
+        assert_eq!(data.xrefs.use_count("@I2@"), 1);
+    }
+
+    #[test]
+    fn link_spouse_bumps_family_use_count() {
+        let mut data = unlinked_spouse();
+        data.link_spouse_and_family("@I2@", "@F1@").unwrap();
+        assert_eq!(data.xrefs.use_count("@F1@"), 2);
+    }
+
+    fn linked_spouse() -> GedcomData {
+        let sample = "\
+           0 HEAD\n\
+           1 GEDC\n\
+           2 VERS 5.5\n\
+           0 @I1@ INDI\n\
+           1 FAMS @F1@\n\
+           0 @F1@ FAM\n\
+           1 HUSB @I1@\n\
+           1 WIFE @I2@\n\
+           0 @I2@ INDI\n\
+           1 FAMS @F1@\n\
+           0 TRLR";
+        Gedcom::new(sample.chars()).unwrap().parse_data().unwrap()
+    }
+
+    #[test]
+    fn linked_spouse_use_count_bumped() {
+        let data = linked_spouse();
+        assert_eq!(data.xrefs.use_count("@I2@".as_ref()), 1);
+    }
+
+    #[test]
+    fn linked_family_use_count_bumped() {
+        let data = linked_spouse();
+        assert_eq!(data.xrefs.use_count("@F1@"), 2);
+    }
+
+    #[test]
+    fn delete_linked_individual_errs() {
+        let mut data = linked_spouse();
+        let h = match data.xrefs.handle("@I2@") {
+            Some(AnyHandle::Individual(h)) => h,
+            _ => panic!("expected an individual handle"),
+        };
+        assert!(data.remove_individual(h).is_err());
+    }
+
+    #[test]
+    fn unlink_individual_and_spouse() {
+        let mut data = linked_spouse();
+        data.unlink_spouse_and_family("@I2@", "@F1@").unwrap();
+
+        assert!(data.find_family("@F1@").unwrap().individual2.is_none());
+    }
+
+    #[test]
+    fn link_linked_spouse_errs() {
+        let mut data = linked_spouse();
+        assert!(data.link_spouse_and_family("@I2@", "@F1@").is_err());
+    }
+
+    #[test]
+    fn unlink_spouse_decrements_individual_use_count() {
+        let mut data = linked_spouse();
+        data.unlink_spouse_and_family("@I2@", "@F1@").unwrap();
+        assert_eq!(data.xrefs.use_count("@I2@"), 0);
+    }
+
+    #[test]
+    fn unlink_spouse_decrements_family_use_count() {
+        let mut data = linked_spouse();
+        data.unlink_spouse_and_family("@I2@", "@F1@").unwrap();
+        assert_eq!(data.xrefs.use_count("@F1@"), 1);
+    }
+
+    #[test]
+    fn delete_unlinked_individual_no_err() {
+        let mut data = linked_spouse();
+        data.unlink_spouse_and_family("@I2@", "@F1@").unwrap();
+        let h = match data.xrefs.handle("@I2@") {
+            Some(AnyHandle::Individual(h)) => h,
+            _ => panic!("expected an individual handle"),
+        };
+        assert!(data.remove_individual(h).is_ok());
+    }
+
+    fn unaliased_individual() -> GedcomData {
+        let sample = "\
+         0 HEAD\n\
+         1 GEDC\n\
+         2 VERS 5.5\n\
+         0 @I1@ INDI\n\
+         0 @I2@ INDI\n\
+         0 TRLR";
+        Gedcom::new(sample.chars()).unwrap().parse_data().unwrap()
+    }
+
+    #[test]
+    fn unlinked_aliased_use_count_unbumped() {
+        let data = unaliased_individual();
+        assert_eq!(data.xrefs.use_count("@I2@"), 0);
+    }
+
+    #[test]
+    fn unlink_unlinked_alias_errs() {
+        let mut data = unaliased_individual();
+        assert!(data.unlink_individual_and_alias("@I1@", "@I2").is_err());
+    }
+
+    #[test]
+    fn link_unknown_alias_xref_errs() {
+        let mut data = unaliased_individual();
+        assert!(data.link_individual_and_alias("@I1@", "@I3").is_err());
+    }
+
+    #[test]
+    fn link_alias() {
+        let mut data = unaliased_individual();
+        data.link_individual_and_alias("@I1@", "@I2@").unwrap();
+        assert_eq!(data.xrefs.use_count("@I2@"), 1);
+    }
+
+    fn aliased_individual() -> GedcomData {
+        let sample = "\
+         0 HEAD\n\
+         1 GEDC\n\
+         2 VERS 5.5\n\
+         0 @I1@ INDI\n\
+         1 ALIA @I2@\n\
+         0 @I2@ INDI\n\
+         0 TRLR";
+        Gedcom::new(sample.chars()).unwrap().parse_data().unwrap()
+    }
+
+    #[test]
+    fn linked_alias_use_count_bump() {
+        let data = aliased_individual();
+        assert_eq!(data.xrefs.use_count("@I2@"), 1);
+    }
+
+    #[test]
+    fn remove_linked_alias_errs() {
+        let mut data = aliased_individual();
+        let h = match data.xrefs.handle("@I2@") {
+            Some(AnyHandle::Individual(h)) => h,
+            _ => panic!("expected an individual handle"),
+        };
+        assert!(data.remove_individual(h).is_err());
+    }
+
+    #[test]
+    fn unlink_alias() {
+        let mut data = aliased_individual();
+        data.unlink_individual_and_alias("@I1@", "@I2@").unwrap();
+        assert_eq!(data.xrefs.use_count("@I2@"), 0);
     }
 }

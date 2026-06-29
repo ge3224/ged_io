@@ -1,6 +1,6 @@
 use crate::{
     parser::{parse_subset, Parser},
-    tokenizer::{Token, Tokenizer},
+    tokenizer::Tokenizer,
     types::{
         address::Address, custom::UserDefinedTag, date::change_date::ChangeDate,
         multimedia::link::Link, note::Note, Xref,
@@ -115,15 +115,10 @@ impl Parser for Submitter {
         tokenizer.next_token()?;
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
-            let mut pointer: Option<String> = None;
-            if let Token::Pointer(xref) = &tokenizer.current_token {
-                pointer = Some(xref.to_string());
-                tokenizer.next_token()?;
-            }
             match tag {
                 "NAME" => self.name = Some(tokenizer.take_line_value()?),
                 "ADDR" => self.address = Some(Address::new(tokenizer, level + 1)?),
-                "OBJE" => self.add_multimedia(Link::new(tokenizer, level + 1, pointer)?),
+                "OBJE" => self.add_multimedia(Link::new(tokenizer, level + 1)?),
                 "LANG" => self.language = Some(tokenizer.take_line_value()?),
                 "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
                 "CHAN" => self.change_date = Some(ChangeDate::new(tokenizer, level + 1)?),

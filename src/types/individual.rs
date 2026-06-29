@@ -370,7 +370,7 @@ impl Parser for Individual {
                 "SOUR" => {
                     self.add_source_citation(Citation::new(tokenizer, level + 1)?);
                 }
-                "OBJE" => self.add_multimedia_link(Link::new(tokenizer, level + 1, None)?),
+                "OBJE" => self.add_multimedia_link(Link::new(tokenizer, level + 1)?),
                 "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
                 "NO" => self.non_events.push(NonEvent::new(tokenizer, level + 1)?),
                 // LDS Ordinances (INIL is GEDCOM 7.0 only)
@@ -479,7 +479,7 @@ impl BlockingReference for IndividualReference {}
 #[cfg(test)]
 mod tests {
     use super::Individual;
-    use crate::Gedcom;
+    use crate::{types::source::citation::CitationSource, Gedcom};
 
     #[test]
     fn test_new_assigns_unique_id() {
@@ -548,7 +548,10 @@ mod tests {
             sex.fact.as_ref().unwrap(),
             "A fact about an individual's gender"
         );
-        assert_eq!(sex.sources[0].xref, "@CITATION1@");
+        let CitationSource::Record(xref) = &sex.sources[0].source else {
+            panic!("expected a Record citation");
+        };
+        assert_eq!(xref, "@CITATION1@");
         assert_eq!(sex.sources[0].page.as_ref().unwrap(), "Page: 132");
     }
 

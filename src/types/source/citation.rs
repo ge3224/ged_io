@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     parser::{parse_subset, Parser},
-    tokenizer::{Token, Tokenizer},
+    tokenizer::Tokenizer,
     types::{
         custom::UserDefinedTag,
         multimedia::link::Link,
@@ -13,6 +13,7 @@ use crate::{
         source::{citation::data::SourceCitationData, quay::CertaintyAssessment},
         Xref,
     },
+    util::is_pointer_use,
     GedcomError,
 };
 
@@ -21,8 +22,7 @@ use crate::{
 #[derive(Debug, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Citation {
-    /// Reference to the `Source`
-    pub xref: Xref,
+    pub source: CitationSource,
     /// Page number of source
     pub page: Option<String>,
     pub data: Option<SourceCitationData>,
@@ -49,8 +49,17 @@ impl Citation {
     ///
     /// This function will return an error if parsing fails.
     pub fn new(tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<Citation, GedcomError> {
+        let raw = tokenizer.take_continued_text(level)?;
+        let source = if raw == "@VOID@" {
+            CitationSource::Void
+        } else if is_pointer_use(&raw) {
+            CitationSource::Record(raw)
+        } else {
+            CitationSource::Description(raw)
+        };
+
         let mut citation = Citation {
-            xref: tokenizer.take_line_value()?,
+            source,
             page: None,
             data: None,
             note: None,
@@ -65,6 +74,21 @@ impl Citation {
         Ok(citation)
     }
 
+    pub(crate) fn with_source(xref: Xref) -> Self {
+        Citation {
+            source: CitationSource::Record(xref),
+            page: None,
+            data: None,
+            note: None,
+            certainty_assessment: None,
+            multimedia: Vec::new(),
+            custom_data: Vec::new(),
+            submitter_registered_rfn: None,
+            event_type: None,
+            role: None,
+        }
+    }
+
     pub fn add_multimedia(&mut self, m: Link) {
         self.multimedia.push(m);
     }
@@ -76,11 +100,6 @@ impl Parser for Citation {
         // at the next Level token after Citation::new() called take_line_value()
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
-            let mut pointer: Option<String> = None;
-            if let Token::Pointer(xref) = &tokenizer.current_token {
-                pointer = Some(xref.to_string());
-                tokenizer.next_token()?;
-            }
             match tag {
                 "PAGE" => self.page = Some(tokenizer.take_continued_text(level + 1)?),
                 "DATA" => self.data = Some(SourceCitationData::new(tokenizer, level + 1)?),
@@ -90,7 +109,7 @@ impl Parser for Citation {
                         Some(CertaintyAssessment::new(tokenizer, level + 1)?);
                 }
                 "RFN" => self.submitter_registered_rfn = Some(tokenizer.take_line_value()?),
-                "OBJE" => self.add_multimedia(Link::new(tokenizer, level + 1, pointer)?),
+                "OBJE" => self.add_multimedia(Link::new(tokenizer, level + 1)?),
                 "EVEN" => {
                     self.event_type = Some(tokenizer.take_line_value()?);
                     // Parse ROLE if it's a substructure of EVEN
@@ -110,6 +129,20 @@ impl Parser for Citation {
 
         Ok(())
     }
+}
+
+/// Distinguishes the forms a source citation can take across supported GEDCOM
+/// versions — some allow a pointer or inline text, others require a pointer and
+/// reserve a placeholder for when none applies.
+#[derive(Debug, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+pub enum CitationSource {
+    /// A reference to a source record elsewhere in the dataset.
+    Record(Xref),
+    /// A reserved placeholder, used when no source record applies.
+    Void,
+    /// A source description carried inline, with no record to reference.
+    Description(String),
 }
 
 #[cfg(test)]
@@ -141,7 +174,6 @@ mod tests {
         let birt = &indi.events[0];
         let sour = &birt.citations[0];
 
-        assert_eq!(sour.xref, "@S1@");
         assert_eq!(sour.page.as_ref().unwrap(), "Page 42");
         assert_eq!(sour.event_type.as_ref().unwrap(), "BIRT");
         assert_eq!(sour.role.as_ref().unwrap(), "CHIL");
