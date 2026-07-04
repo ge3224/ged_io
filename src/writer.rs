@@ -1221,12 +1221,14 @@ impl GedcomWriter {
                     self.write_line(writer, level, tag, Some(line))?;
                 } else {
                     // Need to split with CONC
-                    let first_part = &line[..self.config.max_line_length];
+                    let split_at = utf8_boundary_before(line, self.config.max_line_length);
+                    let first_part = &line[..split_at];
                     self.write_line(writer, level, tag, Some(first_part))?;
 
-                    let mut remaining = &line[self.config.max_line_length..];
+                    let mut remaining = &line[split_at..];
                     while !remaining.is_empty() {
-                        let chunk_len = std::cmp::min(remaining.len(), self.config.max_line_length);
+                        let chunk_len =
+                            utf8_boundary_before(remaining, self.config.max_line_length);
                         let chunk = &remaining[..chunk_len];
                         self.write_line(writer, level + 1, "CONC", Some(chunk))?;
                         remaining = &remaining[chunk_len..];
@@ -1238,12 +1240,14 @@ impl GedcomWriter {
                     self.write_line(writer, level + 1, "CONT", line_value)?;
                 } else {
                     // Split with CONT first, then CONC
-                    let first_part = &line[..self.config.max_line_length];
+                    let split_at = utf8_boundary_before(line, self.config.max_line_length);
+                    let first_part = &line[..split_at];
                     self.write_line(writer, level + 1, "CONT", Some(first_part))?;
 
-                    let mut remaining = &line[self.config.max_line_length..];
+                    let mut remaining = &line[split_at..];
                     while !remaining.is_empty() {
-                        let chunk_len = std::cmp::min(remaining.len(), self.config.max_line_length);
+                        let chunk_len =
+                            utf8_boundary_before(remaining, self.config.max_line_length);
                         let chunk = &remaining[..chunk_len];
                         self.write_line(writer, level + 1, "CONC", Some(chunk))?;
                         remaining = &remaining[chunk_len..];
@@ -1259,6 +1263,18 @@ impl GedcomWriter {
 /// Converts a `std::fmt::Error` to an `io::Error`.
 fn io_error(_: std::fmt::Error) -> io::Error {
     io::Error::other("formatting error")
+}
+
+fn utf8_boundary_before(value: &str, max_bytes: usize) -> usize {
+    let mut end = max_bytes.min(value.len());
+    while end > 0 && !value.is_char_boundary(end) {
+        end -= 1;
+    }
+    if end == 0 {
+        value.chars().next().map_or(0, char::len_utf8)
+    } else {
+        end
+    }
 }
 
 // =============================================================================
@@ -1455,6 +1471,19 @@ mod tests {
         assert_eq!(data.individuals.len(), data2.individuals.len());
         assert_eq!(data.individuals[0].xref, data2.individuals[0].xref);
         assert_eq!(data.individuals[0].name, data2.individuals[0].name);
+    }
+
+    #[test]
+    fn test_write_long_utf8_text_splits_on_char_boundary() {
+        let note = format!("{}é continued", "a".repeat(254));
+        let source = format!("0 HEAD\n1 GEDC\n2 VERS 5.5\n0 @I1@ INDI\n1 NOTE {note}\n0 TRLR");
+        let data = GedcomBuilder::new().build_from_str(&source).unwrap();
+
+        let writer = GedcomWriter::new();
+        let output = writer.write_to_string(&data).unwrap();
+
+        assert!(output.contains("1 NOTE"));
+        assert!(output.contains("2 CONC é continued"));
     }
 
     #[test]
