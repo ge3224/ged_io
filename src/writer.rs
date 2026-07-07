@@ -872,7 +872,7 @@ impl GedcomWriter {
         level: u8,
         citation: &Citation,
     ) -> Result<(), io::Error> {
-        self.write_line(writer, level, "SOUR", Some(&citation.xref))?;
+        self.write_line(writer, level, "SOUR", Some(citation.source.value()))?;
 
         if let Some(ref page) = citation.page {
             self.write_value_or_wrap(writer, level + 1, "PAGE", Some(page))?;

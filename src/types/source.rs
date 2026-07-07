@@ -183,7 +183,10 @@ mod tests {
         let mut ged = Gedcom::new(sample.chars()).unwrap();
         let data = ged.parse_data().unwrap();
 
-        assert_eq!(data.individuals[0].source[0].xref, "@SOURCE1@");
+        assert_eq!(
+            data.individuals[0].source[0].source.as_xref(),
+            Some("@SOURCE1@")
+        );
         assert_eq!(data.individuals[0].source[0].page.as_ref().unwrap(), "42");
     }
     #[test]
