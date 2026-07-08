@@ -92,6 +92,16 @@ impl Citation {
     pub fn add_multimedia(&mut self, m: Link) {
         self.multimedia.push(m);
     }
+
+    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
+        if let CitationSource::Record(xref) = &self.source {
+            sink(xref);
+        }
+
+        for link in &self.multimedia {
+            link.outbound_refs(sink);
+        }
+    }
 }
 
 impl Parser for Citation {

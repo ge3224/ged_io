@@ -68,6 +68,7 @@ use crate::{
 /// - `shared_notes` are only present in GEDCOM 7.0 files
 #[derive(Debug, Default)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", serde(try_from = "GedcomDataDe"))]
 pub struct GedcomData {
     /// Global cross-reference registry: every `@…@` identifier in the file,
     /// keyed in one shared namespace. Each entry records what the xref resolves
@@ -79,48 +80,23 @@ pub struct GedcomData {
     /// Header containing file metadata
     pub header: Option<Header>,
 
-    // FIXME(json): Arena<T> needs a real Serialize/Deserialize that emits the
-    // Occupied values in order; until then JSON output drops individuals when
-    // the feature is enabled.
-    #[cfg_attr(feature = "json", serde(skip))]
     pub(crate) submitters: Arena<Submitter>,
 
-    // FIXME(json): Arena<T> needs a real Serialize/Deserialize that emits the
-    // Occupied values in order; until then JSON output drops individuals when
-    // the feature is enabled.
     /// List of submission records (GEDCOM 5.5.1 only)
-    #[cfg_attr(feature = "json", serde(skip))]
     pub(crate) submissions: Arena<Submission>,
 
-    // FIXME(json): Arena<T> needs a real Serialize/Deserialize that emits the
-    // Occupied values in order; until then JSON output drops individuals when
-    // the feature is enabled.
-    #[cfg_attr(feature = "json", serde(skip))]
     pub(crate) individuals: Arena<Individual>,
 
     /// The family units of the tree, representing relationships between individuals
-    // FIXME(json): Arena<T> needs a real Serialize/Deserialize that emits the
-    // Occupied values in order; until then JSON output drops individuals when
-    // the feature is enabled.
-    #[cfg_attr(feature = "json", serde(skip))]
     pub(crate) families: Arena<Family>,
 
     /// A data repository where `sources` are held
-    #[cfg_attr(feature = "json", serde(skip))]
     pub(crate) repositories: Arena<Repository>,
 
     /// Sources of facts. _ie._ book, document, census, etc.
-    // FIXME(json): Arena<T> needs a real Serialize/Deserialize that emits the
-    // Occupied values in order; until then JSON output drops individuals when
-    // the feature is enabled.
-    #[cfg_attr(feature = "json", serde(skip))]
     pub(crate) sources: Arena<Source>,
 
     /// A multimedia asset linked to a fact
-    // FIXME(json): Arena<T> needs a real Serialize/Deserialize that emits the
-    // Occupied values in order; until then JSON output drops individuals when
-    // the feature is enabled.
-    #[cfg_attr(feature = "json", serde(skip))]
     pub(crate) multimedia: Arena<Multimedia>,
 
     /// Shared notes that can be referenced by multiple structures (GEDCOM 7.0 only)
@@ -128,20 +104,12 @@ pub struct GedcomData {
     /// A shared note record may be pointed to by multiple other structures.
     /// Shared notes should only be used if editing the note in one place
     /// should edit it in all other places.
-    // FIXME(json): Arena<T> needs a real Serialize/Deserialize that emits the
-    // Occupied values in order; until then JSON output drops individuals when
-    // the feature is enabled.
-    #[cfg_attr(feature = "json", serde(skip))]
     pub(crate) shared_notes: Arena<SharedNote>,
 
     /// Applications requiring the use of nonstandard tags should define them with a leading underscore
     /// so that they will not conflict with future GEDCOM standard tags. Systems that read
     /// user-defined tags must consider that they have meaning only with respect to a system
     /// contained in the HEAD.SOUR context.
-    // FIXME(json): Arena<T> needs a real Serialize/Deserialize that emits the
-    // Occupied values in order; until then JSON output drops individuals when
-    // the feature is enabled.
-    #[cfg_attr(feature = "json", serde(skip))]
     pub(crate) user_defined_tags: Arena<UserDefinedTag>,
 }
 
@@ -2197,7 +2165,7 @@ impl GedcomData {
 
             // Citations on name
             if let Some(ref name) = individual.name {
-                stats.on_names += name.source.len();
+                stats.on_names += name.sources.len();
             }
 
             // Citations on gender
@@ -2454,6 +2422,90 @@ impl GedcomData {
         // Default to 5.5.1 if no version specified
         !self.is_gedcom_7()
     }
+
+    pub(crate) fn relink(&mut self) -> Result<(), GedcomError> {
+        // Pass 1
+
+        for (h, rec) in self.submitters.iter_handles() {
+            self.xrefs
+                .register(rec.xref.clone(), AnyHandle::Submitter(h))?;
+        }
+
+        for (h, rec) in self.submissions.iter_handles() {
+            self.xrefs
+                .register(rec.xref.clone(), AnyHandle::Submission(h))?;
+        }
+
+        for (h, rec) in self.individuals.iter_handles() {
+            self.xrefs
+                .register(rec.xref.clone(), AnyHandle::Individual(h))?;
+        }
+
+        for (h, rec) in self.families.iter_handles() {
+            self.xrefs
+                .register(rec.xref.clone(), AnyHandle::Family(h))?;
+        }
+
+        for (h, rec) in self.repositories.iter_handles() {
+            self.xrefs
+                .register(rec.xref.clone(), AnyHandle::Repository(h))?;
+        }
+
+        for (h, rec) in self.sources.iter_handles() {
+            self.xrefs
+                .register(rec.xref.clone(), AnyHandle::Source(h))?;
+        }
+
+        for (h, rec) in self.multimedia.iter_handles() {
+            self.xrefs
+                .register(rec.xref.clone(), AnyHandle::Multimedia(h))?;
+        }
+
+        for (h, rec) in self.shared_notes.iter_handles() {
+            self.xrefs
+                .register(rec.xref.clone(), AnyHandle::SharedNote(h))?;
+        }
+
+        // Pass 2
+
+        for (_, rec) in self.submitters.iter_handles() {
+            rec.outbound_refs(&mut |x| self.xrefs.add_uses(x, 1));
+        }
+
+        for (_, rec) in self.submissions.iter_handles() {
+            rec.outbound_refs(&mut |x| self.xrefs.add_uses(x, 1));
+        }
+
+        for (_, rec) in self.individuals.iter_handles() {
+            rec.outbound_refs(&mut |x| self.xrefs.add_uses(x, 1));
+        }
+
+        for (_, rec) in self.families.iter_handles() {
+            rec.outbound_refs(&mut |x| self.xrefs.add_uses(x, 1));
+        }
+
+        for (_, rec) in self.repositories.iter_handles() {
+            rec.outbound_refs(&mut |x| self.xrefs.add_uses(x, 1));
+        }
+
+        for (_, rec) in self.sources.iter_handles() {
+            rec.outbound_refs(&mut |x| self.xrefs.add_uses(x, 1));
+        }
+
+        for (_, rec) in self.multimedia.iter_handles() {
+            rec.outbound_refs(&mut |x| self.xrefs.add_uses(x, 1));
+        }
+
+        for (_, rec) in self.shared_notes.iter_handles() {
+            rec.outbound_refs(&mut |x| self.xrefs.add_uses(x, 1));
+        }
+
+        for (_, rec) in self.user_defined_tags.iter_handles() {
+            rec.outbound_refs(&mut |x| self.xrefs.add_uses(x, 1));
+        }
+
+        Ok(())
+    }
 }
 
 impl PartialEq for GedcomData {
@@ -2498,6 +2550,42 @@ pub struct SourceCitationStats {
     pub on_names: usize,
     /// Citations on other structures (places, LDS ordinances, etc.).
     pub on_other: usize,
+}
+
+#[cfg_attr(feature = "json", derive(Deserialize))]
+#[cfg_attr(feature = "json", serde(crate = "serde"))]
+struct GedcomDataDe {
+    header: Option<Header>,
+    submitters: Arena<Submitter>,
+    submissions: Arena<Submission>,
+    individuals: Arena<Individual>,
+    families: Arena<Family>,
+    repositories: Arena<Repository>,
+    sources: Arena<Source>,
+    multimedia: Arena<Multimedia>,
+    shared_notes: Arena<SharedNote>,
+    user_defined_tags: Arena<UserDefinedTag>,
+}
+
+impl TryFrom<GedcomDataDe> for GedcomData {
+    type Error = GedcomError;
+    fn try_from(de: GedcomDataDe) -> Result<Self, GedcomError> {
+        let mut data = GedcomData {
+            xrefs: Xrefs::default(),
+            header: de.header,
+            submitters: de.submitters,
+            submissions: de.submissions,
+            individuals: de.individuals,
+            families: de.families,
+            repositories: de.repositories,
+            sources: de.sources,
+            multimedia: de.multimedia,
+            shared_notes: de.shared_notes,
+            user_defined_tags: de.user_defined_tags,
+        };
+        data.relink()?;
+        Ok(data)
+    }
 }
 
 #[cfg(test)]

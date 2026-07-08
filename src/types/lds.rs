@@ -27,6 +27,7 @@ use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{date::Date, note::Note, source::citation::Citation},
+    util::is_real_reference,
     GedcomError,
 };
 
@@ -313,6 +314,18 @@ impl LdsOrdinance {
         self.ordinance_type
             .as_ref()
             .is_some_and(LdsOrdinanceType::is_gedcom_7_only)
+    }
+
+    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
+        for c in &self.source_citations {
+            c.outbound_refs(sink);
+        }
+
+        if let Some(xref) = &self.family_xref {
+            if is_real_reference(xref) {
+                sink(xref);
+            }
+        }
     }
 }
 

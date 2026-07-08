@@ -2,8 +2,12 @@ use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{
-        address::Address, custom::UserDefinedTag, date::change_date::ChangeDate,
-        multimedia::link::Link, note::Note, Xref,
+        address::Address,
+        custom::UserDefinedTag,
+        date::change_date::ChangeDate,
+        multimedia::link::{Link, LinkTarget},
+        note::Note,
+        Xref,
     },
     GedcomError,
 };
@@ -105,6 +109,14 @@ impl Submitter {
     /// Adds a `Multimedia` to the tree
     pub fn add_multimedia(&mut self, multimedia: Link) {
         self.multimedia.push(multimedia);
+    }
+
+    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
+        for link in &self.multimedia {
+            if let LinkTarget::Record(xref) = &link.link {
+                sink(xref);
+            }
+        }
     }
 }
 

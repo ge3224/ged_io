@@ -73,6 +73,12 @@ impl Multimedia {
         obje.parse(tokenizer, level)?;
         Ok(obje)
     }
+
+    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
+        if let Some(sc) = &self.source_citation {
+            sc.outbound_refs(sink);
+        }
+    }
 }
 
 impl Parser for Multimedia {

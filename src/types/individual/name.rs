@@ -205,7 +205,7 @@ pub struct Name {
     pub nickname: Option<String>,
 
     /// Source citations for this name.
-    pub source: Vec<Citation>,
+    pub sources: Vec<Citation>,
 
     /// The type of name (tag: TYPE).
     ///
@@ -251,7 +251,7 @@ impl Name {
     }
 
     pub fn add_source_citation(&mut self, sour: Citation) {
-        self.source.push(sour);
+        self.sources.push(sour);
     }
 
     /// Adds a phonetic variation of the name.
@@ -299,6 +299,12 @@ impl Name {
         let surname = &value[start + 1..end];
         if !surname.is_empty() {
             self.surname = Some(surname.to_string());
+        }
+    }
+
+    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
+        for s in &self.sources {
+            s.outbound_refs(sink);
         }
     }
 }

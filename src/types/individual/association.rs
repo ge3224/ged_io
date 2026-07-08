@@ -59,6 +59,12 @@ impl Association {
             custom_data: Vec::new(),
         }
     }
+
+    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
+        if let AssociationTarget::Record(xref) = &self.target {
+            sink(xref);
+        }
+    }
 }
 
 impl Parser for Association {

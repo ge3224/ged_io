@@ -105,6 +105,18 @@ impl Source {
     pub fn add_repo_citation(&mut self, citation: Citation) {
         self.repo_citations.push(citation);
     }
+
+    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
+        for c in &self.repo_citations {
+            c.outbound_refs(sink);
+        }
+
+        for m in &self.multimedia {
+            m.outbound_refs(sink);
+        }
+
+        self.data.outbound_refs(sink);
+    }
 }
 
 impl Parser for Source {

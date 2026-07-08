@@ -14,7 +14,7 @@
 use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
-    types::{date::Date, note::Note},
+    types::{date::Date, note::Note, source::citation::Citation},
     GedcomError,
 };
 
@@ -316,7 +316,7 @@ pub struct NonEvent {
     pub note: Option<Note>,
 
     /// Source citations supporting the claim that the event did not occur.
-    pub source_citations: Vec<crate::types::source::citation::Citation>,
+    pub source_citations: Vec<Citation>,
 }
 
 impl NonEvent {
@@ -359,6 +359,12 @@ impl NonEvent {
             _ => &self.event_type,
         }
     }
+
+    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
+        for c in &self.source_citations {
+            c.outbound_refs(sink);
+        }
+    }
 }
 
 impl Parser for NonEvent {
@@ -372,10 +378,7 @@ impl Parser for NonEvent {
                 "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
                 "SOUR" => {
                     self.source_citations
-                        .push(crate::types::source::citation::Citation::new(
-                            tokenizer,
-                            level + 1,
-                        )?);
+                        .push(Citation::new(tokenizer, level + 1)?);
                 }
                 _ => {
                     // Gracefully skip unknown tags

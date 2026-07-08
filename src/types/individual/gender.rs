@@ -62,6 +62,12 @@ impl Gender {
     pub fn add_source_citation(&mut self, sour: Citation) {
         self.sources.push(sour);
     }
+
+    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
+        for s in &self.sources {
+            s.outbound_refs(sink);
+        }
+    }
 }
 
 impl Parser for Gender {

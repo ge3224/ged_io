@@ -446,7 +446,7 @@ impl GedcomWriter {
         }
 
         // Source citations for name
-        for citation in &name.source {
+        for citation in &name.sources {
             self.write_citation(writer, 2, citation)?;
         }
 

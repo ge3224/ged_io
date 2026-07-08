@@ -1,5 +1,6 @@
 use crate::{
     tokenizer::{Token, TokenizerTrait},
+    util::is_real_reference,
     GedcomError,
 };
 #[cfg(feature = "json")]
@@ -101,6 +102,14 @@ impl UserDefinedTag {
             }
         }
         Ok(out)
+    }
+
+    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
+        if let Some(v) = &self.value {
+            if is_real_reference(v) {
+                sink(v);
+            }
+        }
     }
 }
 

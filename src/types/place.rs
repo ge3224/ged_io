@@ -71,6 +71,14 @@ pub struct Place {
     pub custom_data: Vec<Box<UserDefinedTag>>,
 }
 
+impl Place {
+    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
+        for c in &self.citations {
+            c.outbound_refs(sink);
+        }
+    }
+}
+
 /// Geographic coordinates for a place.
 ///
 /// The MAP structure contains latitude and longitude coordinates

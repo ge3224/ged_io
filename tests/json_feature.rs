@@ -19,11 +19,10 @@ mod json_feature_tests {
         // Deserialize back
         let deserialized: ged_io::types::GedcomData = serde_json::from_str(&json).unwrap();
 
-        // FIXME(json): Arena<T> needs a real Serialize/Deserialize impl;
-        // currently #[serde(skip)] drops all records on roundtrip.
-        // Once resolved, check count_individual() > 0 on the deserialized side.
-        assert!(deserialized.count_individual() == 0);
-        assert!(deserialized.count_family() == 0);
+        // Arenas serialize and GedcomData::try_from relinks on load, so the
+        // record counts survive a JSON round-trip.
+        assert_eq!(deserialized.count_individual(), data.count_individual());
+        assert_eq!(deserialized.count_family(), data.count_family());
     }
 
     #[test]
@@ -58,11 +57,11 @@ mod json_feature_tests {
         assert!(individuals_json.contains("1 JAN 1899"));
         assert!(individuals_json.contains("birth place"));
 
-        // FIXME(json): Arena<T> needs a real Serialize/Deserialize impl;
-        // currently #[serde(skip)] drops all records on roundtrip.
+        // Arenas serialize and GedcomData::try_from relinks on load, so the
+        // record counts survive a JSON round-trip.
         let deserialized: ged_io::types::GedcomData =
             serde_json::from_str(&serde_json::to_string(&data).unwrap()).unwrap();
-        assert!(deserialized.count_individual() == 0);
-        assert!(deserialized.count_family() == 0);
+        assert_eq!(deserialized.count_individual(), data.count_individual());
+        assert_eq!(deserialized.count_family(), data.count_family());
     }
 }

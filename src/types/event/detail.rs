@@ -156,6 +156,24 @@ impl Detail {
     pub fn get_citations(&self) -> &[Citation] {
         &self.citations
     }
+
+    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
+        for c in &self.citations {
+            c.outbound_refs(sink);
+        }
+        for l in &self.multimedia {
+            l.outbound_refs(sink);
+        }
+        for a in &self.associations {
+            a.outbound_refs(sink);
+        }
+        if let Some(fl) = &self.family_link {
+            fl.outbound_refs(sink);
+        }
+        if let Some(p) = &self.place {
+            p.outbound_refs(sink);
+        }
+    }
 }
 
 impl std::fmt::Debug for Detail {

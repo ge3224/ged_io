@@ -15,4 +15,10 @@ impl Data {
     pub fn add_event(&mut self, event: Detail) {
         self.events.push(event);
     }
+
+    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
+        for e in &self.events {
+            e.outbound_refs(sink);
+        }
+    }
 }

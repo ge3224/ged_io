@@ -16,6 +16,7 @@ use crate::{
         note::Note,
         Xref,
     },
+    util::is_real_reference,
     GedcomError,
 };
 
@@ -158,6 +159,12 @@ impl FamilyLink {
     #[must_use]
     pub fn child_linkage_status(&self) -> Option<&ChildLinkStatus> {
         self.child_linkage_status.as_ref()
+    }
+
+    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
+        if is_real_reference(&self.xref) {
+            sink(&self.xref);
+        }
     }
 }
 

@@ -160,6 +160,9 @@ impl Repository {
             || !self.fax.is_empty()
             || !self.website.is_empty()
     }
+
+    #[allow(clippy::unused_self)]
+    pub(crate) fn outbound_refs(&self, _sink: &mut impl FnMut(&str)) {}
 }
 
 impl Parser for Repository {
