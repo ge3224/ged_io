@@ -412,6 +412,10 @@ impl GedcomWriter {
     fn write_name<W: Write>(&self, writer: &mut W, name: &Name) -> Result<(), io::Error> {
         self.write_value_or_wrap(writer, 1, "NAME", name.value.as_deref())?;
 
+        if let Some(ref name_type) = name.name_type {
+            self.write_value_or_wrap(writer, 2, "TYPE", Some(name_type.as_str()))?;
+        }
+
         if let Some(ref given) = name.given {
             self.write_value_or_wrap(writer, 2, "GIVN", Some(given))?;
         }
@@ -1487,6 +1491,18 @@ mod tests {
         let output = writer.write_to_string(&data).unwrap();
 
         assert!(output.contains("2 NICK Johnny"));
+    }
+
+    #[test]
+    fn test_write_name_type() {
+        let source =
+            "0 HEAD\n1 GEDC\n2 VERS 5.5\n0 @I1@ INDI\n1 NAME John /Doe/\n2 TYPE MARRIED\n0 TRLR";
+        let data = GedcomBuilder::new().build_from_str(source).unwrap();
+
+        let writer = GedcomWriter::new();
+        let output = writer.write_to_string(&data).unwrap();
+
+        assert!(output.contains("2 TYPE MARRIED"));
     }
 
     #[test]
