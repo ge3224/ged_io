@@ -416,6 +416,10 @@ impl GedcomWriter {
             self.write_value_or_wrap(writer, 2, "GIVN", Some(given))?;
         }
 
+        if let Some(ref nickname) = name.nickname {
+            self.write_value_or_wrap(writer, 2, "NICK", Some(nickname))?;
+        }
+
         if let Some(ref surname) = name.surname {
             self.write_value_or_wrap(writer, 2, "SURN", Some(surname))?;
         }
@@ -1471,6 +1475,18 @@ mod tests {
         assert_eq!(data.individuals.len(), data2.individuals.len());
         assert_eq!(data.individuals[0].xref, data2.individuals[0].xref);
         assert_eq!(data.individuals[0].name, data2.individuals[0].name);
+    }
+
+    #[test]
+    fn test_write_name_nickname() {
+        let source =
+            "0 HEAD\n1 GEDC\n2 VERS 5.5\n0 @I1@ INDI\n1 NAME John /Doe/\n2 NICK Johnny\n0 TRLR";
+        let data = GedcomBuilder::new().build_from_str(source).unwrap();
+
+        let writer = GedcomWriter::new();
+        let output = writer.write_to_string(&data).unwrap();
+
+        assert!(output.contains("2 NICK Johnny"));
     }
 
     #[test]
