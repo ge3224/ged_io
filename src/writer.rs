@@ -28,7 +28,9 @@ use crate::types::{
     gedcom7::{NonEvent, SortDate},
     header::{meta::HeadMeta, schema::Schema, source::HeadSour},
     individual::{
+        association::Association,
         attribute::detail::AttributeDetail,
+        family_link::FamilyLink,
         gender::{Gender, GenderType},
         name::Name,
         Individual,
@@ -386,6 +388,7 @@ impl GedcomWriter {
         for family_link in &individual.families {
             let tag = family_link.family_link_type.to_tag();
             self.write_line(writer, 1, tag, Some(&family_link.xref))?;
+            self.write_family_link_detail(writer, 2, family_link)?;
         }
 
         for citation in &individual.source {
@@ -580,6 +583,77 @@ impl GedcomWriter {
                     self.write_value_or_wrap(writer, level + 3, "PHRASE", Some(phrase))?;
                 }
             }
+        }
+
+        // Adoptive/foster family link, e.g. `1 ADOP` / `2 FAMC @F1@` / `3 ADOP HUSB`.
+        if let Some(ref family_link) = event.family_link {
+            let tag = family_link.family_link_type.to_tag();
+            self.write_line(writer, level + 1, tag, Some(&family_link.xref))?;
+            self.write_family_link_detail(writer, level + 2, family_link)?;
+        }
+
+        // Associations (witnesses, godparents, ...), e.g. `1 ASSO @I2@` / `2 RELA Godmother`.
+        for association in &event.associations {
+            self.write_association(writer, level + 1, association)?;
+        }
+
+        Ok(())
+    }
+
+    /// Writes a family link's `PEDI`/`ADOP`/`NOTE` substructures (shared by
+    /// the individual's own `FAMC`/`FAMS` back-links and an event's nested
+    /// adoptive-family `FAMC`, e.g. under `ADOP`).
+    fn write_family_link_detail<W: Write>(
+        &self,
+        writer: &mut W,
+        level: u8,
+        family_link: &FamilyLink,
+    ) -> Result<(), io::Error> {
+        if let Some(ref pedigree) = family_link.pedigree_linkage_type {
+            self.write_value_or_wrap(writer, level, "PEDI", Some(pedigree_to_tag(pedigree)))?;
+        }
+
+        if let Some(ref status) = family_link.child_linkage_status {
+            self.write_value_or_wrap(
+                writer,
+                level,
+                "STAT",
+                Some(child_linkage_status_to_tag(status)),
+            )?;
+        }
+
+        if let Some(ref adopted_by) = family_link.adopted_by {
+            self.write_value_or_wrap(writer, level, "ADOP", Some(adopted_by_to_tag(adopted_by)))?;
+        }
+
+        if let Some(ref note) = family_link.note {
+            self.write_note(writer, level, note)?;
+        }
+
+        Ok(())
+    }
+
+    /// Writes an association (tag: `ASSO`) — a pointer to an individual with
+    /// whom this individual/event has some relationship not covered by other
+    /// standard tags (e.g. a witness or godparent).
+    fn write_association<W: Write>(
+        &self,
+        writer: &mut W,
+        level: u8,
+        association: &Association,
+    ) -> Result<(), io::Error> {
+        self.write_line(writer, level, "ASSO", Some(&association.xref))?;
+
+        if let Some(ref relationship) = association.relationship {
+            self.write_value_or_wrap(writer, level + 1, "RELA", Some(relationship))?;
+        }
+
+        if let Some(ref association_type) = association.association_type {
+            self.write_value_or_wrap(writer, level + 1, "TYPE", Some(association_type))?;
+        }
+
+        if let Some(ref note) = association.note {
+            self.write_note(writer, level + 1, note)?;
         }
 
         Ok(())
@@ -1366,6 +1440,43 @@ fn certainty_to_gedcom_value(certainty: &CertaintyAssessment) -> Option<&'static
     }
 }
 
+/// Converts a `PEDI` pedigree code to its GEDCOM 5.5.1 value.
+fn pedigree_to_tag(
+    pedigree: &crate::types::individual::family_link::pedigree::Pedigree,
+) -> &'static str {
+    use crate::types::individual::family_link::pedigree::Pedigree;
+    match pedigree {
+        Pedigree::Adopted => "adopted",
+        Pedigree::Birth => "birth",
+        Pedigree::Foster => "foster",
+        Pedigree::Sealing => "sealing",
+    }
+}
+
+/// Converts a `FAMC.STAT` child linkage status to its GEDCOM 5.5.1 value.
+fn child_linkage_status_to_tag(
+    status: &crate::types::individual::family_link::child_link::ChildLinkStatus,
+) -> &'static str {
+    use crate::types::individual::family_link::child_link::ChildLinkStatus;
+    match status {
+        ChildLinkStatus::Challenged => "challenged",
+        ChildLinkStatus::Disproven => "disproven",
+        ChildLinkStatus::Proven => "proven",
+    }
+}
+
+/// Converts an `ADOP` (adopted-by-which-parent) code to its GEDCOM 5.5.1 value.
+fn adopted_by_to_tag(
+    adopted_by: &crate::types::individual::family_link::adopted::AdoptedByWhichParent,
+) -> &'static str {
+    use crate::types::individual::family_link::adopted::AdoptedByWhichParent;
+    match adopted_by {
+        AdoptedByWhichParent::Husband => "HUSB",
+        AdoptedByWhichParent::Wife => "WIFE",
+        AdoptedByWhichParent::Both => "BOTH",
+    }
+}
+
 // =============================================================================
 // Helper trait implementation for family link type
 // =============================================================================
@@ -1505,6 +1616,48 @@ mod tests {
         let output = writer.write_to_string(&data).unwrap();
 
         assert!(output.contains("2 TYPE MARRIED"));
+    }
+
+    #[test]
+    fn test_write_family_link_pedigree_and_adopted_by() {
+        let source = "0 HEAD\n1 GEDC\n2 VERS 5.5\n0 @I1@ INDI\n1 FAMC @F1@\n2 PEDI adopted\n\
+                       2 ADOP HUSB\n0 TRLR";
+        let data = GedcomBuilder::new().build_from_str(source).unwrap();
+
+        let writer = GedcomWriter::new();
+        let output = writer.write_to_string(&data).unwrap();
+
+        assert!(output.contains("1 FAMC @F1@"));
+        assert!(output.contains("2 PEDI adopted"));
+        assert!(output.contains("2 ADOP HUSB"));
+    }
+
+    #[test]
+    fn test_write_adoption_event_family_link() {
+        let source = "0 HEAD\n1 GEDC\n2 VERS 5.5\n0 @I1@ INDI\n1 ADOP\n2 FAMC @F2@\n\
+                       3 ADOP WIFE\n0 TRLR";
+        let data = GedcomBuilder::new().build_from_str(source).unwrap();
+
+        let writer = GedcomWriter::new();
+        let output = writer.write_to_string(&data).unwrap();
+
+        assert!(output.contains("1 ADOP"));
+        assert!(output.contains("2 FAMC @F2@"));
+        assert!(output.contains("3 ADOP WIFE"));
+    }
+
+    #[test]
+    fn test_write_event_association() {
+        let source = "0 HEAD\n1 GEDC\n2 VERS 5.5\n0 @I1@ INDI\n1 BAPM\n2 ASSO @I2@\n\
+                       3 RELA Godmother\n0 TRLR";
+        let data = GedcomBuilder::new().build_from_str(source).unwrap();
+
+        let writer = GedcomWriter::new();
+        let output = writer.write_to_string(&data).unwrap();
+
+        assert!(output.contains("1 BAPM"));
+        assert!(output.contains("2 ASSO @I2@"));
+        assert!(output.contains("3 RELA Godmother"));
     }
 
     #[test]
