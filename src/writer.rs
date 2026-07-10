@@ -395,6 +395,15 @@ impl GedcomWriter {
             self.write_citation(writer, 1, citation)?;
         }
 
+        // Associations (witnesses, godparents, ...), e.g. `1 ASSO @I2@` /
+        // `2 RELA Witness` — must be a direct child of the INDI record per
+        // the GEDCOM 5.5.1 grammar; nesting it inside an event (as the
+        // `write_event` ASSO branch above does) is a non-standard extension
+        // most readers, including Gramps, reject.
+        for association in &individual.associations {
+            self.write_association(writer, 1, association)?;
+        }
+
         for media in &individual.multimedia {
             self.write_multimedia_link(writer, 1, media)?;
         }
