@@ -360,12 +360,10 @@ fn read_relative(path: &str) -> Result<String, std::io::Error> {
     match fs::read_to_string(&absolute_path) {
         Ok(text) => Ok(text),
         Err(_e) => {
-            use encoding_rs::mem::decode_latin1;
-
             let bytes = fs::read(&absolute_path)?;
-            let text = decode_latin1(&bytes);
+            let text: String = bytes.iter().map(|&b| b as char).collect();
 
-            Ok(text.to_string())
+            Ok(text)
         }
     }
 }
