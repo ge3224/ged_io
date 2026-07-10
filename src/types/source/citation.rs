@@ -16,13 +16,93 @@ use crate::{
     GedcomError,
 };
 
+/// What a `SOUR` line under a [`Citation`] refers to.
+///
+/// The GEDCOM 5.5.1 grammar defines `SOURCE_CITATION` as a union of two forms:
+///
+/// ```text
+/// n SOUR @<XREF:SOUR>@          {if the source is stored in a SOURCE_RECORD}
+/// n SOUR <SOURCE_DESCRIPTION>   {if the source is not stored in a SOURCE_RECORD}
+/// ```
+///
+/// Some exporters (e.g. Geneanet/GeneWeb) write a free-text description, such
+/// as a URL, instead of a pointer to a structured `Source` record. Without
+/// this distinction, callers can't tell a resolvable xref apart from a
+/// description that merely looks like one, which risks silently dropping the
+/// text when trying to resolve it as a pointer.
+#[derive(Clone, Debug, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+pub enum CitationSource {
+    /// Pointer to a structured `Source` record, e.g. `@S1@`.
+    Xref(Xref),
+    /// Free-text source description, used when there is no structured `Source` record.
+    Description(String),
+}
+
+impl CitationSource {
+    /// Classifies a raw `SOUR` line value as an xref pointer or a free-text description.
+    ///
+    /// A value is treated as a pointer only if it is wrapped in a single pair
+    /// of `@` characters with no embedded whitespace or extra `@`, matching
+    /// the GEDCOM `POINTER` grammar (e.g. `@S1@`). Anything else, including
+    /// GEDCOM 7's `@VOID@`-adjacent free text or a URL, is a description.
+    #[must_use]
+    pub fn parse(value: String) -> Self {
+        if is_xref_pointer(&value) {
+            CitationSource::Xref(value)
+        } else {
+            CitationSource::Description(value)
+        }
+    }
+
+    /// Returns the xref if this citation points to a structured `Source` record.
+    #[must_use]
+    pub fn as_xref(&self) -> Option<&str> {
+        match self {
+            CitationSource::Xref(xref) => Some(xref),
+            CitationSource::Description(_) => None,
+        }
+    }
+
+    /// Returns the free-text description, if this citation has no structured `Source` record.
+    #[must_use]
+    pub fn as_description(&self) -> Option<&str> {
+        match self {
+            CitationSource::Description(description) => Some(description),
+            CitationSource::Xref(_) => None,
+        }
+    }
+
+    /// Returns the underlying string value, regardless of variant.
+    #[must_use]
+    pub fn value(&self) -> &str {
+        match self {
+            CitationSource::Xref(value) | CitationSource::Description(value) => value,
+        }
+    }
+}
+
+/// Returns true if `value` matches the GEDCOM `POINTER` grammar: a single
+/// leading and trailing `@`, non-empty in between, with no embedded
+/// whitespace or additional `@` characters.
+fn is_xref_pointer(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    bytes.len() >= 3
+        && bytes[0] == b'@'
+        && bytes[bytes.len() - 1] == b'@'
+        && value[1..value.len() - 1]
+            .bytes()
+            .all(|b| b != b'@' && !b.is_ascii_whitespace())
+}
+
 /// The data provided in the `SourceCitation` structure is source-related information specific to
 /// the data being cited. (See GEDCOM 5.5 Specification page 39.)
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Citation {
-    /// Reference to the `Source`
-    pub xref: Xref,
+    /// What this citation refers to: a structured `Source` record (xref) or
+    /// a free-text description.
+    pub source: CitationSource,
     /// Page number of source
     pub page: Option<String>,
     pub data: Option<SourceCitationData>,
@@ -50,7 +130,7 @@ impl Citation {
     /// This function will return an error if parsing fails.
     pub fn new(tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<Citation, GedcomError> {
         let mut citation = Citation {
-            xref: tokenizer.take_line_value()?,
+            source: CitationSource::parse(tokenizer.take_line_value()?),
             page: None,
             data: None,
             note: None,
@@ -141,9 +221,38 @@ mod tests {
         let birt = &indi.events[0];
         let sour = &birt.citations[0];
 
-        assert_eq!(sour.xref, "@S1@");
+        assert_eq!(sour.source.as_xref(), Some("@S1@"));
         assert_eq!(sour.page.as_ref().unwrap(), "Page 42");
         assert_eq!(sour.event_type.as_ref().unwrap(), "BIRT");
         assert_eq!(sour.role.as_ref().unwrap(), "CHIL");
+    }
+
+    #[test]
+    fn test_parse_source_citation_with_free_text_description() {
+        // Geneanet/GeneWeb-style export: a SOUR citation with a free-text
+        // description (e.g. a URL) instead of a pointer to a SOUR record.
+        let sample = "\
+            0 HEAD\n\
+            1 GEDC\n\
+            2 VERS 5.5.1\n\
+            0 @I1@ INDI\n\
+            1 NAME John /Doe/\n\
+            1 BIRT\n\
+            2 DATE 1 JAN 1900\n\
+            2 SOUR https://example.com/records/123\n\
+            0 TRLR";
+
+        let mut doc = Gedcom::new(sample.chars()).unwrap();
+        let data = doc.parse_data().unwrap();
+
+        let indi = &data.individuals[0];
+        let birt = &indi.events[0];
+        let sour = &birt.citations[0];
+
+        assert_eq!(
+            sour.source.as_description(),
+            Some("https://example.com/records/123")
+        );
+        assert_eq!(sour.source.as_xref(), None);
     }
 }

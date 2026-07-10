@@ -443,7 +443,7 @@ mod tests {
             sex.fact.as_ref().unwrap(),
             "A fact about an individual's gender"
         );
-        assert_eq!(sex.sources[0].xref, "@CITATION1@");
+        assert_eq!(sex.sources[0].source.as_xref(), Some("@CITATION1@"));
         assert_eq!(sex.sources[0].page.as_ref().unwrap(), "Page: 132");
     }
 
