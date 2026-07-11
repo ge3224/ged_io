@@ -355,8 +355,10 @@ impl GedcomWriter {
     ) -> Result<(), io::Error> {
         self.write_line_with_xref(writer, 0, individual.xref.as_deref(), "INDI", None)?;
 
-        if let Some(ref name) = individual.name {
-            self.write_name(writer, name)?;
+        if !individual.names.is_empty() {
+            for name in &individual.names {
+                self.write_name(writer, name)?;
+            }
         }
 
         if let Some(ref sex) = individual.sex {
@@ -1478,7 +1480,7 @@ mod tests {
         // Compare key data
         assert_eq!(data.individuals.len(), data2.individuals.len());
         assert_eq!(data.individuals[0].xref, data2.individuals[0].xref);
-        assert_eq!(data.individuals[0].name, data2.individuals[0].name);
+        assert_eq!(data.individuals[0].names, data2.individuals[0].names);
     }
 
     #[test]

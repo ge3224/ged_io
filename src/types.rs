@@ -232,8 +232,8 @@ impl GedcomData {
             // Direct citations on the individual
             stats.on_individuals += individual.source.len();
 
-            // Citations on name
-            if let Some(ref name) = individual.name {
+            // Citations on names
+            for name in &individual.names {
                 stats.on_names += name.source.len();
             }
 
@@ -495,7 +495,7 @@ impl GedcomData {
         self.individuals
             .iter()
             .filter(|i| {
-                i.name.as_ref().is_some_and(|name| {
+                i.names.iter().any(|name| {
                     name.value
                         .as_ref()
                         .is_some_and(|v| v.to_lowercase().contains(&query_lower))

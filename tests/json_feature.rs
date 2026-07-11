@@ -25,11 +25,11 @@ mod json_feature_tests {
 
         // Check individual names are preserved
         if !data.individuals.is_empty() {
-            let original_name = &data.individuals[0].name;
-            let deser_name = &deserialized.individuals[0].name;
+            let original_name = &data.individuals[0].names;
+            let deser_name = &deserialized.individuals[0].names;
             assert_eq!(
-                original_name.as_ref().map(|n| n.value.clone()),
-                deser_name.as_ref().map(|n| n.value.clone())
+                original_name.first().map(|n| n.value.clone()),
+                deser_name.first().map(|n| n.value.clone())
             );
         }
     }

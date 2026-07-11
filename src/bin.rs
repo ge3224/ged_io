@@ -299,8 +299,8 @@ fn run() -> Result<RunOutcome, CliError> {
 
         for individual in &data.individuals {
             let display_name = individual
-                .name
-                .as_ref()
+                .names
+                .first()
                 .map(|n| n.to_string())
                 .unwrap_or_else(|| "(Unknown)".to_string());
 

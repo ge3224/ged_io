@@ -351,7 +351,7 @@ mod tests {
         let data = doc.parse_data().unwrap();
 
         let indi = &data.individuals[0];
-        let name = indi.name.as_ref().unwrap();
+        let name = indi.names.first().unwrap();
         name.clone()
     }
 
@@ -416,7 +416,7 @@ mod tests {
         let data = doc.parse_data().unwrap();
 
         let indi = &data.individuals[0];
-        let name = indi.name.as_ref().unwrap();
+        let name = indi.names.first().unwrap();
         assert_eq!(name.name_type, Some(NameType::Maiden));
         assert_eq!(name.given.as_ref().unwrap(), "Mary");
         assert_eq!(name.surname.as_ref().unwrap(), "Smith");
@@ -438,7 +438,7 @@ mod tests {
         let data = doc.parse_data().unwrap();
 
         let indi = &data.individuals[0];
-        let name = indi.name.as_ref().unwrap();
+        let name = indi.names.first().unwrap();
         assert_eq!(name.name_type, Some(NameType::Maiden));
         assert_eq!(name.given.as_ref().unwrap(), "Mary");
         assert_eq!(name.surname.as_ref().unwrap(), "Smith"); // The surname between the slash in
@@ -461,7 +461,7 @@ mod tests {
         let data = doc.parse_data().unwrap();
 
         let indi = &data.individuals[0];
-        let name = indi.name.as_ref().unwrap();
+        let name = indi.names.first().unwrap();
         assert_eq!(name.name_type, Some(NameType::Maiden));
         assert_eq!(name.given.as_ref().unwrap(), "Mary");
         assert_eq!(name.surname, None); // The surname between the slash in NAME
@@ -485,7 +485,7 @@ mod tests {
         let data = doc.parse_data().unwrap();
 
         let indi = &data.individuals[0];
-        let name = indi.name.as_ref().unwrap();
+        let name = indi.names.first().unwrap();
         assert!(name.has_phonetic());
         assert_eq!(name.phonetic.len(), 1);
         assert_eq!(name.phonetic[0].value, "Yamada /Taro/");
@@ -510,7 +510,7 @@ mod tests {
         let data = doc.parse_data().unwrap();
 
         let indi = &data.individuals[0];
-        let name = indi.name.as_ref().unwrap();
+        let name = indi.names.first().unwrap();
         assert!(name.has_romanized());
         assert_eq!(name.romanized.len(), 1);
         assert_eq!(name.romanized[0].value, "Wang /Xiaoming/");

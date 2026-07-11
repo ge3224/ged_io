@@ -2,10 +2,6 @@
 
 This guide explains the key differences between GEDCOM 5.5.1 and GEDCOM 7.0, and how to migrate your applications using the `ged_io` library.
 
-## Overview
-
-GEDCOM 7.0 was released in 2021 as a significant update to the GEDCOM standard. While `ged_io` supports both versions, understanding the differences will help you make the most of the new features and ensure compatibility.
-
 ## Key Differences
 
 ### 1. Encoding

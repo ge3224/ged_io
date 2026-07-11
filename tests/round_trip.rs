@@ -43,7 +43,7 @@ fn test_round_trip_individual() {
 
     assert_eq!(data1.individuals.len(), data2.individuals.len());
     assert_eq!(data1.individuals[0].xref, data2.individuals[0].xref);
-    assert_eq!(data1.individuals[0].name, data2.individuals[0].name);
+    assert_eq!(data1.individuals[0].names, data2.individuals[0].names);
     assert_eq!(data1.individuals[0].sex, data2.individuals[0].sex);
 }
 
@@ -337,7 +337,7 @@ fn test_round_trip_complete_gedcom() {
         .enumerate()
     {
         assert_eq!(ind1.xref, ind2.xref, "Individual {i} xref mismatch");
-        assert_eq!(ind1.name, ind2.name, "Individual {i} name mismatch");
+        assert_eq!(ind1.names, ind2.names, "Individual {i} name mismatch");
         assert_eq!(ind1.sex, ind2.sex, "Individual {i} sex mismatch");
     }
 }
@@ -428,8 +428,8 @@ fn test_round_trip_individual_no_name() {
     let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();
 
     assert_eq!(data1.individuals.len(), data2.individuals.len());
-    assert!(data1.individuals[0].name.is_none());
-    assert!(data2.individuals[0].name.is_none());
+    assert!(data1.individuals[0].names.is_empty());
+    assert!(data2.individuals[0].names.is_empty());
 }
 
 #[test]
