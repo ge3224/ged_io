@@ -365,8 +365,8 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let indi = &data.individuals.iter().next().unwrap();
-        indi.name.as_ref().unwrap().full_name().unwrap()
+        let indi = data.individuals.iter().next().unwrap();
+        indi.names.first().unwrap().full_name().unwrap()
     }
 
     #[test]
@@ -415,7 +415,7 @@ mod tests {
         let data = doc.parse_data().unwrap();
 
         let indi = data.find_individual("@I1@").unwrap();
-        let name = indi.name.as_ref().unwrap();
+        let name = indi.names.first().unwrap();
         assert_eq!(name.name_type, Some(NameType::Maiden));
         assert_eq!(name.given.as_ref().unwrap(), "Mary");
         assert_eq!(name.surname.as_ref().unwrap(), "Smith");
@@ -435,8 +435,9 @@ mod tests {
 
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
+
         let indi = data.iter_individuals().next().unwrap();
-        let name = indi.name.as_ref().unwrap();
+        let name = indi.names.first().unwrap();
         assert_eq!(name.name_type, Some(NameType::Maiden));
         assert_eq!(name.given.as_ref().unwrap(), "Mary");
         assert_eq!(name.surname.as_ref().unwrap(), "Smith"); // The surname between the slash in
@@ -459,7 +460,7 @@ mod tests {
         let data = doc.parse_data().unwrap();
 
         let indi = data.iter_individuals().next().unwrap();
-        let name = indi.name.as_ref().unwrap();
+        let name = indi.names.first().unwrap();
         assert_eq!(name.name_type, Some(NameType::Maiden));
         assert_eq!(name.given.as_ref().unwrap(), "Mary");
         assert_eq!(name.surname, None); // The surname between the slash in NAME
@@ -483,7 +484,7 @@ mod tests {
         let data = doc.parse_data().unwrap();
 
         let indi = data.find_individual("@I1@").unwrap();
-        let name = indi.name.as_ref().unwrap();
+        let name = indi.names.first().unwrap();
         assert!(name.has_phonetic());
         assert_eq!(name.phonetic.len(), 1);
         assert_eq!(name.phonetic[0].value, "Yamada /Taro/");
@@ -508,7 +509,7 @@ mod tests {
         let data = doc.parse_data().unwrap();
 
         let indi = data.find_individual("@I1@").unwrap();
-        let name = indi.name.as_ref().unwrap();
+        let name = indi.names.first().unwrap();
         assert!(name.has_romanized());
         assert_eq!(name.romanized.len(), 1);
         assert_eq!(name.romanized[0].value, "Wang /Xiaoming/");

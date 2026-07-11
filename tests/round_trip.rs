@@ -47,12 +47,12 @@ fn test_round_trip_individual() {
         data2.find_individual("@I1@").unwrap().xref
     );
     assert_eq!(
-        data1.find_individual("@I1@").unwrap().name,
-        data2.find_individual("@I1@").unwrap().name
-    );
-    assert_eq!(
         data1.find_individual("@I1@").unwrap().sex,
         data2.find_individual("@I1@").unwrap().sex
+    );
+    assert_eq!(
+        data1.find_individual("@I1@").unwrap().names,
+        data2.find_individual("@I1@").unwrap().names
     );
 }
 
@@ -194,6 +194,39 @@ fn test_round_trip_source() {
         data1.find_source("@S1@").unwrap().abbreviation,
         data2.find_source("@S1@").unwrap().abbreviation
     );
+}
+
+#[test]
+fn test_round_trip_citation_with_free_text_description() {
+    // Geneanet/GeneWeb-style export: a SOUR citation with a free-text
+    // description (e.g. a URL) instead of a pointer to a SOUR record. This
+    // must survive a write/re-parse cycle instead of being dropped or
+    // misread as an unresolved xref.
+    let original = r#"0 HEAD
+1 GEDC
+2 VERS 5.5.1
+0 @I1@ INDI
+1 NAME John /Doe/
+1 BIRT
+2 DATE 1 JAN 1900
+2 SOUR https://example.com/records/123
+0 TRLR"#;
+
+    let data1 = GedcomBuilder::new().build_from_str(original).unwrap();
+
+    let writer = GedcomWriter::new();
+    let written = writer.write_to_string(&data1).unwrap();
+
+    let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();
+
+    let citation1 = &data1.find_individual("@I1@").unwrap().events[0].citations[0];
+    let citation2 = &data2.find_individual("@I1@").unwrap().events[0].citations[0];
+
+    assert_eq!(
+        citation1.source.as_description(),
+        Some("https://example.com/records/123")
+    );
+    assert_eq!(citation1.source, citation2.source);
 }
 
 #[test]
@@ -342,7 +375,7 @@ fn test_round_trip_complete_gedcom() {
         .enumerate()
     {
         assert_eq!(ind1.xref, ind2.xref, "Individual {i} xref mismatch");
-        assert_eq!(ind1.name, ind2.name, "Individual {i} name mismatch");
+        assert_eq!(ind1.names, ind2.names, "Individual {i} name mismatch");
         assert_eq!(ind1.sex, ind2.sex, "Individual {i} sex mismatch");
     }
 }
@@ -433,8 +466,8 @@ fn test_round_trip_individual_no_name() {
     let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();
 
     assert_eq!(data1.count_individual(), data2.count_individual());
-    assert!(data1.find_individual("@I1@").unwrap().name.is_none());
-    assert!(data2.find_individual("@I1@").unwrap().name.is_none());
+    assert!(data1.find_individual("@I1@").unwrap().names.is_empty());
+    assert!(data2.find_individual("@I1@").unwrap().names.is_empty());
 }
 
 #[test]

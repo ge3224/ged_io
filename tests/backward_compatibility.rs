@@ -68,7 +68,7 @@ fn test_default_parsing_behavior_unchanged() {
     let individual = data.find_individual("@I1@").unwrap();
     assert_eq!(individual.xref, "@I1@");
     assert_eq!(
-        individual.name.as_ref().unwrap().value.as_ref().unwrap(),
+        individual.names.first().unwrap().value.as_ref().unwrap(),
         "John /Doe/"
     );
 }
@@ -125,7 +125,7 @@ fn test_individual_access_pattern_unchanged() {
     let indi = data.find_individual("@PERSON1@").unwrap();
     assert_eq!(indi.xref.as_str(), "@PERSON1@");
     assert_eq!(
-        indi.name.as_ref().unwrap().value.as_ref().unwrap(),
+        indi.names.first().unwrap().value.as_ref().unwrap(),
         "John Doe"
     );
     assert_eq!(indi.sex.as_ref().unwrap().value.to_string(), "Male");
@@ -223,7 +223,7 @@ fn test_both_apis_produce_same_results() {
     // Individual data should match
     for (old, new) in data_old.iter_individuals().zip(data_new.iter_individuals()) {
         assert_eq!(old.xref, new.xref);
-        assert_eq!(old.name, new.name);
+        assert_eq!(old.names, new.names);
         assert_eq!(old.sex, new.sex);
     }
 

@@ -111,7 +111,7 @@ impl fmt::Display for Individual {
         write!(f, "{} ", self.xref)?;
 
         // Display name
-        if let Some(ref name) = self.name {
+        if let Some(name) = self.names.first() {
             write!(f, "{name}")?;
         } else {
             write!(f, "(Unknown Name)")?;
@@ -542,8 +542,7 @@ mod tests {
         let mut gedcom = Gedcom::new(sample.chars()).unwrap();
         let data = gedcom.parse_data().unwrap();
 
-        let indi = data.find_individual("@I1@").unwrap();
-        let name = indi.name.as_ref().unwrap();
+        let name = data.find_individual("@I1@").unwrap().names.first().unwrap();
         let display = format!("{name}");
         assert!(display.contains("Robert"));
         assert!(display.contains("Johnson"));

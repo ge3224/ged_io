@@ -23,6 +23,16 @@ mod json_feature_tests {
         // record counts survive a JSON round-trip.
         assert_eq!(deserialized.count_individual(), data.count_individual());
         assert_eq!(deserialized.count_family(), data.count_family());
+
+        // Check individual names are preserved
+        if !data.count_individual() == 0 {
+            let original_name = &data.iter_individuals().next().unwrap().names;
+            let deser_name = &deserialized.iter_individuals().next().unwrap().names;
+            assert_eq!(
+                original_name.first().map(|n| n.value.clone()),
+                deser_name.first().map(|n| n.value.clone())
+            );
+        }
     }
 
     #[test]

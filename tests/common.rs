@@ -48,12 +48,11 @@ mod tests {
             "5.5"
         );
 
-        // names
         assert_eq!(
             data.find_individual("@FATHER@")
                 .unwrap()
-                .name
-                .as_ref()
+                .names
+                .first()
                 .unwrap()
                 .value
                 .as_ref()
@@ -119,8 +118,8 @@ mod tests {
         assert_eq!(
             data.find_individual("@I1@")
                 .unwrap()
-                .name
-                .as_ref()
+                .names
+                .first()
                 .unwrap()
                 .value
                 .as_ref()

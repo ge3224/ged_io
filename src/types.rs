@@ -1399,7 +1399,7 @@ impl GedcomData {
         }
 
         if is_child {
-            f.children.retain(|i| (i != &individual_xref));
+            f.children.retain(|i| i != &individual_xref);
             self.xrefs.decrement(&individual_xref);
         }
 
@@ -2163,8 +2163,8 @@ impl GedcomData {
             // Direct citations on the individual
             stats.on_individuals += individual.source.len();
 
-            // Citations on name
-            if let Some(ref name) = individual.name {
+            // Citations on names
+            for name in &individual.names {
                 stats.on_names += name.sources.len();
             }
 
@@ -2335,7 +2335,7 @@ impl GedcomData {
         let query_lower = query.to_lowercase();
         self.iter_individuals()
             .filter(|i| {
-                i.name.as_ref().is_some_and(|name| {
+                i.names.iter().any(|name| {
                     name.value
                         .as_ref()
                         .is_some_and(|v| v.to_lowercase().contains(&query_lower))

@@ -46,7 +46,11 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Individual {
     pub xref: Xref,
-    pub name: Option<Name>,
+    /// All `NAME` structures for this individual, in source order.
+    ///
+    /// GEDCOM 5.5.1 and 7.0 allow `{0:M}` `PERSONAL_NAME_STRUCTURE` per
+    /// individual. Use `names.first()` for the primary name.
+    pub names: Vec<Name>,
     pub sex: Option<Gender>,
     pub families: Vec<FamilyLink>,
     pub attributes: Vec<AttributeDetail>,
@@ -141,7 +145,7 @@ impl Individual {
     pub fn new(xref: impl Into<Xref>) -> Self {
         Self {
             xref: xref.into(),
-            name: None,
+            names: Vec::new(),
             sex: None,
             families: Vec::new(),
             attributes: Vec::new(),
@@ -205,6 +209,10 @@ impl Individual {
         self.multimedia_links.push(multimedia_link);
     }
 
+    pub fn add_name(&mut self, name: Name) {
+        self.names.push(name);
+    }
+
     pub fn add_attribute(&mut self, attribute: AttributeDetail) {
         self.attributes.push(attribute);
     }
@@ -234,19 +242,19 @@ impl Individual {
     /// ```
     #[must_use]
     pub fn full_name(&self) -> Option<String> {
-        self.name.as_ref().and_then(name::Name::full_name)
+        self.names.first().and_then(name::Name::full_name)
     }
 
     /// Gets the given (first) name if available.
     #[must_use]
     pub fn given_name(&self) -> Option<&str> {
-        self.name.as_ref().and_then(|n| n.given.as_deref())
+        self.names.first().and_then(|n| n.given.as_deref())
     }
 
     /// Gets the surname (family name) if available.
     #[must_use]
     pub fn surname(&self) -> Option<&str> {
-        self.name.as_ref().and_then(|n| n.surname.as_deref())
+        self.names.first().and_then(|n| n.surname.as_deref())
     }
 
     /// Checks if the individual is male.
@@ -369,7 +377,7 @@ impl Individual {
             }
         }
 
-        if let Some(n) = &self.name {
+        for n in &self.names {
             n.outbound_refs(sink);
         }
 
@@ -416,8 +424,7 @@ impl Parser for Individual {
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             match tag {
-                // TODO handle xref
-                "NAME" => self.name = Some(Name::new(tokenizer, level + 1)?),
+                "NAME" => self.add_name(Name::new(tokenizer, level + 1)?),
                 "SEX" => self.sex = Some(Gender::new(tokenizer, level + 1)?),
                 "ADOP" | "BIRT" | "BAPM" | "BARM" | "BASM" | "BLES" | "BURI" | "CENS" | "CHR"
                 | "CHRA" | "CONF" | "CREM" | "DEAT" | "EMIG" | "FCOM" | "GRAD" | "IMMI"
@@ -577,7 +584,7 @@ mod tests {
         let indi = data.find_individual("@PERSON1@").unwrap();
         assert_eq!(indi.xref.as_str(), "@PERSON1@");
         assert_eq!(
-            indi.name.as_ref().unwrap().value.as_ref().unwrap(),
+            indi.names.first().unwrap().value.as_ref().unwrap(),
             "John Doe"
         );
         assert_eq!(indi.sex.as_ref().unwrap().value.to_string(), "Male");
@@ -673,7 +680,7 @@ mod tests {
         let indi = data.find_individual("@PERSON1@").unwrap();
         assert_eq!(indi.xref.as_str(), "@PERSON1@");
         assert_eq!(
-            indi.name.as_ref().unwrap().value.as_ref().unwrap(),
+            indi.names.first().unwrap().value.as_ref().unwrap(),
             "John Doe"
         );
     }
@@ -758,5 +765,97 @@ mod tests {
             a_sour.note.as_ref().unwrap().value.as_ref().unwrap(),
             "A note\nNote continued here. The word TEST should not be broken!"
         );
+    }
+
+    #[test]
+    fn test_parse_multiple_names() {
+        let sample = "\
+            0 HEAD\n\
+            1 GEDC\n\
+            2 VERS 5.5\n\
+            0 @I1@ INDI\n\
+            1 NAME Mary /Smith/\n\
+            1 BIRT\n\
+            2 DATE 1 JAN 1980\n\
+            1 NAME Mary /Smith-Jones/\n\
+            1 MARR\n\
+            2 DATE 1 JUN 2005\n\
+            0 TRLR";
+
+        let mut doc = Gedcom::new(sample.chars()).unwrap();
+        let data = doc.parse_data().unwrap();
+
+        let indi = data.individuals.iter().next().unwrap();
+        assert_eq!(indi.names.len(), 2);
+        assert_eq!(indi.names[0].value.as_ref().unwrap(), "Mary /Smith/");
+        assert_eq!(indi.names[1].value.as_ref().unwrap(), "Mary /Smith-Jones/");
+        assert_eq!(
+            indi.names.last().unwrap().value.as_ref().unwrap(),
+            "Mary /Smith-Jones/"
+        );
+    }
+
+    #[test]
+    fn test_parse_single_name_populates_both() {
+        let sample = "\
+            0 HEAD\n\
+            1 GEDC\n\
+            2 VERS 5.5\n\
+            0 @I1@ INDI\n\
+            1 NAME John /Doe/\n\
+            0 TRLR";
+
+        let mut doc = Gedcom::new(sample.chars()).unwrap();
+        let data = doc.parse_data().unwrap();
+
+        let indi = data.individuals.iter().next().unwrap();
+        assert_eq!(indi.names.len(), 1);
+        assert_eq!(indi.names[0].value.as_ref().unwrap(), "John /Doe/");
+        assert_eq!(
+            indi.names.first().unwrap().value.as_ref().unwrap(),
+            "John /Doe/"
+        );
+    }
+
+    #[test]
+    fn test_parse_zero_names() {
+        let sample = "\
+            0 HEAD\n\
+            1 GEDC\n\
+            2 VERS 5.5\n\
+            0 @I1@ INDI\n\
+            1 SEX M\n\
+            0 TRLR";
+
+        let mut doc = Gedcom::new(sample.chars()).unwrap();
+        let data = doc.parse_data().unwrap();
+
+        let indi = data.individuals.iter().next().unwrap();
+        assert!(indi.names.is_empty());
+    }
+
+    #[test]
+    fn test_round_trip_multiple_names() {
+        use crate::GedcomBuilder;
+
+        let original = "\
+            0 HEAD\n\
+            1 GEDC\n\
+            2 VERS 5.5\n\
+            0 @I1@ INDI\n\
+            1 NAME Mary /Smith/\n\
+            1 NAME Mary /Smith-Jones/\n\
+            1 SEX F\n\
+            0 TRLR";
+
+        let data = GedcomBuilder::new().build_from_str(original).unwrap();
+        let writer = crate::GedcomWriter::new();
+        let written = writer.write_to_string(&data).unwrap();
+
+        let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();
+        let indi = data2.individuals.iter().next().unwrap();
+        assert_eq!(indi.names.len(), 2);
+        assert_eq!(indi.names[0].value.as_ref().unwrap(), "Mary /Smith/");
+        assert_eq!(indi.names[1].value.as_ref().unwrap(), "Mary /Smith-Jones/");
     }
 }

@@ -318,7 +318,7 @@ fn bench_struct_sizes(c: &mut Criterion) {
             let mut total = 0;
             for ind in data.iter_individuals() {
                 total += 1;
-                if ind.name.is_some() {
+                if ind.names.is_empty() {
                     total += 1;
                 }
                 if ind.sex.is_some() {

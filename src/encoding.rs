@@ -23,7 +23,6 @@
 //! ```
 
 use crate::GedcomError;
-use encoding_rs::{Encoding, ISO_8859_15, UTF_16BE, UTF_16LE, WINDOWS_1252};
 
 /// Represents the detected or declared encoding of a GEDCOM file.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -105,8 +104,7 @@ fn detect_encoding_from_char_tag(bytes: &[u8]) -> Option<GedcomEncoding> {
     } else {
         // Try decoding first 4KB with Windows-1252 (superset of ISO-8859-1)
         let sample = &bytes[..bytes.len().min(4096)];
-        let (decoded, _, _) = WINDOWS_1252.decode(sample);
-        decoded.into_owned()
+        sample.iter().map(|&b| w1252_decode(b)).collect()
     };
 
     // Look for CHAR tag (case insensitive search in first part of file)
@@ -234,62 +232,147 @@ pub fn decode_with_encoding(
             String::from_utf8(bytes.to_vec())
                 .map_err(|e| GedcomError::EncodingError(format!("Invalid UTF-8: {e}")))?
         }
-        GedcomEncoding::Utf16Le => decode_utf16(bytes, UTF_16LE)?,
-        GedcomEncoding::Utf16Be => decode_utf16(bytes, UTF_16BE)?,
-        GedcomEncoding::Iso8859_1 => {
-            // Use Windows-1252 which is a superset of ISO-8859-1
-            let (decoded, _, had_errors) = WINDOWS_1252.decode(bytes);
-            if had_errors {
-                return Err(GedcomError::EncodingError(
-                    "Invalid ISO-8859-1 sequence".to_string(),
-                ));
-            }
-            decoded.into_owned()
-        }
-        GedcomEncoding::Iso8859_15 => {
-            let (decoded, _, had_errors) = ISO_8859_15.decode(bytes);
-            if had_errors {
-                return Err(GedcomError::EncodingError(
-                    "Invalid ISO-8859-15 sequence".to_string(),
-                ));
-            }
-            decoded.into_owned()
-        }
+        GedcomEncoding::Utf16Le => decode_utf16(bytes, false)?,
+        GedcomEncoding::Utf16Be => decode_utf16(bytes, true)?,
+        GedcomEncoding::Iso8859_1 => bytes.iter().map(|&b| w1252_decode(b)).collect(),
+        GedcomEncoding::Iso8859_15 => bytes.iter().map(|&b| iso8859_15_decode(b)).collect(),
         GedcomEncoding::Ansel => decode_ansel(bytes),
         GedcomEncoding::Unknown => {
-            // Try UTF-8 first, then fall back to ISO-8859-1
             if let Ok(s) = String::from_utf8(bytes.to_vec()) {
                 return Ok((s, GedcomEncoding::Utf8));
             }
-            let (decoded, _, _) = WINDOWS_1252.decode(bytes);
-            decoded.into_owned()
+            bytes.iter().map(|&b| w1252_decode(b)).collect()
         }
     };
 
     Ok((result, encoding))
 }
 
-/// Helper function to decode UTF-16 bytes.
-fn decode_utf16(bytes: &[u8], encoding: &'static Encoding) -> Result<String, GedcomError> {
-    // Skip BOM if present
-    let bytes = if bytes.len() >= 2 {
-        if (bytes[0] == 0xFF && bytes[1] == 0xFE) || (bytes[0] == 0xFE && bytes[1] == 0xFF) {
-            &bytes[2..]
-        } else {
-            bytes
-        }
+fn w1252_decode(b: u8) -> char {
+    match b {
+        0x80 => '\u{20AC}',
+        0x82 => '\u{201A}',
+        0x83 => '\u{0192}',
+        0x84 => '\u{201E}',
+        0x85 => '\u{2026}',
+        0x86 => '\u{2020}',
+        0x87 => '\u{2021}',
+        0x88 => '\u{02C6}',
+        0x89 => '\u{2030}',
+        0x8A => '\u{0160}',
+        0x8B => '\u{2039}',
+        0x8C => '\u{0152}',
+        0x8E => '\u{017D}',
+        0x91 => '\u{2018}',
+        0x92 => '\u{2019}',
+        0x93 => '\u{201C}',
+        0x94 => '\u{201D}',
+        0x95 => '\u{2022}',
+        0x96 => '\u{2013}',
+        0x97 => '\u{2014}',
+        0x98 => '\u{02DC}',
+        0x99 => '\u{2122}',
+        0x9A => '\u{0161}',
+        0x9B => '\u{203A}',
+        0x9C => '\u{0153}',
+        0x9E => '\u{017E}',
+        0x9F => '\u{0178}',
+        _ => b as char, // ASCII, 0xA0–0xFF Latin-1, and the 5 C1 slots (0x81/8D/8F/90/9D)
+    }
+}
+
+fn w1252_encode(c: char) -> Option<u8> {
+    match c {
+        '\u{20AC}' => Some(0x80),
+        '\u{201A}' => Some(0x82),
+        '\u{0192}' => Some(0x83),
+        '\u{201E}' => Some(0x84),
+        '\u{2026}' => Some(0x85),
+        '\u{2020}' => Some(0x86),
+        '\u{2021}' => Some(0x87),
+        '\u{02C6}' => Some(0x88),
+        '\u{2030}' => Some(0x89),
+        '\u{0160}' => Some(0x8A),
+        '\u{2039}' => Some(0x8B),
+        '\u{0152}' => Some(0x8C),
+        '\u{017D}' => Some(0x8E),
+        '\u{2018}' => Some(0x91),
+        '\u{2019}' => Some(0x92),
+        '\u{201C}' => Some(0x93),
+        '\u{201D}' => Some(0x94),
+        '\u{2022}' => Some(0x95),
+        '\u{2013}' => Some(0x96),
+        '\u{2014}' => Some(0x97),
+        '\u{02DC}' => Some(0x98),
+        '\u{2122}' => Some(0x99),
+        '\u{0161}' => Some(0x9A),
+        '\u{203A}' => Some(0x9B),
+        '\u{0153}' => Some(0x9C),
+        '\u{017E}' => Some(0x9E),
+        '\u{0178}' => Some(0x9F),
+        _ if (c as u32) <= 0xFF => Some(c as u8), // ASCII, C1 controls, 0xA0–0xFF Latin-1
+        _ => None,
+    }
+}
+
+fn iso8859_15_decode(b: u8) -> char {
+    match b {
+        0xA4 => '\u{20AC}', // €
+        0xA6 => '\u{0160}', // Š
+        0xA8 => '\u{0161}', // š
+        0xB4 => '\u{017D}', // Ž
+        0xB8 => '\u{017E}', // ž
+        0xBC => '\u{0152}', // Œ
+        0xBD => '\u{0153}', // œ
+        0xBE => '\u{0178}', // Ÿ
+        _ => b as char,
+    }
+}
+
+fn iso8859_15_encode(c: char) -> Option<u8> {
+    match c {
+        '\u{20AC}' => Some(0xA4),
+        '\u{0160}' => Some(0xA6),
+        '\u{0161}' => Some(0xA8),
+        '\u{017D}' => Some(0xB4),
+        '\u{017E}' => Some(0xB8),
+        '\u{0152}' => Some(0xBC),
+        '\u{0153}' => Some(0xBD),
+        '\u{0178}' => Some(0xBE),
+        // displaced Latin-1 chars — no slot in 8859-15
+        '\u{00A4}' | '\u{00A6}' | '\u{00A8}' | '\u{00B4}' | '\u{00B8}' | '\u{00BC}'
+        | '\u{00BD}' | '\u{00BE}' => None,
+        _ if (c as u32) <= 0xFF => Some(c as u8),
+        _ => None,
+    }
+}
+
+fn decode_utf16(bytes: &[u8], big_endian: bool) -> Result<String, GedcomError> {
+    let bytes = if bytes.len() >= 2
+        && ((bytes[0] == 0xFF && bytes[1] == 0xFE) || (bytes[0] == 0xFE && bytes[1] == 0xFF))
+    {
+        &bytes[2..]
     } else {
         bytes
     };
 
-    let (decoded, _, had_errors) = encoding.decode(bytes);
-    if had_errors {
-        return Err(GedcomError::EncodingError(format!(
-            "Invalid {} sequence",
-            encoding.name()
-        )));
+    if bytes.len() % 2 != 0 {
+        return Err(GedcomError::EncodingError(
+            "Invalid UTF-16 sequence: odd byte length".into(),
+        ));
     }
-    Ok(decoded.into_owned())
+
+    let units = bytes.as_chunks::<2>().0.iter().map(|&[b0, b1]| {
+        if big_endian {
+            u16::from_be_bytes([b0, b1])
+        } else {
+            u16::from_le_bytes([b0, b1])
+        }
+    });
+
+    char::decode_utf16(units)
+        .collect::<Result<String, _>>()
+        .map_err(|e| GedcomError::EncodingError(format!("Invalid UTF-16 sequence: {e}")))
 }
 
 /// ANSEL non-spacing (combining) diacritical marks (0xE0-0xFE).
@@ -788,24 +871,26 @@ pub fn encode_to_bytes(content: &str, encoding: GedcomEncoding) -> Result<Vec<u8
             }
             Ok(bytes)
         }
-        GedcomEncoding::Iso8859_1 => {
-            let (encoded, _, had_errors) = WINDOWS_1252.encode(content);
-            if had_errors {
-                return Err(GedcomError::EncodingError(
-                    "Cannot encode to ISO-8859-1: contains unsupported characters".to_string(),
-                ));
-            }
-            Ok(encoded.into_owned())
-        }
-        GedcomEncoding::Iso8859_15 => {
-            let (encoded, _, had_errors) = ISO_8859_15.encode(content);
-            if had_errors {
-                return Err(GedcomError::EncodingError(
-                    "Cannot encode to ISO-8859-15: contains unsupported characters".to_string(),
-                ));
-            }
-            Ok(encoded.into_owned())
-        }
+        GedcomEncoding::Iso8859_1 => content
+            .chars()
+            .map(|c| {
+                w1252_encode(c).ok_or_else(|| {
+                    GedcomError::EncodingError(
+                        "Cannot encode to ISO-8859-1: contains unsupported characters".to_string(),
+                    )
+                })
+            })
+            .collect(),
+        GedcomEncoding::Iso8859_15 => content
+            .chars()
+            .map(|c| {
+                iso8859_15_encode(c).ok_or_else(|| {
+                    GedcomError::EncodingError(
+                        "Cannot encode to ISO-8859-15: contains unsupported characters".to_string(),
+                    )
+                })
+            })
+            .collect(),
         GedcomEncoding::Ansel => Ok(encode_ansel(content)),
     }
 }
