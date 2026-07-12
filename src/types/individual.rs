@@ -227,17 +227,13 @@ impl Individual {
     /// Checks if the individual is male.
     #[must_use]
     pub fn is_male(&self) -> bool {
-        self.sex
-            .as_ref()
-            .is_some_and(|s| matches!(s.value, GenderType::Male))
+        self.sex.as_ref().is_some_and(gender::Gender::is_male)
     }
 
     /// Checks if the individual is female.
     #[must_use]
     pub fn is_female(&self) -> bool {
-        self.sex
-            .as_ref()
-            .is_some_and(|s| matches!(s.value, GenderType::Female))
+        self.sex.as_ref().is_some_and(gender::Gender::is_female)
     }
 
     /// Gets the birth event details if available.
