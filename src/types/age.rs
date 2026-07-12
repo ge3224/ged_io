@@ -65,7 +65,14 @@ impl Age {
                         "m" => months = num_str.parse().ok(),
                         "w" => weeks = num_str.parse().ok(),
                         "d" => days = num_str.parse().ok(),
-                        _ => {}
+                        _ if token.chars().all(|c| c.is_ascii_digit()) => {
+                            // The suffix is not present (or is a digit)
+                            // Default to using years for parsing the full token
+                            years = token.parse().ok();
+                        }
+                        _ => {
+                            // Unknwon suffix
+                        }
                     }
                 }
 
@@ -225,6 +232,45 @@ mod test {
                 phrase: None,
             }
         );
+    }
+
+    #[test]
+    fn test_parse_numeric_years_no_suffix() {
+        assert_eq!(
+            help_parse_age("25"),
+            Age::Numeric {
+                years: Some(25),
+                months: None,
+                weeks: None,
+                days: None,
+                modifier: AgeModifier::Exact,
+                phrase: None,
+            }
+        );
+        assert_eq!(
+            help_parse_age("25 4m 3w 5d"),
+            Age::Numeric {
+                years: Some(25),
+                months: Some(4),
+                weeks: Some(3),
+                days: Some(5),
+                modifier: AgeModifier::Exact,
+                phrase: None,
+            }
+        );
+    }
+
+    #[test]
+    fn test_parse_numeric_years_unknown_suffix() {
+        let age = "25z";
+        let sample = format!(
+            "0 HEAD\n1 GEDC\n2 VERS 5.5.1\n0 @I1@ INDI\n1 NAME Test /Person/\n1 DEAT Y\n2 AGE {age}\n0 TRLR"
+        );
+        let mut doc = Gedcom::new(sample.chars()).unwrap();
+        let data = doc.parse_data();
+        assert!(data.is_err());
+        let data = data.unwrap_err();
+        assert!(data.to_string().contains("Invalid AGE value: 25z"));
     }
 
     #[test]

@@ -352,7 +352,7 @@ fn bench_struct_sizes(c: &mut Criterion) {
                 if ind.xref.is_some() {
                     total += 1;
                 }
-                if ind.name.is_some() {
+                if ind.names.is_empty() {
                     total += 1;
                 }
                 if ind.sex.is_some() {

@@ -28,7 +28,9 @@ use crate::types::{
     gedcom7::{NonEvent, SortDate},
     header::{meta::HeadMeta, schema::Schema, source::HeadSour},
     individual::{
+        association::Association,
         attribute::detail::AttributeDetail,
+        family_link::FamilyLink,
         gender::{Gender, GenderType},
         name::Name,
         Individual,
@@ -355,8 +357,10 @@ impl GedcomWriter {
     ) -> Result<(), io::Error> {
         self.write_line_with_xref(writer, 0, individual.xref.as_deref(), "INDI", None)?;
 
-        if let Some(ref name) = individual.name {
-            self.write_name(writer, name)?;
+        if !individual.names.is_empty() {
+            for name in &individual.names {
+                self.write_name(writer, name)?;
+            }
         }
 
         if let Some(ref sex) = individual.sex {
@@ -384,10 +388,20 @@ impl GedcomWriter {
         for family_link in &individual.families {
             let tag = family_link.family_link_type.to_tag();
             self.write_line(writer, 1, tag, Some(&family_link.xref))?;
+            self.write_family_link_detail(writer, 2, family_link)?;
         }
 
         for citation in &individual.source {
             self.write_citation(writer, 1, citation)?;
+        }
+
+        // Associations (witnesses, godparents, ...), e.g. `1 ASSO @I2@` /
+        // `2 RELA Witness` — must be a direct child of the INDI record per
+        // the GEDCOM 5.5.1 grammar; nesting it inside an event (as the
+        // `write_event` ASSO branch above does) is a non-standard extension
+        // most readers, including Gramps, reject.
+        for association in &individual.associations {
+            self.write_association(writer, 1, association)?;
         }
 
         for media in &individual.multimedia {
@@ -412,8 +426,16 @@ impl GedcomWriter {
     fn write_name<W: Write>(&self, writer: &mut W, name: &Name) -> Result<(), io::Error> {
         self.write_value_or_wrap(writer, 1, "NAME", name.value.as_deref())?;
 
+        if let Some(ref name_type) = name.name_type {
+            self.write_value_or_wrap(writer, 2, "TYPE", Some(name_type.as_str()))?;
+        }
+
         if let Some(ref given) = name.given {
             self.write_value_or_wrap(writer, 2, "GIVN", Some(given))?;
+        }
+
+        if let Some(ref nickname) = name.nickname {
+            self.write_value_or_wrap(writer, 2, "NICK", Some(nickname))?;
         }
 
         if let Some(ref surname) = name.surname {
@@ -570,6 +592,77 @@ impl GedcomWriter {
                     self.write_value_or_wrap(writer, level + 3, "PHRASE", Some(phrase))?;
                 }
             }
+        }
+
+        // Adoptive/foster family link, e.g. `1 ADOP` / `2 FAMC @F1@` / `3 ADOP HUSB`.
+        if let Some(ref family_link) = event.family_link {
+            let tag = family_link.family_link_type.to_tag();
+            self.write_line(writer, level + 1, tag, Some(&family_link.xref))?;
+            self.write_family_link_detail(writer, level + 2, family_link)?;
+        }
+
+        // Associations (witnesses, godparents, ...), e.g. `1 ASSO @I2@` / `2 RELA Godmother`.
+        for association in &event.associations {
+            self.write_association(writer, level + 1, association)?;
+        }
+
+        Ok(())
+    }
+
+    /// Writes a family link's `PEDI`/`ADOP`/`NOTE` substructures (shared by
+    /// the individual's own `FAMC`/`FAMS` back-links and an event's nested
+    /// adoptive-family `FAMC`, e.g. under `ADOP`).
+    fn write_family_link_detail<W: Write>(
+        &self,
+        writer: &mut W,
+        level: u8,
+        family_link: &FamilyLink,
+    ) -> Result<(), io::Error> {
+        if let Some(ref pedigree) = family_link.pedigree_linkage_type {
+            self.write_value_or_wrap(writer, level, "PEDI", Some(pedigree_to_tag(pedigree)))?;
+        }
+
+        if let Some(ref status) = family_link.child_linkage_status {
+            self.write_value_or_wrap(
+                writer,
+                level,
+                "STAT",
+                Some(child_linkage_status_to_tag(status)),
+            )?;
+        }
+
+        if let Some(ref adopted_by) = family_link.adopted_by {
+            self.write_value_or_wrap(writer, level, "ADOP", Some(adopted_by_to_tag(adopted_by)))?;
+        }
+
+        if let Some(ref note) = family_link.note {
+            self.write_note(writer, level, note)?;
+        }
+
+        Ok(())
+    }
+
+    /// Writes an association (tag: `ASSO`) — a pointer to an individual with
+    /// whom this individual/event has some relationship not covered by other
+    /// standard tags (e.g. a witness or godparent).
+    fn write_association<W: Write>(
+        &self,
+        writer: &mut W,
+        level: u8,
+        association: &Association,
+    ) -> Result<(), io::Error> {
+        self.write_line(writer, level, "ASSO", Some(&association.xref))?;
+
+        if let Some(ref relationship) = association.relationship {
+            self.write_value_or_wrap(writer, level + 1, "RELA", Some(relationship))?;
+        }
+
+        if let Some(ref association_type) = association.association_type {
+            self.write_value_or_wrap(writer, level + 1, "TYPE", Some(association_type))?;
+        }
+
+        if let Some(ref note) = association.note {
+            self.write_note(writer, level + 1, note)?;
         }
 
         Ok(())
@@ -872,7 +965,7 @@ impl GedcomWriter {
         level: u8,
         citation: &Citation,
     ) -> Result<(), io::Error> {
-        self.write_line(writer, level, "SOUR", Some(&citation.xref))?;
+        self.write_line(writer, level, "SOUR", Some(citation.source.value()))?;
 
         if let Some(ref page) = citation.page {
             self.write_value_or_wrap(writer, level + 1, "PAGE", Some(page))?;
@@ -944,7 +1037,11 @@ impl GedcomWriter {
         writer: &mut W,
         note: &SharedNote,
     ) -> Result<(), io::Error> {
-        self.write_line_with_xref(writer, 0, note.xref.as_deref(), "SNOTE", Some(&note.text))?;
+        if self.config.gedcom_version.starts_with('5') {
+            self.write_line_with_xref(writer, 0, note.xref.as_deref(), "NOTE", Some(&note.text))?;
+        } else {
+            self.write_line_with_xref(writer, 0, note.xref.as_deref(), "SNOTE", Some(&note.text))?;
+        }
 
         if let Some(ref mime) = note.mime {
             self.write_value_or_wrap(writer, 1, "MIME", Some(mime))?;
@@ -1217,12 +1314,14 @@ impl GedcomWriter {
                     self.write_line(writer, level, tag, Some(line))?;
                 } else {
                     // Need to split with CONC
-                    let first_part = &line[..self.config.max_line_length];
+                    let split_at = utf8_boundary_before(line, self.config.max_line_length);
+                    let first_part = &line[..split_at];
                     self.write_line(writer, level, tag, Some(first_part))?;
 
-                    let mut remaining = &line[self.config.max_line_length..];
+                    let mut remaining = &line[split_at..];
                     while !remaining.is_empty() {
-                        let chunk_len = std::cmp::min(remaining.len(), self.config.max_line_length);
+                        let chunk_len =
+                            utf8_boundary_before(remaining, self.config.max_line_length);
                         let chunk = &remaining[..chunk_len];
                         self.write_line(writer, level + 1, "CONC", Some(chunk))?;
                         remaining = &remaining[chunk_len..];
@@ -1234,12 +1333,14 @@ impl GedcomWriter {
                     self.write_line(writer, level + 1, "CONT", line_value)?;
                 } else {
                     // Split with CONT first, then CONC
-                    let first_part = &line[..self.config.max_line_length];
+                    let split_at = utf8_boundary_before(line, self.config.max_line_length);
+                    let first_part = &line[..split_at];
                     self.write_line(writer, level + 1, "CONT", Some(first_part))?;
 
-                    let mut remaining = &line[self.config.max_line_length..];
+                    let mut remaining = &line[split_at..];
                     while !remaining.is_empty() {
-                        let chunk_len = std::cmp::min(remaining.len(), self.config.max_line_length);
+                        let chunk_len =
+                            utf8_boundary_before(remaining, self.config.max_line_length);
                         let chunk = &remaining[..chunk_len];
                         self.write_line(writer, level + 1, "CONC", Some(chunk))?;
                         remaining = &remaining[chunk_len..];
@@ -1255,6 +1356,18 @@ impl GedcomWriter {
 /// Converts a `std::fmt::Error` to an `io::Error`.
 fn io_error(_: std::fmt::Error) -> io::Error {
     io::Error::other("formatting error")
+}
+
+fn utf8_boundary_before(value: &str, max_bytes: usize) -> usize {
+    let mut end = max_bytes.min(value.len());
+    while end > 0 && !value.is_char_boundary(end) {
+        end -= 1;
+    }
+    if end == 0 {
+        value.chars().next().map_or(0, char::len_utf8)
+    } else {
+        end
+    }
 }
 
 // =============================================================================
@@ -1333,6 +1446,43 @@ fn certainty_to_gedcom_value(certainty: &CertaintyAssessment) -> Option<&'static
         CertaintyAssessment::Secondary => Some("2"),
         CertaintyAssessment::Direct => Some("3"),
         CertaintyAssessment::None => None,
+    }
+}
+
+/// Converts a `PEDI` pedigree code to its GEDCOM 5.5.1 value.
+fn pedigree_to_tag(
+    pedigree: &crate::types::individual::family_link::pedigree::Pedigree,
+) -> &'static str {
+    use crate::types::individual::family_link::pedigree::Pedigree;
+    match pedigree {
+        Pedigree::Adopted => "adopted",
+        Pedigree::Birth => "birth",
+        Pedigree::Foster => "foster",
+        Pedigree::Sealing => "sealing",
+    }
+}
+
+/// Converts a `FAMC.STAT` child linkage status to its GEDCOM 5.5.1 value.
+fn child_linkage_status_to_tag(
+    status: &crate::types::individual::family_link::child_link::ChildLinkStatus,
+) -> &'static str {
+    use crate::types::individual::family_link::child_link::ChildLinkStatus;
+    match status {
+        ChildLinkStatus::Challenged => "challenged",
+        ChildLinkStatus::Disproven => "disproven",
+        ChildLinkStatus::Proven => "proven",
+    }
+}
+
+/// Converts an `ADOP` (adopted-by-which-parent) code to its GEDCOM 5.5.1 value.
+fn adopted_by_to_tag(
+    adopted_by: &crate::types::individual::family_link::adopted::AdoptedByWhichParent,
+) -> &'static str {
+    use crate::types::individual::family_link::adopted::AdoptedByWhichParent;
+    match adopted_by {
+        AdoptedByWhichParent::Husband => "HUSB",
+        AdoptedByWhichParent::Wife => "WIFE",
+        AdoptedByWhichParent::Both => "BOTH",
     }
 }
 
@@ -1450,7 +1600,86 @@ mod tests {
         // Compare key data
         assert_eq!(data.individuals.len(), data2.individuals.len());
         assert_eq!(data.individuals[0].xref, data2.individuals[0].xref);
-        assert_eq!(data.individuals[0].name, data2.individuals[0].name);
+        assert_eq!(data.individuals[0].names, data2.individuals[0].names);
+    }
+
+    #[test]
+    fn test_write_name_nickname() {
+        let source =
+            "0 HEAD\n1 GEDC\n2 VERS 5.5\n0 @I1@ INDI\n1 NAME John /Doe/\n2 NICK Johnny\n0 TRLR";
+        let data = GedcomBuilder::new().build_from_str(source).unwrap();
+
+        let writer = GedcomWriter::new();
+        let output = writer.write_to_string(&data).unwrap();
+
+        assert!(output.contains("2 NICK Johnny"));
+    }
+
+    #[test]
+    fn test_write_name_type() {
+        let source =
+            "0 HEAD\n1 GEDC\n2 VERS 5.5\n0 @I1@ INDI\n1 NAME John /Doe/\n2 TYPE MARRIED\n0 TRLR";
+        let data = GedcomBuilder::new().build_from_str(source).unwrap();
+
+        let writer = GedcomWriter::new();
+        let output = writer.write_to_string(&data).unwrap();
+
+        assert!(output.contains("2 TYPE MARRIED"));
+    }
+
+    #[test]
+    fn test_write_family_link_pedigree_and_adopted_by() {
+        let source = "0 HEAD\n1 GEDC\n2 VERS 5.5\n0 @I1@ INDI\n1 FAMC @F1@\n2 PEDI adopted\n\
+                       2 ADOP HUSB\n0 TRLR";
+        let data = GedcomBuilder::new().build_from_str(source).unwrap();
+
+        let writer = GedcomWriter::new();
+        let output = writer.write_to_string(&data).unwrap();
+
+        assert!(output.contains("1 FAMC @F1@"));
+        assert!(output.contains("2 PEDI adopted"));
+        assert!(output.contains("2 ADOP HUSB"));
+    }
+
+    #[test]
+    fn test_write_adoption_event_family_link() {
+        let source = "0 HEAD\n1 GEDC\n2 VERS 5.5\n0 @I1@ INDI\n1 ADOP\n2 FAMC @F2@\n\
+                       3 ADOP WIFE\n0 TRLR";
+        let data = GedcomBuilder::new().build_from_str(source).unwrap();
+
+        let writer = GedcomWriter::new();
+        let output = writer.write_to_string(&data).unwrap();
+
+        assert!(output.contains("1 ADOP"));
+        assert!(output.contains("2 FAMC @F2@"));
+        assert!(output.contains("3 ADOP WIFE"));
+    }
+
+    #[test]
+    fn test_write_event_association() {
+        let source = "0 HEAD\n1 GEDC\n2 VERS 5.5\n0 @I1@ INDI\n1 BAPM\n2 ASSO @I2@\n\
+                       3 RELA Godmother\n0 TRLR";
+        let data = GedcomBuilder::new().build_from_str(source).unwrap();
+
+        let writer = GedcomWriter::new();
+        let output = writer.write_to_string(&data).unwrap();
+
+        assert!(output.contains("1 BAPM"));
+        assert!(output.contains("2 ASSO @I2@"));
+        assert!(output.contains("3 RELA Godmother"));
+    }
+
+    #[test]
+    fn test_write_long_utf8_text_splits_on_char_boundary() {
+        let note = format!("{}é continued", "a".repeat(254));
+        let source = format!("0 HEAD\n1 GEDC\n2 VERS 5.5\n0 @I1@ INDI\n1 NOTE {note}\n0 TRLR");
+        let data = GedcomBuilder::new().build_from_str(&source).unwrap();
+
+        let writer = GedcomWriter::new();
+        let output = writer.write_to_string(&data).unwrap();
+
+        assert!(output.contains("1 NOTE"));
+        assert!(output.contains("2 CONC é continued"));
     }
 
     #[test]

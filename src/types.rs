@@ -232,8 +232,8 @@ impl GedcomData {
             // Direct citations on the individual
             stats.on_individuals += individual.source.len();
 
-            // Citations on name
-            if let Some(ref name) = individual.name {
+            // Citations on names
+            for name in &individual.names {
                 stats.on_names += name.source.len();
             }
 
@@ -495,7 +495,7 @@ impl GedcomData {
         self.individuals
             .iter()
             .filter(|i| {
-                i.name.as_ref().is_some_and(|name| {
+                i.names.iter().any(|name| {
                     name.value
                         .as_ref()
                         .is_some_and(|v| v.to_lowercase().contains(&query_lower))
@@ -625,8 +625,12 @@ impl Parser for GedcomData {
                     "SUBN" => self.add_submission(Submission::new(tokenizer, level, pointer)?),
                     "SUBM" => self.add_submitter(Submitter::new(tokenizer, level, pointer)?),
                     "OBJE" => self.add_multimedia(Multimedia::new(tokenizer, level, pointer)?),
-                    // GEDCOM 7.0: Shared note record
-                    "SNOTE" => self.add_shared_note(SharedNote::new(tokenizer, level, pointer)?),
+                    // GEDCOM 5.1: NOTE_RECORD
+                    // is similar to
+                    // GEDCOM 7.0: Shared note record SNOTE
+                    "NOTE" | "SNOTE" => {
+                        self.add_shared_note(SharedNote::new(tokenizer, level, pointer)?);
+                    }
                     // Trailer is optional in the wild; allow EOF-terminated files.
                     "TRLR" => break,
                     _ => {

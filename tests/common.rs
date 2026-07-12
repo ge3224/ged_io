@@ -35,8 +35,8 @@ mod tests {
         // names
         assert_eq!(
             data.individuals[0]
-                .name
-                .as_ref()
+                .names
+                .first()
                 .unwrap()
                 .value
                 .as_ref()
@@ -87,8 +87,8 @@ mod tests {
         // names
         assert_eq!(
             data.individuals[0]
-                .name
-                .as_ref()
+                .names
+                .first()
                 .unwrap()
                 .value
                 .as_ref()

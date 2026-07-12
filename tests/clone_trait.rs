@@ -50,7 +50,7 @@ fn test_clone_individual() {
 
     assert_eq!(*individual, cloned);
     assert_eq!(individual.xref, cloned.xref);
-    assert_eq!(individual.name, cloned.name);
+    assert_eq!(individual.names, cloned.names);
     assert_eq!(individual.sex, cloned.sex);
 }
 

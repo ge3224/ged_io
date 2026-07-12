@@ -102,7 +102,7 @@ impl fmt::Debug for IndividualDebug<'_> {
             debug.field("xref", xref);
         }
 
-        if let Some(ref name) = self.0.name {
+        if let Some(name) = self.0.names.first() {
             if let Some(ref value) = name.value {
                 debug.field("name", value);
             }

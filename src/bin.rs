@@ -299,8 +299,8 @@ fn run() -> Result<RunOutcome, CliError> {
 
         for individual in &data.individuals {
             let display_name = individual
-                .name
-                .as_ref()
+                .names
+                .first()
                 .map(|n| n.to_string())
                 .unwrap_or_else(|| "(Unknown)".to_string());
 
@@ -357,5 +357,13 @@ fn print_validation_report(level: ValidationLevel, errors: &[String], warnings: 
 fn read_relative(path: &str) -> Result<String, std::io::Error> {
     let path_buf: PathBuf = PathBuf::from(path);
     let absolute_path: PathBuf = fs::canonicalize(path_buf)?;
-    fs::read_to_string(absolute_path)
+    match fs::read_to_string(&absolute_path) {
+        Ok(text) => Ok(text),
+        Err(_e) => {
+            let bytes = fs::read(&absolute_path)?;
+            let text: String = bytes.iter().map(|&b| b as char).collect();
+
+            Ok(text)
+        }
+    }
 }

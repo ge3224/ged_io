@@ -261,9 +261,10 @@ impl Name {
     /// (e.g., "John /Doe/" becomes "John Doe").
     #[must_use]
     pub fn full_name(&self) -> Option<String> {
-        self.value
-            .as_ref()
-            .map(|v| v.replace('/', "").trim().to_string())
+        self.value.as_ref().map(|v| {
+            let v = v.replace('/', " ");
+            v.split_whitespace().collect::<Vec<_>>().join(" ")
+        })
     }
 
     /// Returns true if this name has any phonetic variations.
@@ -277,11 +278,25 @@ impl Name {
     pub fn has_romanized(&self) -> bool {
         !self.romanized.is_empty()
     }
+
+    /// Parse the value to add the surname
+    fn parse_value(&mut self, value: &str) {
+        self.value = Some(value.to_string());
+        let Some(start) = value.find('/') else { return };
+        let Some(end) = value[start + 1..].find('/') else {
+            return;
+        };
+        let end = end + start + 1;
+        let surname = &value[start + 1..end];
+        if !surname.is_empty() {
+            self.surname = Some(surname.to_string());
+        }
+    }
 }
 
 impl Parser for Name {
     fn parse(&mut self, tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<(), GedcomError> {
-        self.value = Some(tokenizer.take_line_value()?);
+        self.parse_value(&tokenizer.take_line_value()?);
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             match tag {
@@ -321,6 +336,51 @@ mod tests {
     use super::*;
     use crate::Gedcom;
 
+    fn help_test_name(name: &str) -> Name {
+        let sample = format!(
+            "\
+            0 HEAD\n\
+            1 GEDC\n\
+            2 VERS 7.0\n\
+            0 @I1@ INDI\n\
+            1 NAME {name}\n\
+            0 TRLR"
+        );
+
+        let mut doc = Gedcom::new(sample.chars()).unwrap();
+        let data = doc.parse_data().unwrap();
+
+        let indi = &data.individuals[0];
+        let name = indi.names.first().unwrap();
+        name.clone()
+    }
+
+    #[test]
+    fn test_full_name() {
+        assert_eq!(help_test_name("John Doe").full_name().unwrap(), "John Doe");
+        assert_eq!(
+            help_test_name("John /Doe/").full_name().unwrap(),
+            "John Doe"
+        );
+        assert_eq!(help_test_name("John/Doe/").full_name().unwrap(), "John Doe");
+        assert_eq!(
+            help_test_name("John Doe Carter").full_name().unwrap(),
+            "John Doe Carter"
+        );
+        assert_eq!(
+            help_test_name("John /Doe/ Carter").full_name().unwrap(),
+            "John Doe Carter"
+        );
+        assert_eq!(
+            help_test_name("John/Doe/ Carter").full_name().unwrap(),
+            "John Doe Carter"
+        );
+        assert_eq!(
+            help_test_name("John/Doe/Carter").full_name().unwrap(),
+            "John Doe Carter"
+        );
+    }
+
     #[test]
     fn test_name_type_parse() {
         assert_eq!(NameType::parse("BIRTH"), NameType::Aka);
@@ -356,10 +416,55 @@ mod tests {
         let data = doc.parse_data().unwrap();
 
         let indi = &data.individuals[0];
-        let name = indi.name.as_ref().unwrap();
+        let name = indi.names.first().unwrap();
         assert_eq!(name.name_type, Some(NameType::Maiden));
         assert_eq!(name.given.as_ref().unwrap(), "Mary");
         assert_eq!(name.surname.as_ref().unwrap(), "Smith");
+    }
+
+    #[test]
+    fn test_parse_name_and_auto_surname() {
+        let sample = "\
+            0 HEAD\n\
+            1 GEDC\n\
+            2 VERS 7.0\n\
+            0 @I1@ INDI\n\
+            1 NAME Mary /Smith/\n\
+            2 TYPE MAIDEN\n\
+            2 GIVN Mary\n\
+            0 TRLR";
+
+        let mut doc = Gedcom::new(sample.chars()).unwrap();
+        let data = doc.parse_data().unwrap();
+
+        let indi = &data.individuals[0];
+        let name = indi.names.first().unwrap();
+        assert_eq!(name.name_type, Some(NameType::Maiden));
+        assert_eq!(name.given.as_ref().unwrap(), "Mary");
+        assert_eq!(name.surname.as_ref().unwrap(), "Smith"); // The surname between the slash in
+                                                             // NAME
+    }
+
+    #[test]
+    fn test_parse_name_and_auto_empty_surname() {
+        let sample = "\
+            0 HEAD\n\
+            1 GEDC\n\
+            2 VERS 7.0\n\
+            0 @I1@ INDI\n\
+            1 NAME Mary //\n\
+            2 TYPE MAIDEN\n\
+            2 GIVN Mary\n\
+            0 TRLR";
+
+        let mut doc = Gedcom::new(sample.chars()).unwrap();
+        let data = doc.parse_data().unwrap();
+
+        let indi = &data.individuals[0];
+        let name = indi.names.first().unwrap();
+        assert_eq!(name.name_type, Some(NameType::Maiden));
+        assert_eq!(name.given.as_ref().unwrap(), "Mary");
+        assert_eq!(name.surname, None); // The surname between the slash in NAME
     }
 
     #[test]
@@ -380,7 +485,7 @@ mod tests {
         let data = doc.parse_data().unwrap();
 
         let indi = &data.individuals[0];
-        let name = indi.name.as_ref().unwrap();
+        let name = indi.names.first().unwrap();
         assert!(name.has_phonetic());
         assert_eq!(name.phonetic.len(), 1);
         assert_eq!(name.phonetic[0].value, "Yamada /Taro/");
@@ -405,7 +510,7 @@ mod tests {
         let data = doc.parse_data().unwrap();
 
         let indi = &data.individuals[0];
-        let name = indi.name.as_ref().unwrap();
+        let name = indi.names.first().unwrap();
         assert!(name.has_romanized());
         assert_eq!(name.romanized.len(), 1);
         assert_eq!(name.romanized[0].value, "Wang /Xiaoming/");
