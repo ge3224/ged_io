@@ -566,7 +566,7 @@ impl GedcomBuilder {
         // Collect all xrefs
         let mut xrefs: HashSet<&str> = HashSet::new();
 
-        for individual in data.individuals.iter() {
+        for individual in data.iter_individuals() {
             xrefs.insert(individual.xref.as_str());
         }
 
@@ -616,7 +616,7 @@ impl GedcomBuilder {
         }
 
         // Validate individual family links
-        for individual in data.individuals.iter() {
+        for individual in data.iter_individuals() {
             for family_link in &individual.families {
                 if !xrefs.contains(family_link.xref.as_str()) {
                     return Err(GedcomError::InvalidFormat(format!(

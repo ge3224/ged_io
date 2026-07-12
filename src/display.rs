@@ -29,7 +29,7 @@ impl fmt::Display for GedcomData {
 
         if !self.individuals.is_empty() {
             writeln!(f, "\nIndividuals ({}):", self.individuals.len())?;
-            for individual in self.individuals.iter() {
+            for individual in self.iter_individuals() {
                 writeln!(f, "  {individual}")?;
             }
         }
@@ -64,7 +64,7 @@ impl fmt::Display for GedcomData {
 
         if !self.submitters.is_empty() {
             writeln!(f, "\nSubmitters ({}):", self.submitters.len())?;
-            for submitter in self.submitters.iter() {
+            for submitter in self.iter_submitters() {
                 writeln!(f, "  {submitter}")?;
             }
         }

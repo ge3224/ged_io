@@ -242,18 +242,12 @@ impl<T> Arena<T> {
     }
 
     /// An iterator visiting all items in insertion order
-    pub fn iter(&self) -> impl Iterator<Item = &T> {
-        let mut current = self.head;
-        std::iter::from_fn(move || {
-            let i = current? as usize;
-            match &self.slots[i] {
-                Slot::Occupied { value, next, .. } => {
-                    current = *next;
-                    Some(value)
-                }
-                Slot::Vacant { .. } => None,
-            }
-        })
+    #[must_use]
+    pub fn iter(&self) -> Iter<'_, T> {
+        Iter {
+            arena: self,
+            current: self.head,
+        }
     }
 
     /// An iterator visiting all items with their handles in insertion order.
@@ -316,5 +310,36 @@ impl<'de, T: Deserialize<'de>> Deserialize<'de> for Arena<T> {
             arena.insert(v);
         }
         Ok(arena)
+    }
+}
+
+/// An iterator over the occupied values of an [`Arena`] in insertion order.
+pub struct Iter<'a, T> {
+    arena: &'a Arena<T>,
+    current: Option<u32>,
+}
+
+impl<'a, T> Iterator for Iter<'a, T> {
+    type Item = &'a T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let i = self.current? as usize;
+        match &self.arena.slots[i] {
+            Slot::Occupied { value, next, .. } => {
+                self.current = *next;
+                Some(value)
+            }
+            Slot::Vacant { .. } => None,
+        }
+    }
+}
+
+impl<'a, T> IntoIterator for &'a Arena<T> {
+    type Item = &'a T;
+
+    type IntoIter = Iter<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
     }
 }

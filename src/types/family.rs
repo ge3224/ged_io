@@ -240,7 +240,7 @@ impl Family {
             ne.outbound_refs(sink);
         }
 
-        for udt in self.user_defined_tags.iter() {
+        for udt in &self.user_defined_tags {
             udt.outbound_refs(sink);
         }
     }

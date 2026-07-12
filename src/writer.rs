@@ -183,7 +183,7 @@ impl GedcomWriter {
         }
 
         // Write individuals
-        for individual in data.individuals.iter() {
+        for individual in data.iter_individuals() {
             self.write_individual(writer, individual)?;
         }
 
