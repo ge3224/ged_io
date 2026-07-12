@@ -62,6 +62,16 @@ impl Gender {
     pub fn add_source_citation(&mut self, sour: Citation) {
         self.sources.push(sour);
     }
+
+    #[must_use]
+    pub fn is_female(&self) -> bool {
+        matches!(self.value, GenderType::Female)
+    }
+
+    #[must_use]
+    pub fn is_male(&self) -> bool {
+        matches!(self.value, GenderType::Male)
+    }
 }
 
 impl Parser for Gender {
