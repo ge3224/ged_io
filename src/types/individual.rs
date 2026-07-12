@@ -13,11 +13,8 @@ use crate::{
         event::{detail::Detail, util::HasEvents},
         gedcom7::NonEvent,
         individual::{
-            association::Association,
-            attribute::detail::AttributeDetail,
-            family_link::FamilyLink,
-            gender::{Gender, GenderType},
-            name::Name,
+            association::Association, attribute::detail::AttributeDetail, family_link::FamilyLink,
+            gender::Gender, name::Name,
         },
         lds::LdsOrdinance,
         multimedia::Multimedia,
