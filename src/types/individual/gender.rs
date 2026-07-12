@@ -68,6 +68,16 @@ impl Gender {
             s.outbound_refs(sink);
         }
     }
+
+    #[must_use]
+    pub fn is_female(&self) -> bool {
+        matches!(self.value, GenderType::Female)
+    }
+
+    #[must_use]
+    pub fn is_male(&self) -> bool {
+        matches!(self.value, GenderType::Male)
+    }
 }
 
 impl Parser for Gender {
