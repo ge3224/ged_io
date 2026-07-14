@@ -1,4 +1,5 @@
 use crate::{
+    arena::Arena,
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{custom::UserDefinedTag, date::change_date::ChangeDate, note::Note, Xref},
@@ -71,7 +72,7 @@ pub struct Submission {
     /// These tags allow for extensions to the GEDCOM format, storing
     /// non-standard or proprietary data associated with the submission.
     /// Tag: `_XXXX` (where XXXX is a user-defined tag)
-    pub custom: Vec<Box<UserDefinedTag>>,
+    pub user_defined_tags: Arena<UserDefinedTag>,
 }
 
 impl Submission {
@@ -133,7 +134,9 @@ impl Parser for Submission {
             Ok(())
         };
 
-        self.custom = parse_subset(tokenizer, level, handle_subset)?;
+        for udt in parse_subset(tokenizer, level, handle_subset)? {
+            self.user_defined_tags.insert(*udt);
+        }
 
         Ok(())
     }
@@ -187,15 +190,33 @@ mod tests {
         assert_eq!(date.value.as_deref(), Some("1 APR 1998"));
         assert_eq!(date.time.as_deref(), Some("12:34:56.789"));
 
-        assert_eq!(submission.custom[0].tag, "_MYCUSTOMTAG");
         assert_eq!(
-            submission.custom[0].value.as_deref(),
+            submission.user_defined_tags.iter().next().unwrap().tag,
+            "_MYCUSTOMTAG"
+        );
+        assert_eq!(
+            submission
+                .user_defined_tags
+                .iter()
+                .next()
+                .unwrap()
+                .value
+                .as_deref(),
             Some("Some custom data here")
         );
 
-        assert_eq!(submission.custom[1].tag, "_ANOTHER_TAG");
         assert_eq!(
-            submission.custom[1].value.as_deref(),
+            submission.user_defined_tags.iter().nth(1).unwrap().tag,
+            "_ANOTHER_TAG"
+        );
+        assert_eq!(
+            submission
+                .user_defined_tags
+                .iter()
+                .nth(1)
+                .unwrap()
+                .value
+                .as_deref(),
             Some("Another piece of custom data"),
         );
     }
