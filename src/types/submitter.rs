@@ -1,4 +1,5 @@
 use crate::{
+    arena::Arena,
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{
@@ -31,7 +32,7 @@ pub struct Submitter {
     /// Physical address of the submitter
     pub address: Option<Address>,
     /// A multimedia asset linked to a fact
-    pub multimedia: Vec<Link>,
+    pub multimedia_link: Arena<Link>,
     /// Language preference
     pub language: Option<String>,
     /// A registered number of a submitter of Ancestral File data. This number is used in
@@ -62,7 +63,7 @@ pub struct Submitter {
     /// A user-defined number or text that the submitter uses to identify
     /// this record.
     pub user_reference_number: Option<String>,
-    pub custom_data: Vec<Box<UserDefinedTag>>,
+    pub user_defined_tags: Arena<UserDefinedTag>,
 }
 
 impl Submitter {
@@ -77,7 +78,7 @@ impl Submitter {
             email: Vec::new(),
             fax: Vec::new(),
             language: None,
-            multimedia: Vec::new(),
+            multimedia_link: Arena::default(),
             name: None,
             note: None,
             phone: Vec::new(),
@@ -86,7 +87,7 @@ impl Submitter {
             user_reference_number: None,
             website: Vec::new(),
             xref: xref.into(),
-            custom_data: Vec::new(),
+            user_defined_tags: Arena::default(),
         }
     }
 
@@ -108,11 +109,11 @@ impl Submitter {
 
     /// Adds a `Multimedia` to the tree
     pub fn add_multimedia(&mut self, multimedia: Link) {
-        self.multimedia.push(multimedia);
+        self.multimedia_link.insert(multimedia);
     }
 
     pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
-        for link in &self.multimedia {
+        for link in &self.multimedia_link {
             if let LinkTarget::Record(xref) = &link.link {
                 sink(xref);
             }
@@ -151,7 +152,9 @@ impl Parser for Submitter {
             Ok(())
         };
 
-        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
+        for udt in parse_subset(tokenizer, level, handle_subset)? {
+            self.user_defined_tags.insert(*udt);
+        }
 
         Ok(())
     }
