@@ -42,8 +42,8 @@ pub struct Family {
     pub num_children: Option<String>,
     pub change_date: Option<ChangeDate>,
     pub events: Vec<Detail>,
-    pub sources: Vec<Citation>,
-    pub multimedia_links: Vec<Link>,
+    pub sources: Arena<Citation>,
+    pub multimedia_links: Arena<Link>,
     pub notes: Vec<Note>,
     #[cfg_attr(feature = "json", serde(skip))]
     pub user_defined_tags: Arena<UserDefinedTag>,
@@ -109,8 +109,8 @@ impl Family {
             num_children: Option::default(),
             change_date: Option::default(),
             events: Vec::default(),
-            sources: Vec::default(),
-            multimedia_links: Vec::default(),
+            sources: Arena::default(),
+            multimedia_links: Arena::default(),
             notes: Vec::default(),
             user_defined_tags: Arena::default(),
             non_events: Vec::default(),
@@ -181,11 +181,11 @@ impl Family {
     }
 
     pub fn add_source(&mut self, sour: Citation) {
-        self.sources.push(sour);
+        self.sources.insert(sour);
     }
 
     pub fn add_multimedia(&mut self, media: Link) {
-        self.multimedia_links.push(media);
+        self.multimedia_links.insert(media);
     }
 
     pub fn add_note(&mut self, note: Note) {
