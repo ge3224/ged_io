@@ -51,9 +51,9 @@ pub struct Individual {
     pub sex: Option<Gender>,
     pub families: Vec<FamilyLink>,
     pub attributes: Vec<AttributeDetail>,
-    pub source: Vec<Citation>,
+    pub sources: Arena<Citation>,
     pub events: Vec<Detail>,
-    pub multimedia_links: Vec<Link>,
+    pub multimedia_links: Arena<Link>,
     pub last_updated: Option<String>,
     pub note: Option<Note>,
     pub change_date: Option<ChangeDate>,
@@ -74,7 +74,7 @@ pub struct Individual {
     ///
     /// Used to link individuals who have some relationship not covered by other
     /// standard tags (e.g., friends, neighbors, witnesses).
-    pub associations: Vec<Association>,
+    pub associations: Arena<Association>,
     /// Unique identifier (tag: UID).
     ///
     /// A globally unique identifier for this record. In GEDCOM 7.0, this is
@@ -146,16 +146,16 @@ impl Individual {
             sex: None,
             families: Vec::new(),
             attributes: Vec::new(),
-            source: Vec::new(),
+            sources: Arena::default(),
             events: Vec::new(),
-            multimedia_links: Vec::new(),
+            multimedia_links: Arena::default(),
             last_updated: None,
             note: None,
             change_date: None,
             user_defined_tags: Arena::default(),
             non_events: Vec::new(),
             lds_ordinances: Vec::new(),
-            associations: Vec::new(),
+            associations: Arena::default(),
             uid: None,
             restriction: None,
             user_reference_number: None,
@@ -199,11 +199,11 @@ impl Individual {
     }
 
     pub fn add_source_citation(&mut self, sour: Citation) {
-        self.source.push(sour);
+        self.sources.insert(sour);
     }
 
     pub fn add_multimedia_link(&mut self, multimedia_link: Link) {
-        self.multimedia_links.push(multimedia_link);
+        self.multimedia_links.insert(multimedia_link);
     }
 
     pub fn add_name(&mut self, name: Name) {
@@ -332,7 +332,7 @@ impl Individual {
     /// Checks if the individual has any sources cited.
     #[must_use]
     pub fn has_sources(&self) -> bool {
-        !self.source.is_empty()
+        !self.sources.is_empty()
     }
 
     pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
@@ -340,7 +340,7 @@ impl Individual {
             f.outbound_refs(sink);
         }
 
-        for s in &self.source {
+        for s in &self.sources {
             s.outbound_refs(sink);
         }
 
@@ -446,7 +446,7 @@ impl Parser for Individual {
                 // Associations with other individuals
                 "ASSO" => {
                     self.associations
-                        .push(Association::new(tokenizer, level + 1)?);
+                        .insert(Association::new(tokenizer, level + 1)?);
                 }
                 // Unique identifier (GEDCOM 7.0)
                 "UID" => self.uid = Some(tokenizer.take_line_value()?),

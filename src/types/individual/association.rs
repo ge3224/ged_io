@@ -121,17 +121,10 @@ mod tests {
 
         let individual = data.find_individual("@I1@").unwrap();
         assert_eq!(individual.associations.len(), 1);
-        assert_eq!(
-            individual.associations[0].target,
-            AssociationTarget::Record("@I2@".to_string())
-        );
-        assert_eq!(
-            individual.associations[0].relationship.clone().unwrap(),
-            "FRIEND"
-        );
-        assert_eq!(
-            individual.associations[0].association_type.clone().unwrap(),
-            "COWORKER"
-        );
+
+        let assoc = individual.associations.iter().next().unwrap();
+        assert_eq!(assoc.target, AssociationTarget::Record("@I2@".to_string()));
+        assert_eq!(assoc.relationship.clone().unwrap(), "FRIEND");
+        assert_eq!(assoc.association_type.clone().unwrap(), "COWORKER");
     }
 }

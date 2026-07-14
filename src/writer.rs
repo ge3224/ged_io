@@ -404,7 +404,7 @@ impl GedcomWriter {
             self.write_family_link_detail(writer, 2, family_link)?;
         }
 
-        for citation in &individual.source {
+        for citation in &individual.sources {
             self.write_citation(writer, 1, citation)?;
         }
 

@@ -194,11 +194,12 @@ mod tests {
 
         let indi = data.find_individual("@PERSON1@").unwrap();
 
-        let CitationSource::Record(x) = &indi.source[0].source else {
+        let s = indi.sources.iter().next().unwrap();
+        let CitationSource::Record(x) = &s.source else {
             panic!("expected a Record citation");
         };
         assert_eq!(x, "@SOURCE1@");
-        assert_eq!(indi.source[0].page.as_ref().unwrap(), "42");
+        assert_eq!(s.page.as_ref().unwrap(), "42");
     }
     #[test]
     fn test_parse_source_citation_data_record() {
@@ -216,7 +217,13 @@ mod tests {
 
         let mut ged = Gedcom::new(sample.chars()).unwrap();
         let data = ged.parse_data().unwrap();
-        let citation_data = data.find_individual("@PERSON1@").unwrap().source[0]
+        let citation_data = data
+            .find_individual("@PERSON1@")
+            .unwrap()
+            .sources
+            .iter()
+            .next()
+            .unwrap()
             .data
             .as_ref()
             .unwrap();
@@ -246,7 +253,13 @@ mod tests {
 
         let mut ged = Gedcom::new(sample.chars()).unwrap();
         let data = ged.parse_data().unwrap();
-        let citation_data = data.find_individual("@PERSON1@").unwrap().source[0]
+        let citation_data = data
+            .find_individual("@PERSON1@")
+            .unwrap()
+            .sources
+            .iter()
+            .next()
+            .unwrap()
             .data
             .as_ref()
             .unwrap();
@@ -272,7 +285,13 @@ mod tests {
 
         let mut ged = Gedcom::new(sample.chars()).unwrap();
         let data = ged.parse_data().unwrap();
-        let quay = data.find_individual("@PERSON1@").unwrap().source[0]
+        let quay = data
+            .find_individual("@PERSON1@")
+            .unwrap()
+            .sources
+            .iter()
+            .next()
+            .unwrap()
             .certainty_assessment
             .as_ref()
             .unwrap();

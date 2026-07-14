@@ -601,7 +601,7 @@ impl GedcomData {
         };
 
         self.xrefs.bump(&source_xref);
-        i.source.push(Citation::with_source(source_xref));
+        i.sources.insert(Citation::with_source(source_xref));
 
         Ok(())
     }
@@ -640,12 +640,12 @@ impl GedcomData {
             unreachable!("xref map and arena are out of sync");
         };
 
-        let pos = i
-            .source
-            .iter()
-            .position(|c| matches!(&c.source, CitationSource::Record(x) if x == &source_xref));
-
-        let Some(pos) = pos else {
+        let Some(source_handle) = i
+            .sources
+            .iter_handles()
+            .find(|(_, c)| matches!(&c.source, CitationSource::Record(x) if x == &source_xref))
+            .map(|(h, _)| h)
+        else {
             return Err(GedcomError::NotLinked {
                 from_xref: individual_xref,
                 to_xref: source_xref,
@@ -653,7 +653,7 @@ impl GedcomData {
             });
         };
 
-        i.source.remove(pos);
+        i.sources.remove(source_handle);
         self.xrefs.decrement(&source_xref);
 
         Ok(())
@@ -695,7 +695,7 @@ impl GedcomData {
 
         self.xrefs.bump(&associate_xref);
         i.associations
-            .push(Association::with_target(associate_xref));
+            .insert(Association::with_target(associate_xref));
 
         Ok(())
     }
@@ -734,11 +734,14 @@ impl GedcomData {
             unreachable!("xref map and arena are out of sync")
         };
 
-        let pos = i.associations.iter().position(
-            |a| matches!(&a.target, AssociationTarget::Record(x) if x == &associate_xref),
-        );
-
-        let Some(pos) = pos else {
+        let Some(association_handle) = i
+            .associations
+            .iter_handles()
+            .find(
+                |(_, a)| matches!(&a.target, AssociationTarget::Record(x) if x == &associate_xref),
+            )
+            .map(|(h, _)| h)
+        else {
             return Err(GedcomError::NotLinked {
                 from_xref: individual_xref,
                 to_xref: associate_xref,
@@ -746,7 +749,7 @@ impl GedcomData {
             });
         };
 
-        i.associations.remove(pos);
+        i.associations.remove(association_handle);
         self.xrefs.decrement(&associate_xref);
 
         Ok(())
@@ -1542,7 +1545,8 @@ impl GedcomData {
         };
 
         self.xrefs.bump(&multimedia_xref);
-        i.multimedia_links.push(Link::with_record(multimedia_xref));
+        i.multimedia_links
+            .insert(Link::with_record(multimedia_xref));
 
         Ok(())
     }
@@ -1581,20 +1585,20 @@ impl GedcomData {
             unreachable!("xref map and arena are out of sync")
         };
 
-        let pos = i
+        let Some(multimedia_handle) = i
             .multimedia_links
-            .iter()
-            .position(|m| matches!(&m.link, LinkTarget::Record(x) if x == &multimedia_xref));
-
-        let Some(pos) = pos else {
+            .iter_handles()
+            .find(|(_, l)| matches!(&l.link, LinkTarget::Record(x) if x == &multimedia_xref))
+            .map(|(h, _)| h)
+        else {
             return Err(GedcomError::NotLinked {
                 from_xref: individual_xref,
                 to_xref: multimedia_xref,
-                link_type: "multimedia".to_string(),
+                link_type: "multimedia_link".to_string(),
             });
         };
 
-        i.multimedia_links.remove(pos);
+        i.multimedia_links.remove(multimedia_handle);
         self.xrefs.decrement(&multimedia_xref);
 
         Ok(())
@@ -2161,7 +2165,7 @@ impl GedcomData {
         // Count citations on individuals
         for individual in self.iter_individuals() {
             // Direct citations on the individual
-            stats.on_individuals += individual.source.len();
+            stats.on_individuals += individual.sources.len();
 
             // Citations on names
             for name in &individual.names {
