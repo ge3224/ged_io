@@ -4,6 +4,7 @@ pub mod quay;
 pub mod text;
 
 use crate::{
+    arena::Arena,
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{
@@ -34,12 +35,12 @@ pub struct Source {
     pub publication_facts: Option<String>,
     pub citation_from_source: Option<String>,
     pub change_date: Option<Box<ChangeDate>>,
-    pub multimedia: Vec<Link>,
+    pub multimedia_links: Arena<Link>,
     pub notes: Vec<Note>,
-    pub repo_citations: Vec<Citation>,
+    pub repo_citations: Arena<Citation>,
     /// handles "RFN" tag; found in Ancestry.com export
     pub submitter_registered_rfn: Option<String>,
-    pub custom_data: Vec<Box<UserDefinedTag>>,
+    pub user_defined_tags: Arena<UserDefinedTag>,
     /// Unique identifier (tag: UID, GEDCOM 7.0).
     ///
     /// A globally unique identifier for this record. In GEDCOM 7.0, this is
@@ -95,7 +96,7 @@ impl Source {
     }
 
     pub fn add_multimedia(&mut self, media: Link) {
-        self.multimedia.push(media);
+        self.multimedia_links.insert(media);
     }
 
     pub fn add_note(&mut self, note: Note) {
@@ -103,7 +104,7 @@ impl Source {
     }
 
     pub fn add_repo_citation(&mut self, citation: Citation) {
-        self.repo_citations.push(citation);
+        self.repo_citations.insert(citation);
     }
 
     pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
@@ -111,7 +112,7 @@ impl Source {
             c.outbound_refs(sink);
         }
 
-        for m in &self.multimedia {
+        for m in &self.multimedia_links {
             m.outbound_refs(sink);
         }
 
@@ -167,7 +168,9 @@ impl Parser for Source {
             Ok(())
         };
 
-        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
+        for udt in parse_subset(tokenizer, level, handle_subset)? {
+            self.user_defined_tags.insert(*udt);
+        }
 
         Ok(())
     }

@@ -16,6 +16,7 @@
 //! See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#SHARED_NOTE_RECORD>
 
 use crate::{
+    arena::Arena,
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{
@@ -73,7 +74,7 @@ pub struct SharedNote {
     pub translations: Vec<NoteTranslation>,
 
     /// Source citations supporting the note content.
-    pub source_citations: Vec<Citation>,
+    pub source_citations: Arena<Citation>,
 
     /// External identifiers for this note.
     pub external_ids: Vec<ExternalId>,
@@ -85,7 +86,7 @@ pub struct SharedNote {
     pub creation_date: Option<ChangeDate>,
 
     /// Custom data (extension tags).
-    pub custom_data: Vec<Box<UserDefinedTag>>,
+    pub user_defined_tags: Arena<UserDefinedTag>,
 }
 
 impl SharedNote {
@@ -215,7 +216,7 @@ impl SharedNote {
 
     /// Adds a source citation to this shared note.
     pub fn add_source_citation(&mut self, citation: Citation) {
-        self.source_citations.push(citation);
+        self.source_citations.insert(citation);
     }
 
     /// Adds an external identifier to this shared note.
@@ -340,7 +341,7 @@ impl Parser for SharedNote {
                 }
                 "SOUR" => {
                     self.source_citations
-                        .push(Citation::new(tokenizer, level + 1)?);
+                        .insert(Citation::new(tokenizer, level + 1)?);
                 }
                 "EXID" => {
                     let id = tokenizer.take_line_value()?;
@@ -363,7 +364,9 @@ impl Parser for SharedNote {
             Ok(())
         };
 
-        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
+        for udt in parse_subset(tokenizer, level, handle_subset)? {
+            self.user_defined_tags.insert(*udt);
+        }
 
         Ok(())
     }
