@@ -24,6 +24,7 @@
 //! See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#LDS_INDIVIDUAL_ORDINANCE>
 
 use crate::{
+    arena::Arena,
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{date::Date, note::Note, source::citation::Citation},
@@ -240,7 +241,7 @@ pub struct LdsOrdinance {
     pub note: Option<Note>,
 
     /// Source citations for this ordinance.
-    pub source_citations: Vec<Citation>,
+    pub source_citations: Arena<Citation>,
 }
 
 impl LdsOrdinance {
@@ -346,7 +347,7 @@ impl Parser for LdsOrdinance {
                 "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
                 "SOUR" => {
                     self.source_citations
-                        .push(Citation::new(tokenizer, level + 1)?);
+                        .insert(Citation::new(tokenizer, level + 1)?);
                 }
                 _ => {
                     // Gracefully skip unknown tags

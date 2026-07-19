@@ -39,7 +39,7 @@ impl std::fmt::Display for GenderType {
 pub struct Gender {
     pub value: GenderType,
     pub fact: Option<String>,
-    pub sources: Vec<Citation>,
+    pub sources: Arena<Citation>,
     pub user_defined_tags: Arena<UserDefinedTag>,
 }
 
@@ -53,7 +53,7 @@ impl Gender {
         let mut sex = Gender {
             value: GenderType::Unknown,
             fact: None,
-            sources: Vec::new(),
+            sources: Arena::default(),
             user_defined_tags: Arena::default(),
         };
         sex.parse(tokenizer, level)?;
@@ -61,7 +61,7 @@ impl Gender {
     }
 
     pub fn add_source_citation(&mut self, sour: Citation) {
-        self.sources.push(sour);
+        self.sources.insert(sour);
     }
 
     pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {

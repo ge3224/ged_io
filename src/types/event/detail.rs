@@ -3,6 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 
 use crate::{
+    arena::Arena,
     parser::{parse_subset, Parser},
     tokenizer::{Token, Tokenizer},
     types::{
@@ -54,8 +55,8 @@ pub struct Detail {
     /// the parent event or attribute tag. This should be used whenever either of the generic EVEN
     /// or FACT tags are used. T. See GEDCOM 5.5 spec, page 35 and 49.
     pub event_type: Option<String>,
-    pub citations: Vec<Citation>,
-    pub multimedia: Vec<Link>,
+    pub citations: Arena<Citation>,
+    pub multimedia_links: Arena<Link>,
     /// A sort date used for ordering events (GEDCOM 7.0).
     ///
     /// This is intended for use when the actual date is vague (e.g., "before 1820")
@@ -63,7 +64,7 @@ pub struct Detail {
     /// to use for sorting purposes.
     pub sort_date: Option<SortDate>,
     /// Associations with individuals related to this event (e.g., witnesses, godparents).
-    pub associations: Vec<Association>,
+    pub associations: Arena<Association>,
     /// The cause of the event (tag: CAUS).
     ///
     /// Used to indicate what caused the event to occur. Commonly used with death events
@@ -121,10 +122,10 @@ impl Detail {
             family_link: None,
             family_event_details: Vec::new(),
             event_type: None,
-            citations: Vec::new(),
-            multimedia: Vec::new(),
+            citations: Arena::default(),
+            multimedia_links: Arena::default(),
             sort_date: None,
-            associations: Vec::new(),
+            associations: Arena::default(),
             cause: None,
             restriction: None,
             age: None,
@@ -141,7 +142,7 @@ impl Detail {
     }
 
     pub fn add_citation(&mut self, citation: Citation) {
-        self.citations.push(citation);
+        self.citations.insert(citation);
     }
 
     pub fn add_family_event_detail(&mut self, detail: FamilyEventDetail) {
@@ -149,19 +150,14 @@ impl Detail {
     }
 
     pub fn add_multimedia_record(&mut self, m: Link) {
-        self.multimedia.push(m);
-    }
-
-    #[must_use]
-    pub fn get_citations(&self) -> &[Citation] {
-        &self.citations
+        self.multimedia_links.insert(m);
     }
 
     pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
         for c in &self.citations {
             c.outbound_refs(sink);
         }
-        for l in &self.multimedia {
+        for l in &self.multimedia_links {
             l.outbound_refs(sink);
         }
         for a in &self.associations {
@@ -221,9 +217,10 @@ impl Parser for Detail {
                     self.add_multimedia_record(Link::new(tokenizer, level + 1)?);
                 }
                 "SDATE" => self.sort_date = Some(SortDate::new(tokenizer, level + 1)?),
-                "ASSO" => self
-                    .associations
-                    .push(Association::new(tokenizer, level + 1)?),
+                "ASSO" => {
+                    self.associations
+                        .insert(Association::new(tokenizer, level + 1)?);
+                }
                 "CAUS" => self.cause = Some(tokenizer.take_continued_text(level + 1)?),
                 "RESN" => self.restriction = Some(tokenizer.take_line_value()?),
                 "AGE" => self.age = Some(Age::new(tokenizer, level + 1)?),

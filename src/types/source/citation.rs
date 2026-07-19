@@ -104,7 +104,7 @@ pub struct Citation {
     pub certainty_assessment: Option<CertaintyAssessment>,
     /// handles "RFN" tag; found in Ancestry.com export
     pub submitter_registered_rfn: Option<String>,
-    pub multimedia: Vec<Link>,
+    pub multimedia_links: Arena<Link>,
     pub user_defined_tags: Arena<UserDefinedTag>,
     /// Event type cited from the source (tag: EVEN).
     ///
@@ -138,7 +138,7 @@ impl Citation {
             data: None,
             note: None,
             certainty_assessment: None,
-            multimedia: Vec::new(),
+            multimedia_links: Arena::default(),
             user_defined_tags: Arena::default(),
             submitter_registered_rfn: None,
             event_type: None,
@@ -155,7 +155,7 @@ impl Citation {
             data: None,
             note: None,
             certainty_assessment: None,
-            multimedia: Vec::new(),
+            multimedia_links: Arena::default(),
             user_defined_tags: Arena::default(),
             submitter_registered_rfn: None,
             event_type: None,
@@ -164,7 +164,7 @@ impl Citation {
     }
 
     pub fn add_multimedia(&mut self, m: Link) {
-        self.multimedia.push(m);
+        self.multimedia_links.insert(m);
     }
 
     pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
@@ -172,7 +172,7 @@ impl Citation {
             sink(xref);
         }
 
-        for link in &self.multimedia {
+        for link in &self.multimedia_links {
             link.outbound_refs(sink);
         }
     }
@@ -245,7 +245,7 @@ mod tests {
 
         let indi = data.find_individual("@I1@").unwrap();
         let birt = &indi.events[0];
-        let sour = &birt.citations[0];
+        let sour = &birt.citations.iter().next().unwrap();
 
         assert_eq!(sour.source.as_xref(), Some("@S1@"));
         assert_eq!(sour.page.as_ref().unwrap(), "Page 42");
@@ -273,7 +273,7 @@ mod tests {
 
         let indi = data.individuals.iter().next().unwrap();
         let birt = &indi.events[0];
-        let sour = &birt.citations[0];
+        let sour = &birt.citations.iter().next().unwrap();
 
         assert_eq!(
             sour.source.as_description(),

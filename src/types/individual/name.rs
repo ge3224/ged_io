@@ -205,7 +205,7 @@ pub struct Name {
     pub nickname: Option<String>,
 
     /// Source citations for this name.
-    pub sources: Vec<Citation>,
+    pub sources: Arena<Citation>,
 
     /// The type of name (tag: TYPE).
     ///
@@ -251,7 +251,7 @@ impl Name {
     }
 
     pub fn add_source_citation(&mut self, sour: Citation) {
-        self.sources.push(sour);
+        self.sources.insert(sour);
     }
 
     /// Adds a phonetic variation of the name.

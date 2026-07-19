@@ -12,6 +12,7 @@
 //! See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html>
 
 use crate::{
+    arena::Arena,
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{date::Date, note::Note, source::citation::Citation},
@@ -316,7 +317,7 @@ pub struct NonEvent {
     pub note: Option<Note>,
 
     /// Source citations supporting the claim that the event did not occur.
-    pub source_citations: Vec<Citation>,
+    pub source_citations: Arena<Citation>,
 }
 
 impl NonEvent {
@@ -378,7 +379,7 @@ impl Parser for NonEvent {
                 "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
                 "SOUR" => {
                     self.source_citations
-                        .push(Citation::new(tokenizer, level + 1)?);
+                        .insert(Citation::new(tokenizer, level + 1)?);
                 }
                 _ => {
                     // Gracefully skip unknown tags

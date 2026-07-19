@@ -585,7 +585,7 @@ mod tests {
             note: None,
             suffix: Some("Jr.".to_string()),
             nickname: None,
-            sources: Vec::new(),
+            sources: Arena::default(),
             name_type: None,
             phonetic: Vec::new(),
             romanized: Vec::new(),

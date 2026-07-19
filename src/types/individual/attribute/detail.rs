@@ -2,6 +2,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    arena::Arena,
     parser::{parse_subset, Parser},
     tokenizer::{Token, Tokenizer},
     types::{
@@ -32,7 +33,7 @@ pub struct AttributeDetail {
     /// - Place form
     pub place: Option<Place>,
     pub date: Option<Date>,
-    pub sources: Vec<Citation>,
+    pub sources: Arena<Citation>,
     pub note: Option<Note>,
     /// `attribute_type` handles the TYPE tag, a descriptive word or phrase used to further
     /// classify the parent event or attribute tag. This should be used to define what kind of
@@ -76,7 +77,7 @@ impl AttributeDetail {
             place: None,
             value: None,
             date: None,
-            sources: Vec::new(),
+            sources: Arena::default(),
             note: None,
             attribute_type: None,
             restriction: None,
@@ -118,7 +119,7 @@ impl AttributeDetail {
     }
 
     pub fn add_source_citation(&mut self, sour: Citation) {
-        self.sources.push(sour);
+        self.sources.insert(sour);
     }
 
     pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {

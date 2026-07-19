@@ -219,8 +219,16 @@ fn test_round_trip_citation_with_free_text_description() {
 
     let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();
 
-    let citation1 = &data1.find_individual("@I1@").unwrap().events[0].citations[0];
-    let citation2 = &data2.find_individual("@I1@").unwrap().events[0].citations[0];
+    let citation1 = &data1.find_individual("@I1@").unwrap().events[0]
+        .citations
+        .iter()
+        .next()
+        .unwrap();
+    let citation2 = &data2.find_individual("@I1@").unwrap().events[0]
+        .citations
+        .iter()
+        .next()
+        .unwrap();
 
     assert_eq!(
         citation1.source.as_description(),

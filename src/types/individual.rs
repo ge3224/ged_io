@@ -613,11 +613,14 @@ mod tests {
             sex.fact.as_ref().unwrap(),
             "A fact about an individual's gender"
         );
-        let CitationSource::Record(xref) = &sex.sources[0].source else {
+        let CitationSource::Record(xref) = &sex.sources.iter().next().unwrap().source else {
             panic!("expected a Record citation");
         };
         assert_eq!(xref, "@CITATION1@");
-        assert_eq!(sex.sources[0].page.as_ref().unwrap(), "Page: 132");
+        assert_eq!(
+            sex.sources.iter().next().unwrap().page.as_ref().unwrap(),
+            "Page: 132"
+        );
     }
 
     #[test]
@@ -722,7 +725,7 @@ mod tests {
             "The place"
         );
 
-        let a_sour = &indi.attributes[0].sources[0];
+        let a_sour = &indi.attributes[0].sources.iter().next().unwrap();
         assert_eq!(a_sour.page.as_ref().unwrap(), "42");
         assert_eq!(
             a_sour

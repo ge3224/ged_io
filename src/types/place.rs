@@ -66,7 +66,7 @@ pub struct Place {
     pub external_ids: Vec<String>,
 
     /// Source citations supporting this place.
-    pub citations: Vec<Citation>,
+    pub citations: Arena<Citation>,
 
     /// Custom data (extension tags).
     pub user_defined_tags: Arena<UserDefinedTag>,
@@ -347,7 +347,9 @@ impl Parser for Place {
                     .romanized
                     .push(PlaceVariation::new(tokenizer, level + 1)?),
                 "NOTE" => self.notes.push(Note::new(tokenizer, level + 1)?),
-                "SOUR" => self.citations.push(Citation::new(tokenizer, level + 1)?),
+                "SOUR" => {
+                    self.citations.insert(Citation::new(tokenizer, level + 1)?);
+                }
                 "EXID" => self.external_ids.push(tokenizer.take_line_value()?),
                 _ => {
                     // Gracefully skip unknown tags
