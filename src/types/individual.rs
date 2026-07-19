@@ -47,12 +47,12 @@ pub struct Individual {
     ///
     /// GEDCOM 5.5.1 and 7.0 allow `{0:M}` `PERSONAL_NAME_STRUCTURE` per
     /// individual. Use `names.first()` for the primary name.
-    pub names: Vec<Name>,
+    pub names: Arena<Name>,
     pub sex: Option<Gender>,
-    pub families: Vec<FamilyLink>,
-    pub attributes: Vec<AttributeDetail>,
+    pub families: Arena<FamilyLink>,
+    pub attributes: Arena<AttributeDetail>,
     pub sources: Arena<Citation>,
-    pub events: Vec<Detail>,
+    pub events: Arena<Detail>,
     pub multimedia_links: Arena<Link>,
     pub last_updated: Option<String>,
     pub note: Option<Note>,
@@ -64,12 +64,12 @@ pub struct Individual {
     /// These assert that specific events did NOT occur (e.g., "NO MARR" means
     /// the individual never married). This is distinct from omitting an event
     /// (which means unknown).
-    pub non_events: Vec<NonEvent>,
+    pub non_events: Arena<NonEvent>,
     /// LDS (Latter-day Saints) ordinances.
     ///
     /// These include BAPL (Baptism), CONL (Confirmation), INIL (Initiatory - GEDCOM 7.0 only),
     /// ENDL (Endowment), and SLGC (Sealing to parents).
-    pub lds_ordinances: Vec<LdsOrdinance>,
+    pub lds_ordinances: Arena<LdsOrdinance>,
     /// Associations with other individuals.
     ///
     /// Used to link individuals who have some relationship not covered by other
@@ -142,19 +142,19 @@ impl Individual {
     pub fn new(xref: impl Into<Xref>) -> Self {
         Self {
             xref: xref.into(),
-            names: Vec::new(),
+            names: Arena::default(),
             sex: None,
-            families: Vec::new(),
-            attributes: Vec::new(),
+            families: Arena::default(),
+            attributes: Arena::default(),
             sources: Arena::default(),
-            events: Vec::new(),
+            events: Arena::default(),
             multimedia_links: Arena::default(),
             last_updated: None,
             note: None,
             change_date: None,
             user_defined_tags: Arena::default(),
-            non_events: Vec::new(),
-            lds_ordinances: Vec::new(),
+            non_events: Arena::default(),
+            lds_ordinances: Arena::default(),
             associations: Arena::default(),
             uid: None,
             restriction: None,
@@ -194,7 +194,7 @@ impl Individual {
             }
         }
         if do_add {
-            self.families.push(link);
+            self.families.insert(link);
         }
     }
 
@@ -207,15 +207,15 @@ impl Individual {
     }
 
     pub fn add_name(&mut self, name: Name) {
-        self.names.push(name);
+        self.names.insert(name);
     }
 
     pub fn add_attribute(&mut self, attribute: AttributeDetail) {
-        self.attributes.push(attribute);
+        self.attributes.insert(attribute);
     }
 
     #[must_use]
-    pub fn families(&self) -> &[FamilyLink] {
+    pub fn families(&self) -> &Arena<FamilyLink> {
         &self.families
     }
 
@@ -402,9 +402,10 @@ impl Individual {
 
 impl HasEvents for Individual {
     fn add_event(&mut self, event: Detail) {
-        self.events.push(event);
+        self.events.insert(event);
     }
-    fn events(&self) -> &[Detail] {
+
+    fn events(&self) -> &Arena<Detail> {
         &self.events
     }
 }
@@ -437,11 +438,13 @@ impl Parser for Individual {
                 }
                 "OBJE" => self.add_multimedia_link(Link::new(tokenizer, level + 1)?),
                 "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
-                "NO" => self.non_events.push(NonEvent::new(tokenizer, level + 1)?),
+                "NO" => {
+                    self.non_events.insert(NonEvent::new(tokenizer, level + 1)?);
+                }
                 // LDS Ordinances (INIL is GEDCOM 7.0 only)
                 "BAPL" | "CONL" | "INIL" | "ENDL" | "SLGC" => {
                     self.lds_ordinances
-                        .push(LdsOrdinance::new(tokenizer, level + 1, tag)?);
+                        .insert(LdsOrdinance::new(tokenizer, level + 1, tag)?);
                 }
                 // Associations with other individuals
                 "ASSO" => {
@@ -643,7 +646,13 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let famc = data.find_individual("@PERSON1@").unwrap().events[0]
+        let famc = data
+            .find_individual("@PERSON1@")
+            .unwrap()
+            .events
+            .iter()
+            .next()
+            .unwrap()
             .family_link
             .as_ref()
             .unwrap();
@@ -713,7 +722,7 @@ mod tests {
         assert_eq!(data.individuals.len(), 1);
 
         let indi = data.find_individual("@PERSON1@").unwrap();
-        let attr = &indi.attributes[0];
+        let attr = &indi.attributes.iter().next().unwrap();
         assert_eq!(attr.attribute.to_string(), "PhysicalDescription");
         assert_eq!(attr.value.as_ref().unwrap(), "Physical description");
         assert_eq!(
@@ -725,7 +734,15 @@ mod tests {
             "The place"
         );
 
-        let a_sour = &indi.attributes[0].sources.iter().next().unwrap();
+        let a_sour = &indi
+            .attributes
+            .iter()
+            .next()
+            .unwrap()
+            .sources
+            .iter()
+            .next()
+            .unwrap();
         assert_eq!(a_sour.page.as_ref().unwrap(), "42");
         assert_eq!(
             a_sour
@@ -783,8 +800,14 @@ mod tests {
 
         let indi = data.individuals.iter().next().unwrap();
         assert_eq!(indi.names.len(), 2);
-        assert_eq!(indi.names[0].value.as_ref().unwrap(), "Mary /Smith/");
-        assert_eq!(indi.names[1].value.as_ref().unwrap(), "Mary /Smith-Jones/");
+        assert_eq!(
+            indi.names.iter().next().unwrap().value.as_ref().unwrap(),
+            "Mary /Smith/"
+        );
+        assert_eq!(
+            indi.names.iter().nth(1).unwrap().value.as_ref().unwrap(),
+            "Mary /Smith-Jones/"
+        );
         assert_eq!(
             indi.names.last().unwrap().value.as_ref().unwrap(),
             "Mary /Smith-Jones/"
@@ -806,7 +829,10 @@ mod tests {
 
         let indi = data.individuals.iter().next().unwrap();
         assert_eq!(indi.names.len(), 1);
-        assert_eq!(indi.names[0].value.as_ref().unwrap(), "John /Doe/");
+        assert_eq!(
+            indi.names.iter().next().unwrap().value.as_ref().unwrap(),
+            "John /Doe/"
+        );
         assert_eq!(
             indi.names.first().unwrap().value.as_ref().unwrap(),
             "John /Doe/"
@@ -851,7 +877,13 @@ mod tests {
         let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();
         let indi = data2.individuals.iter().next().unwrap();
         assert_eq!(indi.names.len(), 2);
-        assert_eq!(indi.names[0].value.as_ref().unwrap(), "Mary /Smith/");
-        assert_eq!(indi.names[1].value.as_ref().unwrap(), "Mary /Smith-Jones/");
+        assert_eq!(
+            indi.names.iter().next().unwrap().value.as_ref().unwrap(),
+            "Mary /Smith/"
+        );
+        assert_eq!(
+            indi.names.iter().nth(1).unwrap().value.as_ref().unwrap(),
+            "Mary /Smith-Jones/"
+        );
     }
 }

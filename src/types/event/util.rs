@@ -1,9 +1,12 @@
-use crate::types::{event::detail::Detail, place::Place};
+use crate::{
+    arena::Arena,
+    types::{event::detail::Detail, place::Place},
+};
 
 /// Trait given to structs representing entities that have events.
 pub trait HasEvents {
     fn add_event(&mut self, event: Detail) -> ();
-    fn events(&self) -> &[Detail];
+    fn events(&self) -> &Arena<Detail>;
     fn places(&self) -> Vec<&Place> {
         self.events()
             .iter()

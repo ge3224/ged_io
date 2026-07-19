@@ -51,16 +51,16 @@ pub struct Place {
     ///
     /// Used for places with names in non-Latin scripts to provide
     /// a phonetic representation.
-    pub phonetic: Vec<PlaceVariation>,
+    pub phonetic: Arena<PlaceVariation>,
 
     /// Romanized variations of the place name (tag: ROMN).
     ///
     /// Used for places with names in non-Latin scripts to provide
     /// a romanized (Latin alphabet) representation.
-    pub romanized: Vec<PlaceVariation>,
+    pub romanized: Arena<PlaceVariation>,
 
     /// Notes about the place.
-    pub notes: Vec<Note>,
+    pub notes: Arena<Note>,
 
     /// External identifiers for this place (GEDCOM 7.0).
     pub external_ids: Vec<String>,
@@ -314,12 +314,12 @@ impl Place {
 
     /// Adds a phonetic variation of the place name.
     pub fn add_phonetic(&mut self, variation: PlaceVariation) {
-        self.phonetic.push(variation);
+        self.phonetic.insert(variation);
     }
 
     /// Adds a romanized variation of the place name.
     pub fn add_romanized(&mut self, variation: PlaceVariation) {
-        self.romanized.push(variation);
+        self.romanized.insert(variation);
     }
 
     /// Returns the jurisdictions as a vector of strings.
@@ -340,13 +340,17 @@ impl Parser for Place {
             match tag {
                 "FORM" => self.form = Some(tokenizer.take_line_value()?),
                 "MAP" => self.map = Some(MapCoordinates::new(tokenizer, level + 1)?),
-                "FONE" => self
-                    .phonetic
-                    .push(PlaceVariation::new(tokenizer, level + 1)?),
-                "ROMN" => self
-                    .romanized
-                    .push(PlaceVariation::new(tokenizer, level + 1)?),
-                "NOTE" => self.notes.push(Note::new(tokenizer, level + 1)?),
+                "FONE" => {
+                    self.phonetic
+                        .insert(PlaceVariation::new(tokenizer, level + 1)?);
+                }
+                "ROMN" => {
+                    self.romanized
+                        .insert(PlaceVariation::new(tokenizer, level + 1)?);
+                }
+                "NOTE" => {
+                    self.notes.insert(Note::new(tokenizer, level + 1)?);
+                }
                 "SOUR" => {
                     self.citations.insert(Citation::new(tokenizer, level + 1)?);
                 }

@@ -137,7 +137,13 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let event = data.find_individual("@PERSON1@").unwrap().events[0]
+        let event = data
+            .find_individual("@PERSON1@")
+            .unwrap()
+            .events
+            .iter()
+            .next()
+            .unwrap()
             .event
             .to_string();
         assert_eq!(event, "Census");

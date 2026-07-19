@@ -37,25 +37,25 @@ pub struct Family {
     pub xref: Xref,
     pub individual1: Option<Xref>, // mapped from HUSB
     pub individual2: Option<Xref>, // mapped from WIFE
-    pub family_event: Vec<Detail>,
+    pub family_event: Arena<Detail>,
     pub children: Vec<Xref>,
     pub num_children: Option<String>,
     pub change_date: Option<ChangeDate>,
-    pub events: Vec<Detail>,
+    pub events: Arena<Detail>,
     pub sources: Arena<Citation>,
     pub multimedia_links: Arena<Link>,
-    pub notes: Vec<Note>,
+    pub notes: Arena<Note>,
     #[cfg_attr(feature = "json", serde(skip))]
     pub user_defined_tags: Arena<UserDefinedTag>,
     /// Non-event assertions for GEDCOM 7.0.
     ///
     /// These assert that specific events did NOT occur (e.g., "NO CHIL" means
     /// no children). This is distinct from omitting an event (which means unknown).
-    pub non_events: Vec<NonEvent>,
+    pub non_events: Arena<NonEvent>,
     /// LDS (Latter-day Saints) sealing ordinance.
     ///
     /// This includes SLGS (Sealing to spouse) for family records.
-    pub lds_ordinances: Vec<LdsOrdinance>,
+    pub lds_ordinances: Arena<LdsOrdinance>,
     /// Unique identifier (tag: UID).
     ///
     /// A globally unique identifier for this record. In GEDCOM 7.0, this is
@@ -104,17 +104,17 @@ impl Family {
             xref: xref.into(),
             individual1: Option::default(),
             individual2: Option::default(),
-            family_event: Vec::default(),
+            family_event: Arena::default(),
             children: Vec::default(),
             num_children: Option::default(),
             change_date: Option::default(),
-            events: Vec::default(),
+            events: Arena::default(),
             sources: Arena::default(),
             multimedia_links: Arena::default(),
-            notes: Vec::default(),
+            notes: Arena::default(),
             user_defined_tags: Arena::default(),
-            non_events: Vec::default(),
-            lds_ordinances: Vec::default(),
+            non_events: Arena::default(),
+            lds_ordinances: Arena::default(),
             uid: Option::default(),
             restriction: Option::default(),
             user_reference_number: Option::default(),
@@ -177,7 +177,7 @@ impl Family {
     }
 
     pub fn add_event(&mut self, family_event: Detail) {
-        self.events.push(family_event);
+        self.events.insert(family_event);
     }
 
     pub fn add_source(&mut self, sour: Citation) {
@@ -189,11 +189,11 @@ impl Family {
     }
 
     pub fn add_note(&mut self, note: Note) {
-        self.notes.push(note);
+        self.notes.insert(note);
     }
 
     #[must_use]
-    pub fn events(&self) -> &[Detail] {
+    pub fn events(&self) -> &Arena<Detail> {
         &self.events
     }
 
@@ -291,11 +291,13 @@ impl Parser for Family {
                 "SOUR" => self.add_source(Citation::new(tokenizer, level + 1)?),
                 "NOTE" => self.add_note(Note::new(tokenizer, level + 1)?),
                 "OBJE" => self.add_multimedia(Link::new(tokenizer, level + 1)?),
-                "NO" => self.non_events.push(NonEvent::new(tokenizer, level + 1)?),
+                "NO" => {
+                    self.non_events.insert(NonEvent::new(tokenizer, level + 1)?);
+                }
                 // LDS Sealing to Spouse ordinance
                 "SLGS" => {
                     self.lds_ordinances
-                        .push(LdsOrdinance::new(tokenizer, level + 1, tag)?);
+                        .insert(LdsOrdinance::new(tokenizer, level + 1, tag)?);
                 }
                 // Unique identifier (GEDCOM 7.0)
                 "UID" => self.uid = Some(tokenizer.take_line_value()?),
@@ -337,9 +339,9 @@ impl HasEvents for Family {
                 e.event
             );
         }
-        self.events.push(event);
+        self.events.insert(event);
     }
-    fn events(&self) -> &[Detail] {
+    fn events(&self) -> &Arena<Detail> {
         &self.events
     }
 }

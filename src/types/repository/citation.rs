@@ -53,7 +53,7 @@ pub struct Citation {
     pub media_type: Option<String>,
 
     /// Notes about this repository citation.
-    pub notes: Vec<Note>,
+    pub notes: Arena<Note>,
 
     /// Custom data (extension tags).
     pub user_defined_tags: Arena<UserDefinedTag>,
@@ -127,7 +127,9 @@ impl Parser for Citation {
                     // MEDI can be a substructure of CALN in some GEDCOM versions
                 }
                 "MEDI" => self.media_type = Some(tokenizer.take_line_value()?),
-                "NOTE" => self.notes.push(Note::new(tokenizer, level + 1)?),
+                "NOTE" => {
+                    self.notes.insert(Note::new(tokenizer, level + 1)?);
+                }
                 _ => {
                     // Gracefully skip unknown tags
                     tokenizer.take_line_value()?;

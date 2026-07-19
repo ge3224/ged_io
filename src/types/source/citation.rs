@@ -244,7 +244,7 @@ mod tests {
         let data = doc.parse_data().unwrap();
 
         let indi = data.find_individual("@I1@").unwrap();
-        let birt = &indi.events[0];
+        let birt = &indi.events.iter().next().unwrap();
         let sour = &birt.citations.iter().next().unwrap();
 
         assert_eq!(sour.source.as_xref(), Some("@S1@"));
@@ -272,7 +272,7 @@ mod tests {
         let data = doc.parse_data().unwrap();
 
         let indi = data.individuals.iter().next().unwrap();
-        let birt = &indi.events[0];
+        let birt = &indi.events.iter().next().unwrap();
         let sour = &birt.citations.iter().next().unwrap();
 
         assert_eq!(

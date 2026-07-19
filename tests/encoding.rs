@@ -650,7 +650,7 @@ fn test_parse_complete_gedcom_with_iso8859_1() {
     );
 
     // Check birth place encoding
-    let birth_event = &jose.events[0];
+    let birth_event = &jose.events.iter().next().unwrap();
     assert_eq!(
         birth_event.place.as_ref().unwrap().value.as_ref().unwrap(),
         "Málaga, España"
@@ -665,7 +665,7 @@ fn test_parse_complete_gedcom_with_iso8859_1() {
 
     // Check marriage place
     let family = data.find_family("@F1@").unwrap();
-    let marriage = &family.events[0];
+    let marriage = &family.events.iter().next().unwrap();
     assert_eq!(
         marriage.place.as_ref().unwrap().value.as_ref().unwrap(),
         "Sevilla, España"

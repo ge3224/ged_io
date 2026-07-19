@@ -71,13 +71,13 @@ pub struct SharedNote {
     pub language: Option<String>,
 
     /// Translations of the note into different languages or media types.
-    pub translations: Vec<NoteTranslation>,
+    pub translations: Arena<NoteTranslation>,
 
     /// Source citations supporting the note content.
     pub source_citations: Arena<Citation>,
 
     /// External identifiers for this note.
-    pub external_ids: Vec<ExternalId>,
+    pub external_ids: Arena<ExternalId>,
 
     /// The date of the most recent change to this record.
     pub change_date: Option<ChangeDate>,
@@ -211,7 +211,7 @@ impl SharedNote {
 
     /// Adds a translation to this shared note.
     pub fn add_translation(&mut self, translation: NoteTranslation) {
-        self.translations.push(translation);
+        self.translations.insert(translation);
     }
 
     /// Adds a source citation to this shared note.
@@ -221,7 +221,7 @@ impl SharedNote {
 
     /// Adds an external identifier to this shared note.
     pub fn add_external_id(&mut self, external_id: ExternalId) {
-        self.external_ids.push(external_id);
+        self.external_ids.insert(external_id);
     }
 
     /// Returns true if this note has HTML content.
@@ -337,7 +337,7 @@ impl Parser for SharedNote {
                         ..Default::default()
                     };
                     // Parse TRAN substructures would go here
-                    self.translations.push(translation);
+                    self.translations.insert(translation);
                 }
                 "SOUR" => {
                     self.source_citations
@@ -345,7 +345,7 @@ impl Parser for SharedNote {
                 }
                 "EXID" => {
                     let id = tokenizer.take_line_value()?;
-                    self.external_ids.push(ExternalId {
+                    self.external_ids.insert(ExternalId {
                         id,
                         type_uri: None, // TYPE substructure would be parsed here
                     });

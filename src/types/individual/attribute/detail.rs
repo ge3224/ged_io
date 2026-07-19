@@ -195,7 +195,13 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let occu = &data.find_individual("@I1@").unwrap().attributes[0];
+        let occu = &data
+            .find_individual("@I1@")
+            .unwrap()
+            .attributes
+            .iter()
+            .next()
+            .unwrap();
         assert_eq!(occu.value.as_ref().unwrap(), "Software Engineer");
         assert_eq!(occu.restriction.as_ref().unwrap(), "privacy");
     }
@@ -221,7 +227,13 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let resi = &data.find_individual("@I1@").unwrap().attributes[0];
+        let resi = &data
+            .find_individual("@I1@")
+            .unwrap()
+            .attributes
+            .iter()
+            .next()
+            .unwrap();
         assert!(resi.address.is_some());
         let addr = resi.address.as_ref().unwrap();
         assert_eq!(addr.city.as_ref().unwrap(), "New York");
@@ -247,7 +259,13 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let resi = &data.find_individual("@I1@").unwrap().attributes[0];
+        let resi = &data
+            .find_individual("@I1@")
+            .unwrap()
+            .attributes
+            .iter()
+            .next()
+            .unwrap();
         assert!(resi.place.is_some());
         let place = resi.place.as_ref().unwrap();
         assert_eq!(place.value.as_ref().unwrap(), "Paris, France");

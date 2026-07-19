@@ -50,7 +50,7 @@ pub struct Detail {
     pub place: Option<Place>,
     pub note: Option<Note>,
     pub family_link: Option<FamilyLink>,
-    pub family_event_details: Vec<FamilyEventDetail>,
+    pub family_event_details: Arena<FamilyEventDetail>,
     /// `event_type` handles the TYPE tag, a descriptive word or phrase used to further classify
     /// the parent event or attribute tag. This should be used whenever either of the generic EVEN
     /// or FACT tags are used. T. See GEDCOM 5.5 spec, page 35 and 49.
@@ -120,7 +120,7 @@ impl Detail {
             place: None,
             note: None,
             family_link: None,
-            family_event_details: Vec::new(),
+            family_event_details: Arena::default(),
             event_type: None,
             citations: Arena::default(),
             multimedia_links: Arena::default(),
@@ -146,7 +146,7 @@ impl Detail {
     }
 
     pub fn add_family_event_detail(&mut self, detail: FamilyEventDetail) {
-        self.family_event_details.push(detail);
+        self.family_event_details.insert(detail);
     }
 
     pub fn add_multimedia_record(&mut self, m: Link) {
@@ -269,7 +269,13 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let death = &data.find_individual("@I1@").unwrap().events[0];
+        let death = &data
+            .find_individual("@I1@")
+            .unwrap()
+            .events
+            .iter()
+            .next()
+            .unwrap();
         assert_eq!(death.cause.as_ref().unwrap(), "Heart failure");
     }
 
@@ -289,7 +295,13 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let birth = &data.find_individual("@I1@").unwrap().events[0];
+        let birth = &data
+            .find_individual("@I1@")
+            .unwrap()
+            .events
+            .iter()
+            .next()
+            .unwrap();
         assert_eq!(birth.restriction.as_ref().unwrap(), "confidential");
     }
 
@@ -309,7 +321,13 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let death = &data.find_individual("@I1@").unwrap().events[0];
+        let death = &data
+            .find_individual("@I1@")
+            .unwrap()
+            .events
+            .iter()
+            .next()
+            .unwrap();
         assert_eq!(
             death.age.as_ref().unwrap(),
             &Age::Numeric {
@@ -339,7 +357,13 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let grad = &data.find_individual("@I1@").unwrap().events[0];
+        let grad = &data
+            .find_individual("@I1@")
+            .unwrap()
+            .events
+            .iter()
+            .next()
+            .unwrap();
         assert_eq!(grad.agency.as_ref().unwrap(), "Harvard University");
     }
 
@@ -359,7 +383,13 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let chr = &data.find_individual("@I1@").unwrap().events[0];
+        let chr = &data
+            .find_individual("@I1@")
+            .unwrap()
+            .events
+            .iter()
+            .next()
+            .unwrap();
         assert_eq!(chr.religion.as_ref().unwrap(), "Catholic");
     }
 
@@ -383,7 +413,13 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let death = &data.find_individual("@I1@").unwrap().events[0];
+        let death = &data
+            .find_individual("@I1@")
+            .unwrap()
+            .events
+            .iter()
+            .next()
+            .unwrap();
         assert_eq!(death.cause.as_ref().unwrap(), "Pneumonia");
         assert_eq!(
             death.age.as_ref().unwrap(),

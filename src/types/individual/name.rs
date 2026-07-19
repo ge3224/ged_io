@@ -218,13 +218,13 @@ pub struct Name {
     ///
     /// Used to provide phonetic representations of names
     /// for non-Latin scripts.
-    pub phonetic: Vec<NameVariation>,
+    pub phonetic: Arena<NameVariation>,
 
     /// Romanized variations of the name (tag: ROMN).
     ///
     /// Used to provide romanized (Latin alphabet) representations
     /// of names originally in non-Latin scripts.
-    pub romanized: Vec<NameVariation>,
+    pub romanized: Arena<NameVariation>,
 
     /// Custom data (extension tags).
     pub user_defined_tags: Arena<UserDefinedTag>,
@@ -256,12 +256,12 @@ impl Name {
 
     /// Adds a phonetic variation of the name.
     pub fn add_phonetic(&mut self, variation: NameVariation) {
-        self.phonetic.push(variation);
+        self.phonetic.insert(variation);
     }
 
     /// Adds a romanized variation of the name.
     pub fn add_romanized(&mut self, variation: NameVariation) {
-        self.romanized.push(variation);
+        self.romanized.insert(variation);
     }
 
     /// Returns the full name with slashes removed.
@@ -327,12 +327,14 @@ impl Parser for Name {
                     let type_value = tokenizer.take_line_value()?;
                     self.name_type = Some(NameType::parse(&type_value));
                 }
-                "FONE" => self
-                    .phonetic
-                    .push(NameVariation::new(tokenizer, level + 1)?),
-                "ROMN" => self
-                    .romanized
-                    .push(NameVariation::new(tokenizer, level + 1)?),
+                "FONE" => {
+                    self.phonetic
+                        .insert(NameVariation::new(tokenizer, level + 1)?);
+                }
+                "ROMN" => {
+                    self.romanized
+                        .insert(NameVariation::new(tokenizer, level + 1)?);
+                }
                 _ => {
                     // Gracefully skip unknown tags instead of failing
                     tokenizer.take_line_value()?;
@@ -490,10 +492,19 @@ mod tests {
         let name = indi.names.first().unwrap();
         assert!(name.has_phonetic());
         assert_eq!(name.phonetic.len(), 1);
-        assert_eq!(name.phonetic[0].value, "Yamada /Taro/");
-        assert_eq!(name.phonetic[0].variation_type, Some("romaji".to_string()));
-        assert_eq!(name.phonetic[0].given, Some("Taro".to_string()));
-        assert_eq!(name.phonetic[0].surname, Some("Yamada".to_string()));
+        assert_eq!(name.phonetic.iter().next().unwrap().value, "Yamada /Taro/");
+        assert_eq!(
+            name.phonetic.iter().next().unwrap().variation_type,
+            Some("romaji".to_string())
+        );
+        assert_eq!(
+            name.phonetic.iter().next().unwrap().given,
+            Some("Taro".to_string())
+        );
+        assert_eq!(
+            name.phonetic.iter().next().unwrap().surname,
+            Some("Yamada".to_string())
+        );
     }
 
     #[test]
@@ -515,8 +526,14 @@ mod tests {
         let name = indi.names.first().unwrap();
         assert!(name.has_romanized());
         assert_eq!(name.romanized.len(), 1);
-        assert_eq!(name.romanized[0].value, "Wang /Xiaoming/");
-        assert_eq!(name.romanized[0].variation_type, Some("pinyin".to_string()));
+        assert_eq!(
+            name.romanized.iter().next().unwrap().value,
+            "Wang /Xiaoming/"
+        );
+        assert_eq!(
+            name.romanized.iter().next().unwrap().variation_type,
+            Some("pinyin".to_string())
+        );
     }
 
     #[test]

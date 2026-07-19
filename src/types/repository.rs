@@ -52,7 +52,7 @@ pub struct Repository {
     pub website: Vec<String>,
 
     /// Notes about the repository (tag: NOTE).
-    pub notes: Vec<Note>,
+    pub notes: Arena<Note>,
 
     /// Date of the most recent change to this record (tag: CHAN).
     pub change_date: Option<ChangeDate>,
@@ -149,7 +149,7 @@ impl Repository {
 
     /// Adds a note to the repository.
     pub fn add_note(&mut self, note: Note) {
-        self.notes.push(note);
+        self.notes.insert(note);
     }
 
     /// Returns true if the repository has any contact information.
@@ -180,7 +180,9 @@ impl Parser for Repository {
                 "EMAIL" => self.email.push(tokenizer.take_line_value()?),
                 "FAX" => self.fax.push(tokenizer.take_line_value()?),
                 "WWW" => self.website.push(tokenizer.take_line_value()?),
-                "NOTE" => self.notes.push(Note::new(tokenizer, level + 1)?),
+                "NOTE" => {
+                    self.notes.insert(Note::new(tokenizer, level + 1)?);
+                }
                 "CHAN" => self.change_date = Some(ChangeDate::new(tokenizer, level + 1)?),
                 "REFN" => {
                     self.user_reference_number = Some(tokenizer.take_line_value()?);
@@ -263,7 +265,11 @@ mod tests {
 
         let repo = data.find_repository("@R1@").unwrap();
         assert_eq!(repo.notes.len(), 1);
-        assert!(repo.notes[0]
+        assert!(repo
+            .notes
+            .iter()
+            .next()
+            .unwrap()
             .value
             .as_ref()
             .unwrap()

@@ -1172,7 +1172,7 @@ impl GedcomData {
         if !has_family_link {
             self.xrefs.bump(&family_xref);
 
-            i.families.push(FamilyLink {
+            i.families.insert(FamilyLink {
                 xref: family_xref,
                 family_link_type: FamilyLinkType::Spouse,
                 pedigree_linkage_type: None,
@@ -1325,7 +1325,7 @@ impl GedcomData {
         if !has_family_link {
             self.xrefs.bump(&family_xref);
 
-            i.families.push(FamilyLink {
+            i.families.insert(FamilyLink {
                 xref: family_xref,
                 family_link_type: FamilyLinkType::Child,
                 pedigree_linkage_type: None,

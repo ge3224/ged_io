@@ -288,7 +288,13 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let birt_date = data.find_individual("@I1@").unwrap().events[0]
+        let birt_date = data
+            .find_individual("@I1@")
+            .unwrap()
+            .events
+            .iter()
+            .next()
+            .unwrap()
             .date
             .as_ref()
             .unwrap();
@@ -322,13 +328,25 @@ mod tests {
         let head_date = data.header.as_ref().unwrap().date.as_ref().unwrap().clone();
         assert_eq!(head_date.value.unwrap(), "2 Oct 2019");
 
-        let birt_date = data.find_individual("@I1@").unwrap().events[0]
+        let birt_date = data
+            .find_individual("@I1@")
+            .unwrap()
+            .events
+            .iter()
+            .next()
+            .unwrap()
             .date
             .as_ref()
             .unwrap();
         assert_eq!(birt_date.value.as_ref().unwrap(), "BEF 1828");
 
-        let resi_date = data.find_individual("@I1@").unwrap().attributes[0]
+        let resi_date = data
+            .find_individual("@I1@")
+            .unwrap()
+            .attributes
+            .iter()
+            .next()
+            .unwrap()
             .date
             .as_ref()
             .unwrap();
@@ -390,7 +408,13 @@ mod tests {
             let mut doc = Gedcom::new(sample.chars()).unwrap();
             let gedcom_data = doc.parse_data().unwrap();
 
-            let birt_date = gedcom_data.find_individual("@I1@").unwrap().events[0]
+            let birt_date = gedcom_data
+                .find_individual("@I1@")
+                .unwrap()
+                .events
+                .iter()
+                .next()
+                .unwrap()
                 .date
                 .as_ref()
                 .unwrap();

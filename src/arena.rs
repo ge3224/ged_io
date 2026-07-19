@@ -274,6 +274,33 @@ impl<T> Arena<T> {
             }
         })
     }
+
+    /// Returns a reference to the first element in insertion order, or `None`
+    /// if empty.
+    #[must_use]
+    pub fn first(&self) -> Option<&T> {
+        self.iter().next()
+    }
+
+    /// Returns a reference to the last element in insertion order, or `None` if empty.
+    #[must_use]
+    pub fn last(&self) -> Option<&T> {
+        self.iter().last()
+    }
+
+    /// Removes all elements for which `keep` returns `false`; the rest keep
+    /// their insertion order.
+    pub fn retain(&mut self, mut keep: impl FnMut(&T) -> bool) {
+        let doomed: Vec<Handle<T>> = self
+            .iter_handles()
+            .filter(|(_, v)| !keep(v))
+            .map(|(h, _)| h)
+            .collect();
+
+        for h in doomed {
+            self.remove(h);
+        }
+    }
 }
 
 impl<T> Default for Arena<T> {

@@ -36,7 +36,7 @@ pub struct Source {
     pub citation_from_source: Option<String>,
     pub change_date: Option<Box<ChangeDate>>,
     pub multimedia_links: Arena<Link>,
-    pub notes: Vec<Note>,
+    pub notes: Arena<Note>,
     pub repo_citations: Arena<Citation>,
     /// handles "RFN" tag; found in Ancestry.com export
     pub submitter_registered_rfn: Option<String>,
@@ -100,7 +100,7 @@ impl Source {
     }
 
     pub fn add_note(&mut self, note: Note) {
-        self.notes.push(note);
+        self.notes.insert(note);
     }
 
     pub fn add_repo_citation(&mut self, citation: Citation) {

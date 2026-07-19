@@ -376,7 +376,13 @@ fn test_parse_sort_date() {
     let data = gedcom.parse_data().unwrap();
 
     assert!(data.is_gedcom_7());
-    let event = &data.find_individual("@I1@").unwrap().events[0];
+    let event = &data
+        .find_individual("@I1@")
+        .unwrap()
+        .events
+        .iter()
+        .next()
+        .unwrap();
     assert!(event.sort_date.is_some());
     let sort_date = event.sort_date.as_ref().unwrap();
     assert_eq!(sort_date.value, Some("1818".to_string()));
@@ -399,7 +405,13 @@ fn test_parse_date_phrase() {
     let mut gedcom = Gedcom::new(sample.chars()).unwrap();
     let data = gedcom.parse_data().unwrap();
 
-    let event = &data.find_individual("@I1@").unwrap().events[0];
+    let event = &data
+        .find_individual("@I1@")
+        .unwrap()
+        .events
+        .iter()
+        .next()
+        .unwrap();
     let date = event.date.as_ref().unwrap();
     assert_eq!(date.value, Some("15 MAR 1820".to_string()));
     assert_eq!(
@@ -428,7 +440,13 @@ fn test_parse_individual_non_event() {
     assert!(data.is_gedcom_7());
     assert_eq!(data.find_individual("@I1@").unwrap().non_events.len(), 1);
 
-    let non_event = &data.find_individual("@I1@").unwrap().non_events[0];
+    let non_event = &data
+        .find_individual("@I1@")
+        .unwrap()
+        .non_events
+        .iter()
+        .next()
+        .unwrap();
     assert_eq!(non_event.event_type, "MARR");
     assert!(non_event.date.is_some());
     assert_eq!(
@@ -462,7 +480,13 @@ fn test_parse_family_non_event() {
     assert!(data.is_gedcom_7());
     assert_eq!(data.find_family("@F1@").unwrap().non_events.len(), 1);
 
-    let non_event = &data.find_family("@F1@").unwrap().non_events[0];
+    let non_event = &data
+        .find_family("@F1@")
+        .unwrap()
+        .non_events
+        .iter()
+        .next()
+        .unwrap();
     assert_eq!(non_event.event_type, "CHIL");
     assert!(non_event.note.is_some());
 }
@@ -580,7 +604,13 @@ fn test_round_trip_sort_date() {
         0 TRLR";
 
     let data = GedcomBuilder::new().build_from_str(sample).unwrap();
-    assert!(data.find_individual("@I1@").unwrap().events[0]
+    assert!(data
+        .find_individual("@I1@")
+        .unwrap()
+        .events
+        .iter()
+        .next()
+        .unwrap()
         .sort_date
         .is_some());
 
@@ -605,7 +635,13 @@ fn test_round_trip_date_phrase() {
         0 TRLR";
 
     let data = GedcomBuilder::new().build_from_str(sample).unwrap();
-    let date = data.find_individual("@I1@").unwrap().events[0]
+    let date = data
+        .find_individual("@I1@")
+        .unwrap()
+        .events
+        .iter()
+        .next()
+        .unwrap()
         .date
         .as_ref()
         .unwrap();
@@ -699,7 +735,7 @@ fn test_parse_lds_ordinances_v5() {
     assert_eq!(individual.lds_ordinances.len(), 3);
 
     // Check BAPL
-    let bapl = &individual.lds_ordinances[0];
+    let bapl = &individual.lds_ordinances.iter().next().unwrap();
     assert_eq!(
         bapl.ordinance_type,
         Some(ged_io::types::lds::LdsOrdinanceType::Baptism)
@@ -712,14 +748,14 @@ fn test_parse_lds_ordinances_v5() {
     assert!(bapl.is_completed());
 
     // Check CONL
-    let conl = &individual.lds_ordinances[1];
+    let conl = &individual.lds_ordinances.iter().nth(1).unwrap();
     assert_eq!(
         conl.ordinance_type,
         Some(ged_io::types::lds::LdsOrdinanceType::Confirmation)
     );
 
     // Check ENDL
-    let endl = &individual.lds_ordinances[2];
+    let endl = &individual.lds_ordinances.iter().nth(2).unwrap();
     assert_eq!(
         endl.ordinance_type,
         Some(ged_io::types::lds::LdsOrdinanceType::Endowment)
@@ -760,7 +796,7 @@ fn test_parse_inil_ordinance_v7() {
     assert_eq!(individual.lds_ordinances.len(), 4);
 
     // Check INIL (Initiatory) - GEDCOM 7.0 only
-    let inil = &individual.lds_ordinances[2];
+    let inil = &individual.lds_ordinances.iter().nth(2).unwrap();
     assert_eq!(
         inil.ordinance_type,
         Some(ged_io::types::lds::LdsOrdinanceType::Initiatory)
@@ -796,7 +832,7 @@ fn test_parse_slgc_ordinance() {
     let individual = data.find_individual("@I1@").unwrap();
     assert_eq!(individual.lds_ordinances.len(), 1);
 
-    let slgc = &individual.lds_ordinances[0];
+    let slgc = &individual.lds_ordinances.iter().next().unwrap();
     assert_eq!(
         slgc.ordinance_type,
         Some(ged_io::types::lds::LdsOrdinanceType::SealingChild)
@@ -829,7 +865,7 @@ fn test_parse_slgs_ordinance() {
     let family = data.find_family("@F1@").unwrap();
     assert_eq!(family.lds_ordinances.len(), 1);
 
-    let slgs = &family.lds_ordinances[0];
+    let slgs = &family.lds_ordinances.iter().next().unwrap();
     assert_eq!(
         slgs.ordinance_type,
         Some(ged_io::types::lds::LdsOrdinanceType::SealingSpouse)

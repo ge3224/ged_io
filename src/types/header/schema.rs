@@ -37,7 +37,7 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Schema {
     /// Tag definitions mapping extension tags to URIs.
-    pub tag_definitions: Vec<TagDefinition>,
+    pub tag_definitions: Arena<TagDefinition>,
     /// Custom data not part of the standard.
     pub user_defined_tags: Arena<UserDefinedTag>,
 }
@@ -187,7 +187,7 @@ impl Schema {
 
     /// Adds a tag definition to the schema.
     pub fn add_definition(&mut self, definition: TagDefinition) {
-        self.tag_definitions.push(definition);
+        self.tag_definitions.insert(definition);
     }
 
     /// Returns true if the schema is empty (no tag definitions).
@@ -214,7 +214,7 @@ impl Parser for Schema {
                 "TAG" => {
                     let payload = tokenizer.take_line_value()?;
                     if let Some(definition) = TagDefinition::from_payload(&payload) {
-                        self.tag_definitions.push(definition);
+                        self.tag_definitions.insert(definition);
                     }
                 }
                 _ => {
