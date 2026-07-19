@@ -1179,7 +1179,7 @@ impl GedcomData {
                 child_linkage_status: None,
                 adopted_by: None,
                 note: None,
-                custom_data: Vec::new(),
+                user_defined_tags: Arena::default(),
             });
         }
 
@@ -1332,7 +1332,7 @@ impl GedcomData {
                 child_linkage_status: None,
                 adopted_by: None,
                 note: None,
-                custom_data: Vec::new(),
+                user_defined_tags: Arena::default(),
             });
         }
 

@@ -6,6 +6,7 @@ pub mod source;
 
 use super::UserDefinedTag;
 use crate::{
+    arena::Arena,
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{
@@ -120,7 +121,7 @@ pub struct Header {
     pub place: Option<HeadPlac>,
 
     /// Custom data (extension tags).
-    pub custom_data: Vec<Box<UserDefinedTag>>,
+    pub user_defined_tags: Arena<UserDefinedTag>,
 }
 
 impl Header {
@@ -218,7 +219,9 @@ impl Parser for Header {
             Ok(())
         };
 
-        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
+        for udt in parse_subset(tokenizer, level, handle_subset)? {
+            self.user_defined_tags.insert(*udt);
+        }
 
         Ok(())
     }

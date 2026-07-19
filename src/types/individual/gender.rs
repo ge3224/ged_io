@@ -2,6 +2,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    arena::Arena,
     parser::{parse_subset, Parser},
     tokenizer::{Token, Tokenizer},
     types::{custom::UserDefinedTag, source::citation::Citation},
@@ -39,7 +40,7 @@ pub struct Gender {
     pub value: GenderType,
     pub fact: Option<String>,
     pub sources: Vec<Citation>,
-    pub custom_data: Vec<Box<UserDefinedTag>>,
+    pub user_defined_tags: Arena<UserDefinedTag>,
 }
 
 impl Gender {
@@ -53,7 +54,7 @@ impl Gender {
             value: GenderType::Unknown,
             fact: None,
             sources: Vec::new(),
-            custom_data: Vec::new(),
+            user_defined_tags: Arena::default(),
         };
         sex.parse(tokenizer, level)?;
         Ok(sex)
@@ -112,7 +113,9 @@ impl Parser for Gender {
             Ok(())
         };
 
-        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
+        for udt in parse_subset(tokenizer, level, handle_subset)? {
+            self.user_defined_tags.insert(*udt);
+        }
 
         Ok(())
     }

@@ -16,6 +16,7 @@
 //! See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#SCHMA>
 
 use crate::{
+    arena::Arena,
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::custom::UserDefinedTag,
@@ -32,13 +33,13 @@ use serde::{Deserialize, Serialize};
 /// The schema's substructures are tag definitions.
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#SCHMA>
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Debug, Default, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Schema {
     /// Tag definitions mapping extension tags to URIs.
     pub tag_definitions: Vec<TagDefinition>,
     /// Custom data not part of the standard.
-    pub custom_data: Vec<Box<UserDefinedTag>>,
+    pub user_defined_tags: Arena<UserDefinedTag>,
 }
 
 /// A tag definition mapping an extension tag to a URI.
@@ -224,7 +225,9 @@ impl Parser for Schema {
             Ok(())
         };
 
-        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
+        for udt in parse_subset(tokenizer, level, handle_subset)? {
+            self.user_defined_tags.insert(*udt);
+        }
 
         Ok(())
     }

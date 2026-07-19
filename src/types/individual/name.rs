@@ -2,7 +2,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    arena::Handle,
+    arena::{Arena, Handle},
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{custom::UserDefinedTag, note::Note, source::citation::Citation},
@@ -227,7 +227,7 @@ pub struct Name {
     pub romanized: Vec<NameVariation>,
 
     /// Custom data (extension tags).
-    pub custom_data: Vec<Box<UserDefinedTag>>,
+    pub user_defined_tags: Arena<UserDefinedTag>,
 
     // Intrusive chain links — wired by GedcomData::add_name / remove_name; never set directly.
     #[cfg_attr(feature = "json", serde(skip))]
@@ -340,7 +340,10 @@ impl Parser for Name {
             }
             Ok(())
         };
-        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
+
+        for udt in parse_subset(tokenizer, level, handle_subset)? {
+            self.user_defined_tags.insert(*udt);
+        }
 
         Ok(())
     }

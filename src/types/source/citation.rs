@@ -4,6 +4,7 @@ pub mod data;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    arena::Arena,
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{
@@ -104,7 +105,7 @@ pub struct Citation {
     /// handles "RFN" tag; found in Ancestry.com export
     pub submitter_registered_rfn: Option<String>,
     pub multimedia: Vec<Link>,
-    pub custom_data: Vec<Box<UserDefinedTag>>,
+    pub user_defined_tags: Arena<UserDefinedTag>,
     /// Event type cited from the source (tag: EVEN).
     ///
     /// Indicates what type of event was cited from the source.
@@ -138,7 +139,7 @@ impl Citation {
             note: None,
             certainty_assessment: None,
             multimedia: Vec::new(),
-            custom_data: Vec::new(),
+            user_defined_tags: Arena::default(),
             submitter_registered_rfn: None,
             event_type: None,
             role: None,
@@ -155,7 +156,7 @@ impl Citation {
             note: None,
             certainty_assessment: None,
             multimedia: Vec::new(),
-            custom_data: Vec::new(),
+            user_defined_tags: Arena::default(),
             submitter_registered_rfn: None,
             event_type: None,
             role: None,
@@ -208,7 +209,10 @@ impl Parser for Citation {
 
             Ok(())
         };
-        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
+
+        for udt in parse_subset(tokenizer, level, handle_subset)? {
+            self.user_defined_tags.insert(*udt);
+        }
 
         Ok(())
     }

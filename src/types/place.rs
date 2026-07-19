@@ -11,6 +11,7 @@
 //! See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#PLACE_STRUCTURE>
 
 use crate::{
+    arena::Arena,
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{custom::UserDefinedTag, note::Note, source::citation::Citation},
@@ -68,7 +69,7 @@ pub struct Place {
     pub citations: Vec<Citation>,
 
     /// Custom data (extension tags).
-    pub custom_data: Vec<Box<UserDefinedTag>>,
+    pub user_defined_tags: Arena<UserDefinedTag>,
 }
 
 impl Place {
@@ -356,7 +357,9 @@ impl Parser for Place {
             Ok(())
         };
 
-        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
+        for udt in parse_subset(tokenizer, level, handle_subset)? {
+            self.user_defined_tags.insert(*udt);
+        }
 
         Ok(())
     }

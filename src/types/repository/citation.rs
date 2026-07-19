@@ -2,6 +2,7 @@
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    arena::Arena,
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{custom::UserDefinedTag, note::Note, Xref},
@@ -55,7 +56,7 @@ pub struct Citation {
     pub notes: Vec<Note>,
 
     /// Custom data (extension tags).
-    pub custom_data: Vec<Box<UserDefinedTag>>,
+    pub user_defined_tags: Arena<UserDefinedTag>,
 }
 
 impl Citation {
@@ -135,7 +136,9 @@ impl Parser for Citation {
             Ok(())
         };
 
-        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
+        for udt in parse_subset(tokenizer, level, handle_subset)? {
+            self.user_defined_tags.insert(*udt);
+        }
 
         Ok(())
     }

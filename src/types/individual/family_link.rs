@@ -6,6 +6,7 @@ pub mod pedigree;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    arena::Arena,
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{
@@ -49,7 +50,7 @@ pub struct FamilyLink {
     pub child_linkage_status: Option<ChildLinkStatus>,
     pub adopted_by: Option<AdoptedByWhichParent>,
     pub note: Option<Note>,
-    pub custom_data: Vec<Box<UserDefinedTag>>,
+    pub user_defined_tags: Arena<UserDefinedTag>,
 }
 
 impl FamilyLink {
@@ -79,7 +80,7 @@ impl FamilyLink {
             child_linkage_status: None,
             adopted_by: None,
             note: None,
-            custom_data: Vec::new(),
+            user_defined_tags: Arena::default(),
         };
         family_link.parse(tokenizer, level)?;
         Ok(family_link)
@@ -192,7 +193,9 @@ impl Parser for FamilyLink {
             Ok(())
         };
 
-        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
+        for udt in parse_subset(tokenizer, level, handle_subset)? {
+            self.user_defined_tags.insert(*udt);
+        }
 
         Ok(())
     }

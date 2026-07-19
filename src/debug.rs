@@ -82,7 +82,7 @@ impl fmt::Debug for GedcomDataDebug<'_> {
 
         if !self.0.user_defined_tags.is_empty() {
             debug.field(
-                "custom_data",
+                "user_defined_tags",
                 &format!("[{} records]", self.0.user_defined_tags.len()),
             );
         }
@@ -441,7 +441,7 @@ impl ImprovedDebug for Note {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Gedcom;
+    use crate::{arena::Arena, Gedcom};
 
     #[test]
     fn test_gedcom_data_improved_debug() {
@@ -589,7 +589,7 @@ mod tests {
             name_type: None,
             phonetic: Vec::new(),
             romanized: Vec::new(),
-            custom_data: Vec::new(),
+            user_defined_tags: Arena::default(),
             previous: None,
             next: None,
         };
