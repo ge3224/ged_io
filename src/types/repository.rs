@@ -5,7 +5,8 @@ use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{
-        address::Address, custom::UserDefinedTag, date::change_date::ChangeDate, note::Note, Xref,
+        address::Address, custom::UserDefinedTag, date::change_date::ChangeDate,
+        external_id::ExternalId, note::Note, Xref,
     },
     GedcomError,
 };
@@ -82,10 +83,9 @@ pub struct Repository {
     /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#UID>
     pub uid: Option<String>,
 
-    /// External identifiers (tag: EXID, GEDCOM 7.0).
-    ///
-    /// Identifiers maintained by external authorities that apply to this repository.
-    pub external_ids: Vec<String>,
+    /// External identifiers maintained by external authorities that apply to
+    /// this repository.
+    pub external_ids: Arena<ExternalId>,
 
     /// Custom data (extension tags).
     pub user_defined_tags: Arena<UserDefinedTag>,
@@ -190,7 +190,10 @@ impl Parser for Repository {
                 }
                 "RIN" => self.automated_record_id = Some(tokenizer.take_line_value()?),
                 "UID" => self.uid = Some(tokenizer.take_line_value()?),
-                "EXID" => self.external_ids.push(tokenizer.take_line_value()?),
+                "EXID" => {
+                    let id = tokenizer.take_line_value()?;
+                    self.external_ids.insert(ExternalId { id, type_uri: None });
+                }
                 _ => {
                     // Gracefully skip unknown tags
                     tokenizer.take_line_value()?;

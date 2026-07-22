@@ -6,6 +6,7 @@ use crate::{
         custom::UserDefinedTag,
         date::change_date::ChangeDate,
         event::{detail::Detail, util::HasEvents},
+        external_id::ExternalId,
         gedcom7::NonEvent,
         lds::LdsOrdinance,
         multimedia::link::Link,
@@ -38,7 +39,7 @@ pub struct Family {
     pub individual1: Option<Xref>, // mapped from HUSB
     pub individual2: Option<Xref>, // mapped from WIFE
     pub family_event: Arena<Detail>,
-    pub children: Vec<Xref>,
+    pub children: Arena<Xref>,
     pub num_children: Option<String>,
     pub change_date: Option<ChangeDate>,
     pub events: Arena<Detail>,
@@ -87,10 +88,9 @@ pub struct Family {
     /// A unique record identification number assigned to the record by
     /// the source system. Used for reconciling differences between systems.
     pub automated_record_id: Option<String>,
-    /// External identifiers (tag: EXID, GEDCOM 7.0).
-    ///
-    /// Identifiers maintained by external authorities that apply to this family.
-    pub external_ids: Vec<String>,
+    /// External identifiers maintained by external authorities that apply to
+    /// this family.
+    pub external_ids: Arena<ExternalId>,
 }
 
 impl Family {
@@ -105,7 +105,7 @@ impl Family {
             individual1: Option::default(),
             individual2: Option::default(),
             family_event: Arena::default(),
-            children: Vec::default(),
+            children: Arena::default(),
             num_children: Option::default(),
             change_date: Option::default(),
             events: Arena::default(),
@@ -120,7 +120,7 @@ impl Family {
             user_reference_number: Option::default(),
             user_reference_type: Option::default(),
             automated_record_id: Option::default(),
-            external_ids: Vec::default(),
+            external_ids: Arena::default(),
         }
     }
 
@@ -173,7 +173,7 @@ impl Family {
     }
 
     pub fn add_child(&mut self, xref: Xref) {
-        self.children.push(xref);
+        self.children.insert(xref);
     }
 
     pub fn add_event(&mut self, family_event: Detail) {
@@ -311,7 +311,10 @@ impl Parser for Family {
                 // Automated record ID
                 "RIN" => self.automated_record_id = Some(tokenizer.take_line_value()?),
                 // External identifier (GEDCOM 7.0)
-                "EXID" => self.external_ids.push(tokenizer.take_line_value()?),
+                "EXID" => {
+                    let id = tokenizer.take_line_value()?;
+                    self.external_ids.insert(ExternalId { id, type_uri: None });
+                }
                 _ => {
                     // Gracefully skip unknown tags
                     tokenizer.take_line_value()?;

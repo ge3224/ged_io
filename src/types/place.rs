@@ -14,7 +14,9 @@ use crate::{
     arena::Arena,
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
-    types::{custom::UserDefinedTag, note::Note, source::citation::Citation},
+    types::{
+        custom::UserDefinedTag, external_id::ExternalId, note::Note, source::citation::Citation,
+    },
     GedcomError,
 };
 
@@ -63,7 +65,7 @@ pub struct Place {
     pub notes: Arena<Note>,
 
     /// External identifiers for this place (GEDCOM 7.0).
-    pub external_ids: Vec<String>,
+    pub external_ids: Arena<ExternalId>,
 
     /// Source citations supporting this place.
     pub citations: Arena<Citation>,
@@ -354,7 +356,10 @@ impl Parser for Place {
                 "SOUR" => {
                     self.citations.insert(Citation::new(tokenizer, level + 1)?);
                 }
-                "EXID" => self.external_ids.push(tokenizer.take_line_value()?),
+                "EXID" => {
+                    let id = tokenizer.take_line_value()?;
+                    self.external_ids.insert(ExternalId { id, type_uri: None });
+                }
                 _ => {
                     // Gracefully skip unknown tags
                     tokenizer.take_line_value()?;

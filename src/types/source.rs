@@ -9,8 +9,8 @@ use crate::{
     tokenizer::Tokenizer,
     types::{
         custom::UserDefinedTag, date::change_date::ChangeDate, event::detail::Detail,
-        multimedia::link::Link, note::Note, repository::citation::Citation, source::data::Data,
-        Xref,
+        external_id::ExternalId, multimedia::link::Link, note::Note,
+        repository::citation::Citation, source::data::Data, Xref,
     },
     GedcomError,
 };
@@ -62,10 +62,9 @@ pub struct Source {
     /// A unique record identification number assigned to the record by
     /// the source system. Used for reconciling differences between systems.
     pub automated_record_id: Option<String>,
-    /// External identifiers (tag: EXID, GEDCOM 7.0).
-    ///
-    /// Identifiers maintained by external authorities that apply to this source.
-    pub external_ids: Vec<String>,
+    /// External identifiers maintained by external authorities that apply to
+    /// this source.
+    pub external_ids: Arena<ExternalId>,
 }
 
 impl Source {
@@ -158,7 +157,10 @@ impl Parser for Source {
                 // Automated record ID
                 "RIN" => self.automated_record_id = Some(tokenizer.take_line_value()?),
                 // External identifier (GEDCOM 7.0)
-                "EXID" => self.external_ids.push(tokenizer.take_line_value()?),
+                "EXID" => {
+                    let id = tokenizer.take_line_value()?;
+                    self.external_ids.insert(ExternalId { id, type_uri: None });
+                }
                 _ => {
                     // Gracefully skip unknown tags
                     tokenizer.take_line_value()?;

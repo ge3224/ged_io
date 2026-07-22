@@ -15,6 +15,7 @@ use crate::{
         custom::UserDefinedTag,
         date::change_date::ChangeDate,
         event::{detail::Detail, util::HasEvents},
+        external_id::ExternalId,
         gedcom7::NonEvent,
         individual::{
             association::Association, attribute::detail::AttributeDetail, family_link::FamilyLink,
@@ -116,21 +117,20 @@ pub struct Individual {
     /// Pointers to other individual records that may be the same person.
     /// Used when combining records from different sources that may refer
     /// to the same individual.
-    pub aliases: Vec<Xref>,
+    pub aliases: Arena<Xref>,
     /// Interest in ancestors (tag: ANCI).
     ///
     /// Indicates an interest in researching the ancestry of this individual.
     /// Points to a submitter record who has this interest.
-    pub ancestor_interest: Vec<Xref>,
+    pub ancestor_interest: Arena<Xref>,
     /// Interest in descendants (tag: DESI).
     ///
     /// Indicates an interest in researching the descendants of this individual.
     /// Points to a submitter record who has this interest.
-    pub descendant_interest: Vec<Xref>,
-    /// External identifiers (tag: EXID, GEDCOM 7.0).
-    ///
-    /// Identifiers maintained by external authorities that apply to this individual.
-    pub external_ids: Vec<String>,
+    pub descendant_interest: Arena<Xref>,
+    /// External identifiers maintained by external authorities that apply to
+    /// this individual.
+    pub external_ids: Arena<ExternalId>,
 }
 
 impl Individual {
@@ -162,10 +162,10 @@ impl Individual {
             user_reference_type: None,
             automated_record_id: None,
             ancestral_file_number: None,
-            aliases: Vec::new(),
-            ancestor_interest: Vec::new(),
-            descendant_interest: Vec::new(),
-            external_ids: Vec::new(),
+            aliases: Arena::default(),
+            ancestor_interest: Arena::default(),
+            descendant_interest: Arena::default(),
+            external_ids: Arena::default(),
         }
     }
 
@@ -465,13 +465,23 @@ impl Parser for Individual {
                 // Ancestral File Number (LDS)
                 "AFN" => self.ancestral_file_number = Some(tokenizer.take_line_value()?),
                 // Alias pointer
-                "ALIA" => self.aliases.push(tokenizer.take_line_value()?),
+                "ALIA" => {
+                    self.aliases.insert(tokenizer.take_line_value()?);
+                }
                 // Interest in ancestors
-                "ANCI" => self.ancestor_interest.push(tokenizer.take_line_value()?),
+                "ANCI" => {
+                    self.ancestor_interest.insert(tokenizer.take_line_value()?);
+                }
                 // Interest in descendants
-                "DESI" => self.descendant_interest.push(tokenizer.take_line_value()?),
+                "DESI" => {
+                    self.descendant_interest
+                        .insert(tokenizer.take_line_value()?);
+                }
                 // External identifier (GEDCOM 7.0)
-                "EXID" => self.external_ids.push(tokenizer.take_line_value()?),
+                "EXID" => {
+                    let id = tokenizer.take_line_value()?;
+                    self.external_ids.insert(ExternalId { id, type_uri: None });
+                }
                 _ => {
                     // Gracefully skip unknown tags
                     tokenizer.take_line_value()?;

@@ -11,6 +11,7 @@ pub mod corporation;
 pub mod custom;
 pub mod date;
 pub mod event;
+pub mod external_id;
 pub mod family;
 pub mod gedcom7;
 pub mod header;
@@ -408,7 +409,7 @@ impl GedcomData {
         }
 
         self.xrefs.bump(&submitter_xref);
-        i.ancestor_interest.push(submitter_xref);
+        i.ancestor_interest.insert(submitter_xref);
 
         Ok(())
     }
@@ -511,7 +512,7 @@ impl GedcomData {
         }
 
         self.xrefs.bump(&submitter_xref);
-        i.descendant_interest.push(submitter_xref);
+        i.descendant_interest.insert(submitter_xref);
 
         Ok(())
     }
@@ -1319,7 +1320,7 @@ impl GedcomData {
 
         if !is_child {
             self.xrefs.bump(&individual_xref);
-            f.children.push(individual_xref);
+            f.children.insert(individual_xref);
         }
 
         if !has_family_link {
@@ -1455,7 +1456,7 @@ impl GedcomData {
         }
 
         self.xrefs.bump(&alias_xref);
-        i.aliases.push(alias_xref);
+        i.aliases.insert(alias_xref);
 
         Ok(())
     }

@@ -151,7 +151,7 @@ fn test_family_access_pattern_unchanged() {
     assert_eq!(family.individual1.as_ref().unwrap(), "@I1@");
     assert_eq!(family.individual2.as_ref().unwrap(), "@I2@");
     assert_eq!(family.children.len(), 1);
-    assert_eq!(family.children[0], "@I3@");
+    assert_eq!(family.children.iter().next().unwrap(), "@I3@");
 }
 
 // =============================================================================

@@ -20,7 +20,8 @@ use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{
-        custom::UserDefinedTag, date::change_date::ChangeDate, source::citation::Citation, Xref,
+        custom::UserDefinedTag, date::change_date::ChangeDate, external_id::ExternalId,
+        source::citation::Citation, Xref,
     },
     GedcomError,
 };
@@ -114,48 +115,6 @@ pub struct NoteTranslation {
 
     /// The language of the translation (BCP 47 tag).
     pub language: Option<String>,
-}
-
-/// An external identifier for a structure.
-///
-/// An identifier maintained by an external authority that applies to the
-/// subject of the structure. Unlike `UID` and `REFN`, `EXID` does not
-/// identify a structure; structures with the same `EXID` may have
-/// originated independently.
-///
-/// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#EXID>
-#[derive(Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
-pub struct ExternalId {
-    /// The external identifier value.
-    pub id: String,
-
-    /// The authority issuing the identifier, represented as a URI.
-    ///
-    /// If the authority maintains stable URLs for each identifier,
-    /// appending the `id` to this `type_uri` should yield that URL.
-    pub type_uri: Option<String>,
-}
-
-impl ExternalId {
-    /// Creates a new external identifier.
-    #[must_use]
-    pub fn new(id: &str, type_uri: Option<&str>) -> Self {
-        ExternalId {
-            id: id.to_string(),
-            type_uri: type_uri.map(String::from),
-        }
-    }
-
-    /// Returns the full URL for this identifier, if possible.
-    ///
-    /// This concatenates the type URI with the identifier.
-    #[must_use]
-    pub fn full_url(&self) -> Option<String> {
-        self.type_uri
-            .as_ref()
-            .map(|uri| format!("{}{}", uri, self.id))
-    }
 }
 
 impl NoteTranslation {
