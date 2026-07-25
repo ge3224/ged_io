@@ -6,11 +6,25 @@ use ::serde::{Deserialize, Serialize};
 /// Items are trimmed on parse and rejoined with `", "`. Item values survive
 /// a round trip unchanged; delimiter spacing is not — `"a,b"` reads back
 /// as `"a, b"`.
-#[derive(Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "json", derive(Deserialize, Serialize))]
 pub struct ListText(Vec<String>);
 
 impl ListText {
+    pub fn push(&mut self, item: String) {
+        self.0.push(item);
+    }
+
+    /// Inserts at `index`, or appends if `index` is past the end.
+    pub fn insert(&mut self, index: usize, item: String) {
+        self.0.insert(index.min(self.0.len()), item);
+    }
+
+    /// Removes and returns the item at `index`, or `None` if out of range.
+    pub fn remove(&mut self, index: usize) -> Option<String> {
+        (index < self.0.len()).then(|| self.0.remove(index))
+    }
+
     #[must_use]
     pub fn from_payload(s: &str) -> Self {
         ListText(s.split(',').map(|i| i.trim().to_string()).collect())

@@ -1,37 +1,18 @@
 use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
+    types::list::ListText,
     GedcomError,
 };
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
 
-/// `HeadPlace` (tag: PLAC) is is a placeholder for providing a default PLAC.FORM, and must not
-/// have a payload. See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#HEAD-PLAC>.
+/// `HeadPlace` (tag: PLAC) is is a placeholder for providing a default
+/// PLAC.FORM, and must not have a payload.
 #[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct HeadPlac {
-    /// form (tag: FORM) is a comma-separated list of jurisdictional titles (e.g. City, County,
-    /// State, Country). It has the same number of elements and in the same order as the PLAC
-    /// structure. As with PLAC, this shall be ordered from lowest to highest jurisdiction.
-    /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#PLAC-FORM>.
-    pub form: Vec<String>,
-}
-
-impl HeadPlac {
-    pub fn push_jurisdictional_title(&mut self, title: String) {
-        self.form.push(title);
-    }
-
-    // Adhering to "lowest to highest jurisdiction" is the responsibility of the
-    // GEDCOM author, but methods for reordering elements might still be useful.
-    pub fn insert_jurisdictional_title(&mut self, index: usize, title: String) {
-        self.form.insert(index, title);
-    }
-
-    pub fn remove_jurisdictional_title(&mut self, index: usize) {
-        self.form.remove(index);
-    }
+    pub form: ListText,
 }
 
 impl HeadPlac {
@@ -44,6 +25,20 @@ impl HeadPlac {
         let mut head_plac = HeadPlac::default();
         head_plac.parse(tokenizer, level)?;
         Ok(head_plac)
+    }
+
+    pub fn push_jurisdictional_title(&mut self, title: String) {
+        self.form.push(title);
+    }
+
+    // Adhering to "lowest to highest jurisdiction" is the responsibility of the
+    // GEDCOM author, but methods for reordering elements might still be useful.
+    pub fn insert_jurisdictional_title(&mut self, index: usize, title: String) {
+        self.form.insert(index, title);
+    }
+
+    pub fn remove_jurisdictional_title(&mut self, index: usize) {
+        self.form.remove(index);
     }
 }
 
@@ -96,9 +91,6 @@ mod tests {
         let data = doc.parse_data().unwrap();
 
         let h_plac = data.header.unwrap().place.unwrap();
-        assert_eq!(h_plac.form[0], "City");
-        assert_eq!(h_plac.form[1], "County");
-        assert_eq!(h_plac.form[2], "State");
-        assert_eq!(h_plac.form[3], "Country");
+        assert_eq!(h_plac.form.to_payload(), "City, County, State, Country");
     }
 }
