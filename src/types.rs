@@ -17,6 +17,7 @@ pub mod gedcom7;
 pub mod header;
 pub mod individual;
 pub mod lds;
+pub mod list;
 pub mod multimedia;
 pub mod note;
 pub mod place;
