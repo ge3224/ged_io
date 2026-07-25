@@ -255,6 +255,15 @@ impl GedcomWriter {
                 self.write_value_or_wrap(writer, 1, "DEST", Some(dest))?;
             }
 
+            // Place form (document-wide default PLAC.FORM)
+            if let Some(ref place) = header.place {
+                let form = place.form.to_payload();
+                if !form.is_empty() {
+                    self.write_line(writer, 1, "PLAC", None)?;
+                    self.write_value_or_wrap(writer, 2, "FORM", Some(&form))?;
+                }
+            }
+
             // Date
             if let Some(ref date) = header.date {
                 self.write_date(writer, 1, date)?;
@@ -1564,6 +1573,19 @@ mod tests {
         assert!(output.contains("1 GEDC"));
         assert!(output.contains("2 VERS"));
         assert!(output.contains("0 TRLR"));
+    }
+
+    #[test]
+    fn test_round_trip_header_place_form() {
+        let source =
+            "0 HEAD\n1 GEDC\n2 VERS 5.5.1\n1 PLAC\n2 FORM City, County, State, Country\n0 TRLR";
+        let data = GedcomBuilder::new().build_from_str(source).unwrap();
+
+        let writer = GedcomWriter::new();
+        let output = writer.write_to_string(&data).unwrap();
+
+        assert!(output.contains("1 PLAC"));
+        assert!(output.contains("2 FORM City, County, State, Country"));
     }
 
     #[test]
