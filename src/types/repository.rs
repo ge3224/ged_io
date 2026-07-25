@@ -35,22 +35,22 @@ pub struct Repository {
     /// Phone number(s) of the repository (tag: PHON).
     ///
     /// Multiple phone numbers may be recorded.
-    pub phone: Vec<String>,
+    pub phone: Arena<String>,
 
     /// Email address(es) of the repository (tag: EMAIL).
     ///
     /// Multiple email addresses may be recorded.
-    pub email: Vec<String>,
+    pub email: Arena<String>,
 
     /// Fax number(s) of the repository (tag: FAX).
     ///
     /// Multiple fax numbers may be recorded.
-    pub fax: Vec<String>,
+    pub fax: Arena<String>,
 
     /// Website URL(s) of the repository (tag: WWW).
     ///
     /// Multiple URLs may be recorded.
-    pub website: Vec<String>,
+    pub website: Arena<String>,
 
     /// Notes about the repository (tag: NOTE).
     pub notes: Arena<Note>,
@@ -129,22 +129,22 @@ impl Repository {
 
     /// Adds a phone number to the repository.
     pub fn add_phone(&mut self, phone: String) {
-        self.phone.push(phone);
+        self.phone.insert(phone);
     }
 
     /// Adds an email address to the repository.
     pub fn add_email(&mut self, email: String) {
-        self.email.push(email);
+        self.email.insert(email);
     }
 
     /// Adds a fax number to the repository.
     pub fn add_fax(&mut self, fax: String) {
-        self.fax.push(fax);
+        self.fax.insert(fax);
     }
 
     /// Adds a website URL to the repository.
     pub fn add_website(&mut self, url: String) {
-        self.website.push(url);
+        self.website.insert(url);
     }
 
     /// Adds a note to the repository.
@@ -176,10 +176,18 @@ impl Parser for Repository {
             match tag {
                 "NAME" => self.name = Some(tokenizer.take_line_value()?),
                 "ADDR" => self.address = Some(Address::new(tokenizer, level + 1)?),
-                "PHON" => self.phone.push(tokenizer.take_line_value()?),
-                "EMAIL" => self.email.push(tokenizer.take_line_value()?),
-                "FAX" => self.fax.push(tokenizer.take_line_value()?),
-                "WWW" => self.website.push(tokenizer.take_line_value()?),
+                "PHON" => {
+                    self.phone.insert(tokenizer.take_line_value()?);
+                }
+                "EMAIL" => {
+                    self.email.insert(tokenizer.take_line_value()?);
+                }
+                "FAX" => {
+                    self.fax.insert(tokenizer.take_line_value()?);
+                }
+                "WWW" => {
+                    self.website.insert(tokenizer.take_line_value()?);
+                }
                 "NOTE" => {
                     self.notes.insert(Note::new(tokenizer, level + 1)?);
                 }
@@ -243,11 +251,14 @@ mod tests {
         assert_eq!(repo.name.as_ref().unwrap(), "National Archives");
         assert!(repo.address.is_some());
         assert_eq!(repo.phone.len(), 1);
-        assert_eq!(repo.phone[0], "+1-866-272-6272");
+        assert_eq!(repo.phone.iter().next().unwrap(), "+1-866-272-6272");
         assert_eq!(repo.email.len(), 1);
-        assert_eq!(repo.email[0], "inquire@nara.gov");
+        assert_eq!(repo.email.iter().next().unwrap(), "inquire@nara.gov");
         assert_eq!(repo.website.len(), 1);
-        assert_eq!(repo.website[0], "https://www.archives.gov");
+        assert_eq!(
+            repo.website.iter().next().unwrap(),
+            "https://www.archives.gov"
+        );
         assert!(repo.has_contact_info());
     }
 
