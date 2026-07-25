@@ -15,7 +15,8 @@ use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{
-        custom::UserDefinedTag, external_id::ExternalId, note::Note, source::citation::Citation,
+        custom::UserDefinedTag, external_id::ExternalId, list::ListText, note::Note,
+        source::citation::Citation,
     },
     GedcomError,
 };
@@ -44,7 +45,7 @@ pub struct Place {
     ///
     /// A comma-separated list of jurisdiction types corresponding to the
     /// elements in the place value (e.g., "City, County, State, Country").
-    pub form: Option<String>,
+    pub form: ListText,
 
     /// Geographic coordinates for the place (tag: MAP).
     pub map: Option<MapCoordinates>,
@@ -340,7 +341,7 @@ impl Parser for Place {
     fn parse(&mut self, tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<(), GedcomError> {
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             match tag {
-                "FORM" => self.form = Some(tokenizer.take_line_value()?),
+                "FORM" => self.form = ListText::from_payload(&tokenizer.take_line_value()?),
                 "MAP" => self.map = Some(MapCoordinates::new(tokenizer, level + 1)?),
                 "FONE" => {
                     self.phonetic

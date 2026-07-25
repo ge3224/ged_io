@@ -529,8 +529,9 @@ impl GedcomWriter {
 
         if let Some(ref place) = event.place {
             self.write_value_or_wrap(writer, level + 1, "PLAC", place.value.as_deref())?;
-            if let Some(ref form) = place.form {
-                self.write_value_or_wrap(writer, level + 2, "FORM", Some(form))?;
+            let form = place.form.to_payload();
+            if !form.is_empty() {
+                self.write_value_or_wrap(writer, level + 2, "FORM", Some(&form))?;
             }
             if let Some(ref map) = place.map {
                 self.write_line(writer, level + 2, "MAP", None)?;
@@ -699,8 +700,9 @@ impl GedcomWriter {
         place: &crate::types::place::Place,
     ) -> Result<(), io::Error> {
         self.write_value_or_wrap(writer, level, "PLAC", place.value.as_deref())?;
-        if let Some(ref form) = place.form {
-            self.write_value_or_wrap(writer, level + 1, "FORM", Some(form))?;
+        let form = place.form.to_payload();
+        if !form.is_empty() {
+            self.write_value_or_wrap(writer, level + 1, "FORM", Some(&form))?;
         }
         if let Some(ref map) = place.map {
             self.write_line(writer, level + 1, "MAP", None)?;
