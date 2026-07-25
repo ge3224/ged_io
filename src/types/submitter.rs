@@ -47,13 +47,13 @@ pub struct Submitter {
     /// Note provided by submitter about the enclosing data
     pub note: Option<Note>,
     /// Phone number(s) of the submitter (tag: PHON).
-    pub phone: Vec<String>,
+    pub phone: Arena<String>,
     /// Email address(es) of the submitter (tag: EMAIL).
-    pub email: Vec<String>,
+    pub email: Arena<String>,
     /// Fax number(s) of the submitter (tag: FAX).
-    pub fax: Vec<String>,
+    pub fax: Arena<String>,
     /// Website URL(s) of the submitter (tag: WWW).
-    pub website: Vec<String>,
+    pub website: Arena<String>,
     /// Unique identifier (tag: UID, GEDCOM 7.0).
     ///
     /// A globally unique identifier for this record.
@@ -75,17 +75,17 @@ impl Submitter {
             address: None,
             automated_record_id: None,
             change_date: None,
-            email: Vec::new(),
-            fax: Vec::new(),
+            email: Arena::default(),
+            fax: Arena::default(),
             language: None,
             multimedia_link: Arena::default(),
             name: None,
             note: None,
-            phone: Vec::new(),
+            phone: Arena::default(),
             registered_refn: None,
             uid: None,
             user_reference_number: None,
-            website: Vec::new(),
+            website: Arena::default(),
             xref: xref.into(),
             user_defined_tags: Arena::default(),
         }
@@ -135,10 +135,18 @@ impl Parser for Submitter {
                 "LANG" => self.language = Some(tokenizer.take_line_value()?),
                 "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
                 "CHAN" => self.change_date = Some(ChangeDate::new(tokenizer, level + 1)?),
-                "PHON" => self.phone.push(tokenizer.take_line_value()?),
-                "EMAIL" => self.email.push(tokenizer.take_line_value()?),
-                "FAX" => self.fax.push(tokenizer.take_line_value()?),
-                "WWW" => self.website.push(tokenizer.take_line_value()?),
+                "PHON" => {
+                    self.phone.insert(tokenizer.take_line_value()?);
+                }
+                "EMAIL" => {
+                    self.email.insert(tokenizer.take_line_value()?);
+                }
+                "FAX" => {
+                    self.fax.insert(tokenizer.take_line_value()?);
+                }
+                "WWW" => {
+                    self.website.insert(tokenizer.take_line_value()?);
+                }
                 "UID" => self.uid = Some(tokenizer.take_line_value()?),
                 "RIN" => self.automated_record_id = Some(tokenizer.take_line_value()?),
                 "RFN" => self.registered_refn = Some(tokenizer.take_line_value()?),
