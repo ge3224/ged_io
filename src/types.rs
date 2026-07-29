@@ -22,6 +22,7 @@ pub mod multimedia;
 pub mod note;
 pub mod place;
 pub mod repository;
+pub mod restriction;
 pub mod shared_note;
 pub mod source;
 pub mod submission;
