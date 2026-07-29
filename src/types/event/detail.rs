@@ -12,9 +12,11 @@ use crate::{
         event::{family::FamilyEventDetail, Event},
         gedcom7::SortDate,
         individual::{association::Association, family_link::FamilyLink},
+        list::ListEnum,
         multimedia::link::Link,
         note::Note,
         place::Place,
+        restriction::Restriction,
         source::citation::Citation,
     },
     GedcomError,
@@ -65,23 +67,13 @@ pub struct Detail {
     pub sort_date: Option<SortDate>,
     /// Associations with individuals related to this event (e.g., witnesses, godparents).
     pub associations: Arena<Association>,
-    /// The cause of the event (tag: CAUS).
-    ///
-    /// Used to indicate what caused the event to occur. Commonly used with death events
-    /// to record the cause of death.
-    ///
-    /// See GEDCOM 5.5.1 spec, page 43; <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#CAUS>
+    /// The cause of the event (tag: CAUS). Used to indicate what caused the
+    /// event to occur. Commonly used with death events to record the cause of
+    /// death.
     pub cause: Option<String>,
-    /// Restriction notice (tag: RESN).
-    ///
-    /// A flag that indicates access to information has been restricted.
-    /// Valid values are:
-    /// - `confidential` - Not for public distribution
-    /// - `locked` - Cannot be modified
-    /// - `privacy` - Information is private
-    ///
-    /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#RESN>
-    pub restriction: Option<String>,
+    /// Restriction notice (tag: RESN). A flag that indicates access to
+    /// information has been restricted.
+    pub restriction: ListEnum<Restriction>,
     /// Age at the time of the event (tag: AGE).
     ///
     /// The age of the individual at the time the event occurred.
@@ -127,7 +119,7 @@ impl Detail {
             sort_date: None,
             associations: Arena::default(),
             cause: None,
-            restriction: None,
+            restriction: ListEnum::default(),
             age: None,
             agency: None,
             religion: None,
@@ -222,7 +214,7 @@ impl Parser for Detail {
                         .insert(Association::new(tokenizer, level + 1)?);
                 }
                 "CAUS" => self.cause = Some(tokenizer.take_continued_text(level + 1)?),
-                "RESN" => self.restriction = Some(tokenizer.take_line_value()?),
+                "RESN" => self.restriction = ListEnum::from_payload(&tokenizer.take_line_value()?),
                 "AGE" => self.age = Some(Age::new(tokenizer, level + 1)?),
                 "AGNC" => self.agency = Some(tokenizer.take_line_value()?),
                 "RELI" => self.religion = Some(tokenizer.take_line_value()?),
@@ -248,7 +240,10 @@ impl Parser for Detail {
 #[cfg(test)]
 mod tests {
     use crate::{
-        types::age::{Age, AgeModifier},
+        types::{
+            age::{Age, AgeModifier},
+            list::ListEnum,
+        },
         Gedcom,
     };
 
@@ -302,7 +297,7 @@ mod tests {
             .iter()
             .next()
             .unwrap();
-        assert_eq!(birth.restriction.as_ref().unwrap(), "confidential");
+        assert_eq!(birth.restriction, ListEnum::from_payload("CONFIDENTIAL"));
     }
 
     #[test]
@@ -436,6 +431,6 @@ mod tests {
             death.agency.as_ref().unwrap(),
             "Massachusetts General Hospital"
         );
-        assert_eq!(death.restriction.as_ref().unwrap(), "privacy");
+        assert_eq!(death.restriction, ListEnum::from_payload("PRIVACY"));
     }
 }

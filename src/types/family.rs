@@ -9,8 +9,10 @@ use crate::{
         external_id::ExternalId,
         gedcom7::NonEvent,
         lds::LdsOrdinance,
+        list::ListEnum,
         multimedia::link::Link,
         note::Note,
+        restriction::Restriction,
         source::citation::Citation,
         Xref,
     },
@@ -64,16 +66,9 @@ pub struct Family {
     ///
     /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#UID>
     pub uid: Option<String>,
-    /// Restriction notice (tag: RESN).
-    ///
-    /// A flag that indicates access to information has been restricted.
-    /// Valid values are:
-    /// - `confidential` - Not for public distribution
-    /// - `locked` - Cannot be modified
-    /// - `privacy` - Information is private
-    ///
-    /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#RESN>
-    pub restriction: Option<String>,
+    /// Restriction notice (tag: RESN). A flag that indicates access to
+    /// information has been restricted.
+    pub restriction: ListEnum<Restriction>,
     /// User reference number (tag: REFN).
     ///
     /// A user-defined number or text that the submitter uses to identify
@@ -116,7 +111,7 @@ impl Family {
             non_events: Arena::default(),
             lds_ordinances: Arena::default(),
             uid: Option::default(),
-            restriction: Option::default(),
+            restriction: ListEnum::default(),
             user_reference_number: Option::default(),
             user_reference_type: Option::default(),
             automated_record_id: Option::default(),
@@ -302,7 +297,7 @@ impl Parser for Family {
                 // Unique identifier (GEDCOM 7.0)
                 "UID" => self.uid = Some(tokenizer.take_line_value()?),
                 // Restriction notice
-                "RESN" => self.restriction = Some(tokenizer.take_line_value()?),
+                "RESN" => self.restriction = ListEnum::from_payload(&tokenizer.take_line_value()?),
                 // User reference number
                 "REFN" => {
                     self.user_reference_number = Some(tokenizer.take_line_value()?);

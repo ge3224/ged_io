@@ -573,8 +573,14 @@ impl GedcomWriter {
             self.write_long_text(writer, level + 1, "CAUS", cause)?;
         }
 
-        if let Some(ref restriction) = event.restriction {
-            self.write_value_or_wrap(writer, level + 1, "RESN", Some(restriction))?;
+        let resn = event.restriction.to_payload();
+        if !resn.is_empty() {
+            let resn = if self.config.gedcom_version.starts_with('5') {
+                resn.to_lowercase()
+            } else {
+                resn
+            };
+            self.write_value_or_wrap(writer, level + 1, "RESN", Some(&resn))?;
         }
 
         if let Some(ref age) = event.age {

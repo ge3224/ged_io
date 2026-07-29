@@ -22,8 +22,10 @@ use crate::{
             gender::Gender, name::Name,
         },
         lds::LdsOrdinance,
+        list::ListEnum,
         multimedia::link::Link,
         note::Note,
+        restriction::Restriction,
         source::citation::Citation,
         Xref,
     },
@@ -76,23 +78,11 @@ pub struct Individual {
     /// Used to link individuals who have some relationship not covered by other
     /// standard tags (e.g., friends, neighbors, witnesses).
     pub associations: Arena<Association>,
-    /// Unique identifier (tag: UID).
-    ///
-    /// A globally unique identifier for this record. In GEDCOM 7.0, this is
-    /// a URI that uniquely identifies the record across all datasets.
-    ///
-    /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#UID>
+    /// Unique identifier (tag: UID). A globally unique identifier for this record.
     pub uid: Option<String>,
-    /// Restriction notice (tag: RESN).
-    ///
-    /// A flag that indicates access to information has been restricted.
-    /// Valid values are:
-    /// - `confidential` - Not for public distribution
-    /// - `locked` - Cannot be modified
-    /// - `privacy` - Information is private
-    ///
-    /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#RESN>
-    pub restriction: Option<String>,
+    /// Restriction notice (tag: RESN). A flag that indicates access to
+    /// information has been restricted.
+    pub restriction: ListEnum<Restriction>,
     /// User reference number (tag: REFN).
     ///
     /// A user-defined number or text that the submitter uses to identify
@@ -157,7 +147,7 @@ impl Individual {
             lds_ordinances: Arena::default(),
             associations: Arena::default(),
             uid: None,
-            restriction: None,
+            restriction: ListEnum::default(),
             user_reference_number: None,
             user_reference_type: None,
             automated_record_id: None,
@@ -454,7 +444,7 @@ impl Parser for Individual {
                 // Unique identifier (GEDCOM 7.0)
                 "UID" => self.uid = Some(tokenizer.take_line_value()?),
                 // Restriction notice
-                "RESN" => self.restriction = Some(tokenizer.take_line_value()?),
+                "RESN" => self.restriction = ListEnum::from_payload(&tokenizer.take_line_value()?),
                 // User reference number
                 "REFN" => {
                     self.user_reference_number = Some(tokenizer.take_line_value()?);
