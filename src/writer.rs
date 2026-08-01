@@ -37,12 +37,14 @@ use crate::types::{
         Individual,
     },
     lds::LdsOrdinance,
+    list::ListEnum,
     multimedia::{
         link::{Link, LinkTarget},
         Multimedia,
     },
     note::Note,
     repository::Repository,
+    restriction::Restriction,
     shared_note::SharedNote,
     source::{
         citation::{Citation, CitationSource},
@@ -393,6 +395,11 @@ impl GedcomWriter {
             self.write_event(writer, 1, event)?;
         }
 
+        if !individual.restriction.is_empty() {
+            let resn = self.resn_payload(&individual.restriction);
+            self.write_value_or_wrap(writer, 1, "RESN", Some(&resn))?;
+        }
+
         for attr in &individual.attributes {
             self.write_attribute(writer, attr)?;
         }
@@ -508,6 +515,21 @@ impl GedcomWriter {
         Ok(())
     }
 
+    fn resn_payload(&self, restriction: &ListEnum<Restriction>) -> String {
+        if self.config.gedcom_version.starts_with('5') {
+            restriction
+                .iter()
+                .map(|r| match r {
+                    Restriction::Other(s) => s.clone(),
+                    known => known.to_string().to_ascii_lowercase(),
+                })
+                .collect::<Vec<_>>()
+                .join(", ")
+        } else {
+            restriction.to_payload()
+        }
+    }
+
     /// Writes an event detail.
     fn write_event<W: Write>(
         &self,
@@ -573,13 +595,8 @@ impl GedcomWriter {
             self.write_long_text(writer, level + 1, "CAUS", cause)?;
         }
 
-        let resn = event.restriction.to_payload();
-        if !resn.is_empty() {
-            let resn = if self.config.gedcom_version.starts_with('5') {
-                resn.to_lowercase()
-            } else {
-                resn
-            };
+        if !event.restriction.is_empty() {
+            let resn = self.resn_payload(&event.restriction);
             self.write_value_or_wrap(writer, level + 1, "RESN", Some(&resn))?;
         }
 
@@ -780,6 +797,11 @@ impl GedcomWriter {
 
         for event in &family.events {
             self.write_event(writer, 1, event)?;
+        }
+
+        if !family.restriction.is_empty() {
+            let resn = self.resn_payload(&family.restriction);
+            self.write_value_or_wrap(writer, 1, "RESN", Some(&resn))?;
         }
 
         // GEDCOM 7.0: Non-events

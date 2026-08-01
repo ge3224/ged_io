@@ -68,6 +68,10 @@ pub struct Family {
     pub uid: Option<String>,
     /// Restriction notice (tag: RESN). A flag that indicates access to
     /// information has been restricted.
+    #[cfg_attr(
+        feature = "json",
+        serde(default, skip_serializing_if = "ListEnum::is_empty")
+    )]
     pub restriction: ListEnum<Restriction>,
     /// User reference number (tag: REFN).
     ///

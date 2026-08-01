@@ -71,8 +71,12 @@ pub struct Detail {
     /// event to occur. Commonly used with death events to record the cause of
     /// death.
     pub cause: Option<String>,
-    /// Restriction notice (tag: RESN). A flag that indicates access to
-    /// information has been restricted.
+    /// Restriction notice (tag: RESN) that indicates access to information has
+    /// been restricted.
+    #[cfg_attr(
+        feature = "json",
+        serde(default, skip_serializing_if = "ListEnum::is_empty")
+    )]
     pub restriction: ListEnum<Restriction>,
     /// Age at the time of the event (tag: AGE).
     ///

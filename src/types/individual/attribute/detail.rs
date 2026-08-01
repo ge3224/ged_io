@@ -7,7 +7,8 @@ use crate::{
     tokenizer::{Token, Tokenizer},
     types::{
         address::Address, age::Age, date::Date, individual::attribute::IndividualAttribute,
-        note::Note, place::Place, source::citation::Citation,
+        list::ListEnum, note::Note, place::Place, restriction::Restriction,
+        source::citation::Citation,
     },
     GedcomError,
 };
@@ -39,14 +40,13 @@ pub struct AttributeDetail {
     /// classify the parent event or attribute tag. This should be used to define what kind of
     /// identification number or fact classification is being defined.
     pub attribute_type: Option<String>,
-    /// Restriction notice (tag: RESN).
-    ///
-    /// A flag that indicates access to information has been restricted.
-    /// Valid values are:
-    /// - `confidential` - Not for public distribution
-    /// - `locked` - Cannot be modified
-    /// - `privacy` - Information is private
-    pub restriction: Option<String>,
+    /// Restriction notice (tag: RESN) that indicates access to information has
+    /// been restricted.
+    #[cfg_attr(
+        feature = "json",
+        serde(default, skip_serializing_if = "ListEnum::is_empty")
+    )]
+    pub restriction: ListEnum<Restriction>,
     /// Age at the time of the attribute (tag: AGE).
     ///
     /// The age of the individual at the time the attribute was recorded.
@@ -80,7 +80,7 @@ impl AttributeDetail {
             sources: Arena::default(),
             note: None,
             attribute_type: None,
-            restriction: None,
+            restriction: ListEnum::default(),
             age: None,
             address: None,
             cause: None,
@@ -151,7 +151,7 @@ impl Parser for AttributeDetail {
                 "PLAC" => self.place = Some(Place::new(tokenizer, level + 1)?),
                 "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
                 "TYPE" => self.attribute_type = Some(tokenizer.take_continued_text(level + 1)?),
-                "RESN" => self.restriction = Some(tokenizer.take_line_value()?),
+                "RESN" => self.restriction = ListEnum::from_payload(&tokenizer.take_line_value()?),
                 "AGE" => self.age = Some(Age::new(tokenizer, level + 1)?),
                 "ADDR" => self.address = Some(Address::new(tokenizer, level + 1)?),
                 "CAUS" => self.cause = Some(tokenizer.take_continued_text(level + 1)?),
@@ -203,7 +203,7 @@ mod tests {
             .next()
             .unwrap();
         assert_eq!(occu.value.as_ref().unwrap(), "Software Engineer");
-        assert_eq!(occu.restriction.as_ref().unwrap(), "privacy");
+        assert_eq!(occu.restriction.to_payload(), "PRIVACY");
     }
 
     #[test]

@@ -36,6 +36,11 @@ impl ListText {
     pub fn to_payload(&self) -> String {
         self.0.join(", ")
     }
+
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
 }
 
 /// A comma-separated list of enumeration values.
@@ -64,6 +69,11 @@ impl<T> ListEnum<T> {
 
     pub fn iter(&self) -> std::slice::Iter<'_, T> {
         self.0.iter()
+    }
+
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
     }
 }
 
