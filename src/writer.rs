@@ -768,6 +768,10 @@ impl GedcomWriter {
             self.write_date(writer, 2, date)?;
         }
 
+        if let Some(resn) = self.resn_payload(&attr.restriction) {
+            self.write_value_or_wrap(writer, 2, "RESN", Some(&resn))?;
+        }
+
         if let Some(ref place) = attr.place {
             self.write_place(writer, 2, place)?;
         }
@@ -1852,5 +1856,19 @@ mod tests {
             .unwrap();
 
         assert!(!v5.contains("RESN"));
+    }
+
+    #[test]
+    fn test_attribute_restriction_is_written() {
+        let source =
+            "0 HEAD\n1 GEDC\n2 VERS 5.5.1\n0 @I1@ INDI\n1 OCCU Farmer\n2 RESN privacy\n0 TRLR";
+        let data = GedcomBuilder::new().build_from_str(source).unwrap();
+
+        let output = GedcomWriter::new()
+            .gedcom_version("5.5.1")
+            .write_to_string(&data)
+            .unwrap();
+
+        assert!(output.contains("2 RESN privacy"));
     }
 }
