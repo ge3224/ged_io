@@ -171,55 +171,45 @@ impl GedcomWriter {
     ///
     /// Returns an error if writing fails.
     pub fn write_to<W: Write>(&self, writer: &mut W, data: &GedcomData) -> Result<(), io::Error> {
-        // Write header
         self.write_header(writer, data)?;
 
-        // Write submitters
         for submitter in data.iter_submitters() {
             self.write_submitter(writer, submitter)?;
         }
 
-        // Write submissions
         for submission in data.iter_submissions() {
             self.write_submission(writer, submission)?;
         }
 
-        // Write individuals
         for individual in data.iter_individuals() {
             self.write_individual(writer, individual)?;
         }
 
-        // Write families
         for family in data.iter_families() {
             self.write_family(writer, family)?;
         }
 
-        // Write sources
         for source in data.iter_sources() {
             self.write_source(writer, source)?;
         }
 
-        // Write repositories
         for repo in data.iter_repositories() {
             self.write_repository(writer, repo)?;
         }
 
-        // Write multimedia
         for media in data.iter_multimedia() {
             self.write_multimedia(writer, media)?;
         }
 
-        // Write shared notes (GEDCOM 7.0)
         for shared_note in data.iter_shared_notes() {
             self.write_shared_note(writer, shared_note)?;
         }
 
-        // Write user-defined tags
         for user_defined_tag in data.iter_user_defined_tags() {
             self.write_user_defined_tag(writer, user_defined_tag)?;
         }
 
-        // Write trailer (final line; do not add a line terminator after TRLR)
+        // final line; do not add a line terminator after TRLR
         self.write_trailer(writer)?;
 
         Ok(())
@@ -229,7 +219,6 @@ impl GedcomWriter {
         self.write_line(writer, 0, "HEAD", None)?;
 
         if let Some(ref header) = data.header {
-            // GEDC block
             if let Some(ref gedc) = header.gedcom {
                 self.write_head_gedc(writer, gedc)?;
             } else {
@@ -239,19 +228,16 @@ impl GedcomWriter {
                 self.write_line(writer, 2, "FORM", Some("LINEAGE-LINKED"))?;
             }
 
-            // Character encoding
             if let Some(ref encoding) = header.encoding {
                 if let Some(ref value) = encoding.value {
                     self.write_value_or_wrap(writer, 1, "CHAR", Some(value))?;
                 }
             }
 
-            // Source
             if let Some(ref source) = header.source {
                 self.write_head_sour(writer, source)?;
             }
 
-            // Destination
             if let Some(ref dest) = header.destination {
                 self.write_value_or_wrap(writer, 1, "DEST", Some(dest))?;
             }
@@ -265,37 +251,30 @@ impl GedcomWriter {
                 }
             }
 
-            // Date
             if let Some(ref date) = header.date {
                 self.write_date(writer, 1, date)?;
             }
 
-            // Submitter reference
             if let Some(ref subm) = header.submitter_tag {
                 self.write_line(writer, 1, "SUBM", Some(subm))?;
             }
 
-            // File name
             if let Some(ref file) = header.filename {
                 self.write_value_or_wrap(writer, 1, "FILE", Some(file))?;
             }
 
-            // Copyright
             if let Some(ref copyright) = header.copyright {
                 self.write_value_or_wrap(writer, 1, "COPR", Some(copyright))?;
             }
 
-            // Language
             if let Some(ref lang) = header.language {
                 self.write_value_or_wrap(writer, 1, "LANG", Some(lang))?;
             }
 
-            // Note
             if let Some(ref note) = header.note {
                 self.write_note(writer, 1, note)?;
             }
 
-            // Schema (GEDCOM 7.0)
             if let Some(ref schema) = header.schema {
                 self.write_schema(writer, schema)?;
             }
