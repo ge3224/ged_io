@@ -42,3 +42,27 @@ impl Display for Restriction {
         })
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::types::restriction::Restriction;
+    use std::str::FromStr;
+
+    #[test]
+    fn test_known_values_round_trip() {
+        for s in ["CONFIDENTIAL", "LOCKED", "PRIVACY", "_MYRESN", "_myresn"] {
+            let parsed: Restriction = s.parse().unwrap();
+            assert_eq!(parsed.to_string(), s, "input: {s:?}");
+        }
+    }
+
+    #[test]
+    fn test_lowercase_5_5_1_spelling_is_same_value() {
+        assert_eq!(
+            Restriction::from_str("confidential"),
+            Ok(Restriction::Confidential)
+        );
+        assert_eq!(Restriction::from_str("privacy"), Ok(Restriction::Privacy));
+        assert_eq!(Restriction::from_str("locked"), Ok(Restriction::Locked));
+    }
+}
