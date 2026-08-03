@@ -231,7 +231,7 @@ impl GedcomWriter {
         if let Some(ref header) = data.header {
             // GEDC block
             if let Some(ref gedc) = header.gedcom {
-                self.write_gedcom_header(writer, gedc)?;
+                self.write_head_gedc(writer, gedc)?;
             } else {
                 // Write default GEDC if none exists
                 self.write_line(writer, 1, "GEDC", None)?;
@@ -248,7 +248,7 @@ impl GedcomWriter {
 
             // Source
             if let Some(ref source) = header.source {
-                self.write_header_source(writer, source)?;
+                self.write_head_sour(writer, source)?;
             }
 
             // Destination
@@ -310,11 +310,7 @@ impl GedcomWriter {
         Ok(())
     }
 
-    fn write_gedcom_header<W: Write>(
-        &self,
-        writer: &mut W,
-        gedc: &HeadMeta,
-    ) -> Result<(), io::Error> {
+    fn write_head_gedc<W: Write>(&self, writer: &mut W, gedc: &HeadMeta) -> Result<(), io::Error> {
         self.write_line(writer, 1, "GEDC", None)?;
 
         if let Some(ref version) = gedc.version {
@@ -332,7 +328,7 @@ impl GedcomWriter {
         Ok(())
     }
 
-    fn write_header_source<W: Write>(
+    fn write_head_sour<W: Write>(
         &self,
         writer: &mut W,
         source: &HeadSour,
