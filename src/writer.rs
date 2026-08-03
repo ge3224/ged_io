@@ -225,7 +225,6 @@ impl GedcomWriter {
         Ok(())
     }
 
-    /// Writes the GEDCOM header.
     fn write_header<W: Write>(&self, writer: &mut W, data: &GedcomData) -> Result<(), io::Error> {
         self.write_line(writer, 0, "HEAD", None)?;
 
@@ -311,7 +310,6 @@ impl GedcomWriter {
         Ok(())
     }
 
-    /// Writes the GEDC header block.
     fn write_gedcom_header<W: Write>(
         &self,
         writer: &mut W,
@@ -334,7 +332,6 @@ impl GedcomWriter {
         Ok(())
     }
 
-    /// Writes the header source block.
     fn write_header_source<W: Write>(
         &self,
         writer: &mut W,
@@ -373,7 +370,6 @@ impl GedcomWriter {
         Ok(())
     }
 
-    /// Writes an individual record.
     fn write_individual<W: Write>(
         &self,
         writer: &mut W,
@@ -448,7 +444,6 @@ impl GedcomWriter {
         Ok(())
     }
 
-    /// Writes a name structure.
     fn write_name<W: Write>(&self, writer: &mut W, name: &Name) -> Result<(), io::Error> {
         self.write_value_or_wrap(writer, 1, "NAME", name.value.as_deref())?;
 
@@ -493,7 +488,6 @@ impl GedcomWriter {
         Ok(())
     }
 
-    /// Writes a gender record.
     fn write_gender<W: Write>(&self, writer: &mut W, gender: &Gender) -> Result<(), io::Error> {
         let sex_char = match gender.value {
             GenderType::Male => "M",
@@ -535,7 +529,6 @@ impl GedcomWriter {
         }
     }
 
-    /// Writes an event detail.
     fn write_event<W: Write>(
         &self,
         writer: &mut W,
