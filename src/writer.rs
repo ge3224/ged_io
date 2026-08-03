@@ -395,8 +395,7 @@ impl GedcomWriter {
             self.write_event(writer, 1, event)?;
         }
 
-        if !individual.restriction.is_empty() {
-            let resn = self.resn_payload(&individual.restriction);
+        if let Some(resn) = self.resn_payload(&individual.restriction) {
             self.write_value_or_wrap(writer, 1, "RESN", Some(&resn))?;
         }
 
@@ -515,18 +514,24 @@ impl GedcomWriter {
         Ok(())
     }
 
-    fn resn_payload(&self, restriction: &ListEnum<Restriction>) -> String {
+    fn resn_payload(&self, restriction: &ListEnum<Restriction>) -> Option<String> {
         if self.config.gedcom_version.starts_with('5') {
-            restriction
-                .iter()
-                .map(|r| match r {
-                    Restriction::Other(s) => s.clone(),
-                    known => known.to_string().to_ascii_lowercase(),
-                })
-                .collect::<Vec<_>>()
-                .join(", ")
+            // 5.5.1 RESTRICTION_NOTICE is a single value {Size=6:7} drawn from
+            // a closed set, so a multi-value 7.0 list can't survive the
+            // downgrade. Keep the strongest disclosure restriction and drop the
+            // rest, so the conversion never loosens a restriction. Extension
+            // values have no 5.5.1 form.
+            [
+                Restriction::Confidential,
+                Restriction::Privacy,
+                Restriction::Locked,
+            ]
+            .into_iter()
+            .find(|r| restriction.iter().any(|x| x == r))
+            .map(|r| r.to_string().to_ascii_lowercase())
         } else {
-            restriction.to_payload()
+            let payload = restriction.to_payload();
+            (!payload.is_empty()).then_some(payload)
         }
     }
 
@@ -595,8 +600,7 @@ impl GedcomWriter {
             self.write_long_text(writer, level + 1, "CAUS", cause)?;
         }
 
-        if !event.restriction.is_empty() {
-            let resn = self.resn_payload(&event.restriction);
+        if let Some(resn) = self.resn_payload(&event.restriction) {
             self.write_value_or_wrap(writer, level + 1, "RESN", Some(&resn))?;
         }
 
@@ -799,8 +803,7 @@ impl GedcomWriter {
             self.write_event(writer, 1, event)?;
         }
 
-        if !family.restriction.is_empty() {
-            let resn = self.resn_payload(&family.restriction);
+        if let Some(resn) = self.resn_payload(&family.restriction) {
             self.write_value_or_wrap(writer, 1, "RESN", Some(&resn))?;
         }
 
@@ -1796,5 +1799,58 @@ mod tests {
         assert_eq!(config.max_line_length, 100);
         assert!(config.include_empty_fields);
         assert_eq!(config.gedcom_version, "5.5.1");
+    }
+
+    #[test]
+    fn test_resn_list_survives_a_7_0_write() {
+        let source = "0 HEAD\n1 GEDC\n2 VERS 7.0\n0 @I1@ INDI\n1 RESN CONFIDENTIAL, LOCKED\n0 TRLR";
+        let data = GedcomBuilder::new().build_from_str(source).unwrap();
+        let output = GedcomWriter::new()
+            .gedcom_version("7.0")
+            .write_to_string(&data)
+            .unwrap();
+
+        assert!(output.contains("1 RESN CONFIDENTIAL, LOCKED"));
+    }
+
+    #[test]
+    fn test_resn_list_collapses_to_one_value_for_5_5_1() {
+        // 5.5.1 holds a single value, so the strongest disclosure restriction
+        // wins no matter which order the 7.0 list wrote them in.
+        for payload in ["CONFIDENTIAL, LOCKED", "LOCKED, CONFIDENTIAL"] {
+            let source =
+                format!("0 HEAD\n1 GEDC\n2 VERS 7.0\n0 @I1@ INDI\n1 RESN {payload}\n0 TRLR");
+            let data = GedcomBuilder::new().build_from_str(&source).unwrap();
+
+            let output = GedcomWriter::new()
+                .gedcom_version("5.5.1")
+                .write_to_string(&data)
+                .unwrap();
+
+            assert!(
+                output.contains("1 RESN confidential"),
+                "payload: {payload:?}"
+            );
+            assert!(!output.contains("LOCKED"), "payload: {payload:?}");
+        }
+    }
+
+    #[test]
+    fn test_extension_resn_has_no_5_5_1_form() {
+        let source = "0 HEAD\n1 GEDC\n2 VERS 7.0\n0 @I1@ INDI\n1 RESN _MYRESN\n0 TRLR";
+        let data = GedcomBuilder::new().build_from_str(source).unwrap();
+        let v7 = GedcomWriter::new()
+            .gedcom_version("7.0")
+            .write_to_string(&data)
+            .unwrap();
+
+        assert!(v7.contains("1 RESN _MYRESN"));
+
+        let v5 = GedcomWriter::new()
+            .gedcom_version("5.5.1")
+            .write_to_string(&data)
+            .unwrap();
+
+        assert!(!v5.contains("RESN"));
     }
 }
