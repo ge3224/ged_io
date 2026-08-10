@@ -243,10 +243,10 @@ fn test_round_trip_citation_with_free_text_description() {
         .unwrap();
 
     assert_eq!(
-        citation1.source.as_description(),
+        citation1.target().as_description(),
         Some("https://example.com/records/123")
     );
-    assert_eq!(citation1.source, citation2.source);
+    assert_eq!(citation1.target(), citation2.target());
 }
 
 #[test]

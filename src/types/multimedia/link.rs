@@ -21,7 +21,7 @@ use crate::{
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Link {
     /// Optional reference to link to this submitter
-    pub link: LinkTarget,
+    pub(crate) target: LinkTarget,
     pub file: Option<Reference>,
     /// The 5.5 spec, page 26, shows FORM as a sub-structure of FILE, but the struct appears as a
     /// sibling in an Ancestry.com export.
@@ -48,7 +48,7 @@ impl Link {
         };
 
         let mut obje = Link {
-            link,
+            target: link,
             file: None,
             form: None,
             title: None,
@@ -57,9 +57,16 @@ impl Link {
         Ok(obje)
     }
 
+    /// Returns what this link points at: a multimedia record, inline media, or
+    /// `@VOID@`.
+    #[must_use]
+    pub fn target(&self) -> &LinkTarget {
+        &self.target
+    }
+
     pub(crate) fn with_record(xref: Xref) -> Self {
         Link {
-            link: LinkTarget::Record(xref),
+            target: LinkTarget::Record(xref),
             file: None,
             form: None,
             title: None,
@@ -67,7 +74,7 @@ impl Link {
     }
 
     pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
-        if let LinkTarget::Record(xref) = &self.link {
+        if let LinkTarget::Record(xref) = &self.target {
             sink(xref);
         }
     }

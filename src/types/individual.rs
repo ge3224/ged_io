@@ -181,9 +181,9 @@ impl Individual {
 
     pub fn add_family(&mut self, link: FamilyLink) {
         let mut do_add = true;
-        let xref = &link.xref;
+        let xref = &link.target;
         for family in &self.families {
-            if family.xref.as_str() == xref.as_str() {
+            if family.target.as_str() == xref.as_str() {
                 do_add = false;
             }
         }
@@ -620,7 +620,7 @@ mod tests {
             sex.fact.as_ref().unwrap(),
             "A fact about an individual's gender"
         );
-        let CitationSource::Record(xref) = &sex.sources.iter().next().unwrap().source else {
+        let CitationSource::Record(xref) = &sex.sources.iter().next().unwrap().target else {
             panic!("expected a Record citation");
         };
         assert_eq!(xref, "@CITATION1@");
@@ -660,7 +660,7 @@ mod tests {
             .family_link
             .as_ref()
             .unwrap();
-        assert_eq!(famc.xref, "@ADOPTIVE_PARENTS@");
+        assert_eq!(famc.target, "@ADOPTIVE_PARENTS@");
         assert_eq!(famc.family_link_type.to_string(), "Child");
         assert_eq!(
             famc.pedigree_linkage_type.as_ref().unwrap().to_string(),

@@ -386,7 +386,7 @@ impl GedcomWriter {
 
         for family_link in &individual.families {
             let tag = family_link.family_link_type.to_tag();
-            self.write_line(writer, 1, tag, Some(&family_link.xref))?;
+            self.write_line(writer, 1, tag, Some(&family_link.target))?;
             self.write_family_link_detail(writer, 2, family_link)?;
         }
 
@@ -613,7 +613,7 @@ impl GedcomWriter {
         // Adoptive/foster family link, e.g. `1 ADOP` / `2 FAMC @F1@` / `3 ADOP HUSB`.
         if let Some(ref family_link) = event.family_link {
             let tag = family_link.family_link_type.to_tag();
-            self.write_line(writer, level + 1, tag, Some(&family_link.xref))?;
+            self.write_line(writer, level + 1, tag, Some(&family_link.target))?;
             self.write_family_link_detail(writer, level + 2, family_link)?;
         }
 
@@ -829,7 +829,7 @@ impl GedcomWriter {
 
         // Repository citations
         for repo in &source.repo_citations {
-            self.write_line(writer, 1, "REPO", Some(&repo.xref))?;
+            self.write_line(writer, 1, "REPO", Some(&repo.target))?;
         }
 
         // Notes
@@ -972,7 +972,7 @@ impl GedcomWriter {
         level: u8,
         media: &Link,
     ) -> Result<(), io::Error> {
-        match media.link {
+        match media.target {
             LinkTarget::Record(ref x) => self.write_line(writer, level, "OBJE", Some(x))?,
             LinkTarget::Void => self.write_line(writer, level, "OBJE", Some("@VOID@"))?,
             LinkTarget::Inline => {
@@ -995,7 +995,7 @@ impl GedcomWriter {
         level: u8,
         citation: &Citation,
     ) -> Result<(), io::Error> {
-        match &citation.source {
+        match &citation.target {
             CitationSource::Record(x) => self.write_line(writer, level, "SOUR", Some(x))?,
             CitationSource::Void => self.write_line(writer, level, "SOUR", Some("@VOID@"))?,
             CitationSource::Description(s) => self.write_long_text(writer, level, "SOUR", s)?,

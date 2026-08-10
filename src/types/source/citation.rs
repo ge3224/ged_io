@@ -96,7 +96,7 @@ fn is_xref_pointer(value: &str) -> bool {
 #[derive(Debug, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Citation {
-    pub source: CitationSource,
+    pub(crate) target: CitationSource,
     /// Page number of source
     pub page: Option<String>,
     pub data: Option<SourceCitationData>,
@@ -133,7 +133,7 @@ impl Citation {
         };
 
         let mut citation = Citation {
-            source,
+            target: source,
             page: None,
             data: None,
             note: None,
@@ -148,9 +148,16 @@ impl Citation {
         Ok(citation)
     }
 
+    /// Returns what this citation points at: a source record, an inline
+    /// description, or `@VOID@`.
+    #[must_use]
+    pub fn target(&self) -> &CitationSource {
+        &self.target
+    }
+
     pub(crate) fn with_source(xref: Xref) -> Self {
         Citation {
-            source: CitationSource::Record(xref),
+            target: CitationSource::Record(xref),
             page: None,
             data: None,
             note: None,
@@ -168,7 +175,7 @@ impl Citation {
     }
 
     pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
-        if let CitationSource::Record(xref) = &self.source {
+        if let CitationSource::Record(xref) = &self.target {
             sink(xref);
         }
 
@@ -247,7 +254,7 @@ mod tests {
         let birt = &indi.events.iter().next().unwrap();
         let sour = &birt.citations.iter().next().unwrap();
 
-        assert_eq!(sour.source.as_xref(), Some("@S1@"));
+        assert_eq!(sour.target.as_xref(), Some("@S1@"));
         assert_eq!(sour.page.as_ref().unwrap(), "Page 42");
         assert_eq!(sour.event_type.as_ref().unwrap(), "BIRT");
         assert_eq!(sour.role.as_ref().unwrap(), "CHIL");
@@ -276,9 +283,9 @@ mod tests {
         let sour = &birt.citations.iter().next().unwrap();
 
         assert_eq!(
-            sour.source.as_description(),
+            sour.target.as_description(),
             Some("https://example.com/records/123")
         );
-        assert_eq!(sour.source.as_xref(), None);
+        assert_eq!(sour.target.as_xref(), None);
     }
 }

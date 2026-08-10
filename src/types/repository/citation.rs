@@ -20,7 +20,7 @@ use crate::{
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Citation {
     /// Reference to the `Repository`
-    pub xref: Xref,
+    pub(crate) target: Xref,
 
     /// Call number to find the source at this repository (tag: CALN).
     ///
@@ -61,9 +61,9 @@ pub struct Citation {
 
 impl Citation {
     #[must_use]
-    fn with_xref(xref: Xref) -> Self {
+    fn with_xref(target: Xref) -> Self {
         Self {
-            xref,
+            target,
             ..Default::default()
         }
     }
@@ -80,11 +80,17 @@ impl Citation {
         Ok(rc)
     }
 
+    /// Returns the repository this citation points at.
+    #[must_use]
+    pub fn target(&self) -> &Xref {
+        &self.target
+    }
+
     /// Creates a citation with the given repository xref.
     #[must_use]
     pub fn for_repository(xref: &str) -> Self {
         Self {
-            xref: xref.to_string(),
+            target: xref.to_string(),
             ..Default::default()
         }
     }
@@ -112,8 +118,8 @@ impl Citation {
     }
 
     pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
-        if is_real_reference(&self.xref) {
-            sink(&self.xref);
+        if is_real_reference(&self.target) {
+            sink(&self.target);
         }
     }
 }
@@ -153,7 +159,7 @@ mod tests {
     #[test]
     fn test_citation_for_repository() {
         let citation = Citation::for_repository("@R1@");
-        assert_eq!(citation.xref, "@R1@");
+        assert_eq!(citation.target, "@R1@");
         assert!(citation.call_number.is_none());
         assert!(citation.media_type.is_none());
     }

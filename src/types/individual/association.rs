@@ -16,7 +16,7 @@ use crate::{
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct Association {
     /// Reference to associated individual
-    pub target: AssociationTarget,
+    pub(crate) target: AssociationTarget,
     /// tag: RELA, relationship to this individual
     pub relationship: Option<String>,
     /// tag: TYPE, indicator of the type of association
@@ -49,6 +49,12 @@ impl Association {
         };
         association.parse(tokenizer, level)?;
         Ok(association)
+    }
+
+    /// Returns what this association points at: an individual record or `@VOID@`.
+    #[must_use]
+    pub fn target(&self) -> &AssociationTarget {
+        &self.target
     }
 
     pub(crate) fn with_target(target: Xref) -> Self {

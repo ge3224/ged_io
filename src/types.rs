@@ -646,7 +646,7 @@ impl GedcomData {
         let Some(source_handle) = i
             .sources
             .iter_handles()
-            .find(|(_, c)| matches!(&c.source, CitationSource::Record(x) if x == &source_xref))
+            .find(|(_, c)| matches!(&c.target, CitationSource::Record(x) if x == &source_xref))
             .map(|(h, _)| h)
         else {
             return Err(GedcomError::NotLinked {
@@ -1143,7 +1143,7 @@ impl GedcomData {
         let has_family_link = i
             .families
             .iter()
-            .any(|f| f.xref == family_xref && f.family_link_type == FamilyLinkType::Spouse);
+            .any(|f| f.target == family_xref && f.family_link_type == FamilyLinkType::Spouse);
 
         let is_spouse = f.individual1.as_deref() == Some(&individual_xref)
             || f.individual2.as_deref() == Some(&individual_xref);
@@ -1176,7 +1176,7 @@ impl GedcomData {
             self.xrefs.bump(&family_xref);
 
             i.families.insert(FamilyLink {
-                xref: family_xref,
+                target: family_xref,
                 family_link_type: FamilyLinkType::Spouse,
                 pedigree_linkage_type: None,
                 child_linkage_status: None,
@@ -1233,7 +1233,7 @@ impl GedcomData {
         let has_family_link = i
             .families
             .iter()
-            .any(|f| f.xref == family_xref && f.family_link_type == FamilyLinkType::Spouse);
+            .any(|f| f.target == family_xref && f.family_link_type == FamilyLinkType::Spouse);
 
         let is_spouse = f.individual1.as_deref() == Some(&individual_xref)
             || f.individual2.as_deref() == Some(&individual_xref);
@@ -1248,7 +1248,7 @@ impl GedcomData {
 
         if has_family_link {
             i.families.retain(|f| {
-                !(f.xref == family_xref && f.family_link_type == FamilyLinkType::Spouse)
+                !(f.target == family_xref && f.family_link_type == FamilyLinkType::Spouse)
             });
             self.xrefs.decrement(&family_xref);
         }
@@ -1308,7 +1308,7 @@ impl GedcomData {
         let has_family_link = i
             .families
             .iter()
-            .any(|l| l.xref == family_xref && l.family_link_type == FamilyLinkType::Child);
+            .any(|l| l.target == family_xref && l.family_link_type == FamilyLinkType::Child);
 
         let is_child = f.children.iter().any(|c| c == &individual_xref);
 
@@ -1329,7 +1329,7 @@ impl GedcomData {
             self.xrefs.bump(&family_xref);
 
             i.families.insert(FamilyLink {
-                xref: family_xref,
+                target: family_xref,
                 family_link_type: FamilyLinkType::Child,
                 pedigree_linkage_type: None,
                 child_linkage_status: None,
@@ -1385,7 +1385,7 @@ impl GedcomData {
         let has_family_link = i
             .families
             .iter()
-            .any(|f| f.xref == family_xref && f.family_link_type == FamilyLinkType::Child);
+            .any(|f| f.target == family_xref && f.family_link_type == FamilyLinkType::Child);
 
         let is_child = f.children.iter().any(|c| c == &individual_xref);
 
@@ -1399,7 +1399,7 @@ impl GedcomData {
 
         if has_family_link {
             i.families.retain(|f| {
-                !(f.xref == family_xref && f.family_link_type == FamilyLinkType::Child)
+                !(f.target == family_xref && f.family_link_type == FamilyLinkType::Child)
             });
             self.xrefs.decrement(&family_xref);
         }
@@ -1591,7 +1591,7 @@ impl GedcomData {
         let Some(multimedia_handle) = i
             .multimedia_links
             .iter_handles()
-            .find(|(_, l)| matches!(&l.link, LinkTarget::Record(x) if x == &multimedia_xref))
+            .find(|(_, l)| matches!(&l.target, LinkTarget::Record(x) if x == &multimedia_xref))
             .map(|(h, _)| h)
         else {
             return Err(GedcomError::NotLinked {

@@ -200,7 +200,7 @@ mod tests {
         let indi = data.find_individual("@PERSON1@").unwrap();
 
         let s = indi.sources.iter().next().unwrap();
-        let CitationSource::Record(x) = &s.source else {
+        let CitationSource::Record(x) = &s.target else {
             panic!("expected a Record citation");
         };
         assert_eq!(x, "@SOURCE1@");

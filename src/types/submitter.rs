@@ -114,7 +114,7 @@ impl Submitter {
 
     pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
         for link in &self.multimedia_link {
-            if let LinkTarget::Record(xref) = &link.link {
+            if let LinkTarget::Record(xref) = &link.target {
                 sink(xref);
             }
         }

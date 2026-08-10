@@ -43,7 +43,7 @@ pub struct Multimedia {
     pub title: Option<String>,
     pub user_reference_number: Option<UserReferenceNumber>,
     pub automated_record_id: Option<String>,
-    pub source_citation: Option<Citation>,
+    pub(crate) source_citation: Option<Citation>,
     pub change_date: Option<ChangeDate>,
     pub note_structure: Option<Note>,
 }
@@ -78,6 +78,12 @@ impl Multimedia {
         if let Some(sc) = &self.source_citation {
             sc.outbound_refs(sink);
         }
+    }
+
+    /// Returns this record's source citation, if it has one.
+    #[must_use]
+    pub fn source_citation(&self) -> Option<&Citation> {
+        self.source_citation.as_ref()
     }
 }
 

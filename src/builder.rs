@@ -618,10 +618,10 @@ impl GedcomBuilder {
         // Validate individual family links
         for individual in data.iter_individuals() {
             for family_link in &individual.families {
-                if !xrefs.contains(family_link.xref.as_str()) {
+                if !xrefs.contains(family_link.target.as_str()) {
                     return Err(GedcomError::InvalidFormat(format!(
                         "Individual references non-existent family: {}",
-                        family_link.xref
+                        family_link.target
                     )));
                 }
             }

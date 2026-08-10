@@ -44,7 +44,7 @@ impl std::fmt::Display for FamilyLinkType {
 #[derive(Debug, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct FamilyLink {
-    pub xref: Xref,
+    pub(crate) target: Xref,
     pub family_link_type: FamilyLinkType,
     pub pedigree_linkage_type: Option<Pedigree>,
     pub child_linkage_status: Option<ChildLinkStatus>,
@@ -74,7 +74,7 @@ impl FamilyLink {
             }
         };
         let mut family_link = FamilyLink {
-            xref,
+            target: xref,
             family_link_type: link_type,
             pedigree_linkage_type: None,
             child_linkage_status: None,
@@ -84,6 +84,12 @@ impl FamilyLink {
         };
         family_link.parse(tokenizer, level)?;
         Ok(family_link)
+    }
+
+    /// Returns the family this link points at.
+    #[must_use]
+    pub fn target(&self) -> &Xref {
+        &self.target
     }
 
     /// Sets the pedigree linkage type.
@@ -163,8 +169,8 @@ impl FamilyLink {
     }
 
     pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
-        if is_real_reference(&self.xref) {
-            sink(&self.xref);
+        if is_real_reference(&self.target) {
+            sink(&self.target);
         }
     }
 }
