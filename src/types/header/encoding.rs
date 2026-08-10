@@ -31,6 +31,12 @@ impl Encoding {
         chars.parse(tokenizer, level)?;
         Ok(chars)
     }
+
+    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
+        if let Some(citation) = &self.source {
+            citation.outbound_refs(sink);
+        }
+    }
 }
 
 impl Parser for Encoding {

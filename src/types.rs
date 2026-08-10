@@ -2475,6 +2475,10 @@ impl GedcomData {
 
         // Pass 2
 
+        if let Some(header) = &self.header {
+            header.outbound_refs(&mut |x| self.xrefs.add_uses(x, 1));
+        }
+
         for (_, rec) in self.submitters.iter_handles() {
             rec.outbound_refs(&mut |x| self.xrefs.add_uses(x, 1));
         }

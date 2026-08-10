@@ -16,6 +16,7 @@ use crate::{
         },
         note::Note,
     },
+    util::is_real_reference,
     GedcomError,
 };
 #[cfg(feature = "json")]
@@ -186,6 +187,24 @@ impl Header {
     #[must_use]
     pub fn find_extension_uri(&self, tag: &str) -> Option<&str> {
         self.schema.as_ref()?.find_uri(tag)
+    }
+
+    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
+        if let Some(xref) = &self.submitter_tag {
+            if is_real_reference(xref) {
+                sink(xref);
+            }
+        }
+
+        if let Some(xref) = &self.submission_tag {
+            if is_real_reference(xref) {
+                sink(xref);
+            }
+        }
+
+        if let Some(encoding) = &self.encoding {
+            encoding.outbound_refs(sink);
+        }
     }
 }
 
