@@ -1,5 +1,5 @@
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::{
     parser::{parse_subset, Parser},
@@ -18,7 +18,7 @@ use crate::{
 /// with genealogical records. This can include photographs, scanned documents, audio recordings,
 /// or any other digital content that supplements the genealogical data.
 #[derive(Debug, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Link {
     /// Optional reference to link to this submitter
     pub(crate) target: LinkTarget,
@@ -72,12 +72,6 @@ impl Link {
             title: None,
         }
     }
-
-    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
-        if let LinkTarget::Record(xref) = &self.target {
-            sink(xref);
-        }
-    }
 }
 
 impl Parser for Link {
@@ -103,7 +97,7 @@ impl Parser for Link {
 
 /// The forms a multimedia pointer (`OBJE`) can take
 #[derive(Debug, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub enum LinkTarget {
     /// References a multimedia record
     Record(Xref),

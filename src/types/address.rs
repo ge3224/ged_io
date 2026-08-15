@@ -1,5 +1,5 @@
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use std::fmt;
 
 use crate::{
@@ -12,7 +12,7 @@ use crate::{
 
 /// Physical address at which a fact occurs
 #[derive(Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Address {
     pub value: Option<String>,
     pub adr1: Option<String>,

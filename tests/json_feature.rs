@@ -7,36 +7,21 @@ mod json_feature_tests {
     use ged_io::Gedcom;
 
     #[test]
-    fn serde_simple_gedcom_data() {
-        // Parse a simple GEDCOM file
+    fn test_serializes_document_without_xref_registry() {
         let gedcom_content: String = read_relative("./tests/fixtures/simple.ged");
         let mut parser = Gedcom::new(gedcom_content.chars()).unwrap();
         let data = parser.parse_data().unwrap();
 
-        // Serialize to JSON
         let json = serde_json::to_string_pretty(&data).unwrap();
 
-        // Deserialize back
-        let deserialized: ged_io::types::GedcomData = serde_json::from_str(&json).unwrap();
-
-        // Arenas serialize and GedcomData::try_from relinks on load, so the
-        // record counts survive a JSON round-trip.
-        assert_eq!(deserialized.count_individual(), data.count_individual());
-        assert_eq!(deserialized.count_family(), data.count_family());
-
-        // Check individual names are preserved
-        if !data.count_individual() == 0 {
-            let original_name = &data.iter_individuals().next().unwrap().names;
-            let deser_name = &deserialized.iter_individuals().next().unwrap().names;
-            assert_eq!(
-                original_name.first().map(|n| n.value.clone()),
-                deser_name.first().map(|n| n.value.clone())
-            );
-        }
+        assert!(json.contains("\"individuals\""));
+        assert!(json.contains("\"families\""));
+        assert!(json.contains("@FATHER@"));
+        assert!(!json.contains("xrefs"));
     }
 
     #[test]
-    fn serde_entire_gedcom_tree() {
+    fn test_serde_entire_gedcom_tree() {
         let gedcom_content: String = read_relative("./tests/fixtures/simple.ged");
         let mut parser = Gedcom::new(gedcom_content.chars()).unwrap();
         let data = parser.parse_data().unwrap();
@@ -66,12 +51,5 @@ mod json_feature_tests {
         assert!(individuals_json.contains("Birth"));
         assert!(individuals_json.contains("1 JAN 1899"));
         assert!(individuals_json.contains("birth place"));
-
-        // Arenas serialize and GedcomData::try_from relinks on load, so the
-        // record counts survive a JSON round-trip.
-        let deserialized: ged_io::types::GedcomData =
-            serde_json::from_str(&serde_json::to_string(&data).unwrap()).unwrap();
-        assert_eq!(deserialized.count_individual(), data.count_individual());
-        assert_eq!(deserialized.count_family(), data.count_family());
     }
 }

@@ -1,10 +1,9 @@
 use crate::{
     tokenizer::{Token, TokenizerTrait},
-    util::is_real_reference,
     GedcomError,
 };
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 /// Handles a user-defined tag that is contained in the GEDCOM current
 /// transmission. This tag must begin with an underscore (_) and should only be
@@ -12,7 +11,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// See <https://gedcom.io/specifications/ged55.pdf> (page 49).
 #[derive(Debug, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct UserDefinedTag {
     pub tag: String,
     pub level: u8,
@@ -102,14 +101,6 @@ impl UserDefinedTag {
             }
         }
         Ok(out)
-    }
-
-    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
-        if let Some(v) = &self.value {
-            if is_real_reference(v) {
-                sink(v);
-            }
-        }
     }
 }
 

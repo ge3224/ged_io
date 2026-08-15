@@ -1,9 +1,9 @@
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 /// Spouse in a family that experiences an event.
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub enum Spouse {
     Spouse1,
     Spouse2,

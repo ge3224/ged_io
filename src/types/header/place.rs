@@ -5,12 +5,12 @@ use crate::{
     GedcomError,
 };
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 /// `HeadPlace` (tag: PLAC) is is a placeholder for providing a default
 /// PLAC.FORM, and must not have a payload.
 #[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct HeadPlac {
     pub form: ListText,
 }

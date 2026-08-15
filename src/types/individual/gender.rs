@@ -1,5 +1,5 @@
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::{
     arena::Arena,
@@ -12,7 +12,7 @@ use crate::{
 /// `GenderType` is a set of enumerated values that indicate the sex of an individual at birth. See
 /// 5.5 specification, p. 61; <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#SEX>.
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub enum GenderType {
     /// Tag 'M'
     Male,
@@ -35,7 +35,7 @@ impl std::fmt::Display for GenderType {
 /// Cultural or personal gender preference may be indicated using the FACT tag. See
 /// <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#SEX>.
 #[derive(Debug, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Gender {
     pub value: GenderType,
     pub fact: Option<String>,
@@ -62,12 +62,6 @@ impl Gender {
 
     pub fn add_source_citation(&mut self, sour: Citation) {
         self.sources.insert(sour);
-    }
-
-    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
-        for s in &self.sources {
-            s.outbound_refs(sink);
-        }
     }
 
     #[must_use]

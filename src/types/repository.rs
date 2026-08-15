@@ -11,7 +11,7 @@ use crate::{
     GedcomError,
 };
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 /// Data repository, the `REPO` tag
 ///
@@ -21,7 +21,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#REPOSITORY_RECORD>
 #[derive(Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Repository {
     /// Optional reference to link to this repo (e.g., `@R1@`).
     pub xref: Xref,
@@ -161,9 +161,6 @@ impl Repository {
             || !self.fax.is_empty()
             || !self.website.is_empty()
     }
-
-    #[allow(clippy::unused_self)]
-    pub(crate) fn outbound_refs(&self, _sink: &mut impl FnMut(&str)) {}
 }
 
 impl Parser for Repository {

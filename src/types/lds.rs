@@ -28,16 +28,15 @@ use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{date::Date, note::Note, source::citation::Citation},
-    util::is_real_reference,
     GedcomError,
 };
 
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 /// The type of LDS ordinance.
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub enum LdsOrdinanceType {
     /// Baptism (LDS) - Tag: `BAPL`
     Baptism,
@@ -117,7 +116,7 @@ impl std::fmt::Display for LdsOrdinanceType {
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#enumset-ord-STAT>
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub enum LdsOrdinanceStatus {
     /// The ordinance was completed but the date is not known.
     BicCompleted,
@@ -210,7 +209,7 @@ impl std::fmt::Display for LdsOrdinanceStatus {
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#LDS_INDIVIDUAL_ORDINANCE>
 #[derive(Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct LdsOrdinance {
     /// The type of ordinance.
     pub ordinance_type: Option<LdsOrdinanceType>,
@@ -315,18 +314,6 @@ impl LdsOrdinance {
         self.ordinance_type
             .as_ref()
             .is_some_and(LdsOrdinanceType::is_gedcom_7_only)
-    }
-
-    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
-        for c in &self.source_citations {
-            c.outbound_refs(sink);
-        }
-
-        if let Some(xref) = &self.family_xref {
-            if is_real_reference(xref) {
-                sink(xref);
-            }
-        }
     }
 }
 

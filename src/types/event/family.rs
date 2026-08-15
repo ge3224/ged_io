@@ -1,5 +1,5 @@
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::{
     parser::{parse_subset, Parser},
@@ -10,7 +10,7 @@ use crate::{
 
 /// `FamilyEventDetail` defines an additional dataset found in certain events.
 #[derive(Clone, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct FamilyEventDetail {
     pub member: Option<Spouse>,
     pub age: Option<Age>,

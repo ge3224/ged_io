@@ -1,5 +1,5 @@
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::{
     arena::Arena,
@@ -21,7 +21,7 @@ use crate::{
 /// handled just a tag and value, can be read as usual by handling the subordinate attribute detail
 /// as an exception. . See GEDCOM 5.5 spec, page 69.
 #[derive(Debug, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct AttributeDetail {
     pub attribute: IndividualAttribute,
     pub value: Option<String>,
@@ -120,16 +120,6 @@ impl AttributeDetail {
 
     pub fn add_source_citation(&mut self, sour: Citation) {
         self.sources.insert(sour);
-    }
-
-    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
-        for s in &self.sources {
-            s.outbound_refs(sink);
-        }
-
-        if let Some(p) = &self.place {
-            p.outbound_refs(sink);
-        }
     }
 }
 

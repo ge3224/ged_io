@@ -1,10 +1,10 @@
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 /// `AdoptedByWhichParent` is a code which shows which parent in the associated family record
 /// adopted this person. See GEDCOM 5.5 spec, page 42.
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub enum AdoptedByWhichParent {
     /// The `HUSBAND` in the associated family adopted this person.
     Husband,

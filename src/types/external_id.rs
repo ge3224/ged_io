@@ -1,10 +1,10 @@
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 /// An identifier for this record's subject, issued by an outside system (e.g.
 /// Wikidata, VIAF, a national archive).
 #[derive(Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct ExternalId {
     /// The external identifier value.
     pub id: String,

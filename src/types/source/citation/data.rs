@@ -1,5 +1,5 @@
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::{
     parser::{parse_subset, Parser},
@@ -13,7 +13,7 @@ use crate::{
 /// actually recorded in the source, or significant notes written by the recorder, or an applicable
 /// sentence from a letter. This is stored in the SOUR.DATA.TEXT context.
 #[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct SourceCitationData {
     pub date: Option<Date>,
     pub text: Option<Text>,

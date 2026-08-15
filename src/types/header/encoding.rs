@@ -5,12 +5,12 @@ use crate::{
     GedcomError,
 };
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 /// Encoding (tag: CHAR) is a code value that represents the character set to be used to
 /// interpret this data. See GEDCOM 5.5.1 specification, p. 44
 #[derive(Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Encoding {
     pub value: Option<String>,
     /// tag: VERS
@@ -30,12 +30,6 @@ impl Encoding {
         let mut chars = Encoding::default();
         chars.parse(tokenizer, level)?;
         Ok(chars)
-    }
-
-    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
-        if let Some(citation) = &self.source {
-            citation.outbound_refs(sink);
-        }
     }
 }
 

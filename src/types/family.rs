@@ -16,12 +16,11 @@ use crate::{
         source::citation::Citation,
         Xref,
     },
-    util::is_real_reference,
     GedcomError,
 };
 
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 /// Family fact, representing a relationship between `Individual`s
 ///
@@ -35,7 +34,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#NO>
 #[derive(Debug)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Family {
     pub xref: Xref,
     pub individual1: Option<Xref>, // mapped from HUSB
@@ -194,54 +193,6 @@ impl Family {
     #[must_use]
     pub fn events(&self) -> &Arena<Detail> {
         &self.events
-    }
-
-    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
-        if let Some(xref) = &self.individual1 {
-            if is_real_reference(xref) {
-                sink(xref);
-            }
-        }
-
-        if let Some(xref) = &self.individual2 {
-            if is_real_reference(xref) {
-                sink(xref);
-            }
-        }
-
-        for xref in &self.children {
-            if is_real_reference(xref) {
-                sink(xref);
-            }
-        }
-
-        for fe in &self.family_event {
-            fe.outbound_refs(sink);
-        }
-
-        for e in &self.events {
-            e.outbound_refs(sink);
-        }
-
-        for o in &self.lds_ordinances {
-            o.outbound_refs(sink);
-        }
-
-        for ml in &self.multimedia_links {
-            ml.outbound_refs(sink);
-        }
-
-        for s in &self.sources {
-            s.outbound_refs(sink);
-        }
-
-        for ne in &self.non_events {
-            ne.outbound_refs(sink);
-        }
-
-        for udt in &self.user_defined_tags {
-            udt.outbound_refs(sink);
-        }
     }
 }
 

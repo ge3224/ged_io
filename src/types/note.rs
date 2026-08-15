@@ -6,7 +6,7 @@ use crate::{
 };
 
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 /// A `NOTE_STRUCTURE` containing additional information for understanding the enclosing data.
 ///
@@ -26,7 +26,7 @@ use serde::{Deserialize, Serialize};
 /// See: <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#NOTE>
 /// See: <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#NOTE_STRUCTURE>
 #[derive(Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Note {
     pub value: Option<String>,
     /// tag: MIME, indicates the media type of the payload of the superstructure, as defined by BCP

@@ -27,7 +27,7 @@ use crate::{
 };
 
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 /// A shared note record (SNOTE).
 ///
@@ -45,7 +45,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#SHARED_NOTE_RECORD>
 #[derive(Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct SharedNote {
     /// The cross-reference identifier for this shared note (e.g., `@N1@`).
     pub xref: Xref,
@@ -90,14 +90,6 @@ pub struct SharedNote {
     pub user_defined_tags: Arena<UserDefinedTag>,
 }
 
-impl SharedNote {
-    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
-        for c in &self.source_citations {
-            c.outbound_refs(sink);
-        }
-    }
-}
-
 /// A translation of a note into a different language or media type.
 ///
 /// Each translation must have either a `MIME` or `LANG` substructure or both.
@@ -105,7 +97,7 @@ impl SharedNote {
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#NOTE-TRAN>
 #[derive(Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct NoteTranslation {
     /// The translated text.
     pub text: String,

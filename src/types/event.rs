@@ -4,11 +4,11 @@ pub mod spouse;
 pub mod util;
 
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 #[allow(clippy::module_name_repetitions)]
 #[derive(Debug, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub enum Event {
     Adoption,
     AdultChristening,

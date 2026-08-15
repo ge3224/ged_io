@@ -1,5 +1,5 @@
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::{
     parser::Parser,
@@ -17,7 +17,7 @@ use crate::{
 /// 2 = Secondary evidence, data officially recorded sometime after event
 /// 3 = Direct and primary evidence used, or by dominance of the evidence
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub enum CertaintyAssessment {
     Unreliable,
     Questionable,

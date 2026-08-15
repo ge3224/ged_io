@@ -1,5 +1,5 @@
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::{
     parser::{parse_subset, Parser},
@@ -13,7 +13,7 @@ use crate::{
 /// source (not the export). See
 /// <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#HEAD-SOUR-DATA>.
 #[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct HeadSourData {
     pub value: Option<String>,
     /// tag: DATE

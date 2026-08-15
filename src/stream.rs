@@ -39,7 +39,7 @@
 use std::io::BufRead;
 
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::{
     tokenizer::Tokenizer,
@@ -75,7 +75,7 @@ use crate::{
 /// }
 /// ```
 #[derive(Debug, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 #[allow(clippy::large_enum_variant)]
 pub enum GedcomRecord {
     /// File header containing metadata.

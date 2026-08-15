@@ -1,10 +1,10 @@
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 /// `ChildLinkStatus` is a A status code that allows passing on the users opinion of the status of
 /// a child to family link. See GEDCOM 5.5 spec, page 44.
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub enum ChildLinkStatus {
     /// Challenged indicates linking this child to this family is suspect, but the linkage has been
     /// neither proven nor disproven.

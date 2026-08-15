@@ -22,7 +22,7 @@ use crate::{
 };
 
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 /// The principal place in which the superstructure's subject occurred, represented as a List of
 /// jurisdictional entities in a sequence from the lowest to the highest jurisdiction. As with
@@ -35,7 +35,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#PLACE_STRUCTURE>
 #[derive(Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Place {
     /// The place name value, typically a comma-separated list of jurisdictions
     /// from lowest to highest (e.g., "City, County, State, Country").
@@ -75,14 +75,6 @@ pub struct Place {
     pub user_defined_tags: Arena<UserDefinedTag>,
 }
 
-impl Place {
-    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
-        for c in &self.citations {
-            c.outbound_refs(sink);
-        }
-    }
-}
-
 /// Geographic coordinates for a place.
 ///
 /// The MAP structure contains latitude and longitude coordinates
@@ -90,7 +82,7 @@ impl Place {
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#MAP>
 #[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct MapCoordinates {
     /// Latitude coordinate (tag: LATI).
     ///
@@ -204,7 +196,7 @@ impl Parser for MapCoordinates {
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#PLAC-TRAN>
 #[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct PlaceVariation {
     /// The variation text.
     pub value: String,

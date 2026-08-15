@@ -3,18 +3,14 @@ use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{
-        address::Address,
-        custom::UserDefinedTag,
-        date::change_date::ChangeDate,
-        multimedia::link::{Link, LinkTarget},
-        note::Note,
-        Xref,
+        address::Address, custom::UserDefinedTag, date::change_date::ChangeDate,
+        multimedia::link::Link, note::Note, Xref,
     },
     GedcomError,
 };
 
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 /// The submitter record identifies an individual or organization that contributed information
 /// contained in the GEDCOM transmission. All records in the transmission are assumed to be
@@ -23,7 +19,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#SUBMITTER_RECORD>
 #[derive(Debug, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Submitter {
     /// Cross-reference to link to this submitter
     pub xref: Xref,
@@ -110,14 +106,6 @@ impl Submitter {
     /// Adds a `Multimedia` to the tree
     pub fn add_multimedia(&mut self, multimedia: Link) {
         self.multimedia_link.insert(multimedia);
-    }
-
-    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
-        for link in &self.multimedia_link {
-            if let LinkTarget::Record(xref) = &link.target {
-                sink(xref);
-            }
-        }
     }
 }
 

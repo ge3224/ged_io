@@ -1,5 +1,5 @@
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::{
     arena::Arena,
@@ -13,7 +13,7 @@ use crate::{
 /// individual has some relationship not covered by other standard tags.
 /// See GEDCOM 5.5.1 specification, page 58.
 #[derive(Debug, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Association {
     /// Reference to associated individual
     pub(crate) target: AssociationTarget,
@@ -66,12 +66,6 @@ impl Association {
             user_defined_tags: Arena::default(),
         }
     }
-
-    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
-        if let AssociationTarget::Record(xref) = &self.target {
-            sink(xref);
-        }
-    }
 }
 
 impl Parser for Association {
@@ -101,7 +95,7 @@ impl Parser for Association {
 /// individual record, but may also be a placeholder for an association to a
 /// person who has no record of their own.
 #[derive(Debug, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub enum AssociationTarget {
     /// Refernces an individual record
     Record(Xref),

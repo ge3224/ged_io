@@ -1,12 +1,11 @@
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::{
     arena::Arena,
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{custom::UserDefinedTag, note::Note, Xref},
-    util::is_real_reference,
     GedcomError,
 };
 
@@ -17,7 +16,7 @@ use crate::{
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#SOURCE_REPOSITORY_CITATION>
 #[derive(Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Citation {
     /// Reference to the `Repository`
     pub(crate) target: Xref,
@@ -115,12 +114,6 @@ impl Citation {
     #[must_use]
     pub fn has_media_type(&self) -> bool {
         self.media_type.is_some()
-    }
-
-    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
-        if is_real_reference(&self.target) {
-            sink(&self.target);
-        }
     }
 }
 

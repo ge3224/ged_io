@@ -1,7 +1,7 @@
 pub mod data;
 
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::{
     arena::Arena,
@@ -33,7 +33,7 @@ use crate::{
 /// description that merely looks like one, which risks silently dropping the
 /// text when trying to resolve it as a pointer.
 #[derive(Debug, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub enum CitationSource {
     /// A reference to a source record elsewhere in the dataset.
     Record(Xref),
@@ -94,7 +94,7 @@ fn is_xref_pointer(value: &str) -> bool {
 /// The data provided in the `SourceCitation` structure is source-related information specific to
 /// the data being cited. (See GEDCOM 5.5 Specification page 39.)
 #[derive(Debug, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Citation {
     pub(crate) target: CitationSource,
     /// Page number of source
@@ -172,16 +172,6 @@ impl Citation {
 
     pub fn add_multimedia(&mut self, m: Link) {
         self.multimedia_links.insert(m);
-    }
-
-    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
-        if let CitationSource::Record(xref) = &self.target {
-            sink(xref);
-        }
-
-        for link in &self.multimedia_links {
-            link.outbound_refs(sink);
-        }
     }
 }
 

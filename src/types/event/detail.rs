@@ -1,5 +1,5 @@
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use std::fmt;
 
 use crate::{
@@ -37,7 +37,7 @@ use crate::{
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#INDIVIDUAL_EVENT_STRUCTURE>
 #[derive(PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Detail {
     pub event: Event,
     pub value: Option<String>,
@@ -147,24 +147,6 @@ impl Detail {
 
     pub fn add_multimedia_record(&mut self, m: Link) {
         self.multimedia_links.insert(m);
-    }
-
-    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
-        for c in &self.citations {
-            c.outbound_refs(sink);
-        }
-        for l in &self.multimedia_links {
-            l.outbound_refs(sink);
-        }
-        for a in &self.associations {
-            a.outbound_refs(sink);
-        }
-        if let Some(fl) = &self.family_link {
-            fl.outbound_refs(sink);
-        }
-        if let Some(p) = &self.place {
-            p.outbound_refs(sink);
-        }
     }
 }
 

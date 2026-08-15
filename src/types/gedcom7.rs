@@ -20,7 +20,7 @@ use crate::{
 };
 
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 /// A sort date structure for GEDCOM 7.0.
 ///
@@ -43,7 +43,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#SDATE>
 #[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct SortDate {
     /// The date value used for sorting.
     pub value: Option<String>,
@@ -115,7 +115,7 @@ impl Parser for SortDate {
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#CREATION_DATE>
 #[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct CreationDate {
     /// The date the record was created.
     pub date: Option<Date>,
@@ -176,7 +176,7 @@ impl Parser for CreationDate {
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#CROP>
 #[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Crop {
     /// The distance from the top of the image to the top of the crop region.
     /// Expressed as a percentage (0-100) of the image height.
@@ -301,7 +301,7 @@ impl Parser for Crop {
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#NO>
 #[derive(Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct NonEvent {
     /// The event type that did not occur.
     ///
@@ -360,12 +360,6 @@ impl NonEvent {
             _ => &self.event_type,
         }
     }
-
-    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
-        for c in &self.source_citations {
-            c.outbound_refs(sink);
-        }
-    }
 }
 
 impl Parser for NonEvent {
@@ -412,7 +406,7 @@ impl Parser for NonEvent {
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#PHRASE>
 #[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Phrase {
     /// The free-text phrase.
     pub value: String,

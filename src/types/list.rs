@@ -1,7 +1,7 @@
 use std::{convert::Infallible, fmt::Display, str::FromStr};
 
 #[cfg(feature = "json")]
-use ::serde::{Deserialize, Serialize};
+use ::serde::Serialize;
 
 /// A comma-separated list payload.
 ///
@@ -9,7 +9,7 @@ use ::serde::{Deserialize, Serialize};
 /// a round trip unchanged; delimiter spacing is not — `"a,b"` reads back
 /// as `"a, b"`.
 #[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Deserialize, Serialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct ListText(Vec<String>);
 
 impl ListText {
@@ -49,7 +49,7 @@ impl ListText {
 /// doesn't recognize are kept as text, so they survive a read-and-write
 /// unchanged (for example, a program's own `_PRIVATE`).
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "json", derive(Deserialize, Serialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct ListEnum<T>(Vec<T>);
 
 impl<T> ListEnum<T> {

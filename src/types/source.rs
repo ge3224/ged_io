@@ -16,7 +16,7 @@ use crate::{
 };
 
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 /// Source for genealogy facts
 ///
@@ -25,7 +25,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#SOURCE_RECORD>
 #[derive(Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Source {
     pub xref: String,
     pub data: Data,
@@ -104,18 +104,6 @@ impl Source {
 
     pub fn add_repo_citation(&mut self, citation: Citation) {
         self.repo_citations.insert(citation);
-    }
-
-    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
-        for c in &self.repo_citations {
-            c.outbound_refs(sink);
-        }
-
-        for m in &self.multimedia_links {
-            m.outbound_refs(sink);
-        }
-
-        self.data.outbound_refs(sink);
     }
 }
 

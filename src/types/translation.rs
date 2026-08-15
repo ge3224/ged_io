@@ -1,5 +1,5 @@
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::{
     parser::{parse_subset, Parser},
@@ -11,7 +11,7 @@ use crate::{
 /// found in NOTE and SNOTE payloads. See
 /// <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#NOTE-TRAN>.
 #[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Translation {
     pub value: Option<String>,
     /// tag:MIME

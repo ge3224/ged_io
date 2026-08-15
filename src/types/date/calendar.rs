@@ -25,14 +25,14 @@ use crate::GedcomError;
 use std::cmp::Ordering;
 
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 #[cfg(feature = "calendar")]
 use chrono::Weekday;
 
 /// The four calendar systems supported by GEDCOM.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub enum Calendar {
     /// Gregorian calendar (default, most common).
     /// GEDCOM escape: `@#DGREGORIAN@`
@@ -152,7 +152,7 @@ impl From<CalendarConversionError> for GedcomError {
 
 /// A date qualifier that indicates approximate or uncertain dates.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub enum DateQualifier {
     /// Exact date (no qualifier).
     Exact,
@@ -201,7 +201,7 @@ impl DateQualifier {
 /// This struct represents a fully parsed GEDCOM date with all components
 /// separated out for easy manipulation and conversion.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct ParsedDateTime {
     /// The calendar system for this date.
     pub calendar: Calendar,

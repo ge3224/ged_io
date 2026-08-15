@@ -17,7 +17,7 @@ use crate::{
 };
 
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 /// `MultimediaRecord` refers to 1 or more external digital files, and may provide some
 /// additional information about the files and the media they encode.
@@ -30,7 +30,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#MULTIMEDIA_RECORD>.
 #[derive(Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Multimedia {
     /// Optional reference to link to this submitter
     pub xref: Xref,
@@ -72,12 +72,6 @@ impl Multimedia {
         let mut obje = Multimedia::with_xref(xref);
         obje.parse(tokenizer, level)?;
         Ok(obje)
-    }
-
-    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
-        if let Some(sc) = &self.source_citation {
-            sc.outbound_refs(sink);
-        }
     }
 
     /// Returns this record's source citation, if it has one.

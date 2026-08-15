@@ -5,12 +5,12 @@ use std::{
 };
 
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 /// Restriction notices (tag: RESN), which mark that the subsequent data should
 /// not be freely shared or changed
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "json", derive(Deserialize, Serialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub enum Restriction {
     Confidential,
     Locked,

@@ -7,7 +7,7 @@
 use std::{hash::Hash, marker::PhantomData};
 
 #[cfg(feature = "json")]
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Serialize, Serializer};
 
 const NO_FREE: u32 = u32::MAX;
 
@@ -325,18 +325,6 @@ impl<T: PartialEq> PartialEq for Arena<T> {
 impl<T: Serialize> Serialize for Arena<T> {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         serializer.collect_seq(self.iter())
-    }
-}
-
-#[cfg(feature = "json")]
-impl<'de, T: Deserialize<'de>> Deserialize<'de> for Arena<T> {
-    fn deserialize<D: Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
-        let values = Vec::<T>::deserialize(d)?;
-        let mut arena = Arena::default();
-        for v in values {
-            arena.insert(v);
-        }
-        Ok(arena)
     }
 }
 

@@ -3,12 +3,11 @@ use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{custom::UserDefinedTag, date::change_date::ChangeDate, note::Note, Xref},
-    util::is_real_reference,
     GedcomError,
 };
 
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 /// GEDCOM Submission Record Structure
 ///
@@ -27,7 +26,7 @@ use serde::{Deserialize, Serialize};
 /// [GEDCOM 5.5.1 specification, page 28](https://gedcom.io/specifications/ged551.pdf)
 /// [GEDCOM 7.0 Specification](gedcom.io/specifications/FamilySearchGEDCOMv7.html)
 #[derive(Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Submission {
     /// Cross-reference identifier for this submission record
     /// Format: `@XREF:SUBN@`
@@ -100,14 +99,6 @@ impl Submission {
         let mut subn = Submission::with_xref(xref);
         subn.parse(tokenizer, level)?;
         Ok(subn)
-    }
-
-    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
-        if let Some(xref) = &self.submitter_ref {
-            if is_real_reference(xref) {
-                sink(xref);
-            }
-        }
     }
 }
 

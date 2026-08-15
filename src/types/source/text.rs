@@ -1,5 +1,5 @@
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::{
     parser::{parse_subset, Parser},
@@ -13,7 +13,7 @@ use crate::{
 /// as opposed to the researcher's interpretation. The word TEXT, in this case, means from the text
 /// which appeared in the source record including labels.
 #[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Text {
     pub value: Option<String>,
 }

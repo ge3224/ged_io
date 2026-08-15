@@ -3,7 +3,7 @@ pub mod child_link;
 pub mod pedigree;
 
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::{
     arena::Arena,
@@ -17,7 +17,6 @@ use crate::{
         note::Note,
         Xref,
     },
-    util::is_real_reference,
     GedcomError,
 };
 
@@ -25,7 +24,7 @@ use crate::{
 /// where this person is a child (FAMC tag), or it is pointer to a family where this person is a
 /// spouse or parent (FAMS tag). See GEDCOM 5.5 spec, page 26.
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub enum FamilyLinkType {
     Spouse,
     Child,
@@ -42,7 +41,7 @@ impl std::fmt::Display for FamilyLinkType {
 /// family where this person is a child. The FAMS tag provides a pointer to a family where this
 /// person is a spouse or parent. See GEDCOM 5.5 spec, page 26.
 #[derive(Debug, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct FamilyLink {
     pub(crate) target: Xref,
     pub family_link_type: FamilyLinkType,
@@ -166,12 +165,6 @@ impl FamilyLink {
     #[must_use]
     pub fn child_linkage_status(&self) -> Option<&ChildLinkStatus> {
         self.child_linkage_status.as_ref()
-    }
-
-    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
-        if is_real_reference(&self.target) {
-            sink(&self.target);
-        }
     }
 }
 

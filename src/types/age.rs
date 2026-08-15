@@ -1,5 +1,5 @@
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::{parser::parse_subset, tokenizer::Tokenizer, GedcomError};
 
@@ -9,7 +9,7 @@ use crate::{parser::parse_subset, tokenizer::Tokenizer, GedcomError};
 /// (§2.6). The keyword variants (`CHILD`, `INFANT`, `STILLBORN`) are defined in GEDCOM 5.5.1; in
 /// GEDCOM 7 these are expressed via `PHRASE`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub enum Age {
     /// An age less than `8` years
     Child,
@@ -161,7 +161,7 @@ impl std::fmt::Display for Age {
 ///
 /// See GEDCOM 5.5.1 (p. 42) and GEDCOM 7 (§2.6).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub enum AgeModifier {
     /// The age is exact (no modifier)
     #[default]

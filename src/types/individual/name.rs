@@ -1,5 +1,5 @@
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::{
     arena::{Arena, Handle},
@@ -15,7 +15,7 @@ use crate::{
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#enumset-NAME-TYPE>
 #[derive(Debug, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub enum NameType {
     /// Name given at or near birth (AKA, birth name, maiden name)
     Birth,
@@ -79,7 +79,7 @@ impl std::fmt::Display for NameType {
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#PERSONAL_NAME_PIECES>
 #[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct NameVariation {
     /// The full name variation value.
     pub value: String,
@@ -178,7 +178,7 @@ impl Parser for NameVariation {
 /// permitted for the payload to contain information not present in any name piece substructure.
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#PERSONAL_NAME_STRUCTURE>.
 #[derive(Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Name {
     /// The full name value with surname in slashes (e.g., "John /Doe/").
     pub value: Option<String>,
@@ -299,12 +299,6 @@ impl Name {
         let surname = &value[start + 1..end];
         if !surname.is_empty() {
             self.surname = Some(surname.to_string());
-        }
-    }
-
-    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
-        for s in &self.sources {
-            s.outbound_refs(sink);
         }
     }
 }

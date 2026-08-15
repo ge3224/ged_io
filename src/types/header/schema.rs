@@ -24,7 +24,7 @@ use crate::{
 };
 
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 /// A schema structure containing extension tag definitions.
 ///
@@ -34,7 +34,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#SCHMA>
 #[derive(Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Schema {
     /// Tag definitions mapping extension tags to URIs.
     pub tag_definitions: Arena<TagDefinition>,
@@ -56,7 +56,7 @@ pub struct Schema {
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#TAG>
 #[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct TagDefinition {
     /// The extension tag (e.g., `_SKYPEID`).
     ///

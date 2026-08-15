@@ -16,11 +16,10 @@ use crate::{
         },
         note::Note,
     },
-    util::is_real_reference,
     GedcomError,
 };
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 /// Header (tag: HEAD) containing GEDCOM metadata.
 ///
@@ -33,7 +32,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#HEADER>.
 #[derive(Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Header {
     /// tag: GEDC
     ///
@@ -187,24 +186,6 @@ impl Header {
     #[must_use]
     pub fn find_extension_uri(&self, tag: &str) -> Option<&str> {
         self.schema.as_ref()?.find_uri(tag)
-    }
-
-    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
-        if let Some(xref) = &self.submitter_tag {
-            if is_real_reference(xref) {
-                sink(xref);
-            }
-        }
-
-        if let Some(xref) = &self.submission_tag {
-            if is_real_reference(xref) {
-                sink(xref);
-            }
-        }
-
-        if let Some(encoding) = &self.encoding {
-            encoding.outbound_refs(sink);
-        }
     }
 }
 
