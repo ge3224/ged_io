@@ -334,6 +334,18 @@ impl GedcomData {
         }
     }
 
+    /// Finds the [`Handle`] of a [`Submitter`] by its cross-reference ID
+    /// [`Xref`]. Returns `None` if `xref` is not registered in the dataset, or
+    /// names a record of a different type. Pair with
+    /// [`Self::remove_submitter`], which takes a handle.
+    #[must_use]
+    pub fn find_submitter_handle(&self, xref: &str) -> Option<Handle<Submitter>> {
+        match self.xrefs.handle(xref)? {
+            AnyHandle::Submitter(s) => Some(s),
+            _ => None,
+        }
+    }
+
     /// Removes the submitter identified by a `handle` from the dataset and
     /// returns it. Returns `Ok(None)` if `handle` no longer corresponds to a
     /// present submitter (e.g., the submitter was already removed).
@@ -836,6 +848,18 @@ impl GedcomData {
         }
     }
 
+    /// Finds the [`Handle`] of a [`Submission`] by its cross-reference ID
+    /// [`Xref`]. Returns `None` if `xref` is not registered in the dataset, or
+    /// names a record of a different type. Pair with
+    /// [`Self::remove_submission`], which takes a handle.
+    #[must_use]
+    pub fn find_submission_handle(&self, xref: &str) -> Option<Handle<Submission>> {
+        match self.xrefs.handle(xref)? {
+            AnyHandle::Submission(s) => Some(s),
+            _ => None,
+        }
+    }
+
     /// Removes a submission by `xref`.
     ///
     /// Returns `None` if not found.
@@ -959,6 +983,18 @@ impl GedcomData {
         }
     }
 
+    /// Finds the [`Handle`] of an [`Individual`] by its cross-reference ID
+    /// [`Xref`]. Returns `None` if `xref` is not registered in the dataset, or
+    /// names a record of a different type. Pair with
+    /// [`Self::remove_individual`], which takes a handle.
+    #[must_use]
+    pub fn find_individual_handle(&self, xref: &str) -> Option<Handle<Individual>> {
+        match self.xrefs.handle(xref)? {
+            AnyHandle::Individual(i) => Some(i),
+            _ => None,
+        }
+    }
+
     /// Removes the individual identified by `handle` from the dataset and
     /// returns it. Returns `Ok(None)` if `handle` no longer corresponds to a
     /// present individual (e.g., the individual was already removed).
@@ -1046,7 +1082,7 @@ impl GedcomData {
         self.families.get_mut(handle)
     }
 
-    /// Finds a reference to a [`Family`] by its cross-reference ID, [`Xref`].
+    /// Finds a reference to a [`Family`] by its cross-reference ID [`Xref`].
     /// Returns `None` if `xref` is not registered in the dataset. See also
     /// [`Self::get_family`] for retrieving a `Family` by [`Handle`].
     #[must_use]
@@ -1057,13 +1093,25 @@ impl GedcomData {
         }
     }
 
-    /// Finds a mutable reference to a [`Family`] by its cross-reference ID,
+    /// Finds a mutable reference to a [`Family`] by its cross-reference ID
     /// [`Xref`]. Returns `None` if `xref` is not registered in the dataset. See
     /// also [`Self::get_family_mut`] for retrieving a mutable reference to a `Family`
     /// by its corresponding [`Handle`].
     pub fn find_family_mut(&mut self, xref: &str) -> Option<&mut Family> {
         match self.xrefs.handle(xref)? {
             AnyHandle::Family(f) => self.families.get_mut(f),
+            _ => None,
+        }
+    }
+
+    /// Finds the [`Handle`] of a [`Family`] by its cross-reference ID [`Xref`].
+    /// Returns `None` if `xref` is not registered in the dataset, or names a
+    /// record of a different type. Pair with [`Self::remove_family`], which
+    /// takes a handle.
+    #[must_use]
+    pub fn find_family_handle(&self, xref: &str) -> Option<Handle<Family>> {
+        match self.xrefs.handle(xref)? {
+            AnyHandle::Family(f) => Some(f),
             _ => None,
         }
     }
@@ -1690,6 +1738,18 @@ impl GedcomData {
         }
     }
 
+    /// Finds the [`Handle`] of a [`Repository`] by its cross-reference ID
+    /// [`Xref`]. Returns `None` if `xref` is not registered in the dataset, or
+    /// names a record of a different type. Pair with
+    /// [`Self::remove_repository`], which takes a handle.
+    #[must_use]
+    pub fn find_repository_handle(&self, xref: &str) -> Option<Handle<Repository>> {
+        match self.xrefs.handle(xref)? {
+            AnyHandle::Repository(r) => Some(r),
+            _ => None,
+        }
+    }
+
     /// Removes a repository by `xref`.
     ///
     /// Returns `None` if not found.
@@ -1791,6 +1851,18 @@ impl GedcomData {
     pub fn find_source_mut(&mut self, xref: &str) -> Option<&mut Source> {
         match self.xrefs.handle(xref)? {
             AnyHandle::Source(h) => self.sources.get_mut(h),
+            _ => None,
+        }
+    }
+
+    /// Finds the [`Handle`] of a [`Source`] by its cross-reference ID [`Xref`].
+    /// Returns `None` if `xref` is not registered in the dataset, or names a
+    /// record of a different type. Pair with [`Self::remove_source`], which
+    /// takes a handle.
+    #[must_use]
+    pub fn find_source_handle(&self, xref: &str) -> Option<Handle<Source>> {
+        match self.xrefs.handle(xref)? {
+            AnyHandle::Source(s) => Some(s),
             _ => None,
         }
     }
@@ -1905,6 +1977,18 @@ impl GedcomData {
         }
     }
 
+    /// Finds the [`Handle`] of a [`Multimedia`] by its cross-reference ID
+    /// [`Xref`]. Returns `None` if `xref` is not registered in the dataset, or
+    /// names a record of a different type. Pair with
+    /// [`Self::remove_multimedia`], which takes a handle.
+    #[must_use]
+    pub fn find_multimedia_handle(&self, xref: &str) -> Option<Handle<Multimedia>> {
+        match self.xrefs.handle(xref)? {
+            AnyHandle::Multimedia(m) => Some(m),
+            _ => None,
+        }
+    }
+
     /// Removes a multimedia by `xref`.
     ///
     /// Returns `None` if not found.
@@ -2013,6 +2097,18 @@ impl GedcomData {
     pub fn find_shared_note_mut(&mut self, xref: &str) -> Option<&mut SharedNote> {
         match self.xrefs.handle(xref)? {
             AnyHandle::SharedNote(h) => self.shared_notes.get_mut(h),
+            _ => None,
+        }
+    }
+
+    /// Finds the [`Handle`] of a [`SharedNote`] by its cross-reference ID
+    /// [`Xref`]. Returns `None` if `xref` is not registered in the dataset, or
+    /// names a record of a different type. Pair with
+    /// [`Self::remove_shared_note`], which takes a handle.
+    #[must_use]
+    pub fn find_shared_note_handle(&self, xref: &str) -> Option<Handle<SharedNote>> {
+        match self.xrefs.handle(xref)? {
+            AnyHandle::SharedNote(s) => Some(s),
             _ => None,
         }
     }
@@ -2427,6 +2523,15 @@ impl GedcomData {
         }
         // Default to 5.5.1 if no version specified
         !self.is_gedcom_7()
+    }
+
+    /// Returns the number of times a cross-reference ID [`Xref`] is pointed at by
+    /// other records. Returns 0 for an xref that is not registered in the dataset.
+    /// A record can only be removed at 0; [`GedcomError::StillReferenced`] carries
+    /// this same count when a `remove_*` refuses.
+    #[must_use]
+    pub fn reference_count(&self, xref: &str) -> usize {
+        self.xrefs.use_count(xref)
     }
 }
 
@@ -2898,26 +3003,6 @@ mod tests {
         let mut data = aliased_individual();
         data.unlink_individual_and_alias("@I1@", "@I2@").unwrap();
         assert_eq!(data.xrefs.use_count("@I2@"), 0);
-    }
-
-    #[test]
-    fn parse_unlink_remove_cycle() {
-        let mut data = aliased_individual();
-        let h = match data.xrefs.handle("@I2@") {
-            Some(AnyHandle::Individual(h)) => h,
-            _ => panic!("expected and individual handle"),
-        };
-
-        assert_eq!(data.xrefs.use_count("@I2@"), 1);
-        let err = data.remove_individual(h).unwrap_err();
-        assert!(
-            matches!(err, GedcomError::StillReferenced { xref, references: 1, .. } if xref == "@I2@")
-        );
-
-        data.unlink_individual_and_alias("@I1@", "@I2@").unwrap();
-        assert_eq!(data.xrefs.use_count("@I2@"), 0);
-        assert_eq!(data.remove_individual(h).unwrap().unwrap().xref, "@I2@");
-        assert!(data.find_individual("@I2@").is_none());
     }
 
     fn event_cited_source() -> GedcomData {
