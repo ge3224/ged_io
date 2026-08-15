@@ -2899,4 +2899,50 @@ mod tests {
         data.unlink_individual_and_alias("@I1@", "@I2@").unwrap();
         assert_eq!(data.xrefs.use_count("@I2@"), 0);
     }
+
+    #[test]
+    fn parse_unlink_remove_cycle() {
+        let mut data = aliased_individual();
+        let h = match data.xrefs.handle("@I2@") {
+            Some(AnyHandle::Individual(h)) => h,
+            _ => panic!("expected and individual handle"),
+        };
+
+        assert_eq!(data.xrefs.use_count("@I2@"), 1);
+        let err = data.remove_individual(h).unwrap_err();
+        assert!(
+            matches!(err, GedcomError::StillReferenced { xref, references: 1, .. } if xref == "@I2@")
+        );
+
+        data.unlink_individual_and_alias("@I1@", "@I2@").unwrap();
+        assert_eq!(data.xrefs.use_count("@I2@"), 0);
+        assert_eq!(data.remove_individual(h).unwrap().unwrap().xref, "@I2@");
+        assert!(data.find_individual("@I2@").is_none());
+    }
+
+    fn event_cited_source() -> GedcomData {
+        let sample = "\
+         0 HEAD\n\
+         1 GEDC\n\
+         2 VERS 5.5\n\
+         0 @I1@ INDI\n\
+         1 BIRT\n\
+         2 SOUR @S1@\n\
+         0 @S1@ SOUR\n\
+         0 TRLR";
+
+        Gedcom::new(sample.chars()).unwrap().parse_data().unwrap()
+    }
+
+    #[test]
+    fn event_level_citation_pins_source_with_no_unlink() {
+        let mut data = event_cited_source();
+        let h = match data.xrefs.handle("@S1@") {
+            Some(AnyHandle::Source(h)) => h,
+            _ => panic!("expected a source handle"),
+        };
+
+        assert_eq!(data.xrefs.use_count("@S1@"), 1);
+        assert!(data.remove_source(h).is_err());
+    }
 }
