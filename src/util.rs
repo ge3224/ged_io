@@ -590,9 +590,48 @@ pub fn needs_at_escaping(value: &str, is_gedcom_7: bool) -> bool {
     }
 }
 
+/// Returns true if `value` matches the GEDCOM `POINTER` grammar: a single
+/// leading and trailing `@`, non-empty in between, with no embedded
+/// whitespace or additional `@` characters.
+///
+/// Used to tell a cross-reference such as `@M1@` apart from free text that
+/// merely happens to contain an `@`, e.g. a file path or an email address.
+///
+/// # Example
+///
+/// ```
+/// use ged_io::util::is_xref_pointer;
+///
+/// assert!(is_xref_pointer("@M1@"));
+/// assert!(!is_xref_pointer("photo@2x.jpg"));
+/// ```
+#[must_use]
+pub fn is_xref_pointer(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    bytes.len() >= 3
+        && bytes[0] == b'@'
+        && bytes[bytes.len() - 1] == b'@'
+        && value[1..value.len() - 1]
+            .bytes()
+            .all(|b| b != b'@' && !b.is_ascii_whitespace())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_is_xref_pointer() {
+        assert!(is_xref_pointer("@M1@"));
+        assert!(is_xref_pointer("@MEDIA1@"));
+        assert!(!is_xref_pointer(""));
+        assert!(!is_xref_pointer("@@"));
+        assert!(!is_xref_pointer("@M1"));
+        assert!(!is_xref_pointer("M1@"));
+        assert!(!is_xref_pointer("@a b@"));
+        assert!(!is_xref_pointer("@a@b@"));
+        assert!(!is_xref_pointer("photo.jpg"));
+    }
 
     #[test]
     fn test_string_interner() {

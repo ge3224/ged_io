@@ -378,6 +378,70 @@ fn test_round_trip_inline_multimedia_form_type() {
     assert_eq!(media1.file, media2.file);
 }
 
+#[test]
+fn test_round_trip_inline_multimedia_pointer() {
+    // `1 OBJE @M1@` is a link to a record, not an inline object: the pointer
+    // is the only thing on the line and must survive parse -> write.
+    let original = r#"0 HEAD
+1 GEDC
+2 VERS 5.5.1
+0 @I1@ INDI
+1 NAME John /Smith/
+1 OBJE @M1@
+0 @M1@ OBJE
+1 FILE headstone.jpg
+2 FORM jpeg
+3 TYPE tombstone
+0 TRLR"#;
+
+    let data1 = GedcomBuilder::new().build_from_str(original).unwrap();
+
+    let media = &data1.individuals[0].multimedia[0];
+    assert_eq!(
+        media.xref.as_deref(),
+        Some("@M1@"),
+        "pointer dropped by parser"
+    );
+
+    let writer = GedcomWriter::new();
+    let written = writer.write_to_string(&data1).unwrap();
+
+    assert!(
+        written.contains("1 OBJE @M1@"),
+        "pointer dropped by writer:\n{written}"
+    );
+
+    let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();
+    assert_eq!(
+        data1.individuals[0].multimedia,
+        data2.individuals[0].multimedia
+    );
+    assert!(data2
+        .find_multimedia("@M1@")
+        .is_some_and(|m| m.file.is_some()));
+}
+
+#[test]
+fn test_inline_multimedia_file_value_is_not_mistaken_for_a_pointer() {
+    // A FILE value with an @ in it must not be promoted to an xref.
+    let original = r#"0 HEAD
+1 GEDC
+2 VERS 5.5.1
+0 @I1@ INDI
+1 NAME John /Smith/
+1 OBJE
+2 FILE photo@2x.jpg
+0 TRLR"#;
+
+    let data = GedcomBuilder::new().build_from_str(original).unwrap();
+
+    let media = &data.individuals[0].multimedia[0];
+    assert_eq!(media.xref, None);
+    assert_eq!(
+        media.file.as_ref().unwrap().value.as_deref(),
+        Some("photo@2x.jpg")
+    );
+}
 
 // =============================================================================
 // Complex Round-Trip Tests
