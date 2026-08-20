@@ -13,6 +13,7 @@ use crate::{
         source::{citation::data::SourceCitationData, quay::CertaintyAssessment},
         Xref,
     },
+    util::is_xref_pointer,
     GedcomError,
 };
 
@@ -80,19 +81,6 @@ impl CitationSource {
             CitationSource::Xref(value) | CitationSource::Description(value) => value,
         }
     }
-}
-
-/// Returns true if `value` matches the GEDCOM `POINTER` grammar: a single
-/// leading and trailing `@`, non-empty in between, with no embedded
-/// whitespace or additional `@` characters.
-fn is_xref_pointer(value: &str) -> bool {
-    let bytes = value.as_bytes();
-    bytes.len() >= 3
-        && bytes[0] == b'@'
-        && bytes[bytes.len() - 1] == b'@'
-        && value[1..value.len() - 1]
-            .bytes()
-            .all(|b| b != b'@' && !b.is_ascii_whitespace())
 }
 
 /// The data provided in the `SourceCitation` structure is source-related information specific to

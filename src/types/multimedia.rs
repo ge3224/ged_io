@@ -5,7 +5,7 @@ pub mod user;
 
 use crate::{
     parser::{parse_subset, Parser},
-    tokenizer::Tokenizer,
+    tokenizer::{Token, Tokenizer},
     types::{
         date::change_date::ChangeDate,
         multimedia::{file::Reference, format::Format, user::UserReferenceNumber},
@@ -13,6 +13,7 @@ use crate::{
         source::citation::Citation,
         Xref,
     },
+    util::is_xref_pointer,
     GedcomError,
 };
 
@@ -75,8 +76,18 @@ impl Multimedia {
 
 impl Parser for Multimedia {
     fn parse(&mut self, tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<(), GedcomError> {
-        // skip current line
+        // Step past the OBJE tag. A record-level `0 @M1@ OBJE` has already had its
+        // xref handed to us by the caller and the line ends here, but an inline
+        // `1 OBJE @M1@` carries the pointer as the line value, so take it from there.
         tokenizer.next_token()?;
+
+        if let Token::LineValue(value) = &tokenizer.current_token {
+            let value = value.trim();
+            if is_xref_pointer(value) && self.xref.is_none() {
+                self.xref = Some(value.to_string());
+            }
+            tokenizer.next_token()?;
+        }
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             match tag {
@@ -221,6 +232,55 @@ mod tests {
         let form = file.form.as_ref().unwrap();
         assert_eq!(form.value.as_ref().unwrap(), "bmp");
         assert_eq!(form.source_media_type.as_ref().unwrap(), "photo");
+    }
+
+    #[test]
+    fn test_parse_multimedia_link_pointer() {
+        // `1 OBJE @M1@` links to a MULTIMEDIA_RECORD; the pointer is carried by
+        // the line value and is the only identity the link has.
+        let sample = "\
+            0 HEAD\n\
+            1 GEDC\n\
+            2 VERS 5.5.1\n\
+            0 @I1@ INDI\n\
+            1 NAME John /Smith/\n\
+            1 OBJE @MEDIA1@\n\
+            0 @MEDIA1@ OBJE\n\
+            1 FILE /home/user/media/file_name.bmp\n\
+            0 TRLR";
+
+        let mut doc = Gedcom::new(sample.chars()).unwrap();
+        let data = doc.parse_data().unwrap();
+
+        let link = &data.individuals[0].multimedia[0];
+        assert_eq!(link.xref.as_deref(), Some("@MEDIA1@"));
+        assert_eq!(link.file, None);
+
+        assert_eq!(data.multimedia[0].xref.as_deref(), Some("@MEDIA1@"));
+    }
+
+    #[test]
+    fn test_parse_multimedia_link_ignores_non_pointer_line_value() {
+        // A stray value on the OBJE line that isn't a pointer must not become
+        // an xref, and must not swallow the substructures that follow.
+        let sample = "\
+            0 HEAD\n\
+            1 GEDC\n\
+            2 VERS 5.5.1\n\
+            0 @I1@ INDI\n\
+            1 OBJE some stray text\n\
+            2 FILE photo@2x.jpg\n\
+            0 TRLR";
+
+        let mut doc = Gedcom::new(sample.chars()).unwrap();
+        let data = doc.parse_data().unwrap();
+
+        let link = &data.individuals[0].multimedia[0];
+        assert_eq!(link.xref, None);
+        assert_eq!(
+            link.file.as_ref().unwrap().value.as_deref(),
+            Some("photo@2x.jpg")
+        );
     }
 
     #[test]
