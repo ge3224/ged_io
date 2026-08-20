@@ -277,6 +277,108 @@ fn test_round_trip_multimedia() {
     assert_eq!(data1.multimedia[0].title, data2.multimedia[0].title);
 }
 
+#[test]
+fn test_round_trip_multimedia_record_form_type() {
+    let original = r#"0 HEAD
+1 GEDC
+2 VERS 5.5.1
+2 FORM LINEAGE-LINKED
+1 CHAR UTF-8
+0 @M1@ OBJE
+1 FILE headstone.jpg
+2 FORM jpeg
+3 TYPE tombstone
+0 TRLR"#;
+
+    let data1 = GedcomBuilder::new().build_from_str(original).unwrap();
+
+    let writer = GedcomWriter::new();
+    let written = writer.write_to_string(&data1).unwrap();
+
+    assert!(
+        written.contains("2 FORM jpeg"),
+        "FORM dropped by writer:\n{written}"
+    );
+    assert!(
+        written.contains("3 TYPE tombstone"),
+        "FORM.TYPE dropped by writer:\n{written}"
+    );
+
+    let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();
+
+    let form1 = data1.multimedia[0].file.as_ref().unwrap().form.as_ref();
+    let form2 = data2.multimedia[0].file.as_ref().unwrap().form.as_ref();
+    assert_eq!(form1, form2);
+    assert_eq!(
+        form2.unwrap().source_media_type.as_deref(),
+        Some("tombstone")
+    );
+}
+
+#[test]
+fn test_round_trip_multimedia_sibling_form_type() {
+    // Some exporters (e.g. Ancestry.com) write FORM as a sibling of FILE
+    // rather than as its substructure.
+    let original = r#"0 HEAD
+1 GEDC
+2 VERS 5.5.1
+0 @M1@ OBJE
+1 FILE headstone.jpg
+1 FORM jpeg
+2 TYPE tombstone
+0 TRLR"#;
+
+    let data1 = GedcomBuilder::new().build_from_str(original).unwrap();
+
+    let writer = GedcomWriter::new();
+    let written = writer.write_to_string(&data1).unwrap();
+
+    assert!(
+        written.contains("2 TYPE tombstone"),
+        "sibling FORM.TYPE dropped by writer:\n{written}"
+    );
+
+    let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();
+    assert_eq!(data1.multimedia[0].form, data2.multimedia[0].form);
+}
+
+#[test]
+fn test_round_trip_inline_multimedia_form_type() {
+    let original = r#"0 HEAD
+1 GEDC
+2 VERS 5.5.1
+2 FORM LINEAGE-LINKED
+1 CHAR UTF-8
+0 @I1@ INDI
+1 NAME John /Smith/
+1 OBJE
+2 FILE photo.jpg
+3 FORM jpeg
+4 TYPE photo
+0 TRLR"#;
+
+    let data1 = GedcomBuilder::new().build_from_str(original).unwrap();
+
+    let writer = GedcomWriter::new();
+    let written = writer.write_to_string(&data1).unwrap();
+
+    assert!(
+        written.contains("3 FORM jpeg"),
+        "inline FORM dropped by writer:\n{written}"
+    );
+    assert!(
+        written.contains("4 TYPE photo"),
+        "inline FORM.TYPE dropped by writer:\n{written}"
+    );
+
+    let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();
+
+    let media1 = &data1.individuals[0].multimedia[0];
+    let media2 = &data2.individuals[0].multimedia[0];
+    assert_eq!(media1.file, media2.file);
+}
+
+
 // =============================================================================
 // Complex Round-Trip Tests
 // =============================================================================

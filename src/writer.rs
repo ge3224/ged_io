@@ -918,11 +918,17 @@ impl GedcomWriter {
             self.write_value_or_wrap(writer, 1, "FILE", file.value.as_deref())?;
             if let Some(ref format) = file.form {
                 self.write_value_or_wrap(writer, 2, "FORM", format.value.as_deref())?;
+                if let Some(ref media_type) = format.source_media_type {
+                    self.write_value_or_wrap(writer, 3, "TYPE", Some(media_type))?;
+                }
             }
         }
 
         if let Some(ref form) = media.form {
             self.write_line(writer, 1, "FORM", form.value.as_deref())?;
+            if let Some(ref media_type) = form.source_media_type {
+                self.write_value_or_wrap(writer, 2, "TYPE", Some(media_type))?;
+            }
         }
 
         if let Some(ref title) = media.title {
@@ -950,6 +956,18 @@ impl GedcomWriter {
             self.write_line(writer, level, "OBJE", None)?;
             if let Some(ref file) = media.file {
                 self.write_value_or_wrap(writer, level + 1, "FILE", file.value.as_deref())?;
+                if let Some(ref format) = file.form {
+                    self.write_value_or_wrap(writer, level + 2, "FORM", format.value.as_deref())?;
+                    if let Some(ref media_type) = format.source_media_type {
+                        self.write_value_or_wrap(writer, level + 3, "TYPE", Some(media_type))?;
+                    }
+                }
+            }
+            if let Some(ref form) = media.form {
+                self.write_line(writer, level + 1, "FORM", form.value.as_deref())?;
+                if let Some(ref media_type) = form.source_media_type {
+                    self.write_value_or_wrap(writer, level + 2, "TYPE", Some(media_type))?;
+                }
             }
             if let Some(ref title) = media.title {
                 self.write_value_or_wrap(writer, level + 1, "TITL", Some(title))?;
