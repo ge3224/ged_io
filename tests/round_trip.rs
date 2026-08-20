@@ -443,6 +443,124 @@ fn test_inline_multimedia_file_value_is_not_mistaken_for_a_pointer() {
     );
 }
 
+#[test]
+fn test_round_trip_multimedia_record_substructures() {
+    let original = r#"0 HEAD
+1 GEDC
+2 VERS 5.5.1
+0 @S1@ SOUR
+1 TITL Cemetery Survey
+0 @M1@ OBJE
+1 FILE headstone.jpg
+2 FORM jpeg
+3 TYPE tombstone
+2 TITL Headstone, front
+1 REFN MEDIA-0042
+2 TYPE Archive number
+1 RIN 12345
+1 NOTE Photographed on site.
+1 SOUR @S1@
+2 PAGE Plot 12
+1 CHAN
+2 DATE 1 JAN 2020
+0 TRLR"#;
+
+    let data1 = GedcomBuilder::new().build_from_str(original).unwrap();
+
+    let writer = GedcomWriter::new();
+    let written = writer.write_to_string(&data1).unwrap();
+
+    for expected in [
+        "2 TITL Headstone, front",
+        "1 REFN MEDIA-0042",
+        "2 TYPE Archive number",
+        "1 RIN 12345",
+        "1 NOTE Photographed on site.",
+        "1 SOUR @S1@",
+        "2 PAGE Plot 12",
+        "1 CHAN",
+        "2 DATE 1 JAN 2020",
+    ] {
+        assert!(
+            written.contains(expected),
+            "missing {expected:?} in written output:\n{written}"
+        );
+    }
+
+    let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();
+    assert_eq!(data1.multimedia[0], data2.multimedia[0]);
+}
+
+#[test]
+fn test_round_trip_multimedia_file_crop() {
+    // CROP is a GEDCOM 7.0 substructure of FILE.
+    let original = r#"0 HEAD
+1 GEDC
+2 VERS 7.0
+0 @M1@ OBJE
+1 FILE group-photo.jpg
+2 FORM image/jpeg
+2 CROP
+3 TOP 10
+3 LEFT 20
+3 HEIGHT 50
+3 WIDTH 25.5
+0 TRLR"#;
+
+    let data1 = GedcomBuilder::new().build_from_str(original).unwrap();
+
+    let writer = GedcomWriter::new();
+    let written = writer.write_to_string(&data1).unwrap();
+
+    for expected in [
+        "2 CROP",
+        "3 TOP 10",
+        "3 LEFT 20",
+        "3 HEIGHT 50",
+        "3 WIDTH 25.5",
+    ] {
+        assert!(
+            written.contains(expected),
+            "missing {expected:?} in written output:\n{written}"
+        );
+    }
+
+    let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();
+    assert_eq!(data1.multimedia[0].file, data2.multimedia[0].file);
+}
+
+#[test]
+fn test_round_trip_inline_multimedia_file_title() {
+    // A TITL subordinate to FILE is distinct from the OBJE-level TITL, and
+    // must survive on an inline OBJE too.
+    let original = r#"0 HEAD
+1 GEDC
+2 VERS 5.5.1
+0 @I1@ INDI
+1 NAME John /Smith/
+1 OBJE
+2 FILE photo.jpg
+3 FORM jpeg
+3 TITL John at the beach
+0 TRLR"#;
+
+    let data1 = GedcomBuilder::new().build_from_str(original).unwrap();
+
+    let writer = GedcomWriter::new();
+    let written = writer.write_to_string(&data1).unwrap();
+
+    assert!(
+        written.contains("3 TITL John at the beach"),
+        "FILE.TITL dropped by writer:\n{written}"
+    );
+
+    let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();
+    assert_eq!(
+        data1.individuals[0].multimedia,
+        data2.individuals[0].multimedia
+    );
+}
+
 // =============================================================================
 // Complex Round-Trip Tests
 // =============================================================================
