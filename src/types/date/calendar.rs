@@ -324,6 +324,28 @@ const FRENCH_REPUBLICAN_MONTHS: [&str; 13] = [
 /// external systems that use JDN, use `to_julian_day_number()` and `from_julian_day_number()`.
 const RATA_DIE_TO_JDN_OFFSET: i64 = 1_721_425;
 
+/// Rata Die of 1 Vendemiaire An I (22 September 1792 Gregorian), the epoch of the
+/// French Republican calendar.
+///
+/// The `calendrier` crate counts Republican days from this epoch, so a Republican
+/// timestamp becomes a Rata Die by adding this offset. Going through the crate's
+/// `chrono` conversions instead would drag in the Paris-versus-Greenwich clock
+/// offset it applies, which pushes the start of a Republican day 18 minutes into
+/// the previous Gregorian day and returns every date one day early.
+#[cfg(feature = "calendar")]
+const FRENCH_REPUBLICAN_EPOCH_RD: i64 = 654_415;
+
+/// Days in each of the twelve full months of a French Republican year.
+#[cfg(feature = "calendar")]
+const DAYS_PER_REPUBLICAN_MONTH: u8 = 30;
+
+/// Seconds in a French Republican day.
+///
+/// The Republican calendar used decimal time: 10 hours of 100 minutes of 100
+/// seconds. `calendrier` timestamps are counted in these seconds.
+#[cfg(feature = "calendar")]
+const REPUBLICAN_SECONDS_PER_DAY: i64 = 100_000;
+
 impl ParsedDateTime {
     /// Parse a GEDCOM date string into a `ParsedDateTime`.
     ///
@@ -610,11 +632,7 @@ impl ParsedDateTime {
         })?;
 
         match self.calendar {
-            Calendar::Gregorian => {
-                let rd =
-                    calendrical_calculations::gregorian::fixed_from_gregorian(year, month, day);
-                Ok(rd.to_i64_date())
-            }
+            Calendar::Gregorian => Ok(gregorian_to_rata_die(year, month, day)),
             Calendar::Julian => {
                 let rd = calendrical_calculations::julian::fixed_from_julian(year, month, day);
                 Ok(rd.to_i64_date())
@@ -632,29 +650,21 @@ impl ParsedDateTime {
                 Ok(rd.to_i64_date())
             }
             Calendar::FrenchRepublican => {
-                // Use calendrier crate for French Republican
-                use chrono::Datelike;
-
-                let fr_date =
-                    calendrier::Date::from_ymd(i64::from(year), i64::from(month), i64::from(day));
-
-                // Convert to chrono NaiveDate
-                let naive: chrono::NaiveDate =
-                    fr_date
-                        .try_into()
-                        .map_err(|()| CalendarConversionError::InvalidDate {
-                            message: format!(
-                            "Invalid French Republican date: year={year}, month={month}, day={day}"
+                // Count Republican days straight off the calendrier timestamp. Its
+                // chrono conversions carry a clock offset that would lose a day; see
+                // `FRENCH_REPUBLICAN_EPOCH_RD`.
+                let fr_date = french_republican_date(year, month, day)?;
+                let days = fr_date
+                    .timestamp()
+                    .seconds
+                    .div_euclid(REPUBLICAN_SECONDS_PER_DAY);
+                FRENCH_REPUBLICAN_EPOCH_RD.checked_add(days).ok_or_else(|| {
+                    CalendarConversionError::InvalidDate {
+                        message: format!(
+                            "French Republican date out of range: year={year}, month={month}, day={day}"
                         ),
-                        })?;
-
-                // Convert chrono date to RataDie
-                let rd = gregorian_to_rata_die(
-                    naive.year(),
-                    u8::try_from(naive.month()).unwrap_or(1),
-                    u8::try_from(naive.day()).unwrap_or(1),
-                );
-                Ok(rd)
+                    }
+                })
             }
         }
     }
@@ -725,27 +735,25 @@ impl ParsedDateTime {
                 result.day = Some(hebrew.day);
             }
             Calendar::FrenchRepublican => {
-                // Convert RataDie to Gregorian first, then to French Republican via chrono
-                let (year, month, day) =
-                    calendrical_calculations::gregorian::gregorian_from_fixed(rd).map_err(|e| {
-                        CalendarConversionError::InvalidDate {
-                            message: format!("Failed to convert RataDie to Gregorian: {e:?}"),
-                        }
-                    })?;
-                let naive = chrono::NaiveDate::from_ymd_opt(year, u32::from(month), u32::from(day))
+                // Inverse of `to_rata_die`: turn the day count back into a Republican
+                // timestamp rather than hopping through chrono.
+                let seconds = rata_die
+                    .checked_sub(FRENCH_REPUBLICAN_EPOCH_RD)
+                    .and_then(|days| days.checked_mul(REPUBLICAN_SECONDS_PER_DAY))
                     .ok_or(CalendarConversionError::InvalidDate {
-                        message: format!("Invalid Gregorian date: {year}-{month}-{day}"),
+                        message: format!(
+                            "RataDie {rata_die} is out of range for the French Republican calendar"
+                        ),
                     })?;
 
-                let fr_date: calendrier::Date =
-                    naive
-                        .try_into()
-                        .map_err(|()| CalendarConversionError::InvalidDate {
-                            message: format!(
-                            "Failed to convert Gregorian to French Republican: {year}-{month}-{day}"
+                let fr_date = calendrier::Date::from_timestamp(calendrier::Timestamp { seconds });
+                result.year = Some(i32::try_from(fr_date.year()).map_err(|_| {
+                    CalendarConversionError::InvalidDate {
+                        message: format!(
+                            "RataDie {rata_die} is out of range for the French Republican calendar"
                         ),
-                        })?;
-                result.year = Some(i32::try_from(fr_date.year()).unwrap_or(0));
+                    }
+                })?);
                 result.month = Some(u8::try_from(fr_date.month().num()).unwrap_or(1));
                 result.day = Some(u8::try_from(fr_date.day()).unwrap_or(1));
             }
@@ -1025,6 +1033,43 @@ fn gregorian_to_rata_die(year: i32, month: u8, day: u8) -> i64 {
     calendrical_calculations::gregorian::fixed_from_gregorian(year, month, day).to_i64_date()
 }
 
+/// Builds a `calendrier::Date`, rejecting components the crate would panic on.
+///
+/// `calendrier::Date::from_ymd` asserts its arguments, so a malformed GEDCOM date
+/// such as `@#DFRENCH R@ 31 VEND 1` has to be turned away here rather than reaching
+/// it. The Republican year has twelve months of thirty days plus a short thirteenth
+/// month (`COMP`) of five days, or six in a sextile year.
+#[cfg(feature = "calendar")]
+fn french_republican_date(
+    year: i32,
+    month: u8,
+    day: u8,
+) -> Result<calendrier::Date, CalendarConversionError> {
+    let invalid = || CalendarConversionError::InvalidDate {
+        message: format!("Invalid French Republican date: year={year}, month={month}, day={day}"),
+    };
+
+    if year == 0 || !(1..=13).contains(&month) || !(1..=30).contains(&day) {
+        return Err(invalid());
+    }
+
+    // The complementary days are the tail of the year, so their count is whatever
+    // the year has beyond its twelve full months.
+    if month == 13 {
+        let complementary_days =
+            calendrier::get_day_count(i64::from(year)) - 12 * i64::from(DAYS_PER_REPUBLICAN_MONTH);
+        if i64::from(day) > complementary_days {
+            return Err(invalid());
+        }
+    }
+
+    Ok(calendrier::Date::from_ymd(
+        i64::from(year),
+        i64::from(month),
+        i64::from(day),
+    ))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1244,39 +1289,120 @@ mod tests {
             assert_eq!(gregorian.day, Some(30));
         }
 
+        /// A year-month-day triple, in whichever calendar the context names.
+        #[cfg(feature = "calendar")]
+        type Ymd = (i32, u8, u8);
+
+        /// Dates the French Republican calendar is pinned to in the historical
+        /// record, as `(republican, gregorian)` pairs.
+        #[cfg(feature = "calendar")]
+        const REPUBLICAN_LANDMARKS: &[(Ymd, Ymd)] = &[
+            // 1 Vendemiaire An I: the autumn equinox the calendar was anchored to,
+            // and the day the Republic was proclaimed.
+            ((1, 1, 1), (1792, 9, 22)),
+            ((1, 1, 2), (1792, 9, 23)),
+            // 1 Vendemiaire An II, one full year on.
+            ((2, 1, 1), (1793, 9, 22)),
+            // 9 Thermidor An II: the fall of Robespierre.
+            ((2, 11, 9), (1794, 7, 27)),
+            // 18 Brumaire An VIII: Napoleon's coup.
+            ((8, 2, 18), (1799, 11, 9)),
+            // 11 Nivose An XIV: the last day before the calendar was abolished.
+            ((14, 4, 11), (1806, 1, 1)),
+        ];
+
+        #[cfg(feature = "calendar")]
+        fn ymd(calendar: Calendar, (year, month, day): Ymd) -> ParsedDateTime {
+            ParsedDateTime {
+                calendar,
+                year: Some(year),
+                month: Some(month),
+                day: Some(day),
+                ..Default::default()
+            }
+        }
+
         #[test]
         fn test_french_republican_conversion() {
-            // 1 Vendemiaire Year 1: The calendrier crate returns September 21, 1792
-            // (historically, it was September 22, 1792, but the crate has a one-day offset)
-            let fr = ParsedDateTime {
-                calendar: Calendar::FrenchRepublican,
-                year: Some(1),
-                month: Some(1), // Vendemiaire
-                day: Some(1),
-                ..Default::default()
-            };
+            for &(republican, gregorian) in REPUBLICAN_LANDMARKS {
+                let converted = ymd(Calendar::FrenchRepublican, republican)
+                    .convert_to(Calendar::Gregorian)
+                    .unwrap();
+                assert_eq!(converted.calendar, Calendar::Gregorian);
+                assert_eq!(
+                    (
+                        converted.year.unwrap(),
+                        converted.month.unwrap(),
+                        converted.day.unwrap()
+                    ),
+                    gregorian,
+                    "French Republican {republican:?} should be Gregorian {gregorian:?}"
+                );
 
-            let gregorian = fr.convert_to(Calendar::Gregorian).unwrap();
-            assert_eq!(gregorian.calendar, Calendar::Gregorian);
-            assert_eq!(gregorian.year, Some(1792));
-            assert_eq!(gregorian.month, Some(9));
-            assert_eq!(gregorian.day, Some(21)); // calendrier crate returns 21, not 22
+                let back = ymd(Calendar::Gregorian, gregorian)
+                    .convert_to(Calendar::FrenchRepublican)
+                    .unwrap();
+                assert_eq!(back.calendar, Calendar::FrenchRepublican);
+                assert_eq!(
+                    (back.year.unwrap(), back.month.unwrap(), back.day.unwrap()),
+                    republican,
+                    "Gregorian {gregorian:?} should be French Republican {republican:?}"
+                );
+            }
+        }
 
-            // Test round-trip from Gregorian to French Republican
-            // September 22, 1792 should convert to 1 Vendemiaire Year 1
-            let greg = ParsedDateTime {
-                calendar: Calendar::Gregorian,
-                year: Some(1792),
-                month: Some(9),
-                day: Some(22),
-                ..Default::default()
-            };
+        #[test]
+        fn test_french_republican_complementary_days() {
+            // The thirteenth month holds five complementary days, six in a sextile
+            // year. An III was sextile; An I was not.
+            let last_of_year_one = ymd(Calendar::FrenchRepublican, (1, 13, 5))
+                .convert_to(Calendar::Gregorian)
+                .unwrap();
+            assert_eq!(last_of_year_one.year, Some(1793));
+            assert_eq!(last_of_year_one.month, Some(9));
+            assert_eq!(last_of_year_one.day, Some(21));
 
-            let fr_back = greg.convert_to(Calendar::FrenchRepublican).unwrap();
-            assert_eq!(fr_back.calendar, Calendar::FrenchRepublican);
-            assert_eq!(fr_back.year, Some(1));
-            assert_eq!(fr_back.month, Some(1)); // Vendemiaire
-            assert_eq!(fr_back.day, Some(1));
+            let sextile_day = ymd(Calendar::FrenchRepublican, (3, 13, 6))
+                .convert_to(Calendar::Gregorian)
+                .unwrap();
+            assert_eq!(sextile_day.year, Some(1795));
+            assert_eq!(sextile_day.month, Some(9));
+            assert_eq!(sextile_day.day, Some(22));
+        }
+
+        #[test]
+        fn test_french_republican_rejects_invalid_dates() {
+            // These would panic inside `calendrier::Date::from_ymd` if they reached it.
+            for invalid in [
+                (1, 1, 31), // no month has a thirty-first day
+                (1, 14, 1), // there is no fourteenth month
+                (0, 1, 1),  // the calendar has no year zero
+                (1, 13, 6), // An I was not sextile, so it has no sixth complementary day
+            ] {
+                let result =
+                    ymd(Calendar::FrenchRepublican, invalid).convert_to(Calendar::Gregorian);
+                assert!(
+                    matches!(result, Err(CalendarConversionError::InvalidDate { .. })),
+                    "French Republican {invalid:?} should be rejected, got {result:?}"
+                );
+            }
+        }
+
+        #[test]
+        fn test_french_republican_rata_die_round_trip() {
+            // Every day the calendar was in official use, and then some.
+            let first = ymd(Calendar::FrenchRepublican, (1, 1, 1))
+                .to_rata_die()
+                .unwrap();
+            for rata_die in first..first + 6_000 {
+                let republican =
+                    ParsedDateTime::from_rata_die(rata_die, Calendar::FrenchRepublican).unwrap();
+                assert_eq!(
+                    republican.to_rata_die().unwrap(),
+                    rata_die,
+                    "round trip lost a day at rata die {rata_die}"
+                );
+            }
         }
 
         #[test]
