@@ -109,7 +109,6 @@ dependencies = [
  "iana-time-zone",
  "js-sys",
  "num-traits",
- "serde",
  "wasm-bindgen",
  "windows-link",
 ]
@@ -297,7 +296,7 @@ dependencies = [
 
 [[package]]
 name = "ged_io"
-version = "0.16.1"
+version = "0.16.2"
 dependencies = [
  "calendrical_calculations",
  "calendrier",

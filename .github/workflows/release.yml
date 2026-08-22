@@ -13,13 +13,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
       - name: Create Release
         id: create
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           generate_release_notes: true
           draft: false
@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
@@ -41,7 +41,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Cache dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry
@@ -59,7 +59,7 @@ jobs:
         run: tar -czvf ged_io-linux-x86_64.tar.gz -C target/x86_64-unknown-linux-gnu/release ged_io
 
       - name: Upload Linux asset
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: ged_io-linux-x86_64.tar.gz
           overwrite: true
@@ -72,7 +72,7 @@ jobs:
     runs-on: windows-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
@@ -82,7 +82,7 @@ jobs:
           targets: x86_64-pc-windows-msvc
 
       - name: Cache dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry
@@ -94,7 +94,7 @@ jobs:
         run: cargo build --release --target x86_64-pc-windows-msvc
 
       - name: Upload Windows asset
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: target/x86_64-pc-windows-msvc/release/ged_io.exe
           overwrite: true
@@ -107,7 +107,7 @@ jobs:
     runs-on: macos-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
@@ -117,7 +117,7 @@ jobs:
           targets: x86_64-apple-darwin
 
       - name: Cache dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry
@@ -132,7 +132,7 @@ jobs:
         run: strip target/x86_64-apple-darwin/release/ged_io
 
       - name: Upload macOS x86_64 asset
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: target/x86_64-apple-darwin/release/ged_io
           overwrite: true
@@ -145,7 +145,7 @@ jobs:
     runs-on: macos-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           fetch-depth: 1
 
@@ -155,7 +155,7 @@ jobs:
           targets: aarch64-apple-darwin
 
       - name: Cache dependencies
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/.cargo/registry
@@ -170,7 +170,7 @@ jobs:
         run: strip target/aarch64-apple-darwin/release/ged_io
 
       - name: Upload macOS ARM64 asset
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: target/aarch64-apple-darwin/release/ged_io
           overwrite: true
