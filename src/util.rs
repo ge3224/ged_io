@@ -596,17 +596,8 @@ pub fn needs_at_escaping(value: &str, is_gedcom_7: bool) -> bool {
 ///
 /// Used to tell a cross-reference such as `@M1@` apart from free text that
 /// merely happens to contain an `@`, e.g. a file path or an email address.
-///
-/// # Example
-///
-/// ```
-/// use ged_io::util::is_xref_pointer;
-///
-/// assert!(is_xref_pointer("@M1@"));
-/// assert!(!is_xref_pointer("photo@2x.jpg"));
-/// ```
 #[must_use]
-pub fn is_xref_pointer(value: &str) -> bool {
+pub(crate) fn is_xref_pointer(value: &str) -> bool {
     let bytes = value.as_bytes();
     bytes.len() >= 3
         && bytes[0] == b'@'
