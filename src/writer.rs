@@ -26,7 +26,7 @@ use crate::types::{
     date::Date,
     event::{detail::Detail as EventDetail, spouse::Spouse, Event},
     family::Family,
-    gedcom7::{NonEvent, SortDate},
+    gedcom7::{Crop, NonEvent, SortDate},
     header::{meta::HeadMeta, schema::Schema, source::HeadSour},
     individual::{
         association::{Association, AssociationTarget},
@@ -39,6 +39,8 @@ use crate::types::{
     lds::LdsOrdinance,
     list::ListEnum,
     multimedia::{
+        file::Reference,
+        format::Format,
         link::{Link, LinkTarget},
         Multimedia,
     },
@@ -941,25 +943,43 @@ impl GedcomWriter {
         media: &Multimedia,
     ) -> Result<(), io::Error> {
         self.write_line_with_xref(writer, 0, Some(media.xref.as_str()), "OBJE", None)?;
+        self.write_multimedia_substructures(
+            writer,
+            1,
+            media.file.as_ref(),
+            media.form.as_ref(),
+            media.title.as_deref(),
+        )?;
 
-        if let Some(ref file) = media.file {
-            self.write_value_or_wrap(writer, 1, "FILE", file.value.as_deref())?;
-            if let Some(ref format) = file.form {
-                self.write_value_or_wrap(writer, 2, "FORM", format.value.as_deref())?;
+        // User reference number
+        if let Some(ref refn) = media.user_reference_number {
+            self.write_value_or_wrap(writer, 1, "REFN", refn.value.as_deref())?;
+            if let Some(ref refn_type) = refn.user_reference_type {
+                self.write_value_or_wrap(writer, 2, "TYPE", Some(refn_type))?;
             }
         }
 
-        if let Some(ref form) = media.form {
-            self.write_line(writer, 1, "FORM", form.value.as_deref())?;
-        }
-
-        if let Some(ref title) = media.title {
-            self.write_value_or_wrap(writer, 1, "TITL", Some(title))?;
+        // Automated record ID
+        if let Some(ref rin) = media.automated_record_id {
+            self.write_value_or_wrap(writer, 1, "RIN", Some(rin))?;
         }
 
         // Note
         if let Some(ref note) = media.note_structure {
             self.write_note(writer, 1, note)?;
+        }
+
+        // Source citation
+        if let Some(ref citation) = media.source_citation {
+            self.write_citation(writer, 1, citation)?;
+        }
+
+        // Change date
+        if let Some(ref change_date) = media.change_date {
+            self.write_line(writer, 1, "CHAN", None)?;
+            if let Some(ref date) = change_date.date {
+                self.write_date(writer, 2, date)?;
+            }
         }
 
         Ok(())
@@ -977,14 +997,80 @@ impl GedcomWriter {
             LinkTarget::Void => self.write_line(writer, level, "OBJE", Some("@VOID@"))?,
             LinkTarget::Inline => {
                 self.write_line(writer, level, "OBJE", None)?;
-                if let Some(ref file) = media.file {
-                    self.write_value_or_wrap(writer, level + 1, "FILE", file.value.as_deref())?;
-                }
-                if let Some(ref title) = media.title {
-                    self.write_value_or_wrap(writer, level + 1, "TITL", Some(title))?;
-                }
+                self.write_multimedia_substructures(
+                    writer,
+                    level + 1,
+                    media.file.as_ref(),
+                    media.form.as_ref(),
+                    media.title.as_deref(),
+                )?;
             }
         }
+        Ok(())
+    }
+
+    /// Writes the `FILE`, `FORM`, and `TITLE` substructures shared by a
+    /// multimedia record and a inline multimedia link, starting at `level`.
+    fn write_multimedia_substructures<W: Write>(
+        &self,
+        writer: &mut W,
+        level: u8,
+        file: Option<&Reference>,
+        form: Option<&Format>,
+        title: Option<&str>,
+    ) -> Result<(), io::Error> {
+        if let Some(file) = file {
+            self.write_value_or_wrap(writer, level, "FILE", file.value.as_deref())?;
+            if let Some(ref format) = file.form {
+                self.write_value_or_wrap(writer, level + 1, "FORM", format.value.as_deref())?;
+                if let Some(ref media_type) = format.source_media_type {
+                    self.write_value_or_wrap(writer, level + 2, "TYPE", Some(media_type))?;
+                }
+            }
+            if let Some(ref file_title) = file.title {
+                self.write_value_or_wrap(writer, level + 1, "TITL", Some(file_title))?;
+            }
+            if let Some(ref crop) = file.crop {
+                self.write_crop(writer, level + 1, crop)?;
+            }
+        }
+
+        // The 5.5 spec puts FORM and TITL under FILE, but some exporters (e.g.
+        // Ancestry.com) write them as siblings of it.
+        if let Some(form) = form {
+            self.write_line(writer, level, "FORM", form.value.as_deref())?;
+            if let Some(ref media_type) = form.source_media_type {
+                self.write_value_or_wrap(writer, level + 1, "TYPE", Some(media_type))?;
+            }
+        }
+
+        if let Some(title) = title {
+            self.write_value_or_wrap(writer, level, "TITL", Some(title))?;
+        }
+
+        Ok(())
+    }
+
+    /// Writes an image cropping region (GEDCOM 7.0).
+    fn write_crop<W: Write>(
+        &self,
+        writer: &mut W,
+        level: u8,
+        crop: &Crop,
+    ) -> Result<(), io::Error> {
+        self.write_line(writer, level, "CROP", None)?;
+
+        for (tag, value) in [
+            ("TOP", crop.top),
+            ("LEFT", crop.left),
+            ("HEIGHT", crop.height),
+            ("WIDTH", crop.width),
+        ] {
+            if let Some(value) = value {
+                self.write_line(writer, level + 1, tag, Some(&value.to_string()))?;
+            }
+        }
+
         Ok(())
     }
 

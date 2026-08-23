@@ -2,16 +2,20 @@ use std::env;
 use std::fs;
 use std::path::PathBuf;
 use std::process::Command;
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+static SEQ: AtomicUsize = AtomicUsize::new(0);
 
 fn write_temp_gedcom(contents: &str) -> PathBuf {
     let mut path = env::temp_dir();
-    let nanos = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
-    let filename = format!("ged_io_cli_test_{}_{}.ged", std::process::id(), nanos);
-    path.push(filename);
+    let seq = SEQ.fetch_add(1, Ordering::Relaxed);
+
+    path.push(format!(
+        "ged_io_cli_test_{}_{}.ged",
+        std::process::id(),
+        seq
+    ));
+
     fs::write(&path, contents).expect("write temp gedcom");
     path
 }

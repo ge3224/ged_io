@@ -52,7 +52,9 @@ impl CitationSource {
     /// GEDCOM 7's `@VOID@`-adjacent free text or a URL, is a description.
     #[must_use]
     pub fn parse(value: String) -> Self {
-        if is_xref_pointer(&value) {
+        if value == "@VOID@" {
+            CitationSource::Void
+        } else if is_pointer_use(&value) {
             CitationSource::Record(value)
         } else {
             CitationSource::Description(value)
@@ -76,19 +78,6 @@ impl CitationSource {
             CitationSource::Record(_) | CitationSource::Void => None,
         }
     }
-}
-
-/// Returns true if `value` matches the GEDCOM `POINTER` grammar: a single
-/// leading and trailing `@`, non-empty in between, with no embedded
-/// whitespace or additional `@` characters.
-fn is_xref_pointer(value: &str) -> bool {
-    let bytes = value.as_bytes();
-    bytes.len() >= 3
-        && bytes[0] == b'@'
-        && bytes[bytes.len() - 1] == b'@'
-        && value[1..value.len() - 1]
-            .bytes()
-            .all(|b| b != b'@' && !b.is_ascii_whitespace())
 }
 
 /// The data provided in the `SourceCitation` structure is source-related information specific to

@@ -115,7 +115,29 @@ impl Parser for Multimedia {
 
 #[cfg(test)]
 mod tests {
-    use crate::Gedcom;
+    use crate::{
+        types::{multimedia::link::LinkTarget, GedcomData},
+        Gedcom,
+    };
+
+    fn parse(sample: &str) -> GedcomData {
+        let mut doc = Gedcom::new(sample.chars()).unwrap();
+        doc.parse_data().unwrap()
+    }
+
+    #[test]
+    fn void_pointer_is_neither_record_nor_inline() {
+        let data = parse("0 HEAD\n1 GEDC\n2 VERS 7.0\n0 @I1@ INDI\n1 OBJE @VOID@\n0 TRLR");
+        let link = data
+            .find_individual("@I1@")
+            .unwrap()
+            .multimedia_links
+            .first()
+            .unwrap();
+
+        assert_eq!(link.target(), &LinkTarget::Void);
+        assert_eq!(data.reference_count("@VOID@"), 0);
+    }
 
     #[test]
     fn test_parse_multimedia_record() {

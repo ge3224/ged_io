@@ -620,6 +620,26 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_is_pointer_use() {
+        assert!(is_pointer_use("@M1@"));
+        assert!(is_pointer_use("@MEDIA1@"));
+        assert!(!is_pointer_use(""));
+        assert!(!is_pointer_use("@@"));
+        assert!(!is_pointer_use("@M1"));
+        assert!(!is_pointer_use("M1@"));
+        assert!(!is_pointer_use("@a b@"));
+        assert!(!is_pointer_use("@a@b@"));
+        assert!(!is_pointer_use("photo.jpg"));
+    }
+
+    #[test]
+    fn test_is_real_reference() {
+        assert!(is_real_reference("@S1@"));
+        assert!(is_pointer_use("@VOID@"));
+        assert!(!is_real_reference("@VOID@"));
+    }
+
+    #[test]
     fn test_string_interner() {
         let interner = StringInterner::new();
 

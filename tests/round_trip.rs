@@ -3,7 +3,7 @@
 //! These tests verify that parsing a GEDCOM file, writing it back, and parsing again
 //! produces equivalent data structures.
 
-use ged_io::{GedcomBuilder, GedcomWriter};
+use ged_io::{types::multimedia::link::LinkTarget, GedcomBuilder, GedcomWriter};
 
 // =============================================================================
 // Basic Round-Trip Tests
@@ -333,6 +333,339 @@ fn test_round_trip_multimedia() {
     assert_eq!(
         data1.find_multimedia("@M1@").unwrap().title,
         data2.find_multimedia("@M1@").unwrap().title
+    );
+}
+
+#[test]
+fn test_round_trip_multimedia_record_form_type() {
+    let original = r#"0 HEAD
+1 GEDC
+2 VERS 5.5.1
+2 FORM LINEAGE-LINKED
+1 CHAR UTF-8
+0 @M1@ OBJE
+1 FILE headstone.jpg
+2 FORM jpeg
+3 TYPE tombstone
+0 TRLR"#;
+
+    let data1 = GedcomBuilder::new().build_from_str(original).unwrap();
+
+    let writer = GedcomWriter::new();
+    let written = writer.write_to_string(&data1).unwrap();
+
+    assert!(
+        written.contains("2 FORM jpeg"),
+        "FORM dropped by writer:\n{written}"
+    );
+    assert!(
+        written.contains("3 TYPE tombstone"),
+        "FORM.TYPE dropped by writer:\n{written}"
+    );
+
+    let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();
+
+    let form1 = data1
+        .find_multimedia("@M1@")
+        .unwrap()
+        .file
+        .as_ref()
+        .unwrap()
+        .form
+        .as_ref();
+
+    let form2 = data2
+        .find_multimedia("@M1@")
+        .unwrap()
+        .file
+        .as_ref()
+        .unwrap()
+        .form
+        .as_ref();
+
+    assert_eq!(form1, form2);
+    assert_eq!(
+        form2.unwrap().source_media_type.as_deref(),
+        Some("tombstone")
+    );
+}
+
+#[test]
+fn test_round_trip_multimedia_sibling_form_type() {
+    // Some exporters (e.g. Ancestry.com) write FORM as a sibling of FILE
+    // rather than as its substructure.
+    let original = r#"0 HEAD
+1 GEDC
+2 VERS 5.5.1
+0 @M1@ OBJE
+1 FILE headstone.jpg
+1 FORM jpeg
+2 TYPE tombstone
+0 TRLR"#;
+
+    let data1 = GedcomBuilder::new().build_from_str(original).unwrap();
+
+    let writer = GedcomWriter::new();
+    let written = writer.write_to_string(&data1).unwrap();
+
+    assert!(
+        written.contains("2 TYPE tombstone"),
+        "sibling FORM.TYPE dropped by writer:\n{written}"
+    );
+
+    let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();
+    assert_eq!(
+        data1.find_multimedia("@M1@").unwrap().form,
+        data2.find_multimedia("@M1@").unwrap().form
+    );
+}
+
+#[test]
+fn test_round_trip_inline_multimedia_form_type() {
+    let original = r#"0 HEAD
+1 GEDC
+2 VERS 5.5.1
+2 FORM LINEAGE-LINKED
+1 CHAR UTF-8
+0 @I1@ INDI
+1 NAME John /Smith/
+1 OBJE
+2 FILE photo.jpg
+3 FORM jpeg
+4 TYPE photo
+0 TRLR"#;
+
+    let data1 = GedcomBuilder::new().build_from_str(original).unwrap();
+
+    let writer = GedcomWriter::new();
+    let written = writer.write_to_string(&data1).unwrap();
+
+    assert!(
+        written.contains("3 FORM jpeg"),
+        "inline FORM dropped by writer:\n{written}"
+    );
+    assert!(
+        written.contains("4 TYPE photo"),
+        "inline FORM.TYPE dropped by writer:\n{written}"
+    );
+
+    let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();
+
+    let media1 = &data1
+        .find_individual("@I1@")
+        .unwrap()
+        .multimedia_links
+        .first()
+        .unwrap();
+
+    let media2 = &data2
+        .find_individual("@I1@")
+        .unwrap()
+        .multimedia_links
+        .first()
+        .unwrap();
+
+    assert_eq!(media1.file, media2.file);
+}
+
+#[test]
+fn test_round_trip_inline_multimedia_pointer() {
+    // `1 OBJE @M1@` is a link to a record, not an inline object: the pointer
+    // is the only thing on the line and must survive parse -> write.
+    let original = r#"0 HEAD
+1 GEDC
+2 VERS 5.5.1
+0 @I1@ INDI
+1 NAME John /Smith/
+1 OBJE @M1@
+0 @M1@ OBJE
+1 FILE headstone.jpg
+2 FORM jpeg
+3 TYPE tombstone
+0 TRLR"#;
+
+    let data1 = GedcomBuilder::new().build_from_str(original).unwrap();
+
+    let media = &data1
+        .find_individual("@I1@")
+        .unwrap()
+        .multimedia_links
+        .first()
+        .unwrap();
+
+    assert_eq!(
+        media.target(),
+        &LinkTarget::Record("@M1@".to_string()),
+        "pointer dropped by parser"
+    );
+
+    let writer = GedcomWriter::new();
+    let written = writer.write_to_string(&data1).unwrap();
+
+    assert!(
+        written.contains("1 OBJE @M1@"),
+        "pointer dropped by writer:\n{written}"
+    );
+
+    let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();
+    assert_eq!(
+        data1.find_individual("@I1@").unwrap().multimedia_links,
+        data2.find_individual("@I1@").unwrap().multimedia_links
+    );
+    assert!(data2
+        .find_multimedia("@M1@")
+        .is_some_and(|m| m.file.is_some()));
+}
+
+#[test]
+fn test_inline_multimedia_file_value_is_not_mistaken_for_a_pointer() {
+    // A FILE value with an @ in it must not be promoted to an xref.
+    let original = r#"0 HEAD
+1 GEDC
+2 VERS 5.5.1
+0 @I1@ INDI
+1 NAME John /Smith/
+1 OBJE
+2 FILE photo@2x.jpg
+0 TRLR"#;
+
+    let data = GedcomBuilder::new().build_from_str(original).unwrap();
+
+    let media = &data
+        .find_individual("@I1@")
+        .unwrap()
+        .multimedia_links
+        .first()
+        .unwrap();
+
+    assert_eq!(media.target(), &LinkTarget::Inline);
+    assert_eq!(
+        media.file.as_ref().unwrap().value.as_deref(),
+        Some("photo@2x.jpg")
+    );
+}
+
+#[test]
+fn test_round_trip_multimedia_record_substructures() {
+    let original = r#"0 HEAD
+1 GEDC
+2 VERS 5.5.1
+0 @S1@ SOUR
+1 TITL Cemetery Survey
+0 @M1@ OBJE
+1 FILE headstone.jpg
+2 FORM jpeg
+3 TYPE tombstone
+2 TITL Headstone, front
+1 REFN MEDIA-0042
+2 TYPE Archive number
+1 RIN 12345
+1 NOTE Photographed on site.
+1 SOUR @S1@
+2 PAGE Plot 12
+1 CHAN
+2 DATE 1 JAN 2020
+0 TRLR"#;
+
+    let data1 = GedcomBuilder::new().build_from_str(original).unwrap();
+
+    let writer = GedcomWriter::new();
+    let written = writer.write_to_string(&data1).unwrap();
+
+    for expected in [
+        "2 TITL Headstone, front",
+        "1 REFN MEDIA-0042",
+        "2 TYPE Archive number",
+        "1 RIN 12345",
+        "1 NOTE Photographed on site.",
+        "1 SOUR @S1@",
+        "2 PAGE Plot 12",
+        "1 CHAN",
+        "2 DATE 1 JAN 2020",
+    ] {
+        assert!(
+            written.contains(expected),
+            "missing {expected:?} in written output:\n{written}"
+        );
+    }
+
+    let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();
+    assert_eq!(
+        data1.find_multimedia("@M1@").unwrap(),
+        data2.find_multimedia("@M1@").unwrap()
+    );
+}
+
+#[test]
+fn test_round_trip_multimedia_file_crop() {
+    // CROP is a GEDCOM 7.0 substructure of FILE.
+    let original = r#"0 HEAD
+1 GEDC
+2 VERS 7.0
+0 @M1@ OBJE
+1 FILE group-photo.jpg
+2 FORM image/jpeg
+2 CROP
+3 TOP 10
+3 LEFT 20
+3 HEIGHT 50
+3 WIDTH 25.5
+0 TRLR"#;
+
+    let data1 = GedcomBuilder::new().build_from_str(original).unwrap();
+
+    let writer = GedcomWriter::new();
+    let written = writer.write_to_string(&data1).unwrap();
+
+    for expected in [
+        "2 CROP",
+        "3 TOP 10",
+        "3 LEFT 20",
+        "3 HEIGHT 50",
+        "3 WIDTH 25.5",
+    ] {
+        assert!(
+            written.contains(expected),
+            "missing {expected:?} in written output:\n{written}"
+        );
+    }
+
+    let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();
+    assert_eq!(
+        data1.find_multimedia("@M1@").unwrap().file,
+        data2.find_multimedia("@M1@").unwrap().file
+    );
+}
+
+#[test]
+fn test_round_trip_inline_multimedia_file_title() {
+    // A TITL subordinate to FILE is distinct from the OBJE-level TITL, and
+    // must survive on an inline OBJE too.
+    let original = r#"0 HEAD
+1 GEDC
+2 VERS 5.5.1
+0 @I1@ INDI
+1 NAME John /Smith/
+1 OBJE
+2 FILE photo.jpg
+3 FORM jpeg
+3 TITL John at the beach
+0 TRLR"#;
+
+    let data1 = GedcomBuilder::new().build_from_str(original).unwrap();
+
+    let writer = GedcomWriter::new();
+    let written = writer.write_to_string(&data1).unwrap();
+
+    assert!(
+        written.contains("3 TITL John at the beach"),
+        "FILE.TITL dropped by writer:\n{written}"
+    );
+
+    let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();
+    assert_eq!(
+        data1.find_individual("@I1@").unwrap().multimedia_links,
+        data2.find_individual("@I1@").unwrap().multimedia_links
     );
 }
 
