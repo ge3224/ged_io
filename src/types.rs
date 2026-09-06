@@ -74,8 +74,10 @@ use crate::{
 pub struct GedcomData {
     /// Global cross-reference registry: every `@…@` identifier in the file,
     /// keyed in one shared namespace. Each entry records what the xref resolves
-    /// to and how many pointers reference it (for delete-refusal). Rebuilt from
-    /// the arenas on load, so it is not serialized.
+    /// to and how many pointers reference it (for delete-refusal). Counts are
+    /// tallied as the tokenizer reads the file and kept up to date by `add_*`,
+    /// `link_*` and `unlink_*` thereafter, so the registry is bookkeeping rather
+    /// than document content and is not serialized.
     #[cfg_attr(feature = "json", serde(skip))]
     pub(crate) xrefs: Xrefs,
 
