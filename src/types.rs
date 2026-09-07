@@ -567,11 +567,7 @@ impl GedcomData {
         }
 
         // Check for shared notes (GEDCOM 7.0 only)
-        if !self.shared_notes.is_empty() {
-            return true;
-        }
-
-        false
+        !self.shared_notes.is_empty()
     }
 
     /// Returns true if this appears to be a GEDCOM 5.5.1 file.
