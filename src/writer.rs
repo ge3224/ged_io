@@ -543,6 +543,10 @@ impl GedcomWriter {
             self.write_citation(writer, level + 1, citation)?;
         }
 
+        for media in &event.multimedia {
+            self.write_multimedia_link(writer, level + 1, media)?;
+        }
+
         if let Some(ref note) = event.note {
             self.write_note(writer, level + 1, note)?;
         }
@@ -720,12 +724,40 @@ impl GedcomWriter {
             self.write_place(writer, 2, place)?;
         }
 
+        if let Some(ref address) = attr.address {
+            self.write_address(writer, 2, address)?;
+        }
+
+        if let Some(ref attribute_type) = attr.attribute_type {
+            self.write_value_or_wrap(writer, 2, "TYPE", Some(attribute_type))?;
+        }
+
         for citation in &attr.sources {
             self.write_citation(writer, 2, citation)?;
         }
 
+        for media in &attr.multimedia {
+            self.write_multimedia_link(writer, 2, media)?;
+        }
+
         if let Some(ref note) = attr.note {
             self.write_note(writer, 2, note)?;
+        }
+
+        if let Some(ref cause) = attr.cause {
+            self.write_long_text(writer, 2, "CAUS", cause)?;
+        }
+
+        if let Some(ref restriction) = attr.restriction {
+            self.write_value_or_wrap(writer, 2, "RESN", Some(restriction))?;
+        }
+
+        if let Some(ref age) = attr.age {
+            self.write_value_or_wrap(writer, 2, "AGE", Some(&age.to_string()))?;
+        }
+
+        if let Some(ref agency) = attr.agency {
+            self.write_value_or_wrap(writer, 2, "AGNC", Some(agency))?;
         }
 
         Ok(())
@@ -1737,6 +1769,105 @@ mod tests {
         assert!(output.contains("1 BAPM"));
         assert!(output.contains("2 ASSO @I2@"));
         assert!(output.contains("3 RELA Godmother"));
+    }
+
+    #[test]
+    fn test_event_multimedia_individual() {
+        let source = "\
+            0 HEAD\n\
+            1 GEDC\n\
+            2 VERS 5.5\n\
+            0 @I1@ INDI\n\
+            1 BIRT\n\
+            2 OBJE @M1@\n\
+            0 TRLR";
+
+        let data = GedcomBuilder::new().build_from_str(source).unwrap();
+        let writer = GedcomWriter::new();
+        let output = writer.write_to_string(&data).unwrap();
+
+        assert!(output.contains("2 OBJE @M1@"));
+    }
+
+    #[test]
+    fn test_event_multimedia_family() {
+        let source = "\
+            0 HEAD\n\
+            1 GEDC\n\
+            2 VERS 5.5\n\
+            0 @F1@ FAM\n\
+            1 MARR\n\
+            2 OBJE @M2@\n\
+            0 TRLR";
+
+        let data = GedcomBuilder::new().build_from_str(source).unwrap();
+        let writer = GedcomWriter::new();
+        let output = writer.write_to_string(&data).unwrap();
+
+        assert!(output.contains("2 OBJE @M2@"));
+    }
+
+    #[test]
+    fn test_event_multimedia_inline() {
+        let source = "\
+            0 HEAD\n\
+            1 GEDC\n\
+            2 VERS 5.5\n\
+            0 @I1@ INDI\n\
+            1 BIRT\n\
+            2 OBJE\n\
+            3 FILE photo.jpg\n\
+            4 FORM jpeg\n\
+            3 TITL baby photo\n\
+            0 TRLR";
+
+        let data = GedcomBuilder::new().build_from_str(source).unwrap();
+        let writer = GedcomWriter::new();
+        let output = writer.write_to_string(&data).unwrap();
+
+        assert!(output.contains("2 OBJE"));
+        assert!(output.contains("3 FILE photo.jpg"));
+        assert!(output.contains("4 FORM jpeg"));
+        assert!(output.contains("3 TITL baby photo"));
+    }
+
+    #[test]
+    fn test_attribute_detail() {
+        let source = "\
+            0 HEAD\n\
+            1 GEDC\n\
+            2 VERS 5.5\n\
+            0 @I1@ INDI\n\
+            1 OCCU Baker\n\
+            2 TYPE Trade\n\
+            2 DATE 1880\n\
+            2 PLAC London, England\n\
+            2 ADDR 1 Main St\n\
+            2 RESN privacy\n\
+            2 AGE 40y\n\
+            2 CAUS Guild record\n\
+            2 AGNC Bakers Guild\n\
+            2 SOUR @S1@\n\
+            2 NOTE Apprenticed at 14\n\
+            2 OBJE @M1@\n\
+            0 TRLR";
+
+        let data = GedcomBuilder::new().build_from_str(source).unwrap();
+        let writer = GedcomWriter::new();
+        let output = writer.write_to_string(&data).unwrap();
+
+        assert!(output.contains("1 OCCU Baker"));
+        assert!(output.contains("2 TYPE Trade"));
+        assert!(output.contains("2 DATE 1880"));
+        assert!(output.contains("2 PLAC London, England"));
+        assert!(output.contains("2 ADDR 1 Main St"));
+        assert!(output.contains("2 RESN privacy"));
+        assert!(output.contains("2 AGE 40y"));
+        assert!(output.contains("2 CAUS Guild record"));
+        assert!(output.contains("2 AGNC Bakers Guild"));
+        assert!(output.contains("2 SOUR @S1@"));
+        assert!(output.contains("2 NOTE Apprenticed at 14"));
+        assert!(output.contains("2 OBJE @M1@"));
     }
 
     #[test]

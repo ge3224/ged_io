@@ -6,7 +6,7 @@ use crate::{
     tokenizer::{Token, Tokenizer},
     types::{
         address::Address, age::Age, date::Date, individual::attribute::IndividualAttribute,
-        note::Note, place::Place, source::citation::Citation,
+        multimedia::Multimedia, note::Note, place::Place, source::citation::Citation,
     },
     GedcomError,
 };
@@ -58,6 +58,7 @@ pub struct AttributeDetail {
     pub cause: Option<String>,
     /// Responsible agency (tag: AGNC).
     pub agency: Option<String>,
+    pub multimedia: Vec<Multimedia>,
 }
 
 impl AttributeDetail {
@@ -84,6 +85,7 @@ impl AttributeDetail {
             address: None,
             cause: None,
             agency: None,
+            multimedia: Vec::new(),
         };
         attribute.parse(tokenizer, level)?;
         Ok(attribute)
@@ -145,6 +147,9 @@ impl Parser for AttributeDetail {
                 "ADDR" => self.address = Some(Address::new(tokenizer, level + 1)?),
                 "CAUS" => self.cause = Some(tokenizer.take_continued_text(level + 1)?),
                 "AGNC" => self.agency = Some(tokenizer.take_line_value()?),
+                "OBJE" => self
+                    .multimedia
+                    .push(Multimedia::new(tokenizer, level + 1, None)?),
                 _ => {
                     // Gracefully skip unknown tags instead of failing
                     tokenizer.take_line_value()?;
