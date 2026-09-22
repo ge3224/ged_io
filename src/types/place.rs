@@ -324,8 +324,7 @@ impl Place {
     pub fn jurisdictions(&self) -> Vec<&str> {
         self.value
             .as_ref()
-            .map(|v| v.split(',').map(str::trim).collect())
-            .unwrap_or_default()
+            .map_or_else(Vec::new, |v| v.split(',').map(str::trim).collect())
     }
 }
 
