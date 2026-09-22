@@ -21,11 +21,11 @@ fn write_temp_gedcom(contents: &str) -> PathBuf {
 }
 
 fn run_cli(args: &[&str]) -> std::process::Output {
-    let exe = env!("CARGO_BIN_EXE_ged_io");
+    let exe = env!("CARGO_BIN_EXE_ged-io");
     Command::new(exe)
         .args(args)
         .output()
-        .expect("run ged_io binary")
+        .expect("run ged-io binary")
 }
 
 #[test]

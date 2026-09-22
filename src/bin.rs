@@ -49,15 +49,15 @@ impl std::str::FromStr for ValidationLevel {
 
 fn print_help() {
     println!(
-        "ged_io - GEDCOM inspection tool\n\
+        "ged-io - GEDCOM inspection tool\n\
 \n\
 USAGE:\n\
-  ged_io <file.ged>\n\
-  ged_io --individual <XREF> <file.ged>\n\
-  ged_io --individual-lastname <LASTNAME> <file.ged>\n\
-  ged_io --individual-firstname <FIRSTNAME> <file.ged>\n\
-  ged_io --validate <file.ged>\n\
-  ged_io --validate --validation-level strict <file.ged>\n\
+  ged-io <file.ged>\n\
+  ged-io --individual <XREF> <file.ged>\n\
+  ged-io --individual-lastname <LASTNAME> <file.ged>\n\
+  ged-io --individual-firstname <FIRSTNAME> <file.ged>\n\
+  ged-io --validate <file.ged>\n\
+  ged-io --validate --validation-level strict <file.ged>\n\
 \n\
 OPTIONS:\n\
   -h, --help                        Print this help\n\
@@ -125,7 +125,7 @@ fn parse_args(argv: &[String]) -> Result<CliArgs, CliError> {
                         "Found more args than expected: {:?}\n\
 \
 Hint: this tool expects exactly one .ged file path (quote it if it contains spaces), for example:\n\
-  ged_io --individual-lastname \"/path/with spaces/family.ged\"",
+  ged-io --individual-lastname \"/path/with spaces/family.ged\"",
                         &argv[1..]
                     )));
                 }

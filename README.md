@@ -617,14 +617,14 @@ A CLI tool is included for quick GEDCOM inspection:
 cargo install ged_io
 
 # Help
-ged_io --help
-ged_io - GEDCOM inspection tool
+ged-io --help
+ged-io - GEDCOM inspection tool
 
 USAGE:
-ged_io <file.ged>
-ged_io --individual <XREF> <file.ged>
-ged_io --individual-lastname <LASTNAME> <file.ged>
-ged_io --individual-firstname <FIRSTNAME> <file.ged>
+ged-io <file.ged>
+ged-io --individual <XREF> <file.ged>
+ged-io --individual-lastname <LASTNAME> <file.ged>
+ged-io --individual-firstname <FIRSTNAME> <file.ged>
 
 OPTIONS:
 -h, --help                        Print this help
@@ -640,7 +640,7 @@ individuals matching BOTH filters are listed.
 Example with one file:
 ```bash
 # Analyze a file
-ged_io family.ged
+ged-io family.ged
 ```
 
 Output (example `tests/fixtures/sample.ged`):
