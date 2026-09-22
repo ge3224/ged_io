@@ -7,7 +7,7 @@ use crate::{
     tokenizer::{Token, Tokenizer},
     types::{
         address::Address, age::Age, date::Date, individual::attribute::IndividualAttribute,
-        list::ListEnum, note::Note, place::Place, restriction::Restriction,
+        list::ListEnum, multimedia::link::Link, note::Note, place::Place, restriction::Restriction,
         source::citation::Citation,
     },
     GedcomError,
@@ -59,6 +59,8 @@ pub struct AttributeDetail {
     pub cause: Option<String>,
     /// Responsible agency (tag: AGNC).
     pub agency: Option<String>,
+    /// Multimedia attached to this attribute (tag: OBJE).
+    pub multimedia_links: Arena<Link>,
 }
 
 impl AttributeDetail {
@@ -85,6 +87,7 @@ impl AttributeDetail {
             address: None,
             cause: None,
             agency: None,
+            multimedia_links: Arena::default(),
         };
         attribute.parse(tokenizer, level)?;
         Ok(attribute)
@@ -121,6 +124,10 @@ impl AttributeDetail {
     pub fn add_source_citation(&mut self, sour: Citation) {
         self.sources.insert(sour);
     }
+
+    pub fn add_multimedia_record(&mut self, m: Link) {
+        self.multimedia_links.insert(m);
+    }
 }
 
 impl Parser for AttributeDetail {
@@ -146,6 +153,7 @@ impl Parser for AttributeDetail {
                 "ADDR" => self.address = Some(Address::new(tokenizer, level + 1)?),
                 "CAUS" => self.cause = Some(tokenizer.take_continued_text(level + 1)?),
                 "AGNC" => self.agency = Some(tokenizer.take_line_value()?),
+                "OBJE" => self.add_multimedia_record(Link::new(tokenizer, level + 1)?),
                 _ => {
                     // Gracefully skip unknown tags instead of failing
                     tokenizer.take_line_value()?;
