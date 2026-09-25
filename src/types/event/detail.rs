@@ -17,7 +17,7 @@ use crate::{
         note::Note,
         place::Place,
         restriction::Restriction,
-        source::citation::Citation,
+        source::citation::{Citation, CitationSource},
     },
     GedcomError,
 };
@@ -147,6 +147,21 @@ impl Detail {
 
     pub fn add_multimedia_record(&mut self, m: Link) {
         self.multimedia_links.insert(m);
+    }
+
+    pub(crate) fn remove_citation_to(&mut self, xref: &str) -> usize {
+        let before = self.citations.len();
+
+        self.citations
+            .retain(|c| !matches!(&c.target, CitationSource::Record(x) if x == xref));
+
+        let mut removed = before - self.citations.len();
+
+        if let Some(p) = &mut self.place {
+            removed += p.remove_citation_to(xref);
+        }
+
+        removed
     }
 }
 

@@ -15,7 +15,11 @@ use crate::{
     arena::Arena,
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
-    types::{date::Date, note::Note, source::citation::Citation},
+    types::{
+        date::Date,
+        note::Note,
+        source::citation::{Citation, CitationSource},
+    },
     GedcomError,
 };
 
@@ -359,6 +363,15 @@ impl NonEvent {
             "RESI" => "Residence",
             _ => &self.event_type,
         }
+    }
+
+    pub(crate) fn remove_citation_to(&mut self, xref: &str) -> usize {
+        let before = self.source_citations.len();
+
+        self.source_citations
+            .retain(|c| !matches!(&c.target, CitationSource::Record(x) if x == xref));
+
+        before - self.source_citations.len()
     }
 }
 

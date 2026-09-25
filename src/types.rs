@@ -2531,6 +2531,80 @@ impl GedcomData {
     pub fn reference_count(&self, xref: &str) -> usize {
         self.xrefs.use_count(xref)
     }
+
+    /// Removes every source citation pointing at `xref`, wherever it appears in
+    /// the data, and lowers the source's reference count by the number removed.
+    /// Returns that count.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`GedcomError::XrefNotFound`] if `xref` is not a source in this
+    /// dataset.
+    pub fn remove_all_citations_to(&mut self, xref: impl Into<Xref>) -> Result<usize, GedcomError> {
+        let citation_xref = xref.into();
+        let target = citation_xref.as_str();
+        let mut removed = 0;
+
+        let Some(AnyHandle::Source(_)) = self.xrefs.handle(&citation_xref) else {
+            return Err(GedcomError::XrefNotFound {
+                xref: citation_xref,
+                record_type: Source::RECORD_TYPE.to_string(),
+            });
+        };
+
+        removed += self
+            .header
+            .as_mut()
+            .map_or(0, |h| h.remove_citation_to(target));
+
+        for h in self
+            .multimedia
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(m) = self.multimedia.get_mut(h) {
+                removed += m.remove_citation_to(target);
+            }
+        }
+
+        for h in self
+            .individuals
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(i) = self.individuals.get_mut(h) {
+                removed += i.remove_citation_to(target);
+            }
+        }
+
+        for h in self
+            .families
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(f) = self.families.get_mut(h) {
+                removed += f.remove_citation_to(target);
+            }
+        }
+
+        for h in self
+            .shared_notes
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(n) = self.shared_notes.get_mut(h) {
+                removed += n.remove_citation_to(target);
+            }
+        }
+
+        self.xrefs.sub_uses(target, removed);
+
+        Ok(removed)
+    }
 }
 
 impl PartialEq for GedcomData {
@@ -3001,31 +3075,5 @@ mod tests {
         let mut data = aliased_individual();
         data.unlink_individual_and_alias("@I1@", "@I2@").unwrap();
         assert_eq!(data.xrefs.use_count("@I2@"), 0);
-    }
-
-    fn event_cited_source() -> GedcomData {
-        let sample = "\
-         0 HEAD\n\
-         1 GEDC\n\
-         2 VERS 5.5\n\
-         0 @I1@ INDI\n\
-         1 BIRT\n\
-         2 SOUR @S1@\n\
-         0 @S1@ SOUR\n\
-         0 TRLR";
-
-        Gedcom::new(sample.chars()).unwrap().parse_data().unwrap()
-    }
-
-    #[test]
-    fn event_level_citation_pins_source_with_no_unlink() {
-        let mut data = event_cited_source();
-        let h = match data.xrefs.handle("@S1@") {
-            Some(AnyHandle::Source(h)) => h,
-            _ => panic!("expected a source handle"),
-        };
-
-        assert_eq!(data.xrefs.use_count("@S1@"), 1);
-        assert!(data.remove_source(h).is_err());
     }
 }

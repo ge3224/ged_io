@@ -15,8 +15,11 @@ use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{
-        custom::UserDefinedTag, external_id::ExternalId, list::ListText, note::Note,
-        source::citation::Citation,
+        custom::UserDefinedTag,
+        external_id::ExternalId,
+        list::ListText,
+        note::Note,
+        source::citation::{Citation, CitationSource},
     },
     GedcomError,
 };
@@ -73,6 +76,15 @@ pub struct Place {
 
     /// Custom data (extension tags).
     pub user_defined_tags: Arena<UserDefinedTag>,
+}
+
+impl Place {
+    pub(crate) fn remove_citation_to(&mut self, xref: &str) -> usize {
+        let before = self.citations.len();
+        self.citations
+            .retain(|c| !matches!(&c.target, CitationSource::Record(x) if x == xref));
+        before - self.citations.len()
+    }
 }
 
 /// Geographic coordinates for a place.

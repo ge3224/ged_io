@@ -5,7 +5,10 @@ use crate::{
     arena::Arena,
     parser::{parse_subset, Parser},
     tokenizer::{Token, Tokenizer},
-    types::{custom::UserDefinedTag, source::citation::Citation},
+    types::{
+        custom::UserDefinedTag,
+        source::citation::{Citation, CitationSource},
+    },
     GedcomError,
 };
 
@@ -72,6 +75,15 @@ impl Gender {
     #[must_use]
     pub fn is_male(&self) -> bool {
         matches!(self.value, GenderType::Male)
+    }
+
+    pub(crate) fn remove_citation_to(&mut self, xref: &str) -> usize {
+        let before = self.sources.len();
+
+        self.sources
+            .retain(|c| !matches!(&c.target, CitationSource::Record(x) if x == xref));
+
+        before - self.sources.len()
     }
 }
 

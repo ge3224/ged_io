@@ -20,8 +20,11 @@ use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{
-        custom::UserDefinedTag, date::change_date::ChangeDate, external_id::ExternalId,
-        source::citation::Citation, Xref,
+        custom::UserDefinedTag,
+        date::change_date::ChangeDate,
+        external_id::ExternalId,
+        source::citation::{Citation, CitationSource},
+        Xref,
     },
     GedcomError,
 };
@@ -88,45 +91,6 @@ pub struct SharedNote {
 
     /// Custom data (extension tags).
     pub user_defined_tags: Arena<UserDefinedTag>,
-}
-
-/// A translation of a note into a different language or media type.
-///
-/// Each translation must have either a `MIME` or `LANG` substructure or both.
-/// If either is missing, it is assumed to have the same value as the superstructure.
-///
-/// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#NOTE-TRAN>
-#[derive(Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize))]
-pub struct NoteTranslation {
-    /// The translated text.
-    pub text: String,
-
-    /// The media type of the translation (e.g., `text/plain`, `text/html`).
-    pub mime: Option<String>,
-
-    /// The language of the translation (BCP 47 tag).
-    pub language: Option<String>,
-}
-
-impl NoteTranslation {
-    /// Creates a new note translation.
-    #[must_use]
-    pub fn new(text: &str, mime: Option<&str>, language: Option<&str>) -> Self {
-        NoteTranslation {
-            text: text.to_string(),
-            mime: mime.map(String::from),
-            language: language.map(String::from),
-        }
-    }
-
-    /// Returns true if this translation has valid distinguishing attributes.
-    ///
-    /// Per the spec, each translation must have either MIME or LANG or both.
-    #[must_use]
-    pub fn is_valid(&self) -> bool {
-        self.mime.is_some() || self.language.is_some()
-    }
 }
 
 impl SharedNote {
@@ -227,6 +191,54 @@ impl SharedNote {
         result = result.replace("&amp;", "&");
 
         result.trim().to_string()
+    }
+
+    pub(crate) fn remove_citation_to(&mut self, xref: &str) -> usize {
+        let before = self.source_citations.len();
+
+        self.source_citations
+            .retain(|c| !matches!(&c.target, CitationSource::Record(x) if x == xref));
+
+        before - self.source_citations.len()
+    }
+}
+
+/// A translation of a note into a different language or media type.
+///
+/// Each translation must have either a `MIME` or `LANG` substructure or both.
+/// If either is missing, it is assumed to have the same value as the superstructure.
+///
+/// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#NOTE-TRAN>
+#[derive(Debug, Default, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize))]
+pub struct NoteTranslation {
+    /// The translated text.
+    pub text: String,
+
+    /// The media type of the translation (e.g., `text/plain`, `text/html`).
+    pub mime: Option<String>,
+
+    /// The language of the translation (BCP 47 tag).
+    pub language: Option<String>,
+}
+
+impl NoteTranslation {
+    /// Creates a new note translation.
+    #[must_use]
+    pub fn new(text: &str, mime: Option<&str>, language: Option<&str>) -> Self {
+        NoteTranslation {
+            text: text.to_string(),
+            mime: mime.map(String::from),
+            language: language.map(String::from),
+        }
+    }
+
+    /// Returns true if this translation has valid distinguishing attributes.
+    ///
+    /// Per the spec, each translation must have either MIME or LANG or both.
+    #[must_use]
+    pub fn is_valid(&self) -> bool {
+        self.mime.is_some() || self.language.is_some()
     }
 }
 

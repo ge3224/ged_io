@@ -187,6 +187,12 @@ impl Header {
     pub fn find_extension_uri(&self, tag: &str) -> Option<&str> {
         self.schema.as_ref()?.find_uri(tag)
     }
+
+    pub(crate) fn remove_citation_to(&mut self, xref: &str) -> usize {
+        self.encoding
+            .as_mut()
+            .map_or(0, |e| e.remove_citation_to(xref))
+    }
 }
 
 impl Parser for Header {

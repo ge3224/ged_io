@@ -82,6 +82,14 @@ impl Xrefs {
             })
             .use_count += uses;
     }
+
+    pub(crate) fn sub_uses(&mut self, xref: &str, uses: usize) {
+        let Some(node) = self.map.get_mut(xref) else {
+            unreachable!("xref map and arena out of sync")
+        };
+
+        node.use_count = node.use_count.saturating_sub(uses);
+    }
 }
 
 #[derive(Debug)]

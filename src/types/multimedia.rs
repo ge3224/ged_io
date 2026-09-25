@@ -10,7 +10,7 @@ use crate::{
         date::change_date::ChangeDate,
         multimedia::{file::Reference, format::Format, user::UserReferenceNumber},
         note::Note,
-        source::citation::Citation,
+        source::citation::{Citation, CitationSource},
         Xref,
     },
     GedcomError,
@@ -78,6 +78,19 @@ impl Multimedia {
     #[must_use]
     pub fn source_citation(&self) -> Option<&Citation> {
         self.source_citation.as_ref()
+    }
+
+    pub(crate) fn remove_citation_to(&mut self, xref: &str) -> usize {
+        let hit = self
+            .source_citation
+            .as_ref()
+            .is_some_and(|c| matches!(&c.target, CitationSource::Record(x) if x == xref));
+        if hit {
+            self.source_citation = None;
+            1
+        } else {
+            0
+        }
     }
 }
 

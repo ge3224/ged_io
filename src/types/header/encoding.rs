@@ -1,7 +1,7 @@
 use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
-    types::source::citation::Citation,
+    types::source::citation::{Citation, CitationSource},
     GedcomError,
 };
 #[cfg(feature = "json")]
@@ -30,6 +30,20 @@ impl Encoding {
         let mut chars = Encoding::default();
         chars.parse(tokenizer, level)?;
         Ok(chars)
+    }
+
+    pub(crate) fn remove_citation_to(&mut self, xref: &str) -> usize {
+        let hit = self
+            .source
+            .as_ref()
+            .is_some_and(|c| matches!(&c.target, CitationSource::Record(x) if x == xref));
+
+        if hit {
+            self.source = None;
+            1
+        } else {
+            0
+        }
     }
 }
 

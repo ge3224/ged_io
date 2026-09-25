@@ -6,9 +6,16 @@ use crate::{
     parser::{parse_subset, Parser},
     tokenizer::{Token, Tokenizer},
     types::{
-        address::Address, age::Age, date::Date, individual::attribute::IndividualAttribute,
-        list::ListEnum, multimedia::link::Link, note::Note, place::Place, restriction::Restriction,
-        source::citation::Citation,
+        address::Address,
+        age::Age,
+        date::Date,
+        individual::attribute::IndividualAttribute,
+        list::ListEnum,
+        multimedia::link::Link,
+        note::Note,
+        place::Place,
+        restriction::Restriction,
+        source::citation::{Citation, CitationSource},
     },
     GedcomError,
 };
@@ -127,6 +134,21 @@ impl AttributeDetail {
 
     pub fn add_multimedia_record(&mut self, m: Link) {
         self.multimedia_links.insert(m);
+    }
+
+    pub(crate) fn remove_citation_to(&mut self, xref: &str) -> usize {
+        let before = self.sources.len();
+
+        self.sources
+            .retain(|c| !matches!(&c.target, CitationSource::Record(x) if x == xref));
+
+        let mut removed = before - self.sources.len();
+
+        if let Some(p) = &mut self.place {
+            removed += p.remove_citation_to(xref);
+        }
+
+        removed
     }
 }
 

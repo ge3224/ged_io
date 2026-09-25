@@ -13,7 +13,7 @@ use crate::{
         multimedia::link::Link,
         note::Note,
         restriction::Restriction,
-        source::citation::Citation,
+        source::citation::{Citation, CitationSource},
         Xref,
     },
     GedcomError,
@@ -193,6 +193,61 @@ impl Family {
     #[must_use]
     pub fn events(&self) -> &Arena<Detail> {
         &self.events
+    }
+
+    pub(crate) fn remove_citation_to(&mut self, xref: &str) -> usize {
+        let before = self.sources.len();
+
+        self.sources
+            .retain(|c| !matches!(&c.target, CitationSource::Record(x) if x == xref));
+
+        let mut removed = before - self.sources.len();
+
+        for h in self
+            .family_event
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(fe) = self.family_event.get_mut(h) {
+                removed += fe.remove_citation_to(xref);
+            }
+        }
+
+        for h in self
+            .events
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(e) = self.events.get_mut(h) {
+                removed += e.remove_citation_to(xref);
+            }
+        }
+
+        for h in self
+            .non_events
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(ne) = self.non_events.get_mut(h) {
+                removed += ne.remove_citation_to(xref);
+            }
+        }
+
+        for h in self
+            .lds_ordinances
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(o) = self.lds_ordinances.get_mut(h) {
+                removed += o.remove_citation_to(xref);
+            }
+        }
+
+        removed
     }
 }
 

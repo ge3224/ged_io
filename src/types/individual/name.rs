@@ -5,7 +5,11 @@ use crate::{
     arena::{Arena, Handle},
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
-    types::{custom::UserDefinedTag, note::Note, source::citation::Citation},
+    types::{
+        custom::UserDefinedTag,
+        note::Note,
+        source::citation::{Citation, CitationSource},
+    },
     GedcomError,
 };
 
@@ -300,6 +304,13 @@ impl Name {
         if !surname.is_empty() {
             self.surname = Some(surname.to_string());
         }
+    }
+
+    pub(crate) fn remove_citation_to(&mut self, xref: &str) -> usize {
+        let before = self.sources.len();
+        self.sources
+            .retain(|c| !matches!(&c.target, CitationSource::Record(x) if x == xref));
+        before - self.sources.len()
     }
 }
 
