@@ -18,7 +18,8 @@ pub struct SourceCitationData {
     /// Extension (user-defined) tags found under this structure.
     pub custom_data: Vec<Box<UserDefinedTag>>,
     pub date: Option<Date>,
-    pub text: Option<Text>,
+    /// Text from the source (tag: TEXT). GEDCOM allows any number.
+    pub texts: Vec<Text>,
 }
 
 impl SourceCitationData {
@@ -34,7 +35,7 @@ impl SourceCitationData {
         let mut data = SourceCitationData {
             custom_data: Vec::new(),
             date: None,
-            text: None,
+            texts: Vec::new(),
         };
         data.parse(tokenizer, level)?;
         Ok(data)
@@ -48,7 +49,7 @@ impl Parser for SourceCitationData {
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             match tag {
                 "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
-                "TEXT" => self.text = Some(Text::new(tokenizer, level + 1)?),
+                "TEXT" => self.texts.push(Text::new(tokenizer, level + 1)?),
                 _ => {
                     // Gracefully skip unknown tags
                     tokenizer.take_line_value()?;

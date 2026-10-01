@@ -563,13 +563,7 @@ mod tests {
             "31 DEC 1900"
         );
         assert_eq!(
-            a_sour
-                .data
-                .as_ref()
-                .unwrap()
-                .text
-                .as_ref()
-                .unwrap()
+            a_sour.data.as_ref().unwrap().texts[0]
                 .value
                 .as_ref()
                 .unwrap(),
@@ -580,7 +574,7 @@ mod tests {
             "Direct"
         );
         assert_eq!(
-            a_sour.note.as_ref().unwrap().value.as_ref().unwrap(),
+            a_sour.notes[0].value.as_ref().unwrap(),
             "A note\nNote continued here. The word TEST should not be broken!"
         );
     }
