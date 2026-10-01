@@ -188,6 +188,10 @@ impl GedcomWriter {
         // Write header
         self.write_header(writer, data)?;
 
+        // Every record line needs an xref of its own.
+        let filled = with_missing_xrefs(data);
+        let data = filled.as_ref().unwrap_or(data);
+
         // Write submitters
         for submitter in &data.submitters {
             self.write_submitter(writer, submitter)?;
@@ -2321,6 +2325,81 @@ impl crate::types::individual::family_link::FamilyLinkType {
             FamilyLinkType::Spouse => "FAMS",
         }
     }
+}
+
+/// A copy of `data` in which every record without an xref has one of its own,
+/// or `None` when no record lacks one.
+///
+/// A record line needs an xref, and nothing can point at a record that has
+/// none, so any xref not already used will do: `@I1@`, `@F1@`, … numbered past
+/// the ones in use.
+fn with_missing_xrefs(data: &GedcomData) -> Option<GedcomData> {
+    let missing = data.individuals.iter().any(|r| r.xref.is_none())
+        || data.families.iter().any(|r| r.xref.is_none())
+        || data.sources.iter().any(|r| r.xref.is_none())
+        || data.repositories.iter().any(|r| r.xref.is_none())
+        || data.submitters.iter().any(|r| r.xref.is_none())
+        || data.submissions.iter().any(|r| r.xref.is_none())
+        || data.multimedia.iter().any(|r| r.xref.is_none())
+        || data.shared_notes.iter().any(|r| r.xref.is_none());
+    if !missing {
+        return None;
+    }
+
+    let mut data = data.clone();
+    let mut used: std::collections::HashSet<String> = data
+        .individuals
+        .iter()
+        .map(|r| &r.xref)
+        .chain(data.families.iter().map(|r| &r.xref))
+        .chain(data.sources.iter().map(|r| &r.xref))
+        .chain(data.repositories.iter().map(|r| &r.xref))
+        .chain(data.submitters.iter().map(|r| &r.xref))
+        .chain(data.submissions.iter().map(|r| &r.xref))
+        .chain(data.multimedia.iter().map(|r| &r.xref))
+        .chain(data.shared_notes.iter().map(|r| &r.xref))
+        .flatten()
+        .cloned()
+        .collect();
+    let mut next = std::collections::HashMap::<&str, usize>::new();
+    let mut fill = |xref: &mut Option<String>, prefix: &'static str| {
+        if xref.is_some() {
+            return;
+        }
+        let n = next.entry(prefix).or_insert(0);
+        loop {
+            *n += 1;
+            let candidate = format!("@{prefix}{n}@");
+            if used.insert(candidate.clone()) {
+                *xref = Some(candidate);
+                return;
+            }
+        }
+    };
+
+    data.individuals
+        .iter_mut()
+        .for_each(|r| fill(&mut r.xref, "I"));
+    data.families
+        .iter_mut()
+        .for_each(|r| fill(&mut r.xref, "F"));
+    data.sources.iter_mut().for_each(|r| fill(&mut r.xref, "S"));
+    data.repositories
+        .iter_mut()
+        .for_each(|r| fill(&mut r.xref, "R"));
+    data.submitters
+        .iter_mut()
+        .for_each(|r| fill(&mut r.xref, "U"));
+    data.submissions
+        .iter_mut()
+        .for_each(|r| fill(&mut r.xref, "SUBN"));
+    data.multimedia
+        .iter_mut()
+        .for_each(|r| fill(&mut r.xref, "M"));
+    data.shared_notes
+        .iter_mut()
+        .for_each(|r| fill(&mut r.xref, "N"));
+    Some(data)
 }
 
 #[cfg(test)]
