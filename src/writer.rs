@@ -1396,11 +1396,14 @@ impl GedcomWriter {
         writer: &mut W,
         note: &SharedNote,
     ) -> Result<(), io::Error> {
-        if self.config.gedcom_version.starts_with('5') {
-            self.write_line_with_xref(writer, 0, note.xref.as_deref(), "NOTE", Some(&note.text))?;
+        // The text spans as many CONT/CONC lines as it needs, like any other
+        // long text; written raw, its newlines would start bogus lines.
+        let tag = if self.config.gedcom_version.starts_with('5') {
+            "NOTE"
         } else {
-            self.write_line_with_xref(writer, 0, note.xref.as_deref(), "SNOTE", Some(&note.text))?;
-        }
+            "SNOTE"
+        };
+        self.write_long_text_with_xref(writer, 0, note.xref.as_deref(), tag, &note.text)?;
 
         if let Some(ref mime) = note.mime {
             self.write_value_or_wrap(writer, 1, "MIME", Some(mime))?;
@@ -1701,6 +1704,23 @@ impl GedcomWriter {
         tag: &str,
         text: &str,
     ) -> Result<(), io::Error> {
+        self.write_long_text_with_xref(writer, level, None, tag, text)
+    }
+
+    /// Writes long text with CONC/CONT continuation lines, the first line
+    /// carrying `xref` when there is one (a record such as `0 @N1@ NOTE`).
+    fn write_long_text_with_xref<W: Write>(
+        &self,
+        writer: &mut W,
+        level: u8,
+        xref: Option<&str>,
+        tag: &str,
+        text: &str,
+    ) -> Result<(), io::Error> {
+        let write_first = |writer: &mut W, value: &str| match xref {
+            Some(_) => self.write_line_with_xref(writer, level, xref, tag, Some(value)),
+            None => self.write_line(writer, level, tag, Some(value)),
+        };
         for (i, line) in text.split('\n').enumerate() {
             // Empty continuation lines must still be represented explicitly with `CONT` + an empty value.
             // `CONT` means “new line”, so dropping them would merge lines.
@@ -1708,12 +1728,12 @@ impl GedcomWriter {
             if i == 0 {
                 // First line uses the main tag
                 if line.len() <= self.config.max_line_length {
-                    self.write_line(writer, level, tag, Some(line))?;
+                    write_first(writer, line)?;
                 } else {
                     // Need to split with CONC
                     let split_at = conc_split_point(line, self.config.max_line_length);
                     let first_part = &line[..split_at];
-                    self.write_line(writer, level, tag, Some(first_part))?;
+                    write_first(writer, first_part)?;
 
                     let mut remaining = &line[split_at..];
                     while !remaining.is_empty() {
