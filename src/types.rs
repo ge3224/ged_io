@@ -33,8 +33,8 @@ use crate::{
     tokenizer::{Token, Tokenizer},
     types::{
         custom::UserDefinedTag, family::Family, header::Header, individual::Individual,
-        multimedia::Multimedia, repository::Repository, shared_note::SharedNote, source::Source,
-        submission::Submission, submitter::Submitter,
+        multimedia::Multimedia, note::Note, repository::Repository, shared_note::SharedNote,
+        source::Source, submission::Submission, submitter::Submitter,
     },
     GedcomError,
 };
@@ -380,12 +380,36 @@ impl GedcomData {
 
     /// Finds a shared note by their cross-reference ID (xref).
     ///
-    /// This is only relevant for GEDCOM 7.0 files.
+    /// Shared notes are the `SNOTE` records of GEDCOM 7.0 and the `NOTE`
+    /// records of GEDCOM 5.5.1.
     #[must_use]
     pub fn find_shared_note(&self, xref: &str) -> Option<&SharedNote> {
         self.shared_notes
             .iter()
             .find(|n| n.xref.as_ref().is_some_and(|x| x == xref))
+    }
+
+    /// The text of a note structure: its own text, or the text of the shared
+    /// note record it points to (`NOTE @N1@` in GEDCOM 5.5.1, `SNOTE @N1@` in
+    /// GEDCOM 7.0). `None` when the pointed-to record does not exist.
+    ///
+    /// # Example
+    ///
+    /// ```rust
+    /// use ged_io::GedcomBuilder;
+    ///
+    /// let source = "0 HEAD\n1 GEDC\n2 VERS 7.0\n0 @F1@ FAM\n1 SNOTE @N1@\n0 @N1@ SNOTE Shared text\n0 TRLR";
+    /// let data = GedcomBuilder::new().build_from_str(source).unwrap();
+    /// let note = &data.families[0].notes[0];
+    /// assert_eq!(note.shared_note_xref(), Some("@N1@"));
+    /// assert_eq!(data.resolve_note(note), Some("Shared text"));
+    /// ```
+    #[must_use]
+    pub fn resolve_note<'a>(&'a self, note: &'a Note) -> Option<&'a str> {
+        match note.shared_note_xref() {
+            Some(xref) => self.find_shared_note(xref).map(|n| n.text.as_str()),
+            None => note.value.as_deref(),
+        }
     }
 
     /// Gets the families where an individual is a spouse/partner.
