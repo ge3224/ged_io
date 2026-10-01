@@ -157,6 +157,8 @@ pub struct Tokenizer<'a> {
     chars: Chars<'a>,
     /// The current line number of the file we are parsing
     pub line: u32,
+    /// The level number of the line being tokenized
+    line_level: u8,
 }
 
 impl<'a> Tokenizer<'a> {
@@ -168,6 +170,7 @@ impl<'a> Tokenizer<'a> {
             current_token: Token::None,
             chars,
             line: 0,
+            line_level: 0,
         }
     }
 
@@ -219,7 +222,8 @@ impl<'a> Tokenizer<'a> {
                 }
             }
 
-            self.current_token = Token::Level(self.extract_number()?);
+            self.line_level = self.extract_number()?;
+            self.current_token = Token::Level(self.line_level);
             self.line += 1;
             return Ok(());
         }
@@ -388,21 +392,70 @@ impl<'a> Tokenizer<'a> {
     /// # Errors
     ///
     /// Returns a `GedcomError` if an unexpected line value is encountered.
+    ///
+    /// A value continued on `CONC`/`CONT` lines directly below it is returned
+    /// whole, whatever the tag: a writer splits any long value that way, so a
+    /// reader that took only the first line of it would truncate the value.
     pub fn take_line_value(&mut self) -> Result<String, GedcomError> {
+        let tag_level = self.line_level;
         self.next_token()?;
 
-        match &self.current_token {
+        let mut value = match &self.current_token {
             Token::LineValue(val) => {
                 let value = val.to_string();
                 self.next_token()?;
-                Ok(value)
+                value
             }
             // gracefully handle an attempt to take a value from a valueless line
-            Token::Level(_) => Ok(String::new()),
-            _ => Err(GedcomError::ParseError {
-                line: self.line,
-                message: format!("Expected LineValue, found {:?}", self.current_token),
-            }),
+            Token::Level(_) => String::new(),
+            _ => {
+                return Err(GedcomError::ParseError {
+                    line: self.line,
+                    message: format!("Expected LineValue, found {:?}", self.current_token),
+                })
+            }
+        };
+
+        while let Some(is_cont) = self.continuation_ahead(tag_level) {
+            self.next_token()?;
+            if is_cont {
+                value.push('\n');
+            }
+            value.push_str(&self.take_line_value()?);
+        }
+        Ok(value)
+    }
+
+    /// When the tokenizer sits on the level of a `CONC` or `CONT` line
+    /// directly below a line at `tag_level`, whether it is a `CONT`. Looks
+    /// ahead without consuming anything, so the tokenizer stays on the level
+    /// token otherwise.
+    fn continuation_ahead(&self, tag_level: u8) -> Option<bool> {
+        let Token::Level(level) = self.current_token else {
+            return None;
+        };
+        if Some(level) != tag_level.checked_add(1) {
+            return None;
+        }
+        let mut ahead = self.chars.clone();
+        let mut c = self.current_char;
+        while c == ' ' || c == '\t' {
+            c = ahead.next().unwrap_or('\0');
+        }
+        let mut word = [' '; 5];
+        let mut len = 0;
+        while !c.is_whitespace() && c != '\0' {
+            if len == word.len() {
+                return None;
+            }
+            word[len] = c;
+            len += 1;
+            c = ahead.next().unwrap_or('\0');
+        }
+        match word[..len] {
+            ['C', 'O', 'N', 'C'] => Some(false),
+            ['C', 'O', 'N', 'T'] => Some(true),
+            _ => None,
         }
     }
 
