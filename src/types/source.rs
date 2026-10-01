@@ -235,7 +235,7 @@ mod tests {
         let citation_data = data.individuals[0].source[0].data.as_ref().unwrap();
 
         assert_eq!(
-            citation_data.text.as_ref().unwrap().value.as_ref().unwrap(),
+            citation_data.texts[0].value.as_ref().unwrap(),
             "a sample text\nSample text continued here. The word TEST should not be broken!"
         );
     }

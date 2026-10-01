@@ -16,7 +16,8 @@ use crate::{
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct SourceCitationData {
     pub date: Option<Date>,
-    pub text: Option<Text>,
+    /// Text from the source (tag: TEXT). GEDCOM allows any number.
+    pub texts: Vec<Text>,
 }
 
 impl SourceCitationData {
@@ -31,7 +32,7 @@ impl SourceCitationData {
     ) -> Result<SourceCitationData, GedcomError> {
         let mut data = SourceCitationData {
             date: None,
-            text: None,
+            texts: Vec::new(),
         };
         data.parse(tokenizer, level)?;
         Ok(data)
@@ -45,7 +46,7 @@ impl Parser for SourceCitationData {
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             match tag {
                 "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
-                "TEXT" => self.text = Some(Text::new(tokenizer, level + 1)?),
+                "TEXT" => self.texts.push(Text::new(tokenizer, level + 1)?),
                 _ => {
                     // Gracefully skip unknown tags
                     tokenizer.take_line_value()?;

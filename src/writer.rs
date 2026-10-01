@@ -1067,10 +1067,18 @@ impl GedcomWriter {
         level: u8,
         citation: &Citation,
     ) -> Result<(), io::Error> {
-        self.write_line(writer, level, "SOUR", Some(citation.source.value()))?;
+        // A free-text description may span several lines.
+        self.write_value_or_wrap(writer, level, "SOUR", Some(citation.source.value()))?;
 
         if let Some(ref page) = citation.page {
             self.write_value_or_wrap(writer, level + 1, "PAGE", Some(page))?;
+        }
+
+        if let Some(ref event_type) = citation.event_type {
+            self.write_value_or_wrap(writer, level + 1, "EVEN", Some(event_type))?;
+            if let Some(ref role) = citation.role {
+                self.write_value_or_wrap(writer, level + 2, "ROLE", Some(role))?;
+            }
         }
 
         if let Some(ref data) = citation.data {
@@ -1078,11 +1086,25 @@ impl GedcomWriter {
             if let Some(ref date) = data.date {
                 self.write_date(writer, level + 2, date)?;
             }
-            if let Some(ref text) = data.text {
+            for text in &data.texts {
                 if let Some(ref text_value) = text.value {
                     self.write_long_text(writer, level + 2, "TEXT", text_value)?;
                 }
             }
+        }
+
+        for text in &citation.texts {
+            if let Some(ref text_value) = text.value {
+                self.write_long_text(writer, level + 1, "TEXT", text_value)?;
+            }
+        }
+
+        for media in &citation.multimedia {
+            self.write_multimedia_link(writer, level + 1, media)?;
+        }
+
+        if let Some(ref rfn) = citation.submitter_registered_rfn {
+            self.write_value_or_wrap(writer, level + 1, "RFN", Some(rfn))?;
         }
 
         if let Some(ref certainty) = citation.certainty_assessment {
@@ -1091,7 +1113,7 @@ impl GedcomWriter {
             }
         }
 
-        if let Some(ref note) = citation.note {
+        for note in &citation.notes {
             self.write_note(writer, level + 1, note)?;
         }
 
