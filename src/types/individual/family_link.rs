@@ -47,7 +47,8 @@ pub struct FamilyLink {
     pub pedigree_linkage_type: Option<Pedigree>,
     pub child_linkage_status: Option<ChildLinkStatus>,
     pub adopted_by: Option<AdoptedByWhichParent>,
-    pub note: Option<Note>,
+    /// Notes (tag: NOTE). GEDCOM allows any number of them.
+    pub notes: Vec<Note>,
     pub custom_data: Vec<Box<UserDefinedTag>>,
 }
 
@@ -77,7 +78,7 @@ impl FamilyLink {
             pedigree_linkage_type: None,
             child_linkage_status: None,
             adopted_by: None,
-            note: None,
+            notes: Vec::new(),
             custom_data: Vec::new(),
         };
         family_link.parse(tokenizer, level)?;
@@ -172,7 +173,7 @@ impl Parser for FamilyLink {
                     tokenizer.take_line_value()?.as_str(),
                     tokenizer.line,
                 )?,
-                "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
+                "NOTE" => self.notes.push(Note::new(tokenizer, level + 1)?),
                 "ADOP" => self.set_adopted_by_which_parent(
                     tokenizer.take_line_value()?.as_str(),
                     tokenizer.line,

@@ -731,7 +731,7 @@ mod tests {
 
         assert_eq!(records.len(), 2);
         let indi = records[1].as_individual().unwrap();
-        assert!(indi.note.is_some());
+        assert!(!indi.notes.is_empty());
     }
 
     #[test]
