@@ -61,6 +61,74 @@ impl Calendar {
         }
     }
 
+    /// Returns the GEDCOM 7.0 calendar keyword for this calendar.
+    #[must_use]
+    pub fn gedcom7_keyword(&self) -> &'static str {
+        match self {
+            Calendar::Gregorian => "GREGORIAN",
+            Calendar::Julian => "JULIAN",
+            Calendar::Hebrew => "HEBREW",
+            Calendar::FrenchRepublican => "FRENCH_R",
+        }
+    }
+
+    /// Parse a GEDCOM 7.0 calendar keyword (`GREGORIAN`, `JULIAN`, `HEBREW`,
+    /// `FRENCH_R`).
+    #[must_use]
+    pub fn from_gedcom7_keyword(s: &str) -> Option<Calendar> {
+        match s.to_ascii_uppercase().as_str() {
+            "GREGORIAN" => Some(Calendar::Gregorian),
+            "JULIAN" => Some(Calendar::Julian),
+            "HEBREW" => Some(Calendar::Hebrew),
+            "FRENCH_R" => Some(Calendar::FrenchRepublican),
+            _ => None,
+        }
+    }
+
+    /// Splits a leading calendar marker off `s`: a GEDCOM 5.5.1 escape
+    /// (`@#DJULIAN@`) or a GEDCOM 7.0 keyword (`JULIAN`). Returns the calendar
+    /// and the rest, or `None` and `s` itself when there is no marker.
+    pub(crate) fn split_marker(s: &str) -> (Option<Calendar>, &str) {
+        let s = s.trim_start();
+        if s.starts_with("@#D") || s.starts_with("@#d") {
+            if let Some(end) = s[3..].find('@') {
+                let end = end + 4;
+                if let Some(calendar) = Calendar::from_gedcom_escape(&s[..end]) {
+                    return (Some(calendar), s[end..].trim_start());
+                }
+            }
+            return (None, s);
+        }
+        let (word, rest) = s.split_once(char::is_whitespace).unwrap_or((s, ""));
+        match Calendar::from_gedcom7_keyword(word) {
+            Some(calendar) => (Some(calendar), rest.trim_start()),
+            None => (None, s),
+        }
+    }
+
+    /// The calendar a GEDCOM date value is written in, wherever its marker
+    /// stands: first (`@#DJULIAN@ 1700`), after a qualifier or range keyword
+    /// as the 5.5.1 grammar has it (`ABT @#DJULIAN@ 1700`,
+    /// `BET @#DJULIAN@ 1700 AND …`), or as a 7.0 keyword (`JULIAN 1700`).
+    /// Gregorian when there is none.
+    #[must_use]
+    pub fn of_date_value(value: &str) -> Calendar {
+        let mut rest = value;
+        loop {
+            let (calendar, after) = Calendar::split_marker(rest);
+            if let Some(calendar) = calendar {
+                return calendar;
+            }
+            let after = after.trim_start();
+            let (word, tail) = after.split_once(char::is_whitespace).unwrap_or((after, ""));
+            if is_date_keyword(word) {
+                rest = tail;
+            } else {
+                return Calendar::Gregorian;
+            }
+        }
+    }
+
     /// Parse a GEDCOM calendar escape string.
     ///
     /// Returns `None` if the string is not a valid calendar escape.
@@ -148,6 +216,15 @@ impl From<CalendarConversionError> for GedcomError {
             message: err.to_string(),
         }
     }
+}
+
+/// Whether `word` is a keyword that may precede a date in a date value:
+/// a qualifier, a range or period keyword, or `INT`.
+pub(crate) fn is_date_keyword(word: &str) -> bool {
+    matches!(
+        word.to_ascii_uppercase().as_str(),
+        "ABT" | "CAL" | "EST" | "BEF" | "AFT" | "BET" | "AND" | "FROM" | "TO" | "INT"
+    )
 }
 
 /// A date qualifier that indicates approximate or uncertain dates.
@@ -373,34 +450,32 @@ impl ParsedDateTime {
         let mut result = ParsedDateTime::default();
         let mut remaining = date_str;
 
-        // Check for calendar escape at the beginning
-        if remaining.starts_with("@#D") || remaining.starts_with("@#d") {
-            if let Some(end_pos) = remaining.find("@ ") {
-                let escape = &remaining[..=end_pos];
-                if let Some(cal) = Calendar::from_gedcom_escape(escape) {
-                    result.calendar = cal;
-                    remaining = remaining[end_pos + 2..].trim();
-                }
-            } else if remaining.ends_with('@') {
-                // Calendar escape with no date following
-                if let Some(cal) = Calendar::from_gedcom_escape(remaining) {
-                    result.calendar = cal;
-                    return Ok(result);
-                }
-            }
+        // Calendar marker: a 5.5.1 escape or a 7.0 keyword, either first or,
+        // as the 5.5.1 grammar puts it, right after the qualifier.
+        let (calendar, rest) = Calendar::split_marker(remaining);
+        if let Some(calendar) = calendar {
+            result.calendar = calendar;
         }
+        remaining = rest;
 
         // Check for qualifier at the beginning
+        let (first_word, after_first) = remaining
+            .split_once(char::is_whitespace)
+            .unwrap_or((remaining, ""));
+        if let Some(qual) = DateQualifier::parse(first_word) {
+            result.qualifier = Some(qual);
+            let (calendar, rest) = Calendar::split_marker(after_first);
+            if let Some(calendar) = calendar {
+                result.calendar = calendar;
+            }
+            remaining = rest;
+        }
+
         let tokens: Vec<&str> = remaining.split_whitespace().collect();
         if tokens.is_empty() {
             return Ok(result);
         }
-
         let mut idx = 0;
-        if let Some(qual) = DateQualifier::parse(tokens[0]) {
-            result.qualifier = Some(qual);
-            idx = 1;
-        }
 
         // Check for range keywords (not supported for conversion)
         if idx < tokens.len() {
@@ -781,17 +856,18 @@ impl ParsedDateTime {
     pub fn to_gedcom_date(&self) -> String {
         let mut parts = Vec::new();
 
-        // Add calendar escape (skip for Gregorian as it's the default)
-        if self.calendar != Calendar::Gregorian {
-            parts.push(self.calendar.gedcom_escape().to_string());
-        }
-
-        // Add qualifier
+        // Qualifier, then calendar escape: in the 5.5.1 grammar the escape
+        // belongs to the date the qualifier applies to (`ABT @#DJULIAN@ 1700`).
         if let Some(qual) = &self.qualifier {
             let s = qual.as_str();
             if !s.is_empty() {
                 parts.push(s.to_string());
             }
+        }
+
+        // Calendar escape (skipped for Gregorian, the default)
+        if self.calendar != Calendar::Gregorian {
+            parts.push(self.calendar.gedcom_escape().to_string());
         }
 
         // Add date components

@@ -13,7 +13,12 @@ use crate::{
 use serde::{Deserialize, Serialize};
 
 #[cfg(feature = "calendar")]
+pub mod value;
+
+#[cfg(feature = "calendar")]
 pub use calendar::{Calendar, CalendarConversionError, DateQualifier, ParsedDateTime};
+#[cfg(feature = "calendar")]
+pub use value::DateValue;
 
 /// Date encompasses a number of date formats, e.g. approximated, period, phrase and range.
 ///
@@ -68,8 +73,11 @@ impl Date {
 
     /// Returns the calendar system used in this date, if one can be determined.
     ///
-    /// This parses the date value to extract the calendar escape sequence.
-    /// Returns `None` if no value is present.
+    /// The calendar is found wherever its marker stands: first
+    /// (`@#DJULIAN@ 1700`), after a qualifier or range keyword as the 5.5.1
+    /// grammar puts it (`ABT @#DJULIAN@ 1700`), or as a GEDCOM 7.0 keyword
+    /// (`JULIAN 1700`). Returns `None` if no value is present or the escape
+    /// names a calendar this crate does not know.
     ///
     /// # Example
     ///
@@ -90,20 +98,39 @@ impl Date {
     #[must_use]
     pub fn calendar(&self) -> Option<Calendar> {
         let value = self.value.as_ref()?;
-        if value.starts_with("@#D") {
-            if let Some(end) = value.find("@ ") {
-                let escape = &value[..=end];
-                return Calendar::from_gedcom_escape(escape);
-            } else if value.ends_with('@') {
-                return Calendar::from_gedcom_escape(value);
-            }
+        let calendar = Calendar::of_date_value(value);
+        let upper = value.to_ascii_uppercase();
+        if calendar == Calendar::Gregorian
+            && upper.contains("@#D")
+            && !upper.contains("@#DGREGORIAN@")
+        {
+            // An escape for a calendar not modelled here (e.g. `@#DROMAN@`).
+            return None;
         }
-        Some(Calendar::Gregorian)
+        Some(calendar)
+    }
+
+    /// Parses this date's value into its structure: a single date, a range,
+    /// a period, an interpreted date or a phrase, with a calendar per bound.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if there is no value or it cannot be parsed.
+    #[cfg(feature = "calendar")]
+    pub fn parse_value(&self) -> Result<DateValue, CalendarConversionError> {
+        let value = self
+            .value
+            .as_ref()
+            .ok_or(CalendarConversionError::ParseError {
+                message: "No date value".to_string(),
+            })?;
+        DateValue::parse(value)
     }
 
     /// Returns the date value without the calendar escape sequence.
     ///
-    /// This strips the `@#DCALENDAR@` prefix from the date value if present.
+    /// This strips every calendar marker from the date value: `@#DCALENDAR@`
+    /// escapes wherever they stand, and GEDCOM 7.0 calendar keywords.
     ///
     /// # Example
     ///
@@ -119,12 +146,7 @@ impl Date {
     #[must_use]
     pub fn value_without_calendar(&self) -> Option<String> {
         let value = self.value.as_ref()?;
-        if value.starts_with("@#D") {
-            if let Some(end) = value.find("@ ") {
-                return Some(value[end + 2..].to_string());
-            }
-        }
-        Some(value.clone())
+        Some(strip_calendar_markers(value))
     }
 
     /// Parse this date into a `ParsedDateTime` structure.
@@ -245,6 +267,43 @@ impl Date {
             phrase: self.phrase.clone(),
         })
     }
+}
+
+/// Removes calendar escapes (anywhere) and GEDCOM 7.0 calendar keywords from
+/// a date value, leaving a trailing `(phrase)` untouched. A value without any
+/// marker is returned unchanged.
+fn strip_calendar_markers(value: &str) -> String {
+    const KEYWORDS: [&str; 4] = ["GREGORIAN", "JULIAN", "HEBREW", "FRENCH_R"];
+    let (date, phrase) = value.split_at(value.find('(').unwrap_or(value.len()));
+    let is_keyword = |w: &str| KEYWORDS.contains(&w.to_ascii_uppercase().as_str());
+    if !date.to_ascii_uppercase().contains("@#D") && !date.split_whitespace().any(is_keyword) {
+        return value.to_string();
+    }
+
+    let mut out = String::with_capacity(date.len());
+    let mut rest = date;
+    while let Some(start) = rest.to_ascii_uppercase().find("@#D") {
+        out.push_str(&rest[..start]);
+        if let Some(end) = rest[start + 3..].find('@') {
+            rest = &rest[start + 3 + end + 1..];
+        } else {
+            out.push_str(&rest[start..]);
+            rest = "";
+        }
+    }
+    out.push_str(rest);
+    let mut stripped = out
+        .split_whitespace()
+        .filter(|w| !is_keyword(w))
+        .collect::<Vec<_>>()
+        .join(" ");
+    if !phrase.is_empty() {
+        if !stripped.is_empty() {
+            stripped.push(' ');
+        }
+        stripped.push_str(phrase);
+    }
+    stripped
 }
 
 impl Parser for Date {
@@ -388,6 +447,91 @@ mod tests {
                 "{name} calendar date should be preserved exactly"
             );
         }
+    }
+    #[cfg(feature = "calendar")]
+    #[test]
+    fn test_calendar_after_qualifier_and_gedcom_7_keyword() {
+        use crate::types::date::{Calendar, DateQualifier, ParsedDateTime};
+
+        let date = |value: &str| super::Date {
+            value: Some(value.to_string()),
+            time: None,
+            phrase: None,
+        };
+
+        // The 5.5.1 grammar puts the escape after the qualifier.
+        assert_eq!(
+            date("ABT @#DJULIAN@ 1700").calendar(),
+            Some(Calendar::Julian)
+        );
+        assert_eq!(
+            date("BET @#DJULIAN@ 1700 AND @#DJULIAN@ 1710").calendar(),
+            Some(Calendar::Julian)
+        );
+        assert_eq!(
+            date("JULIAN 10 MAY 1700").calendar(),
+            Some(Calendar::Julian)
+        );
+        assert_eq!(
+            date("FRENCH_R 1 VEND 2").calendar(),
+            Some(Calendar::FrenchRepublican)
+        );
+        assert_eq!(date("ABT 1700").calendar(), Some(Calendar::Gregorian));
+        assert_eq!(date("@#DROMAN@ 1700").calendar(), None);
+
+        let parsed = ParsedDateTime::from_gedcom_date("ABT @#DJULIAN@ 1700").unwrap();
+        assert_eq!(parsed.calendar, Calendar::Julian);
+        assert_eq!(parsed.qualifier, Some(DateQualifier::About));
+        assert_eq!(parsed.year, Some(1700));
+        // ... and is written back in that order.
+        assert_eq!(parsed.to_gedcom_date(), "ABT @#DJULIAN@ 1700");
+
+        let parsed = ParsedDateTime::from_gedcom_date("JULIAN 10 MAY 1700").unwrap();
+        assert_eq!(parsed.calendar, Calendar::Julian);
+        assert_eq!((parsed.day, parsed.month), (Some(10), Some(5)));
+
+        // The legacy escape-first order is still read.
+        let parsed = ParsedDateTime::from_gedcom_date("@#DJULIAN@ ABT 1700").unwrap();
+        assert_eq!(parsed.calendar, Calendar::Julian);
+        assert_eq!(parsed.qualifier, Some(DateQualifier::About));
+    }
+
+    #[test]
+    fn test_value_without_calendar_strips_every_marker() {
+        let date = |value: &str| super::Date {
+            value: Some(value.to_string()),
+            time: None,
+            phrase: None,
+        };
+        assert_eq!(
+            date("ABT @#DJULIAN@ 1700")
+                .value_without_calendar()
+                .as_deref(),
+            Some("ABT 1700")
+        );
+        assert_eq!(
+            date("BET @#DFRENCH R@ 1 VEND 2 AND @#DFRENCH R@ 3 BRUM 2")
+                .value_without_calendar()
+                .as_deref(),
+            Some("BET 1 VEND 2 AND 3 BRUM 2")
+        );
+        assert_eq!(
+            date("JULIAN 10 MAY 1700")
+                .value_without_calendar()
+                .as_deref(),
+            Some("10 MAY 1700")
+        );
+        // A phrase is text, not a marker.
+        assert_eq!(
+            date("INT JULIAN 1700 (in the JULIAN year 1700)")
+                .value_without_calendar()
+                .as_deref(),
+            Some("INT 1700 (in the JULIAN year 1700)")
+        );
+        assert_eq!(
+            date("15  MAR 1582").value_without_calendar().as_deref(),
+            Some("15  MAR 1582")
+        );
     }
 
     #[cfg(feature = "calendar")]
