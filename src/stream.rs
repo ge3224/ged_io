@@ -484,7 +484,10 @@ impl<R: BufRead> GedcomStreamParser<R> {
                 "SUBN" => GedcomRecord::Submission(Submission::new(&mut tokenizer, 0, pointer)?),
                 "SUBM" => GedcomRecord::Submitter(Submitter::new(&mut tokenizer, 0, pointer)?),
                 "OBJE" => GedcomRecord::Multimedia(Multimedia::new(&mut tokenizer, 0, pointer)?),
-                "SNOTE" => GedcomRecord::SharedNote(SharedNote::new(&mut tokenizer, 0, pointer)?),
+                // GEDCOM 5.5.1 NOTE_RECORD / GEDCOM 7.0 SNOTE record
+                "NOTE" | "SNOTE" => {
+                    GedcomRecord::SharedNote(SharedNote::new(&mut tokenizer, 0, pointer)?)
+                }
                 "TRLR" => {
                     return Err(GedcomError::ParseError {
                         line: self.line_number,
