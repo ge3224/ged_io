@@ -535,6 +535,8 @@ impl GedcomWriter {
             }
         }
 
+        self.write_event_address(writer, level + 1, event)?;
+
         if let Some(ref event_type) = event.event_type {
             self.write_value_or_wrap(writer, level + 1, "TYPE", Some(event_type))?;
         }
@@ -727,6 +729,14 @@ impl GedcomWriter {
         if let Some(ref address) = attr.address {
             self.write_address(writer, 2, address)?;
         }
+        self.write_contacts(
+            writer,
+            2,
+            [&attr.phone, &attr.email, &attr.fax, &attr.website],
+        )?;
+        for association in &attr.associations {
+            self.write_association(writer, 2, association)?;
+        }
 
         if let Some(ref attribute_type) = attr.attribute_type {
             self.write_value_or_wrap(writer, 2, "TYPE", Some(attribute_type))?;
@@ -760,6 +770,45 @@ impl GedcomWriter {
             self.write_value_or_wrap(writer, 2, "AGNC", Some(agency))?;
         }
 
+        Ok(())
+    }
+
+    /// Writes the address structure of an event at `level`: its `ADDR`, then
+    /// the `PHON`, `EMAIL`, `FAX` and `WWW` lines beside it.
+    fn write_event_address<W: Write>(
+        &self,
+        writer: &mut W,
+        level: u8,
+        event: &EventDetail,
+    ) -> Result<(), io::Error> {
+        if let Some(ref address) = event.address {
+            self.write_address(writer, level, address)?;
+        }
+        self.write_contacts(
+            writer,
+            level,
+            [&event.phone, &event.email, &event.fax, &event.website],
+        )
+    }
+
+    /// Writes the `PHON`, `EMAIL`, `FAX` and `WWW` lines of an address
+    /// structure, siblings of its `ADDR`, at `level`.
+    fn write_contacts<W: Write>(
+        &self,
+        writer: &mut W,
+        level: u8,
+        [phone, email, fax, website]: [&Vec<String>; 4],
+    ) -> Result<(), io::Error> {
+        for (tag, values) in [
+            ("PHON", phone),
+            ("EMAIL", email),
+            ("FAX", fax),
+            ("WWW", website),
+        ] {
+            for value in values {
+                self.write_value_or_wrap(writer, level, tag, Some(value))?;
+            }
+        }
         Ok(())
     }
 
