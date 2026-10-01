@@ -56,6 +56,17 @@ pub struct AttributeDetail {
     ///
     /// Commonly used with RESI (residence) attributes.
     pub address: Option<Address>,
+    /// Phone numbers (tag: PHON).
+    pub phone: Vec<String>,
+    /// Email addresses (tag: EMAIL).
+    pub email: Vec<String>,
+    /// Fax numbers (tag: FAX).
+    pub fax: Vec<String>,
+    /// Web pages (tag: WWW).
+    pub website: Vec<String>,
+    /// Individuals associated with this attribute (tag: ASSO), such as an
+    /// employer for an occupation.
+    pub associations: Vec<crate::types::individual::association::Association>,
     /// Cause related to this attribute (tag: CAUS).
     pub cause: Option<String>,
     /// Responsible agency (tag: AGNC).
@@ -87,6 +98,11 @@ impl AttributeDetail {
             restriction: None,
             age: None,
             address: None,
+            phone: Vec::new(),
+            email: Vec::new(),
+            fax: Vec::new(),
+            website: Vec::new(),
+            associations: Vec::new(),
             cause: None,
             agency: None,
             multimedia: Vec::new(),
@@ -150,6 +166,18 @@ impl Parser for AttributeDetail {
                 "RESN" => self.restriction = Some(tokenizer.take_line_value()?),
                 "AGE" => self.age = Some(Age::new(tokenizer, level + 1)?),
                 "ADDR" => self.address = Some(Address::new(tokenizer, level + 1)?),
+                "PHON" => self.phone.push(tokenizer.take_line_value()?),
+                "EMAIL" => self.email.push(tokenizer.take_line_value()?),
+                "FAX" => self.fax.push(tokenizer.take_line_value()?),
+                "WWW" => self.website.push(tokenizer.take_line_value()?),
+                "ASSO" => {
+                    self.associations.push(
+                        crate::types::individual::association::Association::new(
+                            tokenizer,
+                            level + 1,
+                        )?,
+                    );
+                }
                 "CAUS" => self.cause = Some(tokenizer.take_continued_text(level + 1)?),
                 "AGNC" => self.agency = Some(tokenizer.take_line_value()?),
                 "OBJE" => self

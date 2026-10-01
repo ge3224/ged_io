@@ -40,6 +40,17 @@ pub struct Detail {
     pub event: Event,
     pub value: Option<String>,
     pub date: Option<Date>,
+    /// Address of the event (tag: ADDR), with the rest of the address
+    /// structure below.
+    pub address: Option<crate::types::address::Address>,
+    /// Phone numbers (tag: PHON).
+    pub phone: Vec<String>,
+    /// Email addresses (tag: EMAIL).
+    pub email: Vec<String>,
+    /// Fax numbers (tag: FAX).
+    pub fax: Vec<String>,
+    /// Web pages (tag: WWW).
+    pub website: Vec<String>,
     /// The place where the event occurred (tag: PLAC).
     ///
     /// Now uses the full `Place` structure which supports:
@@ -120,6 +131,11 @@ impl Detail {
             })?,
             value: None,
             date: None,
+            address: None,
+            phone: Vec::new(),
+            email: Vec::new(),
+            fax: Vec::new(),
+            website: Vec::new(),
             place: None,
             notes: Vec::new(),
             family_link: None,
@@ -198,6 +214,13 @@ impl Parser for Detail {
             match tag {
                 "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
                 "PLAC" => self.place = Some(Place::new(tokenizer, level + 1)?),
+                "ADDR" => {
+                    self.address = Some(crate::types::address::Address::new(tokenizer, level + 1)?);
+                }
+                "PHON" => self.phone.push(tokenizer.take_line_value()?),
+                "EMAIL" => self.email.push(tokenizer.take_line_value()?),
+                "FAX" => self.fax.push(tokenizer.take_line_value()?),
+                "WWW" => self.website.push(tokenizer.take_line_value()?),
                 "SOUR" => self.add_citation(Citation::new(tokenizer, level + 1)?),
                 "FAMC" => self.family_link = Some(FamilyLink::new(tokenizer, level + 1, tag)?),
                 "HUSB" | "WIFE" => {
