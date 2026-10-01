@@ -408,7 +408,7 @@ impl GedcomWriter {
             self.write_multimedia_link(writer, 1, media)?;
         }
 
-        if let Some(ref note) = individual.note {
+        for note in &individual.notes {
             self.write_note(writer, 1, note)?;
         }
 
@@ -460,7 +460,7 @@ impl GedcomWriter {
         }
 
         // Note
-        if let Some(ref note) = name.note {
+        for note in &name.notes {
             self.write_note(writer, 2, note)?;
         }
 
@@ -547,7 +547,7 @@ impl GedcomWriter {
             self.write_multimedia_link(writer, level + 1, media)?;
         }
 
-        if let Some(ref note) = event.note {
+        for note in &event.notes {
             self.write_note(writer, level + 1, note)?;
         }
 
@@ -639,7 +639,7 @@ impl GedcomWriter {
             self.write_value_or_wrap(writer, level, "ADOP", Some(adopted_by_to_tag(adopted_by)))?;
         }
 
-        if let Some(ref note) = family_link.note {
+        for note in &family_link.notes {
             self.write_note(writer, level, note)?;
         }
 
@@ -665,7 +665,7 @@ impl GedcomWriter {
             self.write_value_or_wrap(writer, level + 1, "TYPE", Some(association_type))?;
         }
 
-        if let Some(ref note) = association.note {
+        for note in &association.notes {
             self.write_note(writer, level + 1, note)?;
         }
 
@@ -740,7 +740,7 @@ impl GedcomWriter {
             self.write_multimedia_link(writer, 2, media)?;
         }
 
-        if let Some(ref note) = attr.note {
+        for note in &attr.notes {
             self.write_note(writer, 2, note)?;
         }
 
@@ -892,7 +892,7 @@ impl GedcomWriter {
         }
 
         // Note
-        if let Some(ref note) = submitter.note {
+        for note in &submitter.notes {
             self.write_note(writer, 1, note)?;
         }
 
@@ -935,6 +935,10 @@ impl GedcomWriter {
             self.write_value_or_wrap(writer, 1, "DESC", Some(descendants))?;
         }
 
+        for note in &submission.notes {
+            self.write_note(writer, 1, note)?;
+        }
+
         Ok(())
     }
 
@@ -961,7 +965,7 @@ impl GedcomWriter {
         }
 
         // Note
-        if let Some(ref note) = media.note_structure {
+        for note in &media.notes {
             self.write_note(writer, 1, note)?;
         }
 
@@ -1212,7 +1216,7 @@ impl GedcomWriter {
             self.write_date(writer, level + 1, date)?;
         }
 
-        if let Some(ref note) = non_event.note {
+        for note in &non_event.notes {
             self.write_note(writer, level + 1, note)?;
         }
 
@@ -1253,7 +1257,7 @@ impl GedcomWriter {
             self.write_line(writer, level + 1, "FAMC", Some(famc))?;
         }
 
-        if let Some(ref note) = ordinance.note {
+        for note in &ordinance.notes {
             self.write_note(writer, level + 1, note)?;
         }
 
