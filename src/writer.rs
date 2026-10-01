@@ -58,7 +58,11 @@ pub struct WriterConfig {
     pub max_line_length: usize,
     /// Whether to include empty optional fields (default: false)
     pub include_empty_fields: bool,
-    /// GEDCOM version to write (default: "5.5.1")
+    /// GEDCOM version to write (default: "5.5.1").
+    ///
+    /// Unless set with [`GedcomWriter::gedcom_version`], data that declares
+    /// its own version in its header (`HEAD.GEDC.VERS`) is written in that
+    /// version instead, so the body matches the header copied from the data.
     pub gedcom_version: String,
 }
 
@@ -92,6 +96,8 @@ impl Default for WriterConfig {
 #[derive(Debug, Clone, Default)]
 pub struct GedcomWriter {
     config: WriterConfig,
+    /// Whether the version was set explicitly, overriding the data's own.
+    version_forced: bool,
 }
 
 impl GedcomWriter {
@@ -100,6 +106,7 @@ impl GedcomWriter {
     pub fn new() -> Self {
         Self {
             config: WriterConfig::default(),
+            version_forced: false,
         }
     }
 
@@ -132,10 +139,15 @@ impl GedcomWriter {
         self
     }
 
-    /// Sets the GEDCOM version to write.
+    /// Sets the GEDCOM version to write, header (`GEDC.VERS`) included, even
+    /// when the data declares another one.
+    ///
+    /// Without it, data is written in the version its header declares, or in
+    /// 5.5.1 when it declares none.
     #[must_use]
     pub fn gedcom_version(mut self, version: &str) -> Self {
         self.config.gedcom_version = version.to_string();
+        self.version_forced = true;
         self
     }
 
@@ -162,6 +174,16 @@ impl GedcomWriter {
     ///
     /// Returns an error if writing fails.
     pub fn write_to<W: Write>(&self, writer: &mut W, data: &GedcomData) -> Result<(), io::Error> {
+        // Write the body in the version the written header will declare.
+        if !self.version_forced {
+            if let Some(version) = data.gedcom_version() {
+                let mut for_data = self.clone();
+                for_data.config.gedcom_version = version.to_string();
+                for_data.version_forced = true;
+                return for_data.write_to(writer, data);
+            }
+        }
+
         // Write header
         self.write_header(writer, data)?;
 
@@ -301,10 +323,11 @@ impl GedcomWriter {
     ) -> Result<(), io::Error> {
         self.write_line(writer, 1, "GEDC", None)?;
 
-        if let Some(ref version) = gedc.version {
-            self.write_line(writer, 2, "VERS", Some(version))?;
-        } else {
-            self.write_line(writer, 2, "VERS", Some(&self.config.gedcom_version))?;
+        match gedc.version {
+            Some(ref version) if !self.version_forced => {
+                self.write_line(writer, 2, "VERS", Some(version))?;
+            }
+            _ => self.write_line(writer, 2, "VERS", Some(&self.config.gedcom_version))?,
         }
 
         if let Some(ref form) = gedc.form {
@@ -1390,16 +1413,30 @@ impl GedcomWriter {
         level: u8,
         date: &Date,
     ) -> Result<(), io::Error> {
-        if let Some(ref value) = date.value {
-            self.write_value_or_wrap(writer, level, "DATE", Some(value))?;
-        }
+        let value = date
+            .value
+            .as_deref()
+            .map(str::trim)
+            .filter(|v| !v.is_empty());
+        let phrase = date.phrase.as_deref().filter(|p| !p.is_empty());
+        let (payload, phrase) = if self.config.gedcom_version.starts_with('5') {
+            (date_value_551(value, phrase), None)
+        } else {
+            date_value_7(value, phrase)
+        };
+        // A TIME or PHRASE without its DATE would belong to the parent.
+        let Some(payload) = payload else {
+            return Ok(());
+        };
+
+        self.write_value_or_wrap(writer, level, "DATE", Some(&payload))?;
 
         if let Some(ref time) = date.time {
             self.write_value_or_wrap(writer, level + 1, "TIME", Some(time))?;
         }
 
         // GEDCOM 7.0: PHRASE substructure
-        if let Some(ref phrase) = date.phrase {
+        if let Some(phrase) = phrase {
             self.write_value_or_wrap(writer, level + 1, "PHRASE", Some(phrase))?;
         }
 
@@ -1484,8 +1521,11 @@ impl GedcomWriter {
             self.write_value_or_wrap(writer, level + 1, "TIME", Some(time))?;
         }
 
+        // PHRASE does not exist in GEDCOM 5.5.1.
         if let Some(ref phrase) = sort_date.phrase {
-            self.write_value_or_wrap(writer, level + 1, "PHRASE", Some(phrase))?;
+            if !self.config.gedcom_version.starts_with('5') {
+                self.write_value_or_wrap(writer, level + 1, "PHRASE", Some(phrase))?;
+            }
         }
 
         Ok(())
@@ -1796,6 +1836,57 @@ impl GedcomWriter {
 
         Ok(())
     }
+}
+
+/// The `DATE` payload for GEDCOM 5.5.1, which has no `PHRASE` substructure: a
+/// phrase becomes the 5.5.1 date phrase, `(phrase)` alone or `INT date (phrase)`
+/// with a single date. Next to a range or an approximate date it has no place
+/// and is left out. `None` when there is nothing to write.
+fn date_value_551(value: Option<&str>, phrase: Option<&str>) -> Option<String> {
+    match (value, phrase) {
+        (Some(value), Some(phrase)) if !value.contains('(') && is_single_date(value) => {
+            Some(format!("INT {value} ({phrase})"))
+        }
+        (Some(value), _) => Some(value.to_string()),
+        (None, Some(phrase)) => Some(format!("({phrase})")),
+        (None, None) => None,
+    }
+}
+
+/// The `DATE` payload and `PHRASE` for GEDCOM 7.0, which has no date phrase in
+/// the payload: `(phrase)` becomes an empty `DATE` with a `PHRASE`, and
+/// `INT date (phrase)` the date with a `PHRASE`. An explicit phrase wins over
+/// the one in the payload.
+fn date_value_7<'a>(
+    value: Option<&'a str>,
+    phrase: Option<&'a str>,
+) -> (Option<String>, Option<&'a str>) {
+    let Some(value) = value else {
+        return (phrase.map(|_| String::new()), phrase);
+    };
+    if let Some(text) = value.strip_prefix('(').and_then(|v| v.strip_suffix(')')) {
+        return (Some(String::new()), phrase.or(Some(text)));
+    }
+    let interpreted = value
+        .get(..4)
+        .filter(|head| head.eq_ignore_ascii_case("INT "))
+        .and_then(|_| value[4..].split_once('('));
+    if let Some((date, text)) = interpreted {
+        let text = text.trim_end().trim_end_matches(')');
+        return (Some(date.trim().to_string()), phrase.or(Some(text)));
+    }
+    (Some(value.to_string()), phrase)
+}
+
+/// Whether a date value is a single date, with no qualifier, range or period
+/// keyword: the only kind `INT` may interpret.
+fn is_single_date(value: &str) -> bool {
+    !value.split_whitespace().any(|word| {
+        matches!(
+            word.to_ascii_uppercase().as_str(),
+            "ABT" | "CAL" | "EST" | "BEF" | "AFT" | "BET" | "AND" | "FROM" | "TO" | "INT"
+        )
+    })
 }
 
 /// Converts a `std::fmt::Error` to an `io::Error`.
