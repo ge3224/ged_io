@@ -420,6 +420,10 @@ impl GedcomWriter {
             self.write_family_link_detail(writer, 2, family_link)?;
         }
 
+        for submitter in &individual.submitters {
+            self.write_line(writer, 1, "SUBM", Some(submitter))?;
+        }
+
         for citation in &individual.source {
             self.write_citation(writer, 1, citation)?;
         }
@@ -875,6 +879,10 @@ impl GedcomWriter {
 
         for child in &family.children {
             self.write_line(writer, 1, "CHIL", Some(child))?;
+        }
+
+        for submitter in &family.submitters {
+            self.write_line(writer, 1, "SUBM", Some(submitter))?;
         }
 
         for event in &family.events {

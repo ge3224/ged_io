@@ -132,6 +132,8 @@ pub struct Individual {
     ///
     /// Identifiers maintained by external authorities that apply to this individual.
     pub external_ids: Vec<String>,
+    /// Submitters who contributed this record (tag: SUBM, GEDCOM 5.5.1).
+    pub submitters: Vec<Xref>,
 }
 
 impl Individual {
@@ -378,6 +380,7 @@ impl Parser for Individual {
                 "DESI" => self.descendant_interest = Some(tokenizer.take_line_value()?),
                 // External identifier (GEDCOM 7.0)
                 "EXID" => self.external_ids.push(tokenizer.take_line_value()?),
+                "SUBM" => self.submitters.push(tokenizer.take_line_value()?),
                 _ => {
                     // Gracefully skip unknown tags
                     tokenizer.take_line_value()?;
