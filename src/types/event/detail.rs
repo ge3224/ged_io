@@ -7,6 +7,7 @@ use crate::{
     tokenizer::{Token, Tokenizer},
     types::{
         age::Age,
+        custom::UserDefinedTag,
         date::Date,
         event::{family::FamilyEventDetail, Event},
         gedcom7::SortDate,
@@ -101,6 +102,8 @@ pub struct Detail {
     /// A religious denomination to which a person is affiliated or for which
     /// a record applies.
     pub religion: Option<String>,
+    /// Extension (user-defined) tags found under this structure.
+    pub custom_data: Vec<Box<UserDefinedTag>>,
 }
 
 impl Detail {
@@ -131,6 +134,7 @@ impl Detail {
             age: None,
             agency: None,
             religion: None,
+            custom_data: Vec::new(),
         };
         event.parse(tokenizer, level)?;
         Ok(event)
@@ -226,7 +230,7 @@ impl Parser for Detail {
             Ok(())
         };
 
-        parse_subset(tokenizer, level, handle_subset)?;
+        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
 
         if !value.is_empty() {
             self.value = Some(value);

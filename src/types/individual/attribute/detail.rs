@@ -5,8 +5,9 @@ use crate::{
     parser::{parse_subset, Parser},
     tokenizer::{Token, Tokenizer},
     types::{
-        address::Address, age::Age, date::Date, individual::attribute::IndividualAttribute,
-        multimedia::Multimedia, note::Note, place::Place, source::citation::Citation,
+        address::Address, age::Age, custom::UserDefinedTag, date::Date,
+        individual::attribute::IndividualAttribute, multimedia::Multimedia, note::Note,
+        place::Place, source::citation::Citation,
     },
     GedcomError,
 };
@@ -60,6 +61,8 @@ pub struct AttributeDetail {
     /// Responsible agency (tag: AGNC).
     pub agency: Option<String>,
     pub multimedia: Vec<Multimedia>,
+    /// Extension (user-defined) tags found under this structure.
+    pub custom_data: Vec<Box<UserDefinedTag>>,
 }
 
 impl AttributeDetail {
@@ -87,6 +90,7 @@ impl AttributeDetail {
             cause: None,
             agency: None,
             multimedia: Vec::new(),
+            custom_data: Vec::new(),
         };
         attribute.parse(tokenizer, level)?;
         Ok(attribute)
@@ -160,7 +164,7 @@ impl Parser for AttributeDetail {
             Ok(())
         };
 
-        parse_subset(tokenizer, level, handle_subset)?;
+        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
 
         if !value.is_empty() {
             self.value = Some(value);

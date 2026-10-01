@@ -501,11 +501,9 @@ impl<R: BufRead> GedcomStreamParser<R> {
             Ok(record)
         } else if let Token::CustomTag(tag) = &tokenizer.current_token {
             let tag_clone = tag.clone();
-            Ok(GedcomRecord::CustomData(Box::new(UserDefinedTag::new(
-                &mut tokenizer,
-                1,
-                &tag_clone,
-            )?)))
+            let mut record = UserDefinedTag::new(&mut tokenizer, 0, &tag_clone)?;
+            record.xref = pointer;
+            Ok(GedcomRecord::CustomData(Box::new(record)))
         } else if tokenizer.current_token == Token::EOF {
             Err(GedcomError::ParseError {
                 line: self.line_number,

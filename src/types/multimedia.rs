@@ -7,6 +7,7 @@ use crate::{
     parser::{parse_subset, Parser},
     tokenizer::{Token, Tokenizer},
     types::{
+        custom::UserDefinedTag,
         date::change_date::ChangeDate,
         multimedia::{file::Reference, format::Format, user::UserReferenceNumber},
         note::Note,
@@ -35,6 +36,8 @@ use serde::{Deserialize, Serialize};
 pub struct Multimedia {
     /// Optional reference to link to this submitter
     pub xref: Option<Xref>,
+    /// Extension (user-defined) tags found under this structure.
+    pub custom_data: Vec<Box<UserDefinedTag>>,
     pub file: Option<Reference>,
     /// The 5.5 spec, page 26, shows FORM as a sub-structure of FILE, but the struct appears as a
     /// sibling in an Ancestry.com export.
@@ -111,7 +114,7 @@ impl Parser for Multimedia {
 
             Ok(())
         };
-        parse_subset(tokenizer, level, handle_subset)?;
+        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
 
         Ok(())
     }
