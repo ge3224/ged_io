@@ -218,7 +218,14 @@ impl Parser for Family {
                 // User reference number
                 "REFN" => {
                     self.user_reference_number = Some(tokenizer.take_line_value()?);
-                    // Note: TYPE substructure would need to be parsed here
+                    parse_subset(tokenizer, level + 1, |tag, tokenizer| {
+                        if tag == "TYPE" {
+                            self.user_reference_type = Some(tokenizer.take_line_value()?);
+                        } else {
+                            tokenizer.take_line_value()?;
+                        }
+                        Ok(())
+                    })?;
                 }
                 // Automated record ID
                 "RIN" => self.automated_record_id = Some(tokenizer.take_line_value()?),

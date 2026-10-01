@@ -357,6 +357,10 @@ impl GedcomWriter {
     ) -> Result<(), io::Error> {
         self.write_line_with_xref(writer, 0, individual.xref.as_deref(), "INDI", None)?;
 
+        if let Some(ref restriction) = individual.restriction {
+            self.write_value_or_wrap(writer, 1, "RESN", Some(restriction))?;
+        }
+
         if !individual.names.is_empty() {
             for name in &individual.names {
                 self.write_name(writer, name)?;
@@ -403,6 +407,27 @@ impl GedcomWriter {
         for association in &individual.associations {
             self.write_association(writer, 1, association)?;
         }
+
+        for alias in &individual.aliases {
+            self.write_line(writer, 1, "ALIA", Some(alias))?;
+        }
+        if let Some(ref ancestor_interest) = individual.ancestor_interest {
+            self.write_line(writer, 1, "ANCI", Some(ancestor_interest))?;
+        }
+        if let Some(ref descendant_interest) = individual.descendant_interest {
+            self.write_line(writer, 1, "DESI", Some(descendant_interest))?;
+        }
+        if let Some(ref afn) = individual.ancestral_file_number {
+            self.write_value_or_wrap(writer, 1, "AFN", Some(afn))?;
+        }
+        self.write_record_identifiers(
+            writer,
+            individual.user_reference_number.as_deref(),
+            individual.user_reference_type.as_deref(),
+            individual.automated_record_id.as_deref(),
+            individual.uid.as_deref(),
+            &individual.external_ids,
+        )?;
 
         for media in &individual.multimedia {
             self.write_multimedia_link(writer, 1, media)?;
@@ -767,6 +792,10 @@ impl GedcomWriter {
     fn write_family<W: Write>(&self, writer: &mut W, family: &Family) -> Result<(), io::Error> {
         self.write_line_with_xref(writer, 0, family.xref.as_deref(), "FAM", None)?;
 
+        if let Some(ref restriction) = family.restriction {
+            self.write_value_or_wrap(writer, 1, "RESN", Some(restriction))?;
+        }
+
         if let Some(ref husb) = family.individual1 {
             self.write_line(writer, 1, "HUSB", Some(husb))?;
         }
@@ -793,6 +822,18 @@ impl GedcomWriter {
             self.write_lds_ordinance(writer, 1, ordinance)?;
         }
 
+        if let Some(ref num_children) = family.num_children {
+            self.write_value_or_wrap(writer, 1, "NCHI", Some(num_children))?;
+        }
+        self.write_record_identifiers(
+            writer,
+            family.user_reference_number.as_deref(),
+            family.user_reference_type.as_deref(),
+            family.automated_record_id.as_deref(),
+            family.uid.as_deref(),
+            &family.external_ids,
+        )?;
+
         for citation in &family.sources {
             self.write_citation(writer, 1, citation)?;
         }
@@ -812,6 +853,38 @@ impl GedcomWriter {
             }
         }
 
+        Ok(())
+    }
+
+    /// Writes the identifiers of an individual or family record: `REFN` with
+    /// its `TYPE`, `RIN`, and the GEDCOM 7.0 `UID` and `EXID`, which 5.5.1 does
+    /// not define.
+    fn write_record_identifiers<W: Write>(
+        &self,
+        writer: &mut W,
+        refn: Option<&str>,
+        refn_type: Option<&str>,
+        rin: Option<&str>,
+        uid: Option<&str>,
+        external_ids: &[String],
+    ) -> Result<(), io::Error> {
+        if let Some(refn) = refn {
+            self.write_value_or_wrap(writer, 1, "REFN", Some(refn))?;
+            if let Some(refn_type) = refn_type {
+                self.write_value_or_wrap(writer, 2, "TYPE", Some(refn_type))?;
+            }
+        }
+        if let Some(rin) = rin {
+            self.write_value_or_wrap(writer, 1, "RIN", Some(rin))?;
+        }
+        if !self.config.gedcom_version.starts_with('5') {
+            if let Some(uid) = uid {
+                self.write_value_or_wrap(writer, 1, "UID", Some(uid))?;
+            }
+            for exid in external_ids {
+                self.write_value_or_wrap(writer, 1, "EXID", Some(exid))?;
+            }
+        }
         Ok(())
     }
 
