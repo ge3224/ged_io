@@ -657,8 +657,34 @@ impl GedcomWriter {
     ) -> Result<(), io::Error> {
         self.write_line(writer, level, "ASSO", Some(&association.xref))?;
 
-        if let Some(ref relationship) = association.relationship {
-            self.write_value_or_wrap(writer, level + 1, "RELA", Some(relationship))?;
+        if self.config.gedcom_version.starts_with('5') {
+            // 5.5.1 states the relationship in words (RELA). A role read from a
+            // 7.0 file is the next best thing.
+            let relationship = association
+                .relationship
+                .as_deref()
+                .or(association.role_phrase.as_deref())
+                .or(association.role.as_deref());
+            if let Some(relationship) = relationship {
+                self.write_value_or_wrap(writer, level + 1, "RELA", Some(relationship))?;
+            }
+        } else {
+            if let Some(ref phrase) = association.phrase {
+                self.write_value_or_wrap(writer, level + 1, "PHRASE", Some(phrase))?;
+            }
+            // 7.0 requires a ROLE from its enumeration; a 5.5.1 RELA, which is
+            // free text, becomes OTHER with the text as its PHRASE.
+            let (role, phrase) = match (&association.role, &association.relationship) {
+                (Some(role), _) => (Some(role.as_str()), association.role_phrase.as_deref()),
+                (None, Some(relationship)) => (Some("OTHER"), Some(relationship.as_str())),
+                (None, None) => (None, None),
+            };
+            if let Some(role) = role {
+                self.write_line(writer, level + 1, "ROLE", Some(role))?;
+                if let Some(phrase) = phrase {
+                    self.write_value_or_wrap(writer, level + 2, "PHRASE", Some(phrase))?;
+                }
+            }
         }
 
         if let Some(ref association_type) = association.association_type {
@@ -667,6 +693,10 @@ impl GedcomWriter {
 
         if let Some(ref note) = association.note {
             self.write_note(writer, level + 1, note)?;
+        }
+
+        for citation in &association.sources {
+            self.write_citation(writer, level + 1, citation)?;
         }
 
         Ok(())
