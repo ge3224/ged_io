@@ -147,6 +147,19 @@ const VALUE_CAPACITY: usize = 64;
 /// Average length estimate for xref pointers
 const POINTER_CAPACITY: usize = 16;
 
+/// Undoes the escape of a payload's leading `@`.
+///
+/// A line value that starts with `@` would read as a pointer, so both GEDCOM
+/// 5.5.1 and 7.0 write a leading `@` of text as `@@`. Further `@@` are left
+/// alone: 5.5.1 doubles every `@` of text, 7.0 only the leading one, so what
+/// they stand for depends on the version.
+fn unescape_leading_at(value: &mut String) {
+    if value.starts_with("@@") {
+        // The GEDCOM 7.0 rule is exactly "the leading `@@` only".
+        *value = crate::util::unescape_at_signs(value, true);
+    }
+}
+
 /// The tokenizer that turns the GEDCOM characters into a list of tokens
 pub struct Tokenizer<'a> {
     /// The active token type
@@ -337,6 +350,7 @@ impl<'a> Tokenizer<'a> {
             value.push(self.current_char);
             self.next_char();
         }
+        unescape_leading_at(&mut value);
         value.into_boxed_str()
     }
 
@@ -708,6 +722,7 @@ impl<R: BufRead> StreamTokenizer<R> {
             value.push(self.current_char);
             self.next_char()?;
         }
+        unescape_leading_at(&mut value);
         Ok(value.into_boxed_str())
     }
 
