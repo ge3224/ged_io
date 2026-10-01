@@ -893,7 +893,7 @@ impl GedcomWriter {
 
         // Repository citations
         for repo in &source.repo_citations {
-            self.write_line(writer, 1, "REPO", Some(&repo.xref))?;
+            self.write_repository_citation(writer, 1, repo)?;
         }
 
         // Record identifiers
@@ -1109,6 +1109,59 @@ impl GedcomWriter {
         }
 
         self.write_custom_data(writer, 1, &media.custom_data)?;
+
+        Ok(())
+    }
+
+    /// Writes a source's repository citation: the `REPO` pointer with its
+    /// `NOTE`s and its call numbers, each `CALN` with its own `MEDI`.
+    fn write_repository_citation<W: Write>(
+        &self,
+        writer: &mut W,
+        level: u8,
+        repo: &crate::types::repository::citation::Citation,
+    ) -> Result<(), io::Error> {
+        self.write_line(writer, level, "REPO", Some(&repo.xref))?;
+
+        for note in &repo.notes {
+            self.write_note(writer, level + 1, note)?;
+        }
+
+        let gedcom_5 = self.config.gedcom_version.starts_with('5');
+        for call_number in &repo.call_numbers {
+            self.write_value_or_wrap(writer, level + 1, "CALN", Some(&call_number.value))?;
+            let Some(ref medium) = call_number.medium else {
+                continue;
+            };
+            let phrase = call_number.medium_phrase.as_deref();
+            let standard = SOURCE_MEDIA_TYPES
+                .iter()
+                .find(|known| known.eq_ignore_ascii_case(medium));
+            if gedcom_5 {
+                // 5.5.1 values are lower case and it has no PHRASE: the text of
+                // an `OTHER` medium is the best value available.
+                let value = match (standard, phrase) {
+                    (Some(known), _) => known.to_string(),
+                    (None, Some(phrase)) if medium.eq_ignore_ascii_case("OTHER") => {
+                        phrase.to_string()
+                    }
+                    (None, _) => medium.clone(),
+                };
+                self.write_value_or_wrap(writer, level + 2, "MEDI", Some(&value))?;
+            } else {
+                // 7.0 values are an upper-case enumeration; anything else is
+                // `OTHER` with the text as its PHRASE.
+                let (value, phrase) = match standard {
+                    Some(known) => (known.to_ascii_uppercase(), phrase),
+                    None if medium.eq_ignore_ascii_case("OTHER") => ("OTHER".to_string(), phrase),
+                    None => ("OTHER".to_string(), Some(phrase.unwrap_or(medium))),
+                };
+                self.write_line(writer, level + 2, "MEDI", Some(&value))?;
+                if let Some(phrase) = phrase {
+                    self.write_value_or_wrap(writer, level + 3, "PHRASE", Some(phrase))?;
+                }
+            }
+        }
 
         Ok(())
     }
@@ -1676,6 +1729,24 @@ fn utf8_boundary_before(value: &str, max_bytes: usize) -> usize {
 // =============================================================================
 // Helper functions for tag conversion
 // =============================================================================
+
+/// The `SOURCE_MEDIA_TYPE` values of GEDCOM 5.5.1, which GEDCOM 7.0 writes in
+/// upper case (and extends with `OTHER`).
+const SOURCE_MEDIA_TYPES: [&str; 13] = [
+    "audio",
+    "book",
+    "card",
+    "electronic",
+    "fiche",
+    "film",
+    "magazine",
+    "manuscript",
+    "map",
+    "newspaper",
+    "photo",
+    "tombstone",
+    "video",
+];
 
 /// Converts an event type to its GEDCOM tag.
 fn event_to_tag(event: &Event) -> &'static str {
