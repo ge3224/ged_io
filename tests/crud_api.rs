@@ -60,3 +60,31 @@ fn event_level_citation_release_source() {
     assert_eq!(data.remove_source(h).unwrap().unwrap().xref, "@S1@");
     assert!(data.find_source("@S1@").is_none());
 }
+
+#[test]
+fn repo_citations_release_repository() {
+    let sample = "\
+        0 HEAD\n\
+        1 GEDC\n\
+        2 VERS 5.5\n\
+        0 @S1@ SOUR\n\
+        1 REPO @R1@\n\
+        0 @R1@ REPO\n\
+        0 TRLR";
+
+    let mut data = Gedcom::new(sample.chars()).unwrap().parse_data().unwrap();
+
+    assert_eq!(data.reference_count("@R1@"), 1);
+
+    let h = data
+        .find_repository_handle("@R1@")
+        .expect("@R1@ is a repository");
+    let err = data.remove_repository(h).unwrap_err();
+    assert!(
+        matches!(err, GedcomError::StillReferenced { xref, references: 1, ..} if xref == "@R1@")
+    );
+
+    assert_eq!(data.remove_all_repo_citations_to("@R1@").unwrap(), 1);
+    assert_eq!(data.remove_repository(h).unwrap().unwrap().xref, "@R1@");
+    assert!(data.find_repository("@R1@").is_none());
+}

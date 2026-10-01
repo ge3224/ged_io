@@ -2532,9 +2532,9 @@ impl GedcomData {
         self.xrefs.use_count(xref)
     }
 
-    /// Removes every source citation pointing at `xref`, wherever it appears in
-    /// the data, and lowers the source's reference count by the number removed.
-    /// Returns that count.
+    /// Clears the way to delete a source by dropping every citation of it, in any
+    /// record, along with each citation's `PAGE` and `DATA`. Returns how many were
+    /// dropped.
     ///
     /// # Errors
     ///
@@ -2603,6 +2603,41 @@ impl GedcomData {
 
         self.xrefs.sub_uses(target, removed);
 
+        Ok(removed)
+    }
+
+    /// Clears the way to delete a repository by dropping every source's citation
+    /// of it. Returns how many were dropped.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`GedcomError::XrefNotFound`] if `xref` is not a repository.
+    pub fn remove_all_repo_citations_to(
+        &mut self,
+        xref: impl Into<Xref>,
+    ) -> Result<usize, GedcomError> {
+        let repo_xref = xref.into();
+
+        let Some(AnyHandle::Repository(_)) = self.xrefs.handle(&repo_xref) else {
+            return Err(GedcomError::XrefNotFound {
+                xref: repo_xref,
+                record_type: Repository::RECORD_TYPE.to_string(),
+            });
+        };
+
+        let mut removed = 0;
+        for h in self
+            .sources
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(s) = self.sources.get_mut(h) {
+                removed += s.remove_repo_citation_to(repo_xref.as_str());
+            }
+        }
+
+        self.xrefs.sub_uses(repo_xref.as_str(), removed);
         Ok(removed)
     }
 }

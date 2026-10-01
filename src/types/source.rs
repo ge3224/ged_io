@@ -105,6 +105,12 @@ impl Source {
     pub fn add_repo_citation(&mut self, citation: Citation) {
         self.repo_citations.insert(citation);
     }
+
+    pub(crate) fn remove_repo_citation_to(&mut self, xref: &str) -> usize {
+        let before = self.repo_citations.len();
+        self.repo_citations.retain(|r| r.target != xref);
+        before - self.repo_citations.len()
+    }
 }
 
 impl Parser for Source {
