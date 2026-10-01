@@ -521,6 +521,7 @@ impl GedcomWriter {
                     self.write_value_or_wrap(writer, level + 3, "LONG", Some(lon))?;
                 }
             }
+            self.write_place_references(writer, level + 2, place)?;
             for phonetic in &place.phonetic {
                 self.write_value_or_wrap(writer, level + 2, "FONE", Some(&phonetic.value))?;
                 if let Some(ref vtype) = phonetic.variation_type {
@@ -692,6 +693,7 @@ impl GedcomWriter {
                 self.write_value_or_wrap(writer, level + 2, "LONG", Some(lon))?;
             }
         }
+        self.write_place_references(writer, level + 1, place)?;
         for phonetic in &place.phonetic {
             self.write_value_or_wrap(writer, level + 1, "FONE", Some(&phonetic.value))?;
             if let Some(ref vtype) = phonetic.variation_type {
@@ -702,6 +704,29 @@ impl GedcomWriter {
             self.write_value_or_wrap(writer, level + 1, "ROMN", Some(&romanized.value))?;
             if let Some(ref vtype) = romanized.variation_type {
                 self.write_value_or_wrap(writer, level + 2, "TYPE", Some(vtype))?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Writes what a place structure says about itself besides its name and
+    /// coordinates: its `NOTE`s, the `SOUR` citations supporting it and, in
+    /// GEDCOM 7.0 output, its `EXID`s. The substructures start at `level`.
+    fn write_place_references<W: Write>(
+        &self,
+        writer: &mut W,
+        level: u8,
+        place: &crate::types::place::Place,
+    ) -> Result<(), io::Error> {
+        for note in &place.notes {
+            self.write_note(writer, level, note)?;
+        }
+        for citation in &place.citations {
+            self.write_citation(writer, level, citation)?;
+        }
+        if !self.config.gedcom_version.starts_with('5') {
+            for exid in &place.external_ids {
+                self.write_value_or_wrap(writer, level, "EXID", Some(exid))?;
             }
         }
         Ok(())
