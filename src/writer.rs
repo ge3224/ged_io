@@ -868,6 +868,50 @@ impl GedcomWriter {
             self.write_address(writer, 1, address)?;
         }
 
+        // The rest of the 5.5.1 ADDRESS_STRUCTURE, siblings of ADDR
+        for (tag, values) in [
+            ("PHON", &repo.phone),
+            ("EMAIL", &repo.email),
+            ("FAX", &repo.fax),
+            ("WWW", &repo.website),
+        ] {
+            for value in values {
+                self.write_value_or_wrap(writer, 1, tag, Some(value))?;
+            }
+        }
+
+        for note in &repo.notes {
+            self.write_note(writer, 1, note)?;
+        }
+
+        if let Some(ref refn) = repo.user_reference_number {
+            self.write_value_or_wrap(writer, 1, "REFN", Some(refn))?;
+            if let Some(ref refn_type) = repo.user_reference_type {
+                self.write_value_or_wrap(writer, 2, "TYPE", Some(refn_type))?;
+            }
+        }
+
+        if let Some(ref rin) = repo.automated_record_id {
+            self.write_value_or_wrap(writer, 1, "RIN", Some(rin))?;
+        }
+
+        // UID and EXID exist in GEDCOM 7.0 only
+        if !self.config.gedcom_version.starts_with('5') {
+            if let Some(ref uid) = repo.uid {
+                self.write_value_or_wrap(writer, 1, "UID", Some(uid))?;
+            }
+            for exid in &repo.external_ids {
+                self.write_value_or_wrap(writer, 1, "EXID", Some(exid))?;
+            }
+        }
+
+        if let Some(ref change_date) = repo.change_date {
+            self.write_line(writer, 1, "CHAN", None)?;
+            if let Some(ref date) = change_date.date {
+                self.write_date(writer, 2, date)?;
+            }
+        }
+
         Ok(())
     }
 
