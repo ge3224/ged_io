@@ -22,6 +22,7 @@
 use crate::types::{
     address::Address,
     age::Age,
+    custom::UserDefinedTag,
     date::Date,
     event::{detail::Detail as EventDetail, spouse::Spouse, Event},
     family::Family,
@@ -204,6 +205,9 @@ impl GedcomWriter {
             self.write_shared_note(writer, shared_note)?;
         }
 
+        // Extension records (`0 _XXX`)
+        self.write_custom_data(writer, 0, &data.custom_data)?;
+
         // Write trailer (final line; do not add a line terminator after TRLR)
         self.write_trailer(writer)?;
 
@@ -276,6 +280,8 @@ impl GedcomWriter {
             if let Some(ref schema) = header.schema {
                 self.write_schema(writer, schema)?;
             }
+
+            self.write_custom_data(writer, 1, &header.custom_data)?;
         } else {
             // Write minimal required header
             self.write_line(writer, 1, "GEDC", None)?;
@@ -419,6 +425,8 @@ impl GedcomWriter {
             }
         }
 
+        self.write_custom_data(writer, 1, &individual.custom_data)?;
+
         Ok(())
     }
 
@@ -464,6 +472,8 @@ impl GedcomWriter {
             self.write_note(writer, 2, note)?;
         }
 
+        self.write_custom_data(writer, 2, &name.custom_data)?;
+
         Ok(())
     }
 
@@ -484,6 +494,8 @@ impl GedcomWriter {
         for citation in &gender.sources {
             self.write_citation(writer, 2, citation)?;
         }
+
+        self.write_custom_data(writer, 2, &gender.custom_data)?;
 
         Ok(())
     }
@@ -533,6 +545,7 @@ impl GedcomWriter {
                     self.write_value_or_wrap(writer, level + 3, "TYPE", Some(vtype))?;
                 }
             }
+            self.write_custom_data(writer, level + 2, &place.custom_data)?;
         }
 
         if let Some(ref event_type) = event.event_type {
@@ -610,6 +623,8 @@ impl GedcomWriter {
             self.write_association(writer, level + 1, association)?;
         }
 
+        self.write_custom_data(writer, level + 1, &event.custom_data)?;
+
         Ok(())
     }
 
@@ -643,6 +658,8 @@ impl GedcomWriter {
             self.write_note(writer, level, note)?;
         }
 
+        self.write_custom_data(writer, level, &family_link.custom_data)?;
+
         Ok(())
     }
 
@@ -664,6 +681,7 @@ impl GedcomWriter {
         if let Some(ref association_type) = association.association_type {
             self.write_value_or_wrap(writer, level + 1, "TYPE", Some(association_type))?;
         }
+        self.write_custom_data(writer, level + 1, &association.custom_data)?;
 
         if let Some(ref note) = association.note {
             self.write_note(writer, level + 1, note)?;
@@ -704,6 +722,8 @@ impl GedcomWriter {
                 self.write_value_or_wrap(writer, level + 2, "TYPE", Some(vtype))?;
             }
         }
+        self.write_custom_data(writer, level + 1, &place.custom_data)?;
+
         Ok(())
     }
 
@@ -760,6 +780,8 @@ impl GedcomWriter {
             self.write_value_or_wrap(writer, 2, "AGNC", Some(agency))?;
         }
 
+        self.write_custom_data(writer, 2, &attr.custom_data)?;
+
         Ok(())
     }
 
@@ -812,6 +834,8 @@ impl GedcomWriter {
             }
         }
 
+        self.write_custom_data(writer, 1, &family.custom_data)?;
+
         Ok(())
     }
 
@@ -849,6 +873,8 @@ impl GedcomWriter {
             }
         }
 
+        self.write_custom_data(writer, 1, &source.custom_data)?;
+
         Ok(())
     }
 
@@ -863,6 +889,7 @@ impl GedcomWriter {
         if let Some(ref name) = repo.name {
             self.write_value_or_wrap(writer, 1, "NAME", Some(name))?;
         }
+        self.write_custom_data(writer, 1, &repo.custom_data)?;
 
         if let Some(ref address) = repo.address {
             self.write_address(writer, 1, address)?;
@@ -903,6 +930,8 @@ impl GedcomWriter {
                 self.write_date(writer, 2, date)?;
             }
         }
+
+        self.write_custom_data(writer, 1, &submitter.custom_data)?;
 
         Ok(())
     }
@@ -978,6 +1007,8 @@ impl GedcomWriter {
             }
         }
 
+        self.write_custom_data(writer, 1, &media.custom_data)?;
+
         Ok(())
     }
 
@@ -994,6 +1025,7 @@ impl GedcomWriter {
             self.write_line(writer, level, "OBJE", None)?;
             self.write_multimedia_substructures(writer, level + 1, media)?;
         }
+        self.write_custom_data(writer, level + 1, &media.custom_data)?;
         Ok(())
     }
 
@@ -1075,6 +1107,7 @@ impl GedcomWriter {
 
         if let Some(ref data) = citation.data {
             self.write_line(writer, level + 1, "DATA", None)?;
+            self.write_custom_data(writer, level + 2, &data.custom_data)?;
             if let Some(ref date) = data.date {
                 self.write_date(writer, level + 2, date)?;
             }
@@ -1094,6 +1127,8 @@ impl GedcomWriter {
         if let Some(ref note) = citation.note {
             self.write_note(writer, level + 1, note)?;
         }
+
+        self.write_custom_data(writer, level + 1, &citation.custom_data)?;
 
         Ok(())
     }
@@ -1129,6 +1164,8 @@ impl GedcomWriter {
             let payload = tag_def.to_payload();
             self.write_value_or_wrap(writer, 2, "TAG", Some(&payload))?;
         }
+
+        self.write_custom_data(writer, 2, &schema.custom_data)?;
 
         Ok(())
     }
@@ -1173,6 +1210,8 @@ impl GedcomWriter {
         for citation in &note.source_citations {
             self.write_citation(writer, 1, citation)?;
         }
+
+        self.write_custom_data(writer, 1, &note.custom_data)?;
 
         Ok(())
     }
@@ -1301,6 +1340,8 @@ impl GedcomWriter {
             self.write_value_or_wrap(writer, level + 1, "CTRY", Some(country))?;
         }
 
+        self.write_custom_data(writer, level + 1, &address.custom_data)?;
+
         Ok(())
     }
 
@@ -1317,6 +1358,31 @@ impl GedcomWriter {
             self.write_line(writer, level, "NOTE", None)?;
         }
 
+        Ok(())
+    }
+
+    /// Writes extension (user-defined) tags, each with its substructures, the
+    /// first ones at `level`.
+    fn write_custom_data<W: Write>(
+        &self,
+        writer: &mut W,
+        level: u8,
+        tags: &[Box<UserDefinedTag>],
+    ) -> Result<(), io::Error> {
+        for tag in tags {
+            if let Some(ref xref) = tag.xref {
+                self.write_line_with_xref(
+                    writer,
+                    level,
+                    Some(xref),
+                    &tag.tag,
+                    tag.value.as_deref(),
+                )?;
+            } else {
+                self.write_line(writer, level, &tag.tag, tag.value.as_deref())?;
+            }
+            self.write_custom_data(writer, level + 1, &tag.children)?;
+        }
         Ok(())
     }
 
