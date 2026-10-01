@@ -887,8 +887,43 @@ impl GedcomWriter {
             self.write_address(writer, 1, address)?;
         }
 
+        // The rest of the 5.5.1 ADDRESS_STRUCTURE, siblings of ADDR
+        for (tag, values) in [
+            ("PHON", &submitter.phone),
+            ("EMAIL", &submitter.email),
+            ("FAX", &submitter.fax),
+            ("WWW", &submitter.website),
+        ] {
+            for value in values {
+                self.write_value_or_wrap(writer, 1, tag, Some(value))?;
+            }
+        }
+
+        for link in &submitter.multimedia {
+            self.write_submitter_multimedia(writer, link)?;
+        }
+
         if let Some(ref lang) = submitter.language {
             self.write_value_or_wrap(writer, 1, "LANG", Some(lang))?;
+        }
+
+        let gedcom_5 = self.config.gedcom_version.starts_with('5');
+        // RFN (Ancestral File) was removed in GEDCOM 7.0; UID was added.
+        if let Some(ref rfn) = submitter.registered_refn {
+            if gedcom_5 {
+                self.write_value_or_wrap(writer, 1, "RFN", Some(rfn))?;
+            }
+        }
+        if let Some(ref refn) = submitter.user_reference_number {
+            self.write_value_or_wrap(writer, 1, "REFN", Some(refn))?;
+        }
+        if let Some(ref rin) = submitter.automated_record_id {
+            self.write_value_or_wrap(writer, 1, "RIN", Some(rin))?;
+        }
+        if let Some(ref uid) = submitter.uid {
+            if !gedcom_5 {
+                self.write_value_or_wrap(writer, 1, "UID", Some(uid))?;
+            }
         }
 
         // Note
@@ -904,6 +939,41 @@ impl GedcomWriter {
             }
         }
 
+        Ok(())
+    }
+
+    /// Writes a submitter's multimedia link: a pointer to a multimedia record,
+    /// or the file it describes inline.
+    fn write_submitter_multimedia<W: Write>(
+        &self,
+        writer: &mut W,
+        link: &crate::types::multimedia::link::Link,
+    ) -> Result<(), io::Error> {
+        if let Some(ref xref) = link.xref {
+            return self.write_line(writer, 1, "OBJE", Some(xref));
+        }
+        self.write_line(writer, 1, "OBJE", None)?;
+        if let Some(ref file) = link.file {
+            self.write_value_or_wrap(writer, 2, "FILE", file.value.as_deref())?;
+            if let Some(ref format) = file.form {
+                self.write_value_or_wrap(writer, 3, "FORM", format.value.as_deref())?;
+                if let Some(ref media_type) = format.source_media_type {
+                    self.write_value_or_wrap(writer, 4, "TYPE", Some(media_type))?;
+                }
+            }
+            if let Some(ref title) = file.title {
+                self.write_value_or_wrap(writer, 3, "TITL", Some(title))?;
+            }
+        }
+        if let Some(ref form) = link.form {
+            self.write_value_or_wrap(writer, 2, "FORM", form.value.as_deref())?;
+            if let Some(ref media_type) = form.source_media_type {
+                self.write_value_or_wrap(writer, 3, "TYPE", Some(media_type))?;
+            }
+        }
+        if let Some(ref title) = link.title {
+            self.write_value_or_wrap(writer, 2, "TITL", Some(title))?;
+        }
         Ok(())
     }
 
