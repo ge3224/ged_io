@@ -1416,14 +1416,13 @@ impl GedcomWriter {
                     self.write_line(writer, level, tag, Some(line))?;
                 } else {
                     // Need to split with CONC
-                    let split_at = utf8_boundary_before(line, self.config.max_line_length);
+                    let split_at = conc_split_point(line, self.config.max_line_length);
                     let first_part = &line[..split_at];
                     self.write_line(writer, level, tag, Some(first_part))?;
 
                     let mut remaining = &line[split_at..];
                     while !remaining.is_empty() {
-                        let chunk_len =
-                            utf8_boundary_before(remaining, self.config.max_line_length);
+                        let chunk_len = conc_split_point(remaining, self.config.max_line_length);
                         let chunk = &remaining[..chunk_len];
                         self.write_line(writer, level + 1, "CONC", Some(chunk))?;
                         remaining = &remaining[chunk_len..];
@@ -1435,14 +1434,13 @@ impl GedcomWriter {
                     self.write_line(writer, level + 1, "CONT", line_value)?;
                 } else {
                     // Split with CONT first, then CONC
-                    let split_at = utf8_boundary_before(line, self.config.max_line_length);
+                    let split_at = conc_split_point(line, self.config.max_line_length);
                     let first_part = &line[..split_at];
                     self.write_line(writer, level + 1, "CONT", Some(first_part))?;
 
                     let mut remaining = &line[split_at..];
                     while !remaining.is_empty() {
-                        let chunk_len =
-                            utf8_boundary_before(remaining, self.config.max_line_length);
+                        let chunk_len = conc_split_point(remaining, self.config.max_line_length);
                         let chunk = &remaining[..chunk_len];
                         self.write_line(writer, level + 1, "CONC", Some(chunk))?;
                         remaining = &remaining[chunk_len..];
@@ -1458,6 +1456,33 @@ impl GedcomWriter {
 /// Converts a `std::fmt::Error` to an `io::Error`.
 fn io_error(_: std::fmt::Error) -> io::Error {
     io::Error::other("formatting error")
+}
+
+/// Where to cut `value` so the first part fits in `max_bytes`, for a `CONC`
+/// continuation.
+///
+/// The cut falls on a character boundary and, whenever possible, between two
+/// non-space characters: GEDCOM 5.5.1 asks for this because many readers trim
+/// the spaces at the end of a line, or after the delimiter that starts its
+/// value, so a space on either side of the cut would be lost. A part with no
+/// such position (a long run of spaces) is cut at the character boundary.
+fn conc_split_point(value: &str, max_bytes: usize) -> usize {
+    let limit = utf8_boundary_before(value, max_bytes);
+    if limit >= value.len() {
+        return limit;
+    }
+    let mut end = limit;
+    while end > 0 {
+        if value.is_char_boundary(end) {
+            let before = value[..end].chars().next_back();
+            let after = value[end..].chars().next();
+            if before.is_some_and(|c| c != ' ') && after.is_some_and(|c| c != ' ') {
+                return end;
+            }
+        }
+        end -= 1;
+    }
+    limit
 }
 
 fn utf8_boundary_before(value: &str, max_bytes: usize) -> usize {
