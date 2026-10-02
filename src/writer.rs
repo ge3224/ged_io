@@ -1245,6 +1245,10 @@ impl GedcomWriter {
             self.write_value_or_wrap(writer, level + 1, "TEMP", Some(temple))?;
         }
 
+        if let Some(ref place) = ordinance.place {
+            self.write_place(writer, level + 1, place)?;
+        }
+
         if let Some(ref status) = ordinance.status {
             self.write_line(writer, level + 1, "STAT", Some(status.to_gedcom_value()))?;
         }
