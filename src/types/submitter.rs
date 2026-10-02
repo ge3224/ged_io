@@ -120,8 +120,8 @@ impl Parser for Submitter {
                 "RFN" => self.registered_refn = Some(tokenizer.take_line_value()?),
                 "REFN" => self.user_reference_number = Some(tokenizer.take_line_value()?),
                 _ => {
-                    // Gracefully skip unknown tags
-                    tokenizer.take_line_value()?;
+                    // Leave unknown tags to `parse_subset`, which keeps them with
+                    // their substructures.
                 }
             }
 

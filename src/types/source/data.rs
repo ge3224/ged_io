@@ -69,7 +69,8 @@ impl Parser for Data {
                 "AGNC" => self.agency = Some(tokenizer.take_line_value()?),
                 "NOTE" => self.notes.push(Note::new(tokenizer, level + 1)?),
                 _ => {
-                    tokenizer.take_line_value()?;
+                    // Leave unknown tags to `parse_subset`, which keeps them with
+                    // their substructures.
                 }
             }
             Ok(())

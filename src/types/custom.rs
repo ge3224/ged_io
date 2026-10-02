@@ -11,6 +11,10 @@ use serde::{Deserialize, Serialize};
 /// begin with an underscore (_) and should only be interpreted in the context of the sending
 /// system.
 ///
+/// A structure whose tag the parser does not recognise (a non-standard tag without the
+/// underscore, such as `MILI`) is kept the same way, with its substructures, so that they are
+/// not mistaken for substructures of the enclosing structure.
+///
 /// See <https://gedcom.io/specifications/ged55.pdf> (page 49).
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]

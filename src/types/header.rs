@@ -211,8 +211,8 @@ impl Parser for Header {
                 "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
                 "PLAC" => self.place = Some(HeadPlac::new(tokenizer, level + 1)?),
                 _ => {
-                    // Gracefully skip unknown tags
-                    tokenizer.take_line_value()?;
+                    // Leave unknown tags to `parse_subset`, which keeps them with
+                    // their substructures.
                 }
             }
             Ok(())

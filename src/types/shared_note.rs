@@ -344,8 +344,8 @@ impl Parser for SharedNote {
                     self.creation_date = Some(ChangeDate::new(tokenizer, level + 1)?);
                 }
                 _ => {
-                    // Gracefully skip unknown tags
-                    tokenizer.take_line_value()?;
+                    // Leave unknown tags to `parse_subset`, which keeps them with
+                    // their substructures.
                 }
             }
             Ok(())

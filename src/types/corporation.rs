@@ -52,8 +52,8 @@ impl Parser for Corporation {
                 "FAX" => self.fax = Some(tokenizer.take_line_value()?),
                 "WWW" => self.website = Some(tokenizer.take_line_value()?),
                 _ => {
-                    // Gracefully skip unknown tags
-                    tokenizer.take_line_value()?;
+                    // Leave unknown tags to `parse_subset`, which keeps them with
+                    // their substructures.
                 }
             }
             Ok(())

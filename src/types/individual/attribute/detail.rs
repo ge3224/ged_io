@@ -184,8 +184,8 @@ impl Parser for AttributeDetail {
                     .multimedia
                     .push(Multimedia::new(tokenizer, level + 1, None)?),
                 _ => {
-                    // Gracefully skip unknown tags instead of failing
-                    tokenizer.take_line_value()?;
+                    // Leave unknown tags to `parse_subset`, which keeps them with
+                    // their substructures.
                 }
             }
 

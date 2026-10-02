@@ -85,8 +85,8 @@ impl Parser for SortDate {
                 "TIME" => self.time = Some(tokenizer.take_line_value()?),
                 "PHRASE" => self.phrase = Some(tokenizer.take_line_value()?),
                 _ => {
-                    // Gracefully skip unknown tags
-                    tokenizer.take_line_value()?;
+                    // Leave unknown tags to `parse_subset`, which keeps them with
+                    // their substructures.
                 }
             }
             Ok(())
@@ -138,12 +138,10 @@ impl Parser for CreationDate {
         tokenizer.next_token()?;
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
-            match tag {
-                "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
-                _ => {
-                    // Gracefully skip unknown tags
-                    tokenizer.take_line_value()?;
-                }
+            // Unknown tags are left to `parse_subset`, which keeps them with
+            // their substructures.
+            if tag == "DATE" {
+                self.date = Some(Date::new(tokenizer, level + 1)?);
             }
             Ok(())
         };
@@ -253,6 +251,15 @@ impl Parser for Crop {
         tokenizer.next_token()?;
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
+            let field = match tag {
+                "TOP" => &mut self.top,
+                "LEFT" => &mut self.left,
+                "HEIGHT" => &mut self.height,
+                "WIDTH" => &mut self.width,
+                // Leave unknown tags to `parse_subset`, which keeps them with
+                // their substructures.
+                _ => return Ok(()),
+            };
             let value_str = tokenizer.take_line_value()?;
             let value: f32 = value_str
                 .parse()
@@ -261,17 +268,7 @@ impl Parser for Crop {
                     value: value_str.clone(),
                     expected_format: "numeric value (0-100)".to_string(),
                 })?;
-
-            match tag {
-                "TOP" => self.top = Some(value),
-                "LEFT" => self.left = Some(value),
-                "HEIGHT" => self.height = Some(value),
-                "WIDTH" => self.width = Some(value),
-                _ => {
-                    // Gracefully skip unknown tags
-                    tokenizer.take_line_value()?;
-                }
-            }
+            *field = Some(value);
             Ok(())
         };
 
@@ -378,8 +375,8 @@ impl Parser for NonEvent {
                         )?);
                 }
                 _ => {
-                    // Gracefully skip unknown tags
-                    tokenizer.take_line_value()?;
+                    // Leave unknown tags to `parse_subset`, which keeps them with
+                    // their substructures.
                 }
             }
             Ok(())

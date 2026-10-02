@@ -152,8 +152,8 @@ impl Parser for NameVariation {
                 "NSFX" => self.suffix = Some(tokenizer.take_line_value()?),
                 "NICK" => self.nickname = Some(tokenizer.take_line_value()?),
                 _ => {
-                    // Gracefully skip unknown tags
-                    tokenizer.take_line_value()?;
+                    // Leave unknown tags to `parse_subset`, which keeps them with
+                    // their substructures.
                 }
             }
             Ok(())
@@ -319,8 +319,8 @@ impl Parser for Name {
                     .romanized
                     .push(NameVariation::new(tokenizer, level + 1)?),
                 _ => {
-                    // Gracefully skip unknown tags instead of failing
-                    tokenizer.take_line_value()?;
+                    // Leave unknown tags to `parse_subset`, which keeps them with
+                    // their substructures.
                 }
             }
             Ok(())
