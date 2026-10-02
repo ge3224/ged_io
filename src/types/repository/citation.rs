@@ -44,11 +44,10 @@ impl CallNumber {
             ..CallNumber::default()
         };
         parse_subset(tokenizer, level, |tag, tokenizer| {
-            match tag {
-                "MEDI" => call_number.parse_medium(tokenizer, level + 1)?,
-                _ => {
-                    tokenizer.take_line_value()?;
-                }
+            // Unknown tags are left to `parse_subset`, which keeps them with
+            // their substructures.
+            if tag == "MEDI" {
+                call_number.parse_medium(tokenizer, level + 1)?;
             }
             Ok(())
         })?;
@@ -66,8 +65,6 @@ impl CallNumber {
         parse_subset(tokenizer, level, |tag, tokenizer| {
             if tag == "PHRASE" {
                 self.medium_phrase = Some(tokenizer.take_line_value()?);
-            } else {
-                tokenizer.take_line_value()?;
             }
             Ok(())
         })?;
@@ -194,8 +191,8 @@ impl Parser for Citation {
                 }
                 "NOTE" => self.notes.push(Note::new(tokenizer, level + 1)?),
                 _ => {
-                    // Gracefully skip unknown tags
-                    tokenizer.take_line_value()?;
+                    // Leave unknown tags to `parse_subset`, which keeps them with
+                    // their substructures.
                 }
             }
             Ok(())

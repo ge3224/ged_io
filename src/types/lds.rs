@@ -343,9 +343,6 @@ impl Parser for LdsOrdinance {
                     parse_subset(tokenizer, level + 1, |tag, tokenizer| {
                         if tag == "DATE" {
                             self.status_date = Some(Date::new(tokenizer, level + 2)?);
-                        } else {
-                            // Gracefully skip unknown tags
-                            tokenizer.take_line_value()?;
                         }
                         Ok(())
                     })?;
@@ -357,8 +354,8 @@ impl Parser for LdsOrdinance {
                         .push(Citation::new(tokenizer, level + 1)?);
                 }
                 _ => {
-                    // Gracefully skip unknown tags
-                    tokenizer.take_line_value()?;
+                    // Leave unknown tags to `parse_subset`, which keeps them with
+                    // their substructures.
                 }
             }
             Ok(())

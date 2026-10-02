@@ -53,8 +53,8 @@ impl Parser for HeadMeta {
                     self.form = Some(form);
                 }
                 _ => {
-                    // Gracefully skip unknown tags
-                    tokenizer.take_line_value()?;
+                    // Leave unknown tags to `parse_subset`, which keeps them with
+                    // their substructures.
                 }
             }
 
