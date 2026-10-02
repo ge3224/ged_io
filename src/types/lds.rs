@@ -225,9 +225,11 @@ pub struct LdsOrdinance {
     /// The status of the ordinance.
     pub status: Option<LdsOrdinanceStatus>,
 
-    /// The date the status was changed (GEDCOM 7.0).
+    /// The date the status was changed.
     ///
-    /// The date that the status was set.
+    /// The date that the status was set: the `DATE` under `STAT`
+    /// (`CHANGE_DATE` in GEDCOM 5.5.1, a `DateExact` with an optional `TIME`
+    /// in GEDCOM 7.0). It is only written together with `status`.
     pub status_date: Option<Date>,
 
     /// A reference to the family where this sealing was performed.
@@ -328,6 +330,17 @@ impl Parser for LdsOrdinance {
                 "STAT" => {
                     let status_str = tokenizer.take_line_value()?;
                     self.status = LdsOrdinanceStatus::parse(&status_str);
+                    // `+2 DATE <CHANGE_DATE>` (5.5.1), `+2 DATE <DateExact>` with
+                    // `+3 TIME` (7.0): the date the status was set.
+                    parse_subset(tokenizer, level + 1, |tag, tokenizer| {
+                        if tag == "DATE" {
+                            self.status_date = Some(Date::new(tokenizer, level + 2)?);
+                        } else {
+                            // Gracefully skip unknown tags
+                            tokenizer.take_line_value()?;
+                        }
+                        Ok(())
+                    })?;
                 }
                 "FAMC" => self.family_xref = Some(tokenizer.take_line_value()?),
                 "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),

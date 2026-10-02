@@ -1247,6 +1247,10 @@ impl GedcomWriter {
 
         if let Some(ref status) = ordinance.status {
             self.write_line(writer, level + 1, "STAT", Some(status.to_gedcom_value()))?;
+
+            if let Some(ref status_date) = ordinance.status_date {
+                self.write_date(writer, level + 2, status_date)?;
+            }
         }
 
         if let Some(ref famc) = ordinance.family_xref {
