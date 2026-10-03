@@ -85,6 +85,23 @@ impl Gender {
 
         before - self.sources.len()
     }
+
+    pub(crate) fn remove_multimedia_link_to(&mut self, xref: &str) -> usize {
+        let mut removed = 0;
+
+        for h in self
+            .sources
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(s) = self.sources.get_mut(h) {
+                removed += s.remove_multimedia_link_to(xref);
+            }
+        }
+
+        removed
+    }
 }
 
 impl Parser for Gender {

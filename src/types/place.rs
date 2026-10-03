@@ -85,6 +85,23 @@ impl Place {
             .retain(|c| !matches!(&c.target, CitationSource::Record(x) if x == xref));
         before - self.citations.len()
     }
+
+    pub(crate) fn remove_multimedia_link_to(&mut self, xref: &str) -> usize {
+        let mut removed = 0;
+
+        for h in self
+            .citations
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(c) = self.citations.get_mut(h) {
+                removed += c.remove_multimedia_link_to(xref);
+            }
+        }
+
+        removed
+    }
 }
 
 /// Geographic coordinates for a place.

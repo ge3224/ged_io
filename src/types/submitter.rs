@@ -3,8 +3,12 @@ use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{
-        address::Address, custom::UserDefinedTag, date::change_date::ChangeDate,
-        multimedia::link::Link, note::Note, Xref,
+        address::Address,
+        custom::UserDefinedTag,
+        date::change_date::ChangeDate,
+        multimedia::link::{Link, LinkTarget},
+        note::Note,
+        Xref,
     },
     GedcomError,
 };
@@ -28,7 +32,7 @@ pub struct Submitter {
     /// Physical address of the submitter
     pub address: Option<Address>,
     /// A multimedia asset linked to a fact
-    pub multimedia_link: Arena<Link>,
+    pub multimedia_links: Arena<Link>,
     /// Language preference
     pub language: Option<String>,
     /// A registered number of a submitter of Ancestral File data. This number is used in
@@ -74,7 +78,7 @@ impl Submitter {
             email: Arena::default(),
             fax: Arena::default(),
             language: None,
-            multimedia_link: Arena::default(),
+            multimedia_links: Arena::default(),
             name: None,
             note: None,
             phone: Arena::default(),
@@ -105,7 +109,16 @@ impl Submitter {
 
     /// Adds a `Multimedia` to the tree
     pub fn add_multimedia(&mut self, multimedia: Link) {
-        self.multimedia_link.insert(multimedia);
+        self.multimedia_links.insert(multimedia);
+    }
+
+    pub(crate) fn remove_multimedia_link_to(&mut self, xref: &str) -> usize {
+        let before = self.multimedia_links.len();
+
+        self.multimedia_links
+            .retain(|l| !matches!(&l.target, LinkTarget::Record(x) if x == xref));
+
+        before - self.multimedia_links.len()
     }
 }
 

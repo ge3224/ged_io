@@ -10,7 +10,7 @@ use crate::{
         gedcom7::NonEvent,
         lds::LdsOrdinance,
         list::ListEnum,
-        multimedia::link::Link,
+        multimedia::link::{Link, LinkTarget},
         note::Note,
         restriction::Restriction,
         source::citation::{Citation, CitationSource},
@@ -39,7 +39,7 @@ pub struct Family {
     pub xref: Xref,
     pub individual1: Option<Xref>, // mapped from HUSB
     pub individual2: Option<Xref>, // mapped from WIFE
-    pub family_event: Arena<Detail>,
+    pub family_events: Arena<Detail>,
     pub children: Arena<Xref>,
     pub num_children: Option<String>,
     pub change_date: Option<ChangeDate>,
@@ -102,7 +102,7 @@ impl Family {
             xref: xref.into(),
             individual1: Option::default(),
             individual2: Option::default(),
-            family_event: Arena::default(),
+            family_events: Arena::default(),
             children: Arena::default(),
             num_children: Option::default(),
             change_date: Option::default(),
@@ -204,12 +204,12 @@ impl Family {
         let mut removed = before - self.sources.len();
 
         for h in self
-            .family_event
+            .family_events
             .iter_handles()
             .map(|(h, _)| h)
             .collect::<Vec<_>>()
         {
-            if let Some(fe) = self.family_event.get_mut(h) {
+            if let Some(fe) = self.family_events.get_mut(h) {
                 removed += fe.remove_citation_to(xref);
             }
         }
@@ -249,6 +249,71 @@ impl Family {
 
         removed
     }
+
+    pub(crate) fn remove_multimedia_link_to(&mut self, xref: &str) -> usize {
+        let before = self.multimedia_links.len();
+        self.multimedia_links
+            .retain(|l| !matches!(&l.target, LinkTarget::Record(x) if x == xref));
+
+        let mut removed = before - self.multimedia_links.len();
+
+        for h in self
+            .sources
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(c) = self.sources.get_mut(h) {
+                removed += c.remove_multimedia_link_to(xref);
+            }
+        }
+
+        for h in self
+            .family_events
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(e) = self.family_events.get_mut(h) {
+                removed += e.remove_multimedia_link_to(xref);
+            }
+        }
+
+        for h in self
+            .events
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(e) = self.events.get_mut(h) {
+                removed += e.remove_multimedia_link_to(xref);
+            }
+        }
+
+        for h in self
+            .non_events
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(ne) = self.non_events.get_mut(h) {
+                removed += ne.remove_multimedia_link_to(xref);
+            }
+        }
+
+        for h in self
+            .lds_ordinances
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(o) = self.lds_ordinances.get_mut(h) {
+                removed += o.remove_multimedia_link_to(xref);
+            }
+        }
+
+        removed
+    }
 }
 
 impl PartialEq for Family {
@@ -256,7 +321,7 @@ impl PartialEq for Family {
         self.xref == other.xref
             && self.individual1 == other.individual1
             && self.individual2 == other.individual2
-            && self.family_event == other.family_event
+            && self.family_events == other.family_events
             && self.children == other.children
             && self.num_children == other.num_children
             && self.change_date == other.change_date

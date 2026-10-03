@@ -2640,6 +2640,104 @@ impl GedcomData {
         self.xrefs.sub_uses(repo_xref.as_str(), removed);
         Ok(removed)
     }
+
+    /// Clears the way to delete a piece of multimedia by dropping every link to
+    /// it. Returns how many links were dropped Returns how many links were
+    /// dropped.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`GedcomError::XrefNotFound`] if `xref` is not a repository.
+    pub fn remove_all_multimedia_links_to(
+        &mut self,
+        xref: impl Into<Xref>,
+    ) -> Result<usize, GedcomError> {
+        let media_xref = xref.into();
+
+        let target = media_xref.as_str();
+
+        let Some(AnyHandle::Multimedia(_)) = self.xrefs.handle(&media_xref) else {
+            return Err(GedcomError::XrefNotFound {
+                xref: media_xref,
+                record_type: Multimedia::RECORD_TYPE.to_string(),
+            });
+        };
+
+        let mut removed = self
+            .header
+            .as_mut()
+            .map_or(0, |h| h.remove_multimedia_link_to(target));
+
+        for h in self
+            .multimedia
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(m) = self.multimedia.get_mut(h) {
+                removed += m.remove_multimedia_link_to(target);
+            }
+        }
+
+        for h in self
+            .individuals
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(i) = self.individuals.get_mut(h) {
+                removed += i.remove_multimedia_link_to(target);
+            }
+        }
+
+        for h in self
+            .families
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(f) = self.families.get_mut(h) {
+                removed += f.remove_multimedia_link_to(target);
+            }
+        }
+
+        for h in self
+            .sources
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(s) = self.sources.get_mut(h) {
+                removed += s.remove_multimedia_link_to(target);
+            }
+        }
+
+        for h in self
+            .submitters
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(s) = self.submitters.get_mut(h) {
+                removed += s.remove_multimedia_link_to(target);
+            }
+        }
+
+        for h in self
+            .shared_notes
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(n) = self.shared_notes.get_mut(h) {
+                removed += n.remove_multimedia_link_to(target);
+            }
+        }
+
+        self.xrefs.sub_uses(target, removed);
+
+        Ok(removed)
+    }
 }
 
 impl PartialEq for GedcomData {

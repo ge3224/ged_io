@@ -193,6 +193,12 @@ impl Header {
             .as_mut()
             .map_or(0, |e| e.remove_citation_to(xref))
     }
+
+    pub(crate) fn remove_multimedia_link_to(&mut self, xref: &str) -> usize {
+        self.encoding
+            .as_mut()
+            .map_or(0, |e| e.remove_multimedia_link_to(xref))
+    }
 }
 
 impl Parser for Header {

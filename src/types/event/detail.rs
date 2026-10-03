@@ -13,7 +13,7 @@ use crate::{
         gedcom7::SortDate,
         individual::{association::Association, family_link::FamilyLink},
         list::ListEnum,
-        multimedia::link::Link,
+        multimedia::link::{Link, LinkTarget},
         note::Note,
         place::Place,
         restriction::Restriction,
@@ -160,6 +160,33 @@ impl Detail {
         if let Some(p) = &mut self.place {
             removed += p.remove_citation_to(xref);
         }
+
+        removed
+    }
+
+    pub(crate) fn remove_multimedia_link_to(&mut self, xref: &str) -> usize {
+        let before = self.multimedia_links.len();
+
+        self.multimedia_links
+            .retain(|l| !matches!(&l.target, LinkTarget::Record(x) if x == xref));
+
+        let mut removed = before - self.multimedia_links.len();
+
+        for h in self
+            .citations
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(c) = self.citations.get_mut(h) {
+                removed += c.remove_multimedia_link_to(xref);
+            }
+        }
+
+        removed += self
+            .place
+            .as_mut()
+            .map_or(0, |p| p.remove_multimedia_link_to(xref));
 
         removed
     }

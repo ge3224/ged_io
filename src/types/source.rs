@@ -8,9 +8,15 @@ use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{
-        custom::UserDefinedTag, date::change_date::ChangeDate, event::detail::Detail,
-        external_id::ExternalId, multimedia::link::Link, note::Note,
-        repository::citation::Citation, source::data::Data, Xref,
+        custom::UserDefinedTag,
+        date::change_date::ChangeDate,
+        event::detail::Detail,
+        external_id::ExternalId,
+        multimedia::link::{Link, LinkTarget},
+        note::Note,
+        repository::citation::Citation,
+        source::data::Data,
+        Xref,
     },
     GedcomError,
 };
@@ -110,6 +116,13 @@ impl Source {
         let before = self.repo_citations.len();
         self.repo_citations.retain(|r| r.target != xref);
         before - self.repo_citations.len()
+    }
+
+    pub(crate) fn remove_multimedia_link_to(&mut self, xref: &str) -> usize {
+        let before = self.multimedia_links.len();
+        self.multimedia_links
+            .retain(|l| !matches!(&l.target, LinkTarget::Record(x) if x == xref));
+        before - self.multimedia_links.len()
     }
 }
 

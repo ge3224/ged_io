@@ -9,7 +9,7 @@ use crate::{
     tokenizer::Tokenizer,
     types::{
         custom::UserDefinedTag,
-        multimedia::link::Link,
+        multimedia::link::{Link, LinkTarget},
         note::Note,
         source::{citation::data::SourceCitationData, quay::CertaintyAssessment},
         Xref,
@@ -161,6 +161,15 @@ impl Citation {
 
     pub fn add_multimedia(&mut self, m: Link) {
         self.multimedia_links.insert(m);
+    }
+
+    pub(crate) fn remove_multimedia_link_to(&mut self, xref: &str) -> usize {
+        let before = self.multimedia_links.len();
+
+        self.multimedia_links
+            .retain(|l| !matches!(&l.target, LinkTarget::Record(x) if x == xref));
+
+        before - self.multimedia_links.len()
     }
 }
 

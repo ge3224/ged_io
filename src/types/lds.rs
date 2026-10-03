@@ -328,6 +328,23 @@ impl LdsOrdinance {
 
         before - self.source_citations.len()
     }
+
+    pub(crate) fn remove_multimedia_link_to(&mut self, xref: &str) -> usize {
+        let mut removed = 0;
+
+        for h in self
+            .source_citations
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(s) = self.source_citations.get_mut(h) {
+                removed += s.remove_multimedia_link_to(xref);
+            }
+        }
+
+        removed
+    }
 }
 
 impl Parser for LdsOrdinance {

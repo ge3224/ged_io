@@ -23,7 +23,7 @@ use crate::{
         },
         lds::LdsOrdinance,
         list::ListEnum,
-        multimedia::link::Link,
+        multimedia::link::{Link, LinkTarget},
         note::Note,
         restriction::Restriction,
         source::citation::{Citation, CitationSource},
@@ -392,6 +392,88 @@ impl Individual {
 
         if let Some(g) = &mut self.sex {
             removed += g.remove_citation_to(xref);
+        }
+
+        removed
+    }
+
+    pub(crate) fn remove_multimedia_link_to(&mut self, xref: &str) -> usize {
+        let before = self.multimedia_links.len();
+
+        self.multimedia_links
+            .retain(|l| !matches!(&l.target, LinkTarget::Record(x) if x == xref));
+
+        let mut removed = before - self.multimedia_links.len();
+
+        removed += self
+            .sex
+            .as_mut()
+            .map_or(0, |g| g.remove_multimedia_link_to(xref));
+
+        for h in self
+            .sources
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(s) = self.sources.get_mut(h) {
+                removed += s.remove_multimedia_link_to(xref);
+            }
+        }
+
+        for h in self
+            .names
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(n) = self.names.get_mut(h) {
+                removed += n.remove_multimedia_link_to(xref);
+            }
+        }
+
+        for h in self
+            .attributes
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(a) = self.attributes.get_mut(h) {
+                removed += a.remove_multimedia_link_to(xref);
+            }
+        }
+
+        for h in self
+            .events
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(e) = self.events.get_mut(h) {
+                removed += e.remove_multimedia_link_to(xref);
+            }
+        }
+
+        for h in self
+            .lds_ordinances
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(o) = self.lds_ordinances.get_mut(h) {
+                removed += o.remove_multimedia_link_to(xref);
+            }
+        }
+
+        for h in self
+            .non_events
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(ne) = self.non_events.get_mut(h) {
+                removed += ne.remove_multimedia_link_to(xref);
+            }
         }
 
         removed

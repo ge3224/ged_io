@@ -92,6 +92,12 @@ impl Multimedia {
             0
         }
     }
+
+    pub(crate) fn remove_multimedia_link_to(&mut self, xref: &str) -> usize {
+        self.source_citation
+            .as_mut()
+            .map_or(0, |c| c.remove_multimedia_link_to(xref))
+    }
 }
 
 impl Parser for Multimedia {

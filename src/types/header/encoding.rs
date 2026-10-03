@@ -45,6 +45,12 @@ impl Encoding {
             0
         }
     }
+
+    pub(crate) fn remove_multimedia_link_to(&mut self, xref: &str) -> usize {
+        self.source
+            .as_mut()
+            .map_or(0, |s| s.remove_multimedia_link_to(xref))
+    }
 }
 
 impl Parser for Encoding {
