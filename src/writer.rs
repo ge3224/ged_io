@@ -40,7 +40,7 @@ use crate::types::{
     note::Note,
     repository::Repository,
     shared_note::SharedNote,
-    source::{citation::Citation, quay::CertaintyAssessment, Source},
+    source::{citation::Citation, data::Data as SourceData, quay::CertaintyAssessment, Source},
     submission::Submission,
     submitter::Submitter,
     GedcomData,
@@ -561,14 +561,7 @@ impl GedcomWriter {
         }
 
         if let Some(ref age) = event.age {
-            self.write_value_or_wrap(writer, level + 1, "AGE", Some(&age.to_string()))?;
-            if let Age::Numeric {
-                phrase: Some(ref phrase),
-                ..
-            } = age
-            {
-                self.write_value_or_wrap(writer, level + 2, "PHRASE", Some(phrase))?;
-            }
+            self.write_age(writer, level + 1, age)?;
         }
 
         if let Some(ref agency) = event.agency {
@@ -587,14 +580,7 @@ impl GedcomWriter {
             };
             self.write_line(writer, level + 1, tag, None)?;
             if let Some(ref age) = detail.age {
-                self.write_value_or_wrap(writer, level + 2, "AGE", Some(&age.to_string()))?;
-                if let Age::Numeric {
-                    phrase: Some(phrase),
-                    ..
-                } = age
-                {
-                    self.write_value_or_wrap(writer, level + 3, "PHRASE", Some(phrase))?;
-                }
+                self.write_age(writer, level + 2, age)?;
             }
         }
 
@@ -610,6 +596,43 @@ impl GedcomWriter {
             self.write_association(writer, level + 1, association)?;
         }
 
+        Ok(())
+    }
+
+    /// Writes an `AGE` structure in the grammar of the target version.
+    ///
+    /// GEDCOM 5.5.1 has no `PHRASE`: an age known only as text is written as
+    /// the `AGE` payload itself, which is where 5.5.1 files carry it, and the
+    /// phrase of an age that also has a duration has nowhere to go. GEDCOM 7.0
+    /// has no `CHILD`, `INFANT` or `STILLBORN` keywords: they become the
+    /// duration they stand for, with the keyword as the phrase. An age with
+    /// neither duration nor phrase is not written, as an empty `AGE` line is
+    /// valid in neither version.
+    fn write_age<W: Write>(&self, writer: &mut W, level: u8, age: &Age) -> Result<(), io::Error> {
+        let gedcom_5 = self.config.gedcom_version.starts_with('5');
+        let (payload, phrase) = match age {
+            Age::Child | Age::Infant | Age::Stillborn if gedcom_5 => (age.to_string(), None),
+            Age::Child => ("< 8y".to_string(), Some("Child")),
+            Age::Infant => ("< 1y".to_string(), Some("Infant")),
+            Age::Stillborn => ("0y".to_string(), Some("Stillborn")),
+            Age::Numeric { phrase, .. } if age.has_duration() => {
+                (age.to_string(), phrase.as_deref().filter(|_| !gedcom_5))
+            }
+            Age::Numeric {
+                phrase: Some(phrase),
+                ..
+            } if gedcom_5 => (phrase.clone(), None),
+            Age::Numeric {
+                phrase: Some(phrase),
+                ..
+            } => (String::new(), Some(phrase.as_str())),
+            Age::Numeric { phrase: None, .. } => return Ok(()),
+        };
+
+        self.write_value_or_wrap(writer, level, "AGE", Some(&payload))?;
+        if let Some(phrase) = phrase {
+            self.write_value_or_wrap(writer, level + 1, "PHRASE", Some(phrase))?;
+        }
         Ok(())
     }
 
@@ -753,7 +776,7 @@ impl GedcomWriter {
         }
 
         if let Some(ref age) = attr.age {
-            self.write_value_or_wrap(writer, 2, "AGE", Some(&age.to_string()))?;
+            self.write_age(writer, 2, age)?;
         }
 
         if let Some(ref agency) = attr.agency {
@@ -819,6 +842,11 @@ impl GedcomWriter {
     fn write_source<W: Write>(&self, writer: &mut W, source: &Source) -> Result<(), io::Error> {
         self.write_line_with_xref(writer, 0, source.xref.as_deref(), "SOUR", None)?;
 
+        // What the source records: `DATA` with its `EVEN`, `AGNC` and `NOTE`
+        if !source.data.is_empty() {
+            self.write_source_data(writer, 1, &source.data)?;
+        }
+
         if let Some(ref title) = source.title {
             self.write_long_text(writer, 1, "TITL", title)?;
         }
@@ -831,14 +859,49 @@ impl GedcomWriter {
             self.write_value_or_wrap(writer, 1, "ABBR", Some(abbr))?;
         }
 
+        if let Some(ref publication) = source.publication_facts {
+            self.write_long_text(writer, 1, "PUBL", publication)?;
+        }
+
+        if let Some(ref text) = source.citation_from_source {
+            self.write_long_text(writer, 1, "TEXT", text)?;
+        }
+
         // Repository citations
         for repo in &source.repo_citations {
             self.write_line(writer, 1, "REPO", Some(&repo.xref))?;
         }
 
+        // Record identifiers
+        if let Some(ref refn) = source.user_reference_number {
+            self.write_value_or_wrap(writer, 1, "REFN", Some(refn))?;
+            if let Some(ref refn_type) = source.user_reference_type {
+                self.write_value_or_wrap(writer, 2, "TYPE", Some(refn_type))?;
+            }
+        }
+        if let Some(ref rin) = source.automated_record_id {
+            self.write_value_or_wrap(writer, 1, "RIN", Some(rin))?;
+        }
+        if let Some(ref rfn) = source.submitter_registered_rfn {
+            self.write_value_or_wrap(writer, 1, "RFN", Some(rfn))?;
+        }
+        if !self.config.gedcom_version.starts_with('5') {
+            if let Some(ref uid) = source.uid {
+                self.write_value_or_wrap(writer, 1, "UID", Some(uid))?;
+            }
+            for exid in &source.external_ids {
+                self.write_value_or_wrap(writer, 1, "EXID", Some(exid))?;
+            }
+        }
+
         // Notes
         for note in &source.notes {
             self.write_note(writer, 1, note)?;
+        }
+
+        // Multimedia links
+        for media in &source.multimedia {
+            self.write_multimedia_link(writer, 1, media)?;
         }
 
         // Change date
@@ -847,6 +910,40 @@ impl GedcomWriter {
             if let Some(ref date) = change_date.date {
                 self.write_date(writer, 2, date)?;
             }
+        }
+
+        Ok(())
+    }
+
+    /// Writes the `DATA` substructure of a source record.
+    fn write_source_data<W: Write>(
+        &self,
+        writer: &mut W,
+        level: u8,
+        data: &SourceData,
+    ) -> Result<(), io::Error> {
+        self.write_line(writer, level, "DATA", None)?;
+
+        for event in data.events() {
+            let recorded = match event.event {
+                Event::SourceData(ref recorded) => Some(recorded.as_str()),
+                _ => event.value.as_deref(),
+            };
+            self.write_value_or_wrap(writer, level + 1, "EVEN", recorded)?;
+            if let Some(ref date) = event.date {
+                self.write_date(writer, level + 2, date)?;
+            }
+            if let Some(ref place) = event.place {
+                self.write_value_or_wrap(writer, level + 2, "PLAC", place.value.as_deref())?;
+            }
+        }
+
+        if let Some(ref agency) = data.agency {
+            self.write_value_or_wrap(writer, level + 1, "AGNC", Some(agency))?;
+        }
+
+        for note in &data.notes {
+            self.write_note(writer, level + 1, note)?;
         }
 
         Ok(())
