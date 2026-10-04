@@ -39,10 +39,7 @@ mod tests {
                 .as_str(),
             "ASCII"
         );
-        assert_eq!(
-            header.submitter_tag.as_ref().unwrap().as_str(),
-            "@SUBMITTER@"
-        );
+        assert_eq!(header.submitter_tag().unwrap(), "@SUBMITTER@");
         assert_eq!(
             header.gedcom.as_ref().unwrap().version.as_ref().unwrap(),
             "5.5"

@@ -76,12 +76,12 @@ pub struct Header {
     ///
     /// A pointer to a submitter record.
     /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#SUBM>.
-    pub submitter_tag: Option<String>,
+    pub(crate) submitter_tag: Option<String>,
 
     /// tag: SUBN (GEDCOM 5.5.1 only)
     ///
     /// A pointer to a submission record. This was removed in GEDCOM 7.0.
-    pub submission_tag: Option<String>,
+    pub(crate) submission_tag: Option<String>,
 
     /// tag: COPR
     ///
@@ -186,6 +186,18 @@ impl Header {
     #[must_use]
     pub fn find_extension_uri(&self, tag: &str) -> Option<&str> {
         self.schema.as_ref()?.find_uri(tag)
+    }
+
+    /// The submitter record the header points at, if any.
+    #[must_use]
+    pub fn submitter_tag(&self) -> Option<&str> {
+        self.submitter_tag.as_deref()
+    }
+
+    /// The submission record the header points at, if any.
+    #[must_use]
+    pub fn submission_tag(&self) -> Option<&str> {
+        self.submission_tag.as_deref()
     }
 
     pub(crate) fn remove_citation_to(&mut self, xref: &str) -> usize {

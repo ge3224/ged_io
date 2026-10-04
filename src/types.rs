@@ -348,6 +348,87 @@ impl GedcomData {
         }
     }
 
+    /// Points the header at a submitter record.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`GedcomError::XrefNotFound`] if the xref does not resolve to a
+    /// submitter, [`GedcomError::AlreadyLinked`] if the header already points
+    /// at one.
+    pub fn link_header_and_submitter(
+        &mut self,
+        submitter: impl Into<Xref>,
+    ) -> Result<(), GedcomError> {
+        let xref = submitter.into();
+
+        let Some(AnyHandle::Submitter(_)) = self.xrefs.handle(&xref) else {
+            return Err(GedcomError::XrefNotFound {
+                xref,
+                record_type: Submitter::RECORD_TYPE.to_string(),
+            });
+        };
+
+        let Some(h) = &mut self.header else {
+            unreachable!("header is not optional")
+        };
+
+        if let Some(x) = &h.submitter_tag {
+            return Err(GedcomError::AlreadyLinked {
+                from_xref: x.clone(),
+                to_xref: xref,
+                link_type: Submitter::RECORD_TYPE.to_string(),
+            });
+        }
+
+        h.submitter_tag = Some(xref.clone());
+        self.xrefs.bump(&xref);
+
+        Ok(())
+    }
+
+    /// Decouples a submitter record from the document header.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`GedcomError::XrefNotFound`] if the provided xref does not
+    /// resolve to a record, or [`GedcomError::NotLinked`] if the header holds
+    /// no association pointing to the given submitter.
+    pub fn unlink_header_and_submitter(
+        &mut self,
+        submitter: impl Into<Xref>,
+    ) -> Result<(), GedcomError> {
+        let xref = submitter.into();
+
+        let Some(AnyHandle::Submitter(_)) = self.xrefs.handle(&xref) else {
+            return Err(GedcomError::XrefNotFound {
+                xref,
+                record_type: Submitter::RECORD_TYPE.to_string(),
+            });
+        };
+
+        let Some(h) = &mut self.header else {
+            unreachable!("header is not optional")
+        };
+
+        if h.submitter_tag.as_deref() != Some(xref.as_str()) {
+            let from_xref = match &h.submitter_tag {
+                Some(x) => x.clone(),
+                None => "None".to_string(),
+            };
+
+            return Err(GedcomError::NotLinked {
+                from_xref,
+                to_xref: xref,
+                link_type: Submitter::RECORD_TYPE.to_string(),
+            });
+        }
+
+        h.submitter_tag = None;
+        self.xrefs.decrement(&xref);
+
+        Ok(())
+    }
+
     /// Removes the submitter identified by a `handle` from the dataset and
     /// returns it. Returns `Ok(None)` if `handle` no longer corresponds to a
     /// present submitter (e.g., the submitter was already removed).
@@ -877,6 +958,85 @@ impl GedcomData {
 
     /// Points the header at a submission record.
     ///
+    /// # Errors
+    ///
+    /// Returns [`GedcomError::XrefNotFound`] if the xref does not resolve to a
+    /// submission, [`GedcomError::AlreadyLinked`] if the header already points
+    /// at one.
+    pub fn link_header_and_submission(
+        &mut self,
+        submission: impl Into<Xref>,
+    ) -> Result<(), GedcomError> {
+        let xref = submission.into();
+
+        let Some(AnyHandle::Submission(_)) = self.xrefs.handle(&xref) else {
+            return Err(GedcomError::XrefNotFound {
+                xref,
+                record_type: Submission::RECORD_TYPE.to_string(),
+            });
+        };
+
+        let Some(h) = &mut self.header else {
+            unreachable!("header is not optional")
+        };
+
+        if let Some(x) = &h.submission_tag {
+            return Err(GedcomError::AlreadyLinked {
+                from_xref: x.clone(),
+                to_xref: xref,
+                link_type: Submission::RECORD_TYPE.to_string(),
+            });
+        }
+
+        h.submission_tag = Some(xref.clone());
+        self.xrefs.bump(&xref);
+
+        Ok(())
+    }
+
+    /// Decouples a submission record from the document header.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`GedcomError::XrefNotFound`] if the provided xref does not
+    /// resolve to a record, or [`GedcomError::NotLinked`] if the header holds
+    /// no association pointing to the given submission.
+    pub fn unlink_header_and_submission(
+        &mut self,
+        submission: impl Into<Xref>,
+    ) -> Result<(), GedcomError> {
+        let xref = submission.into();
+
+        let Some(AnyHandle::Submission(_)) = self.xrefs.handle(&xref) else {
+            return Err(GedcomError::XrefNotFound {
+                xref,
+                record_type: Submission::RECORD_TYPE.to_string(),
+            });
+        };
+
+        let Some(h) = &mut self.header else {
+            unreachable!("header is not optional")
+        };
+
+        if h.submission_tag.as_deref() != Some(xref.as_str()) {
+            let from_xref = match &h.submission_tag {
+                Some(x) => x.clone(),
+                None => "None".to_string(),
+            };
+
+            return Err(GedcomError::NotLinked {
+                from_xref,
+                to_xref: xref,
+                link_type: Submission::RECORD_TYPE.to_string(),
+            });
+        }
+
+        h.submission_tag = None;
+        self.xrefs.decrement(&xref);
+
+        Ok(())
+    }
+
     /// Removes a submission by `xref`. Returns `None` if not found.
     ///
     /// Removing a submission also lets go of everything it pointed at, so those
