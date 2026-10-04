@@ -228,7 +228,12 @@ impl<'a> Tokenizer<'a> {
             return Ok(());
         }
 
-        self.skip_whitespace();
+        if self.at_continuation_value() {
+            // Exactly one delimiter: further spaces belong to the value.
+            self.next_char();
+        } else {
+            self.skip_whitespace();
+        }
 
         // Allow empty lines between records.
         if self.current_char == '\n' {
@@ -258,7 +263,13 @@ impl<'a> Tokenizer<'a> {
                     Token::Tag(self.extract_word_with_capacity(TAG_CAPACITY))
                 }
             }
-            Token::Pointer(_) => Token::Tag(self.extract_word_with_capacity(TAG_CAPACITY)),
+            Token::Pointer(_) => {
+                if self.current_char == '_' {
+                    Token::CustomTag(self.extract_word_with_capacity(TAG_CAPACITY))
+                } else {
+                    Token::Tag(self.extract_word_with_capacity(TAG_CAPACITY))
+                }
+            }
             Token::Tag(_) | Token::CustomTag(_) => {
                 // If the line ends right after the tag, treat it as an empty value.
                 if self.current_char == '\n'
@@ -349,6 +360,16 @@ impl<'a> Tokenizer<'a> {
         while self.is_nonnewline_whitespace() {
             self.next_char();
         }
+    }
+
+    /// Whether the tokenizer sits on the delimiter between a `CONC` or `CONT`
+    /// tag and its value. Spaces after that single delimiter are part of the
+    /// value: a `CONC` split next to a space, or an indented `CONT` line,
+    /// would otherwise lose them.
+    #[inline]
+    fn at_continuation_value(&self) -> bool {
+        self.current_char == ' '
+            && matches!(&self.current_token, Token::Tag(tag) if &**tag == "CONC" || &**tag == "CONT")
     }
 
     #[inline]
@@ -713,6 +734,16 @@ impl<R: BufRead> StreamTokenizer<R> {
         Ok(())
     }
 
+    /// Whether the tokenizer sits on the delimiter between a `CONC` or `CONT`
+    /// tag and its value. Spaces after that single delimiter are part of the
+    /// value: a `CONC` split next to a space, or an indented `CONT` line,
+    /// would otherwise lose them.
+    #[inline]
+    fn at_continuation_value(&self) -> bool {
+        self.current_char == ' '
+            && matches!(&self.current_token, Token::Tag(tag) if &**tag == "CONC" || &**tag == "CONT")
+    }
+
     #[inline]
     fn is_nonnewline_whitespace(&self) -> bool {
         let c = self.current_char;
@@ -806,7 +837,12 @@ impl<R: BufRead> StreamTokenizer<R> {
             return Ok(());
         }
 
-        self.skip_whitespace()?;
+        if self.at_continuation_value() {
+            // Exactly one delimiter: further spaces belong to the value.
+            self.next_char()?;
+        } else {
+            self.skip_whitespace()?;
+        }
 
         // Handle empty lines
         if self.current_char == '\n' {
@@ -836,7 +872,13 @@ impl<R: BufRead> StreamTokenizer<R> {
                     Token::Tag(self.extract_word_with_capacity(TAG_CAPACITY)?)
                 }
             }
-            Token::Pointer(_) => Token::Tag(self.extract_word_with_capacity(TAG_CAPACITY)?),
+            Token::Pointer(_) => {
+                if self.current_char == '_' {
+                    Token::CustomTag(self.extract_word_with_capacity(TAG_CAPACITY)?)
+                } else {
+                    Token::Tag(self.extract_word_with_capacity(TAG_CAPACITY)?)
+                }
+            }
             Token::Tag(_) | Token::CustomTag(_) => {
                 if self.current_char == '\n'
                     || self.current_char == '\r'

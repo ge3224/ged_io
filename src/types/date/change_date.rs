@@ -27,7 +27,8 @@ use crate::{
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct ChangeDate {
     pub date: Option<Date>,
-    pub note: Option<Note>,
+    /// Notes (tag: NOTE). GEDCOM allows any number of them.
+    pub notes: Vec<Note>,
 }
 
 impl ChangeDate {
@@ -50,7 +51,7 @@ impl Parser for ChangeDate {
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             match tag {
                 "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
-                "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
+                "NOTE" => self.notes.push(Note::new(tokenizer, level + 1)?),
                 _ => {
                     // Gracefully skip unknown tags
                     tokenizer.take_line_value()?;
