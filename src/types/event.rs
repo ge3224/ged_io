@@ -3,6 +3,8 @@ pub mod family;
 pub mod spouse;
 pub mod util;
 
+use std::str::FromStr;
+
 #[cfg(feature = "json")]
 use serde::Serialize;
 
@@ -49,10 +51,10 @@ pub enum Event {
     SourceData(String),
 }
 
-impl TryFrom<&str> for Event {
-    type Error = String;
+impl FromStr for Event {
+    type Err = String;
 
-    fn try_from(tag: &str) -> Result<Self, Self::Error> {
+    fn from_str(tag: &str) -> Result<Self, Self::Err> {
         let event = match tag {
             "ADOP" => Event::Adoption,
             "ANUL" => Event::Annulment,
