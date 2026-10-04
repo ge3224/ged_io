@@ -56,7 +56,8 @@ pub struct Individual {
     pub events: Vec<Detail>,
     pub multimedia: Vec<Multimedia>,
     pub last_updated: Option<String>,
-    pub note: Option<Note>,
+    /// Notes (tag: NOTE). GEDCOM allows any number of them.
+    pub notes: Vec<Note>,
     pub change_date: Option<ChangeDate>,
     pub custom_data: Vec<Box<UserDefinedTag>>,
     /// Non-event assertions for GEDCOM 7.0.
@@ -344,7 +345,7 @@ impl Parser for Individual {
                     self.add_source_citation(Citation::new(tokenizer, level + 1)?);
                 }
                 "OBJE" => self.add_multimedia(Multimedia::new(tokenizer, level + 1, None)?),
-                "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
+                "NOTE" => self.notes.push(Note::new(tokenizer, level + 1)?),
                 "NO" => self.non_events.push(NonEvent::new(tokenizer, level + 1)?),
                 // LDS Ordinances (INIL is GEDCOM 7.0 only)
                 "BAPL" | "CONL" | "INIL" | "ENDL" | "SLGC" => {

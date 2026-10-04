@@ -312,8 +312,8 @@ pub struct NonEvent {
     /// For example, "BEF 1900" means the event did not occur before 1900.
     pub date: Option<Date>,
 
-    /// A note providing additional context about the non-event.
-    pub note: Option<Note>,
+    /// Notes providing additional context about the non-event (tag: NOTE).
+    pub notes: Vec<Note>,
 
     /// Source citations supporting the claim that the event did not occur.
     pub source_citations: Vec<crate::types::source::citation::Citation>,
@@ -369,7 +369,7 @@ impl Parser for NonEvent {
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             match tag {
                 "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
-                "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
+                "NOTE" => self.notes.push(Note::new(tokenizer, level + 1)?),
                 "SOUR" => {
                     self.source_citations
                         .push(crate::types::source::citation::Citation::new(
