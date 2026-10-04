@@ -27,7 +27,7 @@
 //!
 //! # Memory Efficiency
 //!
-//! Unlike [`GedcomBuilder`](crate::GedcomBuilder) which loads the entire file into memory,
+//! Unlike [`GedcomBuilder`] which loads the entire file into memory,
 //! `GedcomStreamParser` only buffers one record at a time. For files with many small
 //! records, memory usage stays constant regardless of file size.
 //!
@@ -729,7 +729,7 @@ mod tests {
 
         assert_eq!(records.len(), 2);
         let indi = records[1].as_individual().unwrap();
-        assert!(indi.note.is_some());
+        assert!(!indi.notes.is_empty());
     }
 
     #[test]

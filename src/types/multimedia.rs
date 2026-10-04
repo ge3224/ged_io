@@ -49,7 +49,8 @@ pub struct Multimedia {
     pub automated_record_id: Option<String>,
     pub source_citation: Option<Citation>,
     pub change_date: Option<ChangeDate>,
-    pub note_structure: Option<Note>,
+    /// Notes about the multimedia record (tag: NOTE).
+    pub notes: Vec<Note>,
 }
 
 impl Multimedia {
@@ -102,7 +103,7 @@ impl Parser for Multimedia {
                         Some(UserReferenceNumber::new(tokenizer, level + 1)?);
                 }
                 "RIN" => self.automated_record_id = Some(tokenizer.take_line_value()?),
-                "NOTE" => self.note_structure = Some(Note::new(tokenizer, level + 1)?),
+                "NOTE" => self.notes.push(Note::new(tokenizer, level + 1)?),
                 "SOUR" => self.source_citation = Some(Citation::new(tokenizer, level + 1)?),
                 "CHAN" => self.change_date = Some(ChangeDate::new(tokenizer, level + 1)?),
                 _ => {

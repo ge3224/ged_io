@@ -352,7 +352,7 @@ mod tests {
         assert_eq!(date.value.as_ref().unwrap(), "1 APR 1998");
         assert_eq!(date.time.as_ref().unwrap(), "12:34:56.789");
 
-        let chan_note = chan.note.as_ref().unwrap();
+        let chan_note = &chan.notes[0];
         assert_eq!(chan_note.value.as_ref().unwrap(), "A note");
     }
 

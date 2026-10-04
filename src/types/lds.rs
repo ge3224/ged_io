@@ -235,8 +235,8 @@ pub struct LdsOrdinance {
     /// Used with `SLGC` to indicate the family to which the child was sealed.
     pub family_xref: Option<String>,
 
-    /// Notes about this ordinance.
-    pub note: Option<Note>,
+    /// Notes about this ordinance (tag: NOTE).
+    pub notes: Vec<Note>,
 
     /// Source citations for this ordinance.
     pub source_citations: Vec<Citation>,
@@ -330,7 +330,7 @@ impl Parser for LdsOrdinance {
                     self.status = LdsOrdinanceStatus::parse(&status_str);
                 }
                 "FAMC" => self.family_xref = Some(tokenizer.take_line_value()?),
-                "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
+                "NOTE" => self.notes.push(Note::new(tokenizer, level + 1)?),
                 "SOUR" => {
                     self.source_citations
                         .push(Citation::new(tokenizer, level + 1)?);

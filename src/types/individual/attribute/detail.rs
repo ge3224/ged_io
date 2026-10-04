@@ -34,7 +34,8 @@ pub struct AttributeDetail {
     pub place: Option<Place>,
     pub date: Option<Date>,
     pub sources: Vec<Citation>,
-    pub note: Option<Note>,
+    /// Notes (tag: NOTE). GEDCOM allows any number of them.
+    pub notes: Vec<Note>,
     /// `attribute_type` handles the TYPE tag, a descriptive word or phrase used to further
     /// classify the parent event or attribute tag. This should be used to define what kind of
     /// identification number or fact classification is being defined.
@@ -81,7 +82,7 @@ impl AttributeDetail {
             value: None,
             date: None,
             sources: Vec::new(),
-            note: None,
+            notes: Vec::new(),
             attribute_type: None,
             restriction: None,
             age: None,
@@ -144,7 +145,7 @@ impl Parser for AttributeDetail {
                 "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
                 "SOUR" => self.add_source_citation(Citation::new(tokenizer, level + 1)?),
                 "PLAC" => self.place = Some(Place::new(tokenizer, level + 1)?),
-                "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
+                "NOTE" => self.notes.push(Note::new(tokenizer, level + 1)?),
                 "TYPE" => self.attribute_type = Some(tokenizer.take_continued_text(level + 1)?),
                 "RESN" => self.restriction = Some(tokenizer.take_line_value()?),
                 "AGE" => self.age = Some(Age::new(tokenizer, level + 1)?),
