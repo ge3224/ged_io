@@ -98,6 +98,12 @@ impl Multimedia {
             .as_mut()
             .map_or(0, |c| c.remove_multimedia_link_to(xref))
     }
+
+    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
+        if let Some(c) = &self.source_citation {
+            c.outbound_refs(sink);
+        }
+    }
 }
 
 impl Parser for Multimedia {

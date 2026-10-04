@@ -166,6 +166,20 @@ impl AttributeDetail {
 
         removed
     }
+
+    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
+        for c in &self.sources {
+            c.outbound_refs(sink);
+        }
+
+        for l in &self.multimedia_links {
+            l.outbound_refs(sink);
+        }
+
+        if let Some(p) = &self.place {
+            p.outbound_refs(sink);
+        }
+    }
 }
 
 impl Parser for AttributeDetail {

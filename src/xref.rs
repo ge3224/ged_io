@@ -90,6 +90,12 @@ impl Xrefs {
 
         node.use_count = node.use_count.saturating_sub(uses);
     }
+
+    pub(crate) fn release(&mut self, xref: &str) {
+        if let Some(node) = self.map.get_mut(xref) {
+            node.use_count = node.use_count.saturating_sub(1);
+        }
+    }
 }
 
 #[derive(Debug)]

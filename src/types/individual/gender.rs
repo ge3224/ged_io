@@ -102,6 +102,12 @@ impl Gender {
 
         removed
     }
+
+    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
+        for cite in &self.sources {
+            cite.outbound_refs(sink);
+        }
+    }
 }
 
 impl Parser for Gender {

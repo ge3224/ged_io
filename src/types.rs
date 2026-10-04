@@ -352,6 +352,9 @@ impl GedcomData {
     /// returns it. Returns `Ok(None)` if `handle` no longer corresponds to a
     /// present submitter (e.g., the submitter was already removed).
     ///
+    /// Removing a submitter also lets go of everything it pointed at, so those
+    /// records can be removed afterwards without unlinking them first.
+    ///
     /// # Errors
     ///
     /// Returns [`GedcomError::StillReferenced`] if the submitter is still referenced by other records.
@@ -373,8 +376,18 @@ impl GedcomData {
             });
         }
 
+        let Some(rec) = self.submitters.remove(handle) else {
+            unreachable!("handle was validated by get above")
+        };
+
+        let mut out = Vec::new();
+        rec.outbound_refs(&mut |x| out.push(x.to_owned()));
+        for x in &out {
+            self.xrefs.release(x);
+        }
+
         self.xrefs.remove(&xref);
-        Ok(self.submitters.remove(handle))
+        Ok(Some(rec))
     }
 
     /// Records an ancestor interest (`ANCI`) on an individual, pointing at a
@@ -862,9 +875,12 @@ impl GedcomData {
         }
     }
 
-    /// Removes a submission by `xref`.
+    /// Points the header at a submission record.
     ///
-    /// Returns `None` if not found.
+    /// Removes a submission by `xref`. Returns `None` if not found.
+    ///
+    /// Removing a submission also lets go of everything it pointed at, so those
+    /// records can be removed afterwards without unlinking first.
     ///
     /// # Errors
     ///
@@ -887,8 +903,18 @@ impl GedcomData {
             });
         }
 
+        let Some(rec) = self.submissions.remove(handle) else {
+            unreachable!("handle was validated by get above")
+        };
+
+        let mut out = Vec::new();
+        rec.outbound_refs(&mut |x| out.push(x.to_owned()));
+        for x in &out {
+            self.xrefs.release(x);
+        }
+
         self.xrefs.remove(&xref);
-        Ok(self.submissions.remove(handle))
+        Ok(Some(rec))
     }
 
     /// Adds an [`Individual`] to the dataset, returning a [`Handle`] for later
@@ -1001,12 +1027,14 @@ impl GedcomData {
     /// returns it. Returns `Ok(None)` if `handle` no longer corresponds to a
     /// present individual (e.g., the individual was already removed).
     ///
+    /// Removing an individual also lets go of everything it pointed at (its
+    /// cited sources, media and aliases), so those records can be removed
+    /// afterwards without unlinking them first.
+    ///
     /// # Errors
     ///
     /// Returns [`GedcomError::StillReferenced`] if other records (families,
-    /// associations, aliases) still hold references to this individual. Each
-    /// of those references must be unlinked via the appropriate `unlink_*`
-    /// method before the individual can be removed.
+    /// associations, aliases) still hold references to this individual.
     pub fn remove_individual(
         &mut self,
         handle: Handle<Individual>,
@@ -1025,8 +1053,18 @@ impl GedcomData {
             });
         }
 
+        let Some(rec) = self.individuals.remove(handle) else {
+            unreachable!("handle was validated by get above")
+        };
+
+        let mut out = Vec::new();
+        rec.outbound_refs(&mut |x| out.push(x.to_owned()));
+        for x in &out {
+            self.xrefs.release(x);
+        }
+
         self.xrefs.remove(&xref);
-        Ok(self.individuals.remove(handle))
+        Ok(Some(rec))
     }
 
     /// Adds a [`Family`] to the dataset, returning a [`Handle`] for later
@@ -1122,6 +1160,9 @@ impl GedcomData {
     /// `Ok(None)` if `handle` is no longer valid (e.g., the family was already
     /// removed).
     ///
+    /// Removing a family also lets go of everything it pointed at, so that
+    /// those records can be removed afterwards without unlinking them first.
+    ///
     /// # Errors
     ///
     /// Returns [`GedcomError::StillReferenced`] if other records (individuals,
@@ -1142,8 +1183,18 @@ impl GedcomData {
             });
         }
 
+        let Some(rec) = self.families.remove(handle) else {
+            unreachable!("handle was validated by the get above")
+        };
+
+        let mut out = Vec::new();
+        rec.outbound_refs(&mut |x| out.push(x.to_owned()));
+        for x in &out {
+            self.xrefs.release(x);
+        }
+
         self.xrefs.remove(&xref);
-        Ok(self.families.remove(handle))
+        Ok(Some(rec))
     }
 
     /// Records a spouse-family link. References will be held on both the
@@ -1869,9 +1920,10 @@ impl GedcomData {
         }
     }
 
-    /// Removes a source by `xref`.
+    /// Removes a source by `xref`. Returns `None` if not found.
     ///
-    /// Returns `None` if not found.
+    /// Removing a source also lets go of everything it pointed at, so those
+    /// records can be removed afterwards without unlinking them first.
     ///
     /// # Errors
     ///
@@ -1891,8 +1943,18 @@ impl GedcomData {
             });
         }
 
+        let Some(rec) = self.sources.remove(handle) else {
+            unreachable!("handle was validated by get above")
+        };
+
+        let mut out = Vec::new();
+        rec.outbound_refs(&mut |x| out.push(x.to_owned()));
+        for x in &out {
+            self.xrefs.release(x);
+        }
+
         self.xrefs.remove(&xref);
-        Ok(self.sources.remove(handle))
+        Ok(Some(rec))
     }
 
     /// Adds a new record for a [`Multimedia`] to the genealogy data. If the multimedia has no
@@ -1991,9 +2053,10 @@ impl GedcomData {
         }
     }
 
-    /// Removes a multimedia by `xref`.
+    /// Removes a multimedia by `xref`. Returns `None` if not found.
     ///
-    /// Returns `None` if not found.
+    /// Removing a piece of multimedia also lets go of everything it pointed at,
+    /// so those records can be removed afterwards without unlinking them first.
     ///
     /// # Errors
     ///
@@ -2017,9 +2080,18 @@ impl GedcomData {
             });
         }
 
-        self.xrefs.remove(&xref);
+        let Some(rec) = self.multimedia.remove(handle) else {
+            unreachable!("handle was validated by get above")
+        };
 
-        Ok(self.multimedia.remove(handle))
+        let mut out = Vec::new();
+        rec.outbound_refs(&mut |x| out.push(x.to_owned()));
+        for x in &out {
+            self.xrefs.release(x);
+        }
+
+        self.xrefs.remove(&xref);
+        Ok(Some(rec))
     }
 
     /// Adds a new record for a [`SharedNote`] to the genealogy data. If the shared note has no
@@ -2115,9 +2187,10 @@ impl GedcomData {
         }
     }
 
-    /// Removes a shared note by `xref`.
+    /// Removes a shared note by `xref`. Returns `None` if not found.
     ///
-    /// Returns `None` if not found.
+    /// Removing a shared note also lets go of everything it pointed at, so
+    /// those records can be removed afterwards without unlinking them first.
     ///
     /// # Errors
     ///
@@ -2140,8 +2213,18 @@ impl GedcomData {
             });
         }
 
+        let Some(rec) = self.shared_notes.remove(handle) else {
+            unreachable!("handle was validated by get above")
+        };
+
+        let mut out = Vec::new();
+        rec.outbound_refs(&mut |x| out.push(x.to_owned()));
+        for x in &out {
+            self.xrefs.release(x);
+        }
+
         self.xrefs.remove(&xref);
-        Ok(self.shared_notes.remove(handle))
+        Ok(Some(rec))
     }
 
     /// Adds a [`UserDefinedTag`] record to the genealogy data.

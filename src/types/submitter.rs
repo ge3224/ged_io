@@ -120,6 +120,12 @@ impl Submitter {
 
         before - self.multimedia_links.len()
     }
+
+    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
+        for l in &self.multimedia_links {
+            l.outbound_refs(sink);
+        }
+    }
 }
 
 impl Parser for Submitter {

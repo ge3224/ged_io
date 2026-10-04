@@ -102,6 +102,12 @@ impl Place {
 
         removed
     }
+
+    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
+        for cite in &self.citations {
+            cite.outbound_refs(sink);
+        }
+    }
 }
 
 /// Geographic coordinates for a place.

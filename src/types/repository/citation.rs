@@ -6,6 +6,7 @@ use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{custom::UserDefinedTag, note::Note, Xref},
+    util::is_real_reference,
     GedcomError,
 };
 
@@ -114,6 +115,12 @@ impl Citation {
     #[must_use]
     pub fn has_media_type(&self) -> bool {
         self.media_type.is_some()
+    }
+
+    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
+        if is_real_reference(&self.target) {
+            sink(&self.target);
+        }
     }
 }
 

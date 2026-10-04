@@ -218,6 +218,12 @@ impl SharedNote {
 
         removed
     }
+
+    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
+        for source in &self.source_citations {
+            source.outbound_refs(sink);
+        }
+    }
 }
 
 /// A translation of a note into a different language or media type.

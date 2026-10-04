@@ -124,6 +124,18 @@ impl Source {
             .retain(|l| !matches!(&l.target, LinkTarget::Record(x) if x == xref));
         before - self.multimedia_links.len()
     }
+
+    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
+        for l in &self.multimedia_links {
+            l.outbound_refs(sink);
+        }
+
+        for c in &self.repo_citations {
+            c.outbound_refs(sink);
+        }
+
+        self.data.outbound_refs(sink);
+    }
 }
 
 impl Parser for Source {

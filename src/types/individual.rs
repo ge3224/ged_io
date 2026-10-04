@@ -29,6 +29,7 @@ use crate::{
         source::citation::{Citation, CitationSource},
         Xref,
     },
+    util::is_real_reference,
     GedcomError,
 };
 
@@ -477,6 +478,66 @@ impl Individual {
         }
 
         removed
+    }
+
+    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
+        for f in &self.families {
+            f.outbound_refs(sink);
+        }
+
+        for s in &self.sources {
+            s.outbound_refs(sink);
+        }
+
+        for m in &self.multimedia_links {
+            m.outbound_refs(sink);
+        }
+
+        for a in &self.associations {
+            a.outbound_refs(sink);
+        }
+
+        for xref in &self.aliases {
+            if is_real_reference(xref) {
+                sink(xref);
+            }
+        }
+
+        for xref in &self.ancestor_interest {
+            if is_real_reference(xref) {
+                sink(xref);
+            }
+        }
+
+        for xref in &self.descendant_interest {
+            if is_real_reference(xref) {
+                sink(xref);
+            }
+        }
+
+        for n in &self.names {
+            n.outbound_refs(sink);
+        }
+
+        if let Some(g) = &self.sex {
+            g.outbound_refs(sink);
+        }
+
+        for a in &self.attributes {
+            a.outbound_refs(sink);
+        }
+
+        for e in &self.events {
+            e.outbound_refs(sink);
+        }
+
+        for o in &self.lds_ordinances {
+            o.outbound_refs(sink);
+        }
+
+        for ne in &self.non_events {
+            ne.outbound_refs(sink);
+        }
     }
 }
 

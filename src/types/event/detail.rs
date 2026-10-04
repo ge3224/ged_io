@@ -190,6 +190,28 @@ impl Detail {
 
         removed
     }
+
+    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
+        for a in &self.associations {
+            a.outbound_refs(sink);
+        }
+
+        for c in &self.citations {
+            c.outbound_refs(sink);
+        }
+
+        for l in &self.multimedia_links {
+            l.outbound_refs(sink);
+        }
+
+        if let Some(fl) = &self.family_link {
+            fl.outbound_refs(sink);
+        }
+
+        if let Some(p) = &self.place {
+            p.outbound_refs(sink);
+        }
+    }
 }
 
 impl std::fmt::Debug for Detail {

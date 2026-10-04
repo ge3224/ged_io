@@ -3,6 +3,7 @@ use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{custom::UserDefinedTag, date::change_date::ChangeDate, note::Note, Xref},
+    util::is_real_reference,
     GedcomError,
 };
 
@@ -99,6 +100,14 @@ impl Submission {
         let mut subn = Submission::with_xref(xref);
         subn.parse(tokenizer, level)?;
         Ok(subn)
+    }
+
+    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
+        if let Some(xref) = &self.submitter_ref {
+            if is_real_reference(xref) {
+                sink(xref);
+            }
+        }
     }
 }
 

@@ -72,6 +72,12 @@ impl Link {
             title: None,
         }
     }
+
+    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
+        if let LinkTarget::Record(xref) = &self.target {
+            sink(xref);
+        }
+    }
 }
 
 impl Parser for Link {

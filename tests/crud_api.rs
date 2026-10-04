@@ -240,3 +240,28 @@ fn multimedia_link_release_rejects_non_multimedia() {
         ));
     }
 }
+
+#[test]
+fn remove_individual_releases_outbound_pointers() {
+    let sample = "\
+            0 HEAD\n\
+            1 GEDC\n\
+            2 VERS 5.5\n\
+            0 @I1@ INDI\n\
+            1 SOUR @S1@\n\
+            1 BIRTH\n\
+            2 SOUR @S1@\n\
+            0 @S1@ SOUR\n\
+            0 TRLR";
+
+    let mut data = Gedcom::new(sample.chars()).unwrap().parse_data().unwrap();
+    let i = data.find_individual_handle("@I1@").unwrap();
+    let s = data.find_source_handle("@S1@").unwrap();
+
+    assert_eq!(data.reference_count("@S1@"), 2);
+    assert!(data.remove_source(s).is_err());
+
+    assert_eq!(data.remove_individual(i).unwrap().unwrap().xref, "@I1@");
+    assert_eq!(data.reference_count("@S1@"), 0);
+    assert_eq!(data.remove_source(s).unwrap().unwrap().xref, "@S1@");
+}

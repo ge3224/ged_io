@@ -171,6 +171,16 @@ impl Citation {
 
         before - self.multimedia_links.len()
     }
+
+    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
+        if let CitationSource::Record(xref) = &self.target {
+            sink(xref);
+        }
+
+        for link in &self.multimedia_links {
+            link.outbound_refs(sink);
+        }
+    }
 }
 
 impl Parser for Citation {

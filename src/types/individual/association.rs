@@ -66,6 +66,12 @@ impl Association {
             user_defined_tags: Arena::default(),
         }
     }
+
+    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
+        if let AssociationTarget::Record(xref) = &self.target {
+            sink(xref);
+        }
+    }
 }
 
 impl Parser for Association {
