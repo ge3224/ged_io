@@ -33,7 +33,7 @@ pub struct Association {
     /// tag: TYPE, indicator of the type of association
     pub association_type: Option<String>,
     /// tag: NOTE, additional notes about this association
-    pub note: Option<Note>,
+    pub notes: Vec<Note>,
     /// Custom tags not defined in GEDCOM specification
     pub custom_data: Vec<Box<UserDefinedTag>>,
 }
@@ -53,7 +53,7 @@ impl Association {
             phrase: None,
             sources: Vec::new(),
             association_type: None,
-            note: None,
+            notes: Vec::new(),
             custom_data: Vec::new(),
         };
         association.parse(tokenizer, level)?;
@@ -80,7 +80,7 @@ impl Parser for Association {
                 "PHRASE" => self.phrase = Some(tokenizer.take_line_value()?),
                 "SOUR" => self.sources.push(Citation::new(tokenizer, level + 1)?),
                 "TYPE" => self.association_type = Some(tokenizer.take_line_value()?),
-                "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
+                "NOTE" => self.notes.push(Note::new(tokenizer, level + 1)?),
                 _ => {
                     // Gracefully skip unknown tags
                     tokenizer.take_line_value()?;
