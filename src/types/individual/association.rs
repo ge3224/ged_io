@@ -21,7 +21,7 @@ pub struct Association {
     /// tag: TYPE, indicator of the type of association
     pub association_type: Option<String>,
     /// tag: NOTE, additional notes about this association
-    pub note: Option<Note>,
+    pub notes: Vec<Note>,
     /// Custom tags not defined in GEDCOM specification
     pub custom_data: Vec<Box<UserDefinedTag>>,
 }
@@ -37,7 +37,7 @@ impl Association {
             xref: tokenizer.take_line_value()?,
             relationship: None,
             association_type: None,
-            note: None,
+            notes: Vec::new(),
             custom_data: Vec::new(),
         };
         association.parse(tokenizer, level)?;
@@ -51,7 +51,7 @@ impl Parser for Association {
             match tag {
                 "RELA" => self.relationship = Some(tokenizer.take_line_value()?),
                 "TYPE" => self.association_type = Some(tokenizer.take_line_value()?),
-                "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
+                "NOTE" => self.notes.push(Note::new(tokenizer, level + 1)?),
                 _ => {
                     // Gracefully skip unknown tags
                     tokenizer.take_line_value()?;

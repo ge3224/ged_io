@@ -207,7 +207,7 @@ fn test_parse_iso8859_15_euro_sign() {
     let data = GedcomBuilder::new().build_from_bytes(bytes).unwrap();
 
     assert_eq!(data.individuals.len(), 1);
-    let note = data.individuals[0].note.as_ref().unwrap();
+    let note = &data.individuals[0].notes[0];
     assert!(note.value.as_ref().unwrap().contains("100€"));
 }
 
@@ -244,7 +244,7 @@ fn test_parse_iso8859_15_with_latin9_tag() {
     let data = GedcomBuilder::new().build_from_bytes(bytes).unwrap();
 
     assert_eq!(data.individuals.len(), 1);
-    let note = data.individuals[0].note.as_ref().unwrap();
+    let note = &data.individuals[0].notes[0];
     assert!(note.value.as_ref().unwrap().contains("50€"));
 }
 

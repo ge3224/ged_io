@@ -194,8 +194,8 @@ pub struct Name {
     /// Surname prefix (e.g., "de", "van", "von") (tag: SPFX).
     pub surname_prefix: Option<String>,
 
-    /// Note about the name.
-    pub note: Option<Note>,
+    /// Notes about the name (tag: NOTE).
+    pub notes: Vec<Note>,
 
     /// Name suffix (e.g., "Jr.", "III") (tag: NSFX).
     pub suffix: Option<String>,
@@ -307,7 +307,7 @@ impl Parser for Name {
                 "SURN" => self.surname = Some(tokenizer.take_line_value()?),
                 "NICK" => self.nickname = Some(tokenizer.take_line_value()?),
                 "SOUR" => self.add_source_citation(Citation::new(tokenizer, level + 1)?),
-                "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
+                "NOTE" => self.notes.push(Note::new(tokenizer, level + 1)?),
                 "TYPE" => {
                     let type_value = tokenizer.take_line_value()?;
                     self.name_type = Some(NameType::parse(&type_value));
