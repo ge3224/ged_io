@@ -1,6 +1,6 @@
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
-use std::fmt;
+use std::{fmt, str::FromStr};
 
 use crate::{
     parser::{parse_subset, Parser},
@@ -110,7 +110,7 @@ impl Detail {
     /// This function will return an error if parsing fails.
     pub fn new(tokenizer: &mut Tokenizer<'_>, level: u8, tag: &str) -> Result<Detail, GedcomError> {
         let mut event = Detail {
-            event: Event::try_from(tag).map_err(|msg| GedcomError::ParseError {
+            event: Event::from_str(tag).map_err(|msg| GedcomError::ParseError {
                 line: tokenizer.line,
                 message: msg,
             })?,
