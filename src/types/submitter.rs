@@ -39,8 +39,8 @@ pub struct Submitter {
     pub automated_record_id: Option<String>,
     /// Date of the last change to the record
     pub change_date: Option<ChangeDate>,
-    /// Note provided by submitter about the enclosing data
-    pub note: Option<Note>,
+    /// Notes provided by the submitter (tag: NOTE)
+    pub notes: Vec<Note>,
     /// Phone number(s) of the submitter (tag: PHON).
     pub phone: Vec<String>,
     /// Email address(es) of the submitter (tag: EMAIL).
@@ -109,7 +109,7 @@ impl Parser for Submitter {
                 "ADDR" => self.address = Some(Address::new(tokenizer, level + 1)?),
                 "OBJE" => self.add_multimedia(Link::new(tokenizer, level + 1, pointer)?),
                 "LANG" => self.language = Some(tokenizer.take_line_value()?),
-                "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
+                "NOTE" => self.notes.push(Note::new(tokenizer, level + 1)?),
                 "CHAN" => self.change_date = Some(ChangeDate::new(tokenizer, level + 1)?),
                 "PHON" => self.phone.push(tokenizer.take_line_value()?),
                 "EMAIL" => self.email.push(tokenizer.take_line_value()?),

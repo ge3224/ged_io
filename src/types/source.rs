@@ -7,9 +7,8 @@ use crate::{
     parser::{parse_subset, Parser},
     tokenizer::{Token, Tokenizer},
     types::{
-        custom::UserDefinedTag, date::change_date::ChangeDate, event::detail::Detail,
-        multimedia::Multimedia, note::Note, repository::citation::Citation, source::data::Data,
-        Xref,
+        custom::UserDefinedTag, date::change_date::ChangeDate, multimedia::Multimedia, note::Note,
+        repository::citation::Citation, source::data::Data, Xref,
     },
     GedcomError,
 };
@@ -117,14 +116,9 @@ impl Parser for Source {
                 tokenizer.next_token()?;
             }
             match tag {
-                "DATA" => tokenizer.next_token()?,
-                "EVEN" => {
-                    let events_recorded = tokenizer.take_line_value()?;
-                    let mut event = Detail::new(tokenizer, level + 2, "OTHER")?;
-                    event.with_source_data(events_recorded);
-                    self.data.add_event(event);
-                    return Ok(());
-                }
+                "DATA" => self.data.parse(tokenizer, level + 1)?,
+                // Tolerated directly under SOUR, as earlier versions did.
+                "EVEN" => self.data.parse_event(tokenizer, level + 1)?,
                 "AGNC" => self.data.agency = Some(tokenizer.take_line_value()?),
                 "ABBR" => self.abbreviation = Some(tokenizer.take_continued_text(level + 1)?),
                 "CHAN" => self.change_date = Some(Box::new(ChangeDate::new(tokenizer, level + 1)?)),
@@ -143,7 +137,14 @@ impl Parser for Source {
                 // User reference number
                 "REFN" => {
                     self.user_reference_number = Some(tokenizer.take_line_value()?);
-                    // Note: TYPE substructure would need to be parsed here
+                    parse_subset(tokenizer, level + 1, |tag, tokenizer| {
+                        if tag == "TYPE" {
+                            self.user_reference_type = Some(tokenizer.take_line_value()?);
+                        } else {
+                            tokenizer.take_line_value()?;
+                        }
+                        Ok(())
+                    })?;
                 }
                 // Automated record ID
                 "RIN" => self.automated_record_id = Some(tokenizer.take_line_value()?),
