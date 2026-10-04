@@ -667,9 +667,13 @@ impl Parser for GedcomData {
                 }
             } else if let Token::CustomTag(tag) = &tokenizer.current_token {
                 let tag_clone = tag.clone();
-                self.add_custom_data(UserDefinedTag::new(tokenizer, level + 1, &tag_clone)?);
-                // self.add_custom_data(parse_custom_tag(tokenizer, tag_clone));
-                while tokenizer.current_token != Token::Level(level) {
+                // The record's own line is at `level`, its substructures below.
+                let mut record = UserDefinedTag::new(tokenizer, level, &tag_clone)?;
+                record.xref = pointer;
+                self.add_custom_data(record);
+                while tokenizer.current_token != Token::Level(level)
+                    && tokenizer.current_token != Token::EOF
+                {
                     tokenizer.next_token()?;
                 }
             } else if tokenizer.current_token == Token::EOF {

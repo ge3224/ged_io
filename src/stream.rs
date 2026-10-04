@@ -27,7 +27,7 @@
 //!
 //! # Memory Efficiency
 //!
-//! Unlike [`GedcomBuilder`](crate::GedcomBuilder) which loads the entire file into memory,
+//! Unlike [`GedcomBuilder`] which loads the entire file into memory,
 //! `GedcomStreamParser` only buffers one record at a time. For files with many small
 //! records, memory usage stays constant regardless of file size.
 //!
@@ -504,11 +504,9 @@ impl<R: BufRead> GedcomStreamParser<R> {
             Ok(record)
         } else if let Token::CustomTag(tag) = &tokenizer.current_token {
             let tag_clone = tag.clone();
-            Ok(GedcomRecord::CustomData(Box::new(UserDefinedTag::new(
-                &mut tokenizer,
-                1,
-                &tag_clone,
-            )?)))
+            let mut record = UserDefinedTag::new(&mut tokenizer, 0, &tag_clone)?;
+            record.xref = pointer;
+            Ok(GedcomRecord::CustomData(Box::new(record)))
         } else if tokenizer.current_token == Token::EOF {
             Err(GedcomError::ParseError {
                 line: self.line_number,
@@ -734,7 +732,7 @@ mod tests {
 
         assert_eq!(records.len(), 2);
         let indi = records[1].as_individual().unwrap();
-        assert!(indi.note.is_some());
+        assert!(!indi.notes.is_empty());
     }
 
     #[test]

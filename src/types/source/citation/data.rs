@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
-    types::{date::Date, source::text::Text},
+    types::{custom::UserDefinedTag, date::Date, source::text::Text},
     GedcomError,
 };
 
@@ -15,6 +15,8 @@ use crate::{
 #[derive(Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct SourceCitationData {
+    /// Extension (user-defined) tags found under this structure.
+    pub custom_data: Vec<Box<UserDefinedTag>>,
     pub date: Option<Date>,
     pub text: Option<Text>,
 }
@@ -30,6 +32,7 @@ impl SourceCitationData {
         level: u8,
     ) -> Result<SourceCitationData, GedcomError> {
         let mut data = SourceCitationData {
+            custom_data: Vec::new(),
             date: None,
             text: None,
         };
@@ -54,7 +57,7 @@ impl Parser for SourceCitationData {
             Ok(())
         };
 
-        parse_subset(tokenizer, level, handle_subset)?;
+        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
 
         Ok(())
     }
