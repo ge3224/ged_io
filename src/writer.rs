@@ -22,6 +22,7 @@
 use crate::types::{
     address::Address,
     age::Age,
+    custom::UserDefinedTag,
     date::Date,
     event::{detail::Detail as EventDetail, spouse::Spouse, Event},
     family::Family,
@@ -40,7 +41,7 @@ use crate::types::{
     note::Note,
     repository::Repository,
     shared_note::SharedNote,
-    source::{citation::Citation, quay::CertaintyAssessment, Source},
+    source::{citation::Citation, data::Data as SourceData, quay::CertaintyAssessment, Source},
     submission::Submission,
     submitter::Submitter,
     GedcomData,
@@ -204,6 +205,9 @@ impl GedcomWriter {
             self.write_shared_note(writer, shared_note)?;
         }
 
+        // Extension records (`0 _XXX`)
+        self.write_custom_data(writer, 0, &data.custom_data)?;
+
         // Write trailer (final line; do not add a line terminator after TRLR)
         self.write_trailer(writer)?;
 
@@ -276,6 +280,8 @@ impl GedcomWriter {
             if let Some(ref schema) = header.schema {
                 self.write_schema(writer, schema)?;
             }
+
+            self.write_custom_data(writer, 1, &header.custom_data)?;
         } else {
             // Write minimal required header
             self.write_line(writer, 1, "GEDC", None)?;
@@ -408,7 +414,7 @@ impl GedcomWriter {
             self.write_multimedia_link(writer, 1, media)?;
         }
 
-        if let Some(ref note) = individual.note {
+        for note in &individual.notes {
             self.write_note(writer, 1, note)?;
         }
 
@@ -418,6 +424,8 @@ impl GedcomWriter {
                 self.write_date(writer, 2, date)?;
             }
         }
+
+        self.write_custom_data(writer, 1, &individual.custom_data)?;
 
         Ok(())
     }
@@ -460,9 +468,11 @@ impl GedcomWriter {
         }
 
         // Note
-        if let Some(ref note) = name.note {
+        for note in &name.notes {
             self.write_note(writer, 2, note)?;
         }
+
+        self.write_custom_data(writer, 2, &name.custom_data)?;
 
         Ok(())
     }
@@ -484,6 +494,8 @@ impl GedcomWriter {
         for citation in &gender.sources {
             self.write_citation(writer, 2, citation)?;
         }
+
+        self.write_custom_data(writer, 2, &gender.custom_data)?;
 
         Ok(())
     }
@@ -533,6 +545,7 @@ impl GedcomWriter {
                     self.write_value_or_wrap(writer, level + 3, "TYPE", Some(vtype))?;
                 }
             }
+            self.write_custom_data(writer, level + 2, &place.custom_data)?;
         }
 
         if let Some(ref event_type) = event.event_type {
@@ -547,7 +560,7 @@ impl GedcomWriter {
             self.write_multimedia_link(writer, level + 1, media)?;
         }
 
-        if let Some(ref note) = event.note {
+        for note in &event.notes {
             self.write_note(writer, level + 1, note)?;
         }
 
@@ -561,14 +574,7 @@ impl GedcomWriter {
         }
 
         if let Some(ref age) = event.age {
-            self.write_value_or_wrap(writer, level + 1, "AGE", Some(&age.to_string()))?;
-            if let Age::Numeric {
-                phrase: Some(ref phrase),
-                ..
-            } = age
-            {
-                self.write_value_or_wrap(writer, level + 2, "PHRASE", Some(phrase))?;
-            }
+            self.write_age(writer, level + 1, age)?;
         }
 
         if let Some(ref agency) = event.agency {
@@ -587,14 +593,7 @@ impl GedcomWriter {
             };
             self.write_line(writer, level + 1, tag, None)?;
             if let Some(ref age) = detail.age {
-                self.write_value_or_wrap(writer, level + 2, "AGE", Some(&age.to_string()))?;
-                if let Age::Numeric {
-                    phrase: Some(phrase),
-                    ..
-                } = age
-                {
-                    self.write_value_or_wrap(writer, level + 3, "PHRASE", Some(phrase))?;
-                }
+                self.write_age(writer, level + 2, age)?;
             }
         }
 
@@ -610,6 +609,45 @@ impl GedcomWriter {
             self.write_association(writer, level + 1, association)?;
         }
 
+        self.write_custom_data(writer, level + 1, &event.custom_data)?;
+
+        Ok(())
+    }
+
+    /// Writes an `AGE` structure in the grammar of the target version.
+    ///
+    /// GEDCOM 5.5.1 has no `PHRASE`: an age known only as text is written as
+    /// the `AGE` payload itself, which is where 5.5.1 files carry it, and the
+    /// phrase of an age that also has a duration has nowhere to go. GEDCOM 7.0
+    /// has no `CHILD`, `INFANT` or `STILLBORN` keywords: they become the
+    /// duration they stand for, with the keyword as the phrase. An age with
+    /// neither duration nor phrase is not written, as an empty `AGE` line is
+    /// valid in neither version.
+    fn write_age<W: Write>(&self, writer: &mut W, level: u8, age: &Age) -> Result<(), io::Error> {
+        let gedcom_5 = self.config.gedcom_version.starts_with('5');
+        let (payload, phrase) = match age {
+            Age::Child | Age::Infant | Age::Stillborn if gedcom_5 => (age.to_string(), None),
+            Age::Child => ("< 8y".to_string(), Some("Child")),
+            Age::Infant => ("< 1y".to_string(), Some("Infant")),
+            Age::Stillborn => ("0y".to_string(), Some("Stillborn")),
+            Age::Numeric { phrase, .. } if age.has_duration() => {
+                (age.to_string(), phrase.as_deref().filter(|_| !gedcom_5))
+            }
+            Age::Numeric {
+                phrase: Some(phrase),
+                ..
+            } if gedcom_5 => (phrase.clone(), None),
+            Age::Numeric {
+                phrase: Some(phrase),
+                ..
+            } => (String::new(), Some(phrase.as_str())),
+            Age::Numeric { phrase: None, .. } => return Ok(()),
+        };
+
+        self.write_value_or_wrap(writer, level, "AGE", Some(&payload))?;
+        if let Some(phrase) = phrase {
+            self.write_value_or_wrap(writer, level + 1, "PHRASE", Some(phrase))?;
+        }
         Ok(())
     }
 
@@ -639,9 +677,11 @@ impl GedcomWriter {
             self.write_value_or_wrap(writer, level, "ADOP", Some(adopted_by_to_tag(adopted_by)))?;
         }
 
-        if let Some(ref note) = family_link.note {
+        for note in &family_link.notes {
             self.write_note(writer, level, note)?;
         }
+
+        self.write_custom_data(writer, level, &family_link.custom_data)?;
 
         Ok(())
     }
@@ -664,8 +704,9 @@ impl GedcomWriter {
         if let Some(ref association_type) = association.association_type {
             self.write_value_or_wrap(writer, level + 1, "TYPE", Some(association_type))?;
         }
+        self.write_custom_data(writer, level + 1, &association.custom_data)?;
 
-        if let Some(ref note) = association.note {
+        for note in &association.notes {
             self.write_note(writer, level + 1, note)?;
         }
 
@@ -704,6 +745,8 @@ impl GedcomWriter {
                 self.write_value_or_wrap(writer, level + 2, "TYPE", Some(vtype))?;
             }
         }
+        self.write_custom_data(writer, level + 1, &place.custom_data)?;
+
         Ok(())
     }
 
@@ -740,7 +783,7 @@ impl GedcomWriter {
             self.write_multimedia_link(writer, 2, media)?;
         }
 
-        if let Some(ref note) = attr.note {
+        for note in &attr.notes {
             self.write_note(writer, 2, note)?;
         }
 
@@ -753,12 +796,14 @@ impl GedcomWriter {
         }
 
         if let Some(ref age) = attr.age {
-            self.write_value_or_wrap(writer, 2, "AGE", Some(&age.to_string()))?;
+            self.write_age(writer, 2, age)?;
         }
 
         if let Some(ref agency) = attr.agency {
             self.write_value_or_wrap(writer, 2, "AGNC", Some(agency))?;
         }
+
+        self.write_custom_data(writer, 2, &attr.custom_data)?;
 
         Ok(())
     }
@@ -812,12 +857,19 @@ impl GedcomWriter {
             }
         }
 
+        self.write_custom_data(writer, 1, &family.custom_data)?;
+
         Ok(())
     }
 
     /// Writes a source record.
     fn write_source<W: Write>(&self, writer: &mut W, source: &Source) -> Result<(), io::Error> {
         self.write_line_with_xref(writer, 0, source.xref.as_deref(), "SOUR", None)?;
+
+        // What the source records: `DATA` with its `EVEN`, `AGNC` and `NOTE`
+        if !source.data.is_empty() {
+            self.write_source_data(writer, 1, &source.data)?;
+        }
 
         if let Some(ref title) = source.title {
             self.write_long_text(writer, 1, "TITL", title)?;
@@ -831,14 +883,49 @@ impl GedcomWriter {
             self.write_value_or_wrap(writer, 1, "ABBR", Some(abbr))?;
         }
 
+        if let Some(ref publication) = source.publication_facts {
+            self.write_long_text(writer, 1, "PUBL", publication)?;
+        }
+
+        if let Some(ref text) = source.citation_from_source {
+            self.write_long_text(writer, 1, "TEXT", text)?;
+        }
+
         // Repository citations
         for repo in &source.repo_citations {
-            self.write_line(writer, 1, "REPO", Some(&repo.xref))?;
+            self.write_repository_citation(writer, 1, repo)?;
+        }
+
+        // Record identifiers
+        if let Some(ref refn) = source.user_reference_number {
+            self.write_value_or_wrap(writer, 1, "REFN", Some(refn))?;
+            if let Some(ref refn_type) = source.user_reference_type {
+                self.write_value_or_wrap(writer, 2, "TYPE", Some(refn_type))?;
+            }
+        }
+        if let Some(ref rin) = source.automated_record_id {
+            self.write_value_or_wrap(writer, 1, "RIN", Some(rin))?;
+        }
+        if let Some(ref rfn) = source.submitter_registered_rfn {
+            self.write_value_or_wrap(writer, 1, "RFN", Some(rfn))?;
+        }
+        if !self.config.gedcom_version.starts_with('5') {
+            if let Some(ref uid) = source.uid {
+                self.write_value_or_wrap(writer, 1, "UID", Some(uid))?;
+            }
+            for exid in &source.external_ids {
+                self.write_value_or_wrap(writer, 1, "EXID", Some(exid))?;
+            }
         }
 
         // Notes
         for note in &source.notes {
             self.write_note(writer, 1, note)?;
+        }
+
+        // Multimedia links
+        for media in &source.multimedia {
+            self.write_multimedia_link(writer, 1, media)?;
         }
 
         // Change date
@@ -847,6 +934,42 @@ impl GedcomWriter {
             if let Some(ref date) = change_date.date {
                 self.write_date(writer, 2, date)?;
             }
+        }
+
+        self.write_custom_data(writer, 1, &source.custom_data)?;
+
+        Ok(())
+    }
+
+    /// Writes the `DATA` substructure of a source record.
+    fn write_source_data<W: Write>(
+        &self,
+        writer: &mut W,
+        level: u8,
+        data: &SourceData,
+    ) -> Result<(), io::Error> {
+        self.write_line(writer, level, "DATA", None)?;
+
+        for event in data.events() {
+            let recorded = match event.event {
+                Event::SourceData(ref recorded) => Some(recorded.as_str()),
+                _ => event.value.as_deref(),
+            };
+            self.write_value_or_wrap(writer, level + 1, "EVEN", recorded)?;
+            if let Some(ref date) = event.date {
+                self.write_date(writer, level + 2, date)?;
+            }
+            if let Some(ref place) = event.place {
+                self.write_value_or_wrap(writer, level + 2, "PLAC", place.value.as_deref())?;
+            }
+        }
+
+        if let Some(ref agency) = data.agency {
+            self.write_value_or_wrap(writer, level + 1, "AGNC", Some(agency))?;
+        }
+
+        for note in &data.notes {
+            self.write_note(writer, level + 1, note)?;
         }
 
         Ok(())
@@ -863,6 +986,7 @@ impl GedcomWriter {
         if let Some(ref name) = repo.name {
             self.write_value_or_wrap(writer, 1, "NAME", Some(name))?;
         }
+        self.write_custom_data(writer, 1, &repo.custom_data)?;
 
         if let Some(ref address) = repo.address {
             self.write_address(writer, 1, address)?;
@@ -936,7 +1060,7 @@ impl GedcomWriter {
         }
 
         // Note
-        if let Some(ref note) = submitter.note {
+        for note in &submitter.notes {
             self.write_note(writer, 1, note)?;
         }
 
@@ -947,6 +1071,8 @@ impl GedcomWriter {
                 self.write_date(writer, 2, date)?;
             }
         }
+
+        self.write_custom_data(writer, 1, &submitter.custom_data)?;
 
         Ok(())
     }
@@ -979,6 +1105,10 @@ impl GedcomWriter {
             self.write_value_or_wrap(writer, 1, "DESC", Some(descendants))?;
         }
 
+        for note in &submission.notes {
+            self.write_note(writer, 1, note)?;
+        }
+
         Ok(())
     }
 
@@ -1005,7 +1135,7 @@ impl GedcomWriter {
         }
 
         // Note
-        if let Some(ref note) = media.note_structure {
+        for note in &media.notes {
             self.write_note(writer, 1, note)?;
         }
 
@@ -1019,6 +1149,61 @@ impl GedcomWriter {
             self.write_line(writer, 1, "CHAN", None)?;
             if let Some(ref date) = change_date.date {
                 self.write_date(writer, 2, date)?;
+            }
+        }
+
+        self.write_custom_data(writer, 1, &media.custom_data)?;
+
+        Ok(())
+    }
+
+    /// Writes a source's repository citation: the `REPO` pointer with its
+    /// `NOTE`s and its call numbers, each `CALN` with its own `MEDI`.
+    fn write_repository_citation<W: Write>(
+        &self,
+        writer: &mut W,
+        level: u8,
+        repo: &crate::types::repository::citation::Citation,
+    ) -> Result<(), io::Error> {
+        self.write_line(writer, level, "REPO", Some(&repo.xref))?;
+
+        for note in &repo.notes {
+            self.write_note(writer, level + 1, note)?;
+        }
+
+        let gedcom_5 = self.config.gedcom_version.starts_with('5');
+        for call_number in &repo.call_numbers {
+            self.write_value_or_wrap(writer, level + 1, "CALN", Some(&call_number.value))?;
+            let Some(ref medium) = call_number.medium else {
+                continue;
+            };
+            let phrase = call_number.medium_phrase.as_deref();
+            let standard = SOURCE_MEDIA_TYPES
+                .iter()
+                .find(|known| known.eq_ignore_ascii_case(medium));
+            if gedcom_5 {
+                // 5.5.1 values are lower case and it has no PHRASE: the text of
+                // an `OTHER` medium is the best value available.
+                let value = match (standard, phrase) {
+                    (Some(known), _) => known.to_string(),
+                    (None, Some(phrase)) if medium.eq_ignore_ascii_case("OTHER") => {
+                        phrase.to_string()
+                    }
+                    (None, _) => medium.clone(),
+                };
+                self.write_value_or_wrap(writer, level + 2, "MEDI", Some(&value))?;
+            } else {
+                // 7.0 values are an upper-case enumeration; anything else is
+                // `OTHER` with the text as its PHRASE.
+                let (value, phrase) = match standard {
+                    Some(known) => (known.to_ascii_uppercase(), phrase),
+                    None if medium.eq_ignore_ascii_case("OTHER") => ("OTHER".to_string(), phrase),
+                    None => ("OTHER".to_string(), Some(phrase.unwrap_or(medium))),
+                };
+                self.write_line(writer, level + 2, "MEDI", Some(&value))?;
+                if let Some(phrase) = phrase {
+                    self.write_value_or_wrap(writer, level + 3, "PHRASE", Some(phrase))?;
+                }
             }
         }
 
@@ -1038,6 +1223,7 @@ impl GedcomWriter {
             self.write_line(writer, level, "OBJE", None)?;
             self.write_multimedia_substructures(writer, level + 1, media)?;
         }
+        self.write_custom_data(writer, level + 1, &media.custom_data)?;
         Ok(())
     }
 
@@ -1119,6 +1305,7 @@ impl GedcomWriter {
 
         if let Some(ref data) = citation.data {
             self.write_line(writer, level + 1, "DATA", None)?;
+            self.write_custom_data(writer, level + 2, &data.custom_data)?;
             if let Some(ref date) = data.date {
                 self.write_date(writer, level + 2, date)?;
             }
@@ -1138,6 +1325,8 @@ impl GedcomWriter {
         if let Some(ref note) = citation.note {
             self.write_note(writer, level + 1, note)?;
         }
+
+        self.write_custom_data(writer, level + 1, &citation.custom_data)?;
 
         Ok(())
     }
@@ -1173,6 +1362,8 @@ impl GedcomWriter {
             let payload = tag_def.to_payload();
             self.write_value_or_wrap(writer, 2, "TAG", Some(&payload))?;
         }
+
+        self.write_custom_data(writer, 2, &schema.custom_data)?;
 
         Ok(())
     }
@@ -1218,6 +1409,8 @@ impl GedcomWriter {
             self.write_citation(writer, 1, citation)?;
         }
 
+        self.write_custom_data(writer, 1, &note.custom_data)?;
+
         Ok(())
     }
 
@@ -1256,7 +1449,7 @@ impl GedcomWriter {
             self.write_date(writer, level + 1, date)?;
         }
 
-        if let Some(ref note) = non_event.note {
+        for note in &non_event.notes {
             self.write_note(writer, level + 1, note)?;
         }
 
@@ -1297,7 +1490,7 @@ impl GedcomWriter {
             self.write_line(writer, level + 1, "FAMC", Some(famc))?;
         }
 
-        if let Some(ref note) = ordinance.note {
+        for note in &ordinance.notes {
             self.write_note(writer, level + 1, note)?;
         }
 
@@ -1345,6 +1538,8 @@ impl GedcomWriter {
             self.write_value_or_wrap(writer, level + 1, "CTRY", Some(country))?;
         }
 
+        self.write_custom_data(writer, level + 1, &address.custom_data)?;
+
         Ok(())
     }
 
@@ -1355,12 +1550,46 @@ impl GedcomWriter {
         level: u8,
         note: &Note,
     ) -> Result<(), io::Error> {
-        if let Some(ref value) = note.value {
+        if let Some(xref) = note.shared_note_xref() {
+            // A pointer to a shared note record: `NOTE @N1@` in 5.5.1,
+            // `SNOTE @N1@` in 7.0, where a NOTE payload is always text.
+            let tag = if self.config.gedcom_version.starts_with('5') {
+                "NOTE"
+            } else {
+                "SNOTE"
+            };
+            self.write_line(writer, level, tag, Some(xref))?;
+        } else if let Some(ref value) = note.value {
             self.write_long_text(writer, level, "NOTE", value)?;
         } else {
             self.write_line(writer, level, "NOTE", None)?;
         }
 
+        Ok(())
+    }
+
+    /// Writes extension (user-defined) tags, each with its substructures, the
+    /// first ones at `level`.
+    fn write_custom_data<W: Write>(
+        &self,
+        writer: &mut W,
+        level: u8,
+        tags: &[Box<UserDefinedTag>],
+    ) -> Result<(), io::Error> {
+        for tag in tags {
+            if let Some(ref xref) = tag.xref {
+                self.write_line_with_xref(
+                    writer,
+                    level,
+                    Some(xref),
+                    &tag.tag,
+                    tag.value.as_deref(),
+                )?;
+            } else {
+                self.write_line(writer, level, &tag.tag, tag.value.as_deref())?;
+            }
+            self.write_custom_data(writer, level + 1, &tag.children)?;
+        }
         Ok(())
     }
 
@@ -1460,14 +1689,13 @@ impl GedcomWriter {
                     self.write_line(writer, level, tag, Some(line))?;
                 } else {
                     // Need to split with CONC
-                    let split_at = utf8_boundary_before(line, self.config.max_line_length);
+                    let split_at = conc_split_point(line, self.config.max_line_length);
                     let first_part = &line[..split_at];
                     self.write_line(writer, level, tag, Some(first_part))?;
 
                     let mut remaining = &line[split_at..];
                     while !remaining.is_empty() {
-                        let chunk_len =
-                            utf8_boundary_before(remaining, self.config.max_line_length);
+                        let chunk_len = conc_split_point(remaining, self.config.max_line_length);
                         let chunk = &remaining[..chunk_len];
                         self.write_line(writer, level + 1, "CONC", Some(chunk))?;
                         remaining = &remaining[chunk_len..];
@@ -1479,14 +1707,13 @@ impl GedcomWriter {
                     self.write_line(writer, level + 1, "CONT", line_value)?;
                 } else {
                     // Split with CONT first, then CONC
-                    let split_at = utf8_boundary_before(line, self.config.max_line_length);
+                    let split_at = conc_split_point(line, self.config.max_line_length);
                     let first_part = &line[..split_at];
                     self.write_line(writer, level + 1, "CONT", Some(first_part))?;
 
                     let mut remaining = &line[split_at..];
                     while !remaining.is_empty() {
-                        let chunk_len =
-                            utf8_boundary_before(remaining, self.config.max_line_length);
+                        let chunk_len = conc_split_point(remaining, self.config.max_line_length);
                         let chunk = &remaining[..chunk_len];
                         self.write_line(writer, level + 1, "CONC", Some(chunk))?;
                         remaining = &remaining[chunk_len..];
@@ -1504,6 +1731,33 @@ fn io_error(_: std::fmt::Error) -> io::Error {
     io::Error::other("formatting error")
 }
 
+/// Where to cut `value` so the first part fits in `max_bytes`, for a `CONC`
+/// continuation.
+///
+/// The cut falls on a character boundary and, whenever possible, between two
+/// non-space characters: GEDCOM 5.5.1 asks for this because many readers trim
+/// the spaces at the end of a line, or after the delimiter that starts its
+/// value, so a space on either side of the cut would be lost. A part with no
+/// such position (a long run of spaces) is cut at the character boundary.
+fn conc_split_point(value: &str, max_bytes: usize) -> usize {
+    let limit = utf8_boundary_before(value, max_bytes);
+    if limit >= value.len() {
+        return limit;
+    }
+    let mut end = limit;
+    while end > 0 {
+        if value.is_char_boundary(end) {
+            let before = value[..end].chars().next_back();
+            let after = value[end..].chars().next();
+            if before.is_some_and(|c| c != ' ') && after.is_some_and(|c| c != ' ') {
+                return end;
+            }
+        }
+        end -= 1;
+    }
+    limit
+}
+
 fn utf8_boundary_before(value: &str, max_bytes: usize) -> usize {
     let mut end = max_bytes.min(value.len());
     while end > 0 && !value.is_char_boundary(end) {
@@ -1519,6 +1773,24 @@ fn utf8_boundary_before(value: &str, max_bytes: usize) -> usize {
 // =============================================================================
 // Helper functions for tag conversion
 // =============================================================================
+
+/// The `SOURCE_MEDIA_TYPE` values of GEDCOM 5.5.1, which GEDCOM 7.0 writes in
+/// upper case (and extends with `OTHER`).
+const SOURCE_MEDIA_TYPES: [&str; 13] = [
+    "audio",
+    "book",
+    "card",
+    "electronic",
+    "fiche",
+    "film",
+    "magazine",
+    "manuscript",
+    "map",
+    "newspaper",
+    "photo",
+    "tombstone",
+    "video",
+];
 
 /// Converts an event type to its GEDCOM tag.
 fn event_to_tag(event: &Event) -> &'static str {
