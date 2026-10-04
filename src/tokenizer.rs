@@ -259,7 +259,13 @@ impl<'a> Tokenizer<'a> {
                     Token::Tag(self.extract_word_with_capacity(TAG_CAPACITY))
                 }
             }
-            Token::Pointer(_) => Token::Tag(self.extract_word_with_capacity(TAG_CAPACITY)),
+            Token::Pointer(_) => {
+                if self.current_char == '_' {
+                    Token::CustomTag(self.extract_word_with_capacity(TAG_CAPACITY))
+                } else {
+                    Token::Tag(self.extract_word_with_capacity(TAG_CAPACITY))
+                }
+            }
             Token::Tag(_) | Token::CustomTag(_) => {
                 // If the line ends right after the tag, treat it as an empty value.
                 if self.current_char == '\n'
@@ -813,7 +819,13 @@ impl<R: BufRead> StreamTokenizer<R> {
                     Token::Tag(self.extract_word_with_capacity(TAG_CAPACITY)?)
                 }
             }
-            Token::Pointer(_) => Token::Tag(self.extract_word_with_capacity(TAG_CAPACITY)?),
+            Token::Pointer(_) => {
+                if self.current_char == '_' {
+                    Token::CustomTag(self.extract_word_with_capacity(TAG_CAPACITY)?)
+                } else {
+                    Token::Tag(self.extract_word_with_capacity(TAG_CAPACITY)?)
+                }
+            }
             Token::Tag(_) | Token::CustomTag(_) => {
                 if self.current_char == '\n'
                     || self.current_char == '\r'
