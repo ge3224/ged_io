@@ -63,7 +63,7 @@ where
         match &tokenizer.current_token {
             Token::Tag(tag) => {
                 let tag_clone = tag.clone();
-                tag_handler(tag_clone.as_ref(), tokenizer)?;
+                tag_handler(substructure_tag(&tag_clone), tokenizer)?;
             }
             Token::CustomTag(tag) => {
                 let tag_clone = tag.clone();
@@ -89,6 +89,20 @@ where
         }
     }
     Ok(non_standard_dataset)
+}
+
+/// The tag a substructure is dispatched under.
+///
+/// A GEDCOM 7.0 `SNOTE @N1@` substructure is the pointer form of a note
+/// structure, which GEDCOM 5.5.1 writes `NOTE @N1@`: both are handed to the
+/// `NOTE` handlers, and `Note::shared_note_xref` tells a pointer from text.
+#[inline]
+fn substructure_tag(tag: &str) -> &str {
+    if tag == "SNOTE" {
+        "NOTE"
+    } else {
+        tag
+    }
 }
 
 /// Generic version of `parse_subset` that works with any tokenizer implementing `TokenizerTrait`.
@@ -122,7 +136,7 @@ where
         match tokenizer.current_token() {
             Token::Tag(tag) => {
                 let tag_clone = tag.clone();
-                tag_handler(tag_clone.as_ref(), tokenizer)?;
+                tag_handler(substructure_tag(&tag_clone), tokenizer)?;
             }
             Token::CustomTag(tag) => {
                 let tag_clone = tag.clone();

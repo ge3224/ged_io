@@ -17,7 +17,11 @@ pub enum Age {
     Infant,
     /// Died just prior, at, or near birth, `0` years
     Stillborn,
-    /// An age in years (`y`), months (`m`), weeks (`w`), and/or days (`d`)
+    /// An age in years (`y`), months (`m`), weeks (`w`), and/or days (`d`).
+    ///
+    /// When every duration field is `None`, the age is known only as text: the
+    /// `phrase` then holds either the GEDCOM 7.0 `PHRASE` or a payload that did
+    /// not follow the age grammar (see [`Age::has_duration`]).
     Numeric {
         years: Option<u16>,
         months: Option<u8>,
@@ -31,68 +35,19 @@ pub enum Age {
 impl Age {
     /// Creates a new `Age` from a `Tokenizer`.
     ///
+    /// Parsing is lenient: a value that does not follow the `AGE` grammar (free
+    /// text such as `majeur` or `about 30`, or an empty payload) is not an
+    /// error. It is kept verbatim as the phrase of an [`Age::Numeric`] that has
+    /// no duration, so the original wording survives a round trip and one
+    /// non-standard line cannot make the whole file unreadable. A GEDCOM 7.0
+    /// `PHRASE` substructure, when present, takes precedence over that text.
+    ///
     /// # Errors
     ///
-    /// Returns `GedcomError::ParseError` if the value is not a valid age.
+    /// Returns a `GedcomError` if the underlying tokenizer fails.
     pub fn new(tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<Age, GedcomError> {
-        let value = &tokenizer.take_line_value()?;
-
-        let mut age = match value.as_str() {
-            "CHILD" => Age::Child,
-            "INFANT" => Age::Infant,
-            "STILLBORN" => Age::Stillborn,
-            _ => {
-                let mut remaining: &str = value;
-                let modifier = if remaining.starts_with('<') {
-                    remaining = remaining[1..].trim_start();
-                    AgeModifier::LessThan
-                } else if remaining.starts_with('>') {
-                    remaining = remaining[1..].trim_start();
-                    AgeModifier::GreaterThan
-                } else {
-                    AgeModifier::Exact
-                };
-
-                let mut years = None;
-                let mut months = None;
-                let mut weeks = None;
-                let mut days = None;
-
-                for token in remaining.split_whitespace() {
-                    let (num_str, suffix) = token.split_at(token.len() - 1);
-                    match suffix {
-                        "y" => years = num_str.parse().ok(),
-                        "m" => months = num_str.parse().ok(),
-                        "w" => weeks = num_str.parse().ok(),
-                        "d" => days = num_str.parse().ok(),
-                        _ if token.chars().all(|c| c.is_ascii_digit()) => {
-                            // The suffix is not present (or is a digit)
-                            // Default to using years for parsing the full token
-                            years = token.parse().ok();
-                        }
-                        _ => {
-                            // Unknwon suffix
-                        }
-                    }
-                }
-
-                if years.is_none() && months.is_none() && weeks.is_none() && days.is_none() {
-                    return Err(GedcomError::ParseError {
-                        line: tokenizer.line,
-                        message: format!("Invalid AGE value: {value}"),
-                    });
-                }
-
-                Age::Numeric {
-                    years,
-                    months,
-                    weeks,
-                    days,
-                    modifier,
-                    phrase: None,
-                }
-            }
-        };
+        let value = tokenizer.take_line_value()?;
+        let mut age = Age::from_value(&value);
 
         parse_subset(tokenizer, level, |tag, handler| {
             if tag == "PHRASE" {
@@ -104,6 +59,101 @@ impl Age {
         })?;
 
         Ok(age)
+    }
+
+    /// Interprets an `AGE` payload.
+    ///
+    /// The keywords and a well-formed duration are read exactly; anything else
+    /// becomes the phrase of a duration-less [`Age::Numeric`].
+    fn from_value(value: &str) -> Age {
+        let value = value.trim();
+        match value {
+            "CHILD" => Age::Child,
+            "INFANT" => Age::Infant,
+            "STILLBORN" => Age::Stillborn,
+            _ => Age::parse_duration(value).unwrap_or_else(|| Age::Numeric {
+                years: None,
+                months: None,
+                weeks: None,
+                days: None,
+                modifier: AgeModifier::Exact,
+                phrase: (!value.is_empty()).then(|| value.to_string()),
+            }),
+        }
+    }
+
+    /// Parses `[< | >] duration`, where the duration is made of `<n>y`, `<n>m`,
+    /// `<n>w` and `<n>d` parts, each unit at most once. The parts may also be
+    /// written without the separating space (`1y6m`), and a bare number is read
+    /// as years, as earlier versions of this crate did. Returns `None` unless
+    /// the whole value is consumed.
+    fn parse_duration(value: &str) -> Option<Age> {
+        let (modifier, remaining) = if let Some(rest) = value.strip_prefix('<') {
+            (AgeModifier::LessThan, rest)
+        } else if let Some(rest) = value.strip_prefix('>') {
+            (AgeModifier::GreaterThan, rest)
+        } else {
+            (AgeModifier::Exact, value)
+        };
+
+        let mut years = None;
+        let mut months = None;
+        let mut weeks = None;
+        let mut days = None;
+
+        let mut rest = remaining.trim_start();
+        while !rest.is_empty() {
+            let digits = rest.bytes().take_while(u8::is_ascii_digit).count();
+            if digits == 0 {
+                return None;
+            }
+            let (number, tail) = rest.split_at(digits);
+            let (unit, tail) = match tail.chars().next() {
+                Some(unit @ ('y' | 'm' | 'w' | 'd')) => (unit, &tail[1..]),
+                None => ('y', tail),
+                Some(c) if c.is_whitespace() => ('y', tail),
+                Some(_) => return None,
+            };
+            let duplicate = match unit {
+                'y' => years.replace(number.parse().ok()?).is_some(),
+                'm' => months.replace(number.parse().ok()?).is_some(),
+                'w' => weeks.replace(number.parse().ok()?).is_some(),
+                _ => days.replace(number.parse().ok()?).is_some(),
+            };
+            if duplicate {
+                return None;
+            }
+            rest = tail.trim_start();
+        }
+
+        if years.is_none() && months.is_none() && weeks.is_none() && days.is_none() {
+            return None;
+        }
+
+        Some(Age::Numeric {
+            years,
+            months,
+            weeks,
+            days,
+            modifier,
+            phrase: None,
+        })
+    }
+
+    /// Returns `true` if this age carries a duration (or is one of the
+    /// keywords), as opposed to free text only.
+    #[must_use]
+    pub fn has_duration(&self) -> bool {
+        match self {
+            Age::Child | Age::Infant | Age::Stillborn => true,
+            Age::Numeric {
+                years,
+                months,
+                weeks,
+                days,
+                ..
+            } => years.is_some() || months.is_some() || weeks.is_some() || days.is_some(),
+        }
     }
 }
 
@@ -119,8 +169,11 @@ impl std::fmt::Display for Age {
                 weeks,
                 days,
                 modifier,
-                phrase: _,
+                phrase,
             } => {
+                if !self.has_duration() {
+                    return write!(f, "{}", phrase.as_deref().unwrap_or_default());
+                }
                 match modifier {
                     AgeModifier::GreaterThan => write!(f, "> ")?,
                     AgeModifier::LessThan => write!(f, "< ")?,
@@ -260,17 +313,78 @@ mod test {
         );
     }
 
+    fn phrase_only(text: &str) -> Age {
+        Age::Numeric {
+            years: None,
+            months: None,
+            weeks: None,
+            days: None,
+            modifier: AgeModifier::Exact,
+            phrase: Some(text.to_string()),
+        }
+    }
+
     #[test]
     fn test_parse_numeric_years_unknown_suffix() {
-        let age = "25z";
-        let sample = format!(
-            "0 HEAD\n1 GEDC\n2 VERS 5.5.1\n0 @I1@ INDI\n1 NAME Test /Person/\n1 DEAT Y\n2 AGE {age}\n0 TRLR"
+        // Not the AGE grammar: kept as text rather than failing the file.
+        assert_eq!(help_parse_age("25z"), phrase_only("25z"));
+    }
+
+    #[test]
+    fn test_parse_compact_duration() {
+        assert_eq!(
+            help_parse_age("1y6m"),
+            Age::Numeric {
+                years: Some(1),
+                months: Some(6),
+                weeks: None,
+                days: None,
+                modifier: AgeModifier::Exact,
+                phrase: None,
+            }
         );
+        assert_eq!(help_parse_age("<2y").to_string(), "< 2y");
+    }
+
+    #[test]
+    fn test_parse_free_text_is_kept_as_phrase() {
+        assert_eq!(help_parse_age("majeur"), phrase_only("majeur"));
+        // Must not be read as an exact 30 years.
+        assert_eq!(
+            help_parse_age("environ 30 ans"),
+            phrase_only("environ 30 ans")
+        );
+        assert_eq!(help_parse_age("30y 2y"), phrase_only("30y 2y"));
+        assert_eq!(help_parse_age("300m"), phrase_only("300m"));
+        assert_eq!(help_parse_age("about 30"), phrase_only("about 30"));
+        assert_eq!(help_parse_age("ca. 2y"), phrase_only("ca. 2y"));
+    }
+
+    #[test]
+    fn test_parse_non_ascii_text_does_not_panic() {
+        assert_eq!(help_parse_age("30é"), phrase_only("30é"));
+        assert_eq!(help_parse_age("âgé"), phrase_only("âgé"));
+    }
+
+    #[test]
+    fn test_parse_empty_age() {
+        let sample = "0 HEAD\n1 GEDC\n2 VERS 5.5.1\n0 @I1@ INDI\n1 NAME Test /Person/\n1 DEAT Y\n2 AGE\n2 DATE 1900\n0 TRLR";
         let mut doc = Gedcom::new(sample.chars()).unwrap();
-        let data = doc.parse_data();
-        assert!(data.is_err());
-        let data = data.unwrap_err();
-        assert!(data.to_string().contains("Invalid AGE value: 25z"));
+        let data = doc.parse_data().unwrap();
+        let event = &data.individuals[0].events[0];
+        let age = event.age.clone().unwrap();
+        assert!(!age.has_duration());
+        assert_eq!(age.to_string(), "");
+        assert_eq!(event.date.as_ref().unwrap().value.as_deref(), Some("1900"));
+    }
+
+    #[test]
+    fn test_parse_free_text_with_gedcom_7_phrase() {
+        let sample = "0 HEAD\n1 GEDC\n2 VERS 7.0\n0 @I1@ INDI\n1 DEAT Y\n2 AGE\n3 PHRASE of full age\n0 TRLR";
+        let mut doc = Gedcom::new(sample.chars()).unwrap();
+        let data = doc.parse_data().unwrap();
+        let age = data.individuals[0].events[0].age.clone().unwrap();
+        assert_eq!(age, phrase_only("of full age"));
     }
 
     #[test]
@@ -339,7 +453,15 @@ mod test {
 
     #[test]
     fn test_display_roundtrip() {
-        let cases = ["CHILD", "INFANT", "STILLBORN", "75y 3m", "> 80y", "2w 3d"];
+        let cases = [
+            "CHILD",
+            "INFANT",
+            "STILLBORN",
+            "75y 3m",
+            "> 80y",
+            "2w 3d",
+            "majeur",
+        ];
         for input in cases {
             let age = help_parse_age(input);
             assert_eq!(age.to_string(), input);

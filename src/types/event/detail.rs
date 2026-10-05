@@ -1,12 +1,13 @@
 #[cfg(feature = "json")]
 use serde::{Deserialize, Serialize};
-use std::fmt;
+use std::{fmt, str::FromStr};
 
 use crate::{
     parser::{parse_subset, Parser},
     tokenizer::{Token, Tokenizer},
     types::{
         age::Age,
+        custom::UserDefinedTag,
         date::Date,
         event::{family::FamilyEventDetail, Event},
         gedcom7::SortDate,
@@ -39,6 +40,17 @@ pub struct Detail {
     pub event: Event,
     pub value: Option<String>,
     pub date: Option<Date>,
+    /// Address of the event (tag: ADDR), with the rest of the address
+    /// structure below.
+    pub address: Option<crate::types::address::Address>,
+    /// Phone numbers (tag: PHON).
+    pub phone: Vec<String>,
+    /// Email addresses (tag: EMAIL).
+    pub email: Vec<String>,
+    /// Fax numbers (tag: FAX).
+    pub fax: Vec<String>,
+    /// Web pages (tag: WWW).
+    pub website: Vec<String>,
     /// The place where the event occurred (tag: PLAC).
     ///
     /// Now uses the full `Place` structure which supports:
@@ -47,7 +59,8 @@ pub struct Detail {
     /// - Romanized variations (ROMN)
     /// - Place form
     pub place: Option<Place>,
-    pub note: Option<Note>,
+    /// Notes (tag: NOTE). GEDCOM allows any number of them.
+    pub notes: Vec<Note>,
     pub family_link: Option<FamilyLink>,
     pub family_event_details: Vec<FamilyEventDetail>,
     /// `event_type` handles the TYPE tag, a descriptive word or phrase used to further classify
@@ -100,6 +113,8 @@ pub struct Detail {
     /// A religious denomination to which a person is affiliated or for which
     /// a record applies.
     pub religion: Option<String>,
+    /// Extension (user-defined) tags found under this structure.
+    pub custom_data: Vec<Box<UserDefinedTag>>,
 }
 
 impl Detail {
@@ -110,14 +125,19 @@ impl Detail {
     /// This function will return an error if parsing fails.
     pub fn new(tokenizer: &mut Tokenizer<'_>, level: u8, tag: &str) -> Result<Detail, GedcomError> {
         let mut event = Detail {
-            event: Event::try_from(tag).map_err(|msg| GedcomError::ParseError {
+            event: Event::from_str(tag).map_err(|msg| GedcomError::ParseError {
                 line: tokenizer.line,
                 message: msg,
             })?,
             value: None,
             date: None,
+            address: None,
+            phone: Vec::new(),
+            email: Vec::new(),
+            fax: Vec::new(),
+            website: Vec::new(),
             place: None,
-            note: None,
+            notes: Vec::new(),
             family_link: None,
             family_event_details: Vec::new(),
             event_type: None,
@@ -130,6 +150,7 @@ impl Detail {
             age: None,
             agency: None,
             religion: None,
+            custom_data: Vec::new(),
         };
         event.parse(tokenizer, level)?;
         Ok(event)
@@ -193,6 +214,13 @@ impl Parser for Detail {
             match tag {
                 "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
                 "PLAC" => self.place = Some(Place::new(tokenizer, level + 1)?),
+                "ADDR" => {
+                    self.address = Some(crate::types::address::Address::new(tokenizer, level + 1)?);
+                }
+                "PHON" => self.phone.push(tokenizer.take_line_value()?),
+                "EMAIL" => self.email.push(tokenizer.take_line_value()?),
+                "FAX" => self.fax.push(tokenizer.take_line_value()?),
+                "WWW" => self.website.push(tokenizer.take_line_value()?),
                 "SOUR" => self.add_citation(Citation::new(tokenizer, level + 1)?),
                 "FAMC" => self.family_link = Some(FamilyLink::new(tokenizer, level + 1, tag)?),
                 "HUSB" | "WIFE" => {
@@ -202,7 +230,7 @@ impl Parser for Detail {
                         tag,
                     )?);
                 }
-                "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
+                "NOTE" => self.notes.push(Note::new(tokenizer, level + 1)?),
                 "TYPE" => self.event_type = Some(tokenizer.take_line_value()?),
                 "OBJE" => {
                     self.add_multimedia_record(Multimedia::new(tokenizer, level + 1, pointer)?);
@@ -225,7 +253,7 @@ impl Parser for Detail {
             Ok(())
         };
 
-        parse_subset(tokenizer, level, handle_subset)?;
+        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
 
         if !value.is_empty() {
             self.value = Some(value);
