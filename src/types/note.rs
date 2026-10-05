@@ -84,8 +84,8 @@ impl Parser for Note {
                 "TRANS" => self.translation = Some(Translation::new(tokenizer, level + 1)?),
                 "LANG" => self.language = Some(tokenizer.take_line_value()?),
                 _ => {
-                    // Gracefully skip unknown tags
-                    tokenizer.take_line_value()?;
+                    // Leave unknown tags to `parse_subset`, which keeps them with
+                    // their substructures.
                 }
             }
 

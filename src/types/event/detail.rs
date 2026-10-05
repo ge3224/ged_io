@@ -245,9 +245,8 @@ impl Parser for Detail {
                 "AGNC" => self.agency = Some(tokenizer.take_line_value()?),
                 "RELI" => self.religion = Some(tokenizer.take_line_value()?),
                 _ => {
-                    // Gracefully skip unknown tags instead of failing
-                    // This handles non-standard extensions from various GEDCOM generators
-                    tokenizer.take_line_value()?;
+                    // Leave unknown tags to `parse_subset`, which keeps them with
+                    // their substructures.
                 }
             }
             Ok(())

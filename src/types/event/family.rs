@@ -57,12 +57,10 @@ impl Parser for FamilyEventDetail {
         tokenizer.next_token()?;
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
-            match tag {
-                "AGE" => self.age = Some(Age::new(tokenizer, level + 1)?),
-                _ => {
-                    // Gracefully skip unknown tags
-                    tokenizer.take_line_value()?;
-                }
+            // Unknown tags are left to `parse_subset`, which keeps them with
+            // their substructures.
+            if tag == "AGE" {
+                self.age = Some(Age::new(tokenizer, level + 1)?);
             }
 
             Ok(())

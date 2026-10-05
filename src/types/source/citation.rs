@@ -173,8 +173,6 @@ impl Parser for Citation {
                     parse_subset(tokenizer, level + 1, |tag, tokenizer| {
                         if tag == "ROLE" {
                             self.role = Some(tokenizer.take_line_value()?);
-                        } else {
-                            tokenizer.take_line_value()?;
                         }
                         Ok(())
                     })?;
@@ -182,9 +180,8 @@ impl Parser for Citation {
                 // Tolerated directly under SOUR, as earlier versions did.
                 "ROLE" => self.role = Some(tokenizer.take_line_value()?),
                 _ => {
-                    // Gracefully skip unknown tags instead of failing
-                    // This handles non-standard extensions from various GEDCOM generators
-                    tokenizer.take_line_value()?;
+                    // Leave unknown tags to `parse_subset`, which keeps them with
+                    // their substructures.
                 }
             }
 
