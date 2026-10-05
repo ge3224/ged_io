@@ -56,7 +56,8 @@ pub struct Individual {
     pub events: Vec<Detail>,
     pub multimedia: Vec<Multimedia>,
     pub last_updated: Option<String>,
-    pub note: Option<Note>,
+    /// Notes (tag: NOTE). GEDCOM allows any number of them.
+    pub notes: Vec<Note>,
     pub change_date: Option<ChangeDate>,
     pub custom_data: Vec<Box<UserDefinedTag>>,
     /// Non-event assertions for GEDCOM 7.0.
@@ -131,6 +132,8 @@ pub struct Individual {
     ///
     /// Identifiers maintained by external authorities that apply to this individual.
     pub external_ids: Vec<String>,
+    /// Submitters who contributed this record (tag: SUBM, GEDCOM 5.5.1).
+    pub submitters: Vec<Xref>,
 }
 
 impl Individual {
@@ -344,7 +347,7 @@ impl Parser for Individual {
                     self.add_source_citation(Citation::new(tokenizer, level + 1)?);
                 }
                 "OBJE" => self.add_multimedia(Multimedia::new(tokenizer, level + 1, None)?),
-                "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
+                "NOTE" => self.notes.push(Note::new(tokenizer, level + 1)?),
                 "NO" => self.non_events.push(NonEvent::new(tokenizer, level + 1)?),
                 // LDS Ordinances (INIL is GEDCOM 7.0 only)
                 "BAPL" | "CONL" | "INIL" | "ENDL" | "SLGC" => {
@@ -377,6 +380,7 @@ impl Parser for Individual {
                 "DESI" => self.descendant_interest = Some(tokenizer.take_line_value()?),
                 // External identifier (GEDCOM 7.0)
                 "EXID" => self.external_ids.push(tokenizer.take_line_value()?),
+                "SUBM" => self.submitters.push(tokenizer.take_line_value()?),
                 _ => {
                     // Gracefully skip unknown tags
                     tokenizer.take_line_value()?;
@@ -562,13 +566,7 @@ mod tests {
             "31 DEC 1900"
         );
         assert_eq!(
-            a_sour
-                .data
-                .as_ref()
-                .unwrap()
-                .text
-                .as_ref()
-                .unwrap()
+            a_sour.data.as_ref().unwrap().texts[0]
                 .value
                 .as_ref()
                 .unwrap(),
@@ -579,7 +577,7 @@ mod tests {
             "Direct"
         );
         assert_eq!(
-            a_sour.note.as_ref().unwrap().value.as_ref().unwrap(),
+            a_sour.notes[0].value.as_ref().unwrap(),
             "A note\nNote continued here. The word TEST should not be broken!"
         );
     }

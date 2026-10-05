@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
-    types::{custom::UserDefinedTag, note::Note, Xref},
+    types::{custom::UserDefinedTag, note::Note, source::citation::Citation, Xref},
     GedcomError,
 };
 
@@ -16,12 +16,24 @@ use crate::{
 pub struct Association {
     /// Reference to associated individual
     pub xref: Xref,
-    /// tag: RELA, relationship to this individual
+    /// tag: RELA, relationship to this individual (GEDCOM 5.5.1)
     pub relationship: Option<String>,
+    /// tag: ROLE, the role of the associated individual (GEDCOM 7.0), one of
+    /// `CHIL`, `CLERGY`, `FATH`, `FRIEND`, `GODP`, `HUSB`, `MOTH`, `MULTIPLE`,
+    /// `NGHBR`, `OFFICIATOR`, `PARENT`, `SPOU`, `WIFE`, `WITN` or `OTHER`.
+    pub role: Option<String>,
+    /// tag: PHRASE under ROLE, the role in words (GEDCOM 7.0), required with
+    /// `OTHER`.
+    pub role_phrase: Option<String>,
+    /// tag: PHRASE under ASSO, how the associated individual is named in the
+    /// source when there is no record of them (GEDCOM 7.0, with `@VOID@`).
+    pub phrase: Option<String>,
+    /// tag: SOUR, citations supporting the association.
+    pub sources: Vec<Citation>,
     /// tag: TYPE, indicator of the type of association
     pub association_type: Option<String>,
     /// tag: NOTE, additional notes about this association
-    pub note: Option<Note>,
+    pub notes: Vec<Note>,
     /// Custom tags not defined in GEDCOM specification
     pub custom_data: Vec<Box<UserDefinedTag>>,
 }
@@ -36,8 +48,12 @@ impl Association {
         let mut association = Association {
             xref: tokenizer.take_line_value()?,
             relationship: None,
+            role: None,
+            role_phrase: None,
+            phrase: None,
+            sources: Vec::new(),
             association_type: None,
-            note: None,
+            notes: Vec::new(),
             custom_data: Vec::new(),
         };
         association.parse(tokenizer, level)?;
@@ -50,8 +66,21 @@ impl Parser for Association {
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             match tag {
                 "RELA" => self.relationship = Some(tokenizer.take_line_value()?),
+                "ROLE" => {
+                    self.role = Some(tokenizer.take_line_value()?);
+                    parse_subset(tokenizer, level + 1, |tag, tokenizer| {
+                        if tag == "PHRASE" {
+                            self.role_phrase = Some(tokenizer.take_line_value()?);
+                        } else {
+                            tokenizer.take_line_value()?;
+                        }
+                        Ok(())
+                    })?;
+                }
+                "PHRASE" => self.phrase = Some(tokenizer.take_line_value()?),
+                "SOUR" => self.sources.push(Citation::new(tokenizer, level + 1)?),
                 "TYPE" => self.association_type = Some(tokenizer.take_line_value()?),
-                "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
+                "NOTE" => self.notes.push(Note::new(tokenizer, level + 1)?),
                 _ => {
                     // Gracefully skip unknown tags
                     tokenizer.take_line_value()?;
