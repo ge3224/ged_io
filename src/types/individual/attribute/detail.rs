@@ -5,8 +5,9 @@ use crate::{
     parser::{parse_subset, Parser},
     tokenizer::{Token, Tokenizer},
     types::{
-        address::Address, age::Age, date::Date, individual::attribute::IndividualAttribute,
-        multimedia::Multimedia, note::Note, place::Place, source::citation::Citation,
+        address::Address, age::Age, custom::UserDefinedTag, date::Date,
+        individual::attribute::IndividualAttribute, multimedia::Multimedia, note::Note,
+        place::Place, source::citation::Citation,
     },
     GedcomError,
 };
@@ -33,7 +34,8 @@ pub struct AttributeDetail {
     pub place: Option<Place>,
     pub date: Option<Date>,
     pub sources: Vec<Citation>,
-    pub note: Option<Note>,
+    /// Notes (tag: NOTE). GEDCOM allows any number of them.
+    pub notes: Vec<Note>,
     /// `attribute_type` handles the TYPE tag, a descriptive word or phrase used to further
     /// classify the parent event or attribute tag. This should be used to define what kind of
     /// identification number or fact classification is being defined.
@@ -54,11 +56,24 @@ pub struct AttributeDetail {
     ///
     /// Commonly used with RESI (residence) attributes.
     pub address: Option<Address>,
+    /// Phone numbers (tag: PHON).
+    pub phone: Vec<String>,
+    /// Email addresses (tag: EMAIL).
+    pub email: Vec<String>,
+    /// Fax numbers (tag: FAX).
+    pub fax: Vec<String>,
+    /// Web pages (tag: WWW).
+    pub website: Vec<String>,
+    /// Individuals associated with this attribute (tag: ASSO), such as an
+    /// employer for an occupation.
+    pub associations: Vec<crate::types::individual::association::Association>,
     /// Cause related to this attribute (tag: CAUS).
     pub cause: Option<String>,
     /// Responsible agency (tag: AGNC).
     pub agency: Option<String>,
     pub multimedia: Vec<Multimedia>,
+    /// Extension (user-defined) tags found under this structure.
+    pub custom_data: Vec<Box<UserDefinedTag>>,
 }
 
 impl AttributeDetail {
@@ -78,14 +93,20 @@ impl AttributeDetail {
             value: None,
             date: None,
             sources: Vec::new(),
-            note: None,
+            notes: Vec::new(),
             attribute_type: None,
             restriction: None,
             age: None,
             address: None,
+            phone: Vec::new(),
+            email: Vec::new(),
+            fax: Vec::new(),
+            website: Vec::new(),
+            associations: Vec::new(),
             cause: None,
             agency: None,
             multimedia: Vec::new(),
+            custom_data: Vec::new(),
         };
         attribute.parse(tokenizer, level)?;
         Ok(attribute)
@@ -140,11 +161,23 @@ impl Parser for AttributeDetail {
                 "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
                 "SOUR" => self.add_source_citation(Citation::new(tokenizer, level + 1)?),
                 "PLAC" => self.place = Some(Place::new(tokenizer, level + 1)?),
-                "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
+                "NOTE" => self.notes.push(Note::new(tokenizer, level + 1)?),
                 "TYPE" => self.attribute_type = Some(tokenizer.take_continued_text(level + 1)?),
                 "RESN" => self.restriction = Some(tokenizer.take_line_value()?),
                 "AGE" => self.age = Some(Age::new(tokenizer, level + 1)?),
                 "ADDR" => self.address = Some(Address::new(tokenizer, level + 1)?),
+                "PHON" => self.phone.push(tokenizer.take_line_value()?),
+                "EMAIL" => self.email.push(tokenizer.take_line_value()?),
+                "FAX" => self.fax.push(tokenizer.take_line_value()?),
+                "WWW" => self.website.push(tokenizer.take_line_value()?),
+                "ASSO" => {
+                    self.associations.push(
+                        crate::types::individual::association::Association::new(
+                            tokenizer,
+                            level + 1,
+                        )?,
+                    );
+                }
                 "CAUS" => self.cause = Some(tokenizer.take_continued_text(level + 1)?),
                 "AGNC" => self.agency = Some(tokenizer.take_line_value()?),
                 "OBJE" => self
@@ -159,7 +192,7 @@ impl Parser for AttributeDetail {
             Ok(())
         };
 
-        parse_subset(tokenizer, level, handle_subset)?;
+        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
 
         if !value.is_empty() {
             self.value = Some(value);

@@ -1,6 +1,7 @@
 use crate::{
     parser::Parser,
     tokenizer::{Token, Tokenizer, TokenizerTrait},
+    types::Xref,
     GedcomError,
 };
 #[cfg(feature = "json")]
@@ -14,6 +15,10 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
 pub struct UserDefinedTag {
+    /// The cross-reference identifier of a top-level extension record, as in
+    /// `0 @L1@ _LOC`. `None` for an extension substructure.
+    #[cfg_attr(feature = "json", serde(default))]
+    pub xref: Option<Xref>,
     pub tag: String,
     pub value: Option<String>,
     pub children: Vec<Box<UserDefinedTag>>,
@@ -31,6 +36,7 @@ impl UserDefinedTag {
         tag: &str,
     ) -> Result<UserDefinedTag, GedcomError> {
         let mut udd = UserDefinedTag {
+            xref: None,
             tag: tag.to_string(),
             value: None,
             children: Vec::new(),
@@ -50,6 +56,7 @@ impl UserDefinedTag {
         tag: &str,
     ) -> Result<UserDefinedTag, GedcomError> {
         let mut udd = UserDefinedTag {
+            xref: None,
             tag: tag.to_string(),
             value: None,
             children: Vec::new(),
