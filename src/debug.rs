@@ -596,7 +596,7 @@ mod tests {
             surname: Some("Doe".to_string()),
             prefix: None,
             surname_prefix: None,
-            note: None,
+            notes: Vec::new(),
             suffix: Some("Jr.".to_string()),
             nickname: None,
             source: Vec::new(),
