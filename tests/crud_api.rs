@@ -265,3 +265,54 @@ fn remove_individual_releases_outbound_pointers() {
     assert_eq!(data.reference_count("@S1@"), 0);
     assert_eq!(data.remove_source(s).unwrap().unwrap().xref, "@S1@");
 }
+
+#[test]
+fn header_link_unlink_submitter_and_submission() {
+    let sample = "\
+        0 HEAD\n\
+        1 GEDC\n\
+        2 VERS 5.5\n\
+        1 SUBM @U1@\n\
+        1 SUBN @N1@\n\
+        0 @U1@ SUBM\n\
+        0 @N1@ SUBN\n\
+        0 TRLR";
+
+    let mut data = Gedcom::new(sample.chars()).unwrap().parse_data().unwrap();
+    let subm = data.find_submitter_handle("@U1@").unwrap();
+    let subn = data.find_submission_handle("@N1@").unwrap();
+
+    assert_eq!(data.reference_count("@U1@"), 1);
+    assert_eq!(data.reference_count("@N1@"), 1);
+    assert!(matches!(
+        data.remove_submitter(subm).unwrap_err(),
+        GedcomError::StillReferenced { references: 1, .. },
+    ));
+
+    assert!(matches!(
+        data.link_header_and_submitter("@U1@").unwrap_err(),
+        GedcomError::AlreadyLinked { .. },
+    ));
+    assert_eq!(data.reference_count("@U1@"), 1);
+
+    data.unlink_header_and_submitter("@U1@").unwrap();
+    data.unlink_header_and_submission("@N1@").unwrap();
+    assert_eq!(data.reference_count("@U1@"), 0);
+    assert_eq!(data.reference_count("@N1@"), 0);
+    assert!(matches!(
+        data.unlink_header_and_submitter("@U1@").unwrap_err(),
+        GedcomError::NotLinked { .. },
+    ));
+
+    assert!(matches!(
+        data.link_header_and_submitter("@N1@").unwrap_err(),
+        GedcomError::XrefNotFound { .. },
+    ));
+
+    data.link_header_and_submitter("@U1@").unwrap();
+    assert_eq!(data.reference_count("@U1@"), 1);
+    data.unlink_header_and_submitter("@U1@").unwrap();
+
+    assert_eq!(data.remove_submitter(subm).unwrap().unwrap().xref, "@U1@");
+    assert_eq!(data.remove_submission(subn).unwrap().unwrap().xref, "@N1@");
+}
