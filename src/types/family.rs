@@ -88,6 +88,8 @@ pub struct Family {
     ///
     /// Identifiers maintained by external authorities that apply to this family.
     pub external_ids: Vec<String>,
+    /// Submitters who contributed this record (tag: SUBM, GEDCOM 5.5.1).
+    pub submitters: Vec<Xref>,
 }
 
 impl Family {
@@ -218,12 +220,20 @@ impl Parser for Family {
                 // User reference number
                 "REFN" => {
                     self.user_reference_number = Some(tokenizer.take_line_value()?);
-                    // Note: TYPE substructure would need to be parsed here
+                    parse_subset(tokenizer, level + 1, |tag, tokenizer| {
+                        if tag == "TYPE" {
+                            self.user_reference_type = Some(tokenizer.take_line_value()?);
+                        } else {
+                            tokenizer.take_line_value()?;
+                        }
+                        Ok(())
+                    })?;
                 }
                 // Automated record ID
                 "RIN" => self.automated_record_id = Some(tokenizer.take_line_value()?),
                 // External identifier (GEDCOM 7.0)
                 "EXID" => self.external_ids.push(tokenizer.take_line_value()?),
+                "SUBM" => self.submitters.push(tokenizer.take_line_value()?),
                 _ => {
                     // Gracefully skip unknown tags
                     tokenizer.take_line_value()?;

@@ -8,6 +8,73 @@ use crate::{
     GedcomError,
 };
 
+/// A call number of a source at a repository (tag: CALN), with the medium the
+/// source is held in there (tag: MEDI).
+///
+/// See GEDCOM 5.5.1, `SOURCE_REPOSITORY_CITATION` (p. 40), and
+/// <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#CALN>.
+#[derive(Clone, Debug, Default, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+pub struct CallNumber {
+    /// An identification or reference description used to file and retrieve
+    /// items from the holdings of a repository. May be empty when only the
+    /// medium is known.
+    pub value: String,
+
+    /// The medium in which the source is held under this call number
+    /// (tag: MEDI).
+    ///
+    /// Standard values are `audio`, `book`, `card`, `electronic`, `fiche`,
+    /// `film`, `magazine`, `manuscript`, `map`, `newspaper`, `photo`,
+    /// `tombstone` and `video` (GEDCOM 5.5.1, p. 62), written in upper case in
+    /// GEDCOM 7.0, which adds `OTHER`. Other text is kept as read.
+    pub medium: Option<String>,
+
+    /// Free-text description of the medium (tag: PHRASE under MEDI,
+    /// GEDCOM 7.0), typically with a medium of `OTHER`.
+    pub medium_phrase: Option<String>,
+}
+
+impl CallNumber {
+    /// Parses a `CALN` line and its `MEDI`, the tokenizer positioned on the
+    /// `CALN` tag.
+    fn parse(tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<CallNumber, GedcomError> {
+        let mut call_number = CallNumber {
+            value: tokenizer.take_line_value()?,
+            ..CallNumber::default()
+        };
+        parse_subset(tokenizer, level, |tag, tokenizer| {
+            match tag {
+                "MEDI" => call_number.parse_medium(tokenizer, level + 1)?,
+                _ => {
+                    tokenizer.take_line_value()?;
+                }
+            }
+            Ok(())
+        })?;
+        Ok(call_number)
+    }
+
+    /// Parses a `MEDI` line and its `PHRASE`, the tokenizer positioned on the
+    /// `MEDI` tag.
+    fn parse_medium(
+        &mut self,
+        tokenizer: &mut Tokenizer<'_>,
+        level: u8,
+    ) -> Result<(), GedcomError> {
+        self.medium = Some(tokenizer.take_line_value()?);
+        parse_subset(tokenizer, level, |tag, tokenizer| {
+            if tag == "PHRASE" {
+                self.medium_phrase = Some(tokenizer.take_line_value()?);
+            } else {
+                tokenizer.take_line_value()?;
+            }
+            Ok(())
+        })?;
+        Ok(())
+    }
+}
+
 /// Citation linking a `Source` to a data `Repository`
 ///
 /// A repository citation indicates that the source material is held at the
@@ -20,35 +87,9 @@ pub struct Citation {
     /// Reference to the `Repository`
     pub xref: Xref,
 
-    /// Call number to find the source at this repository (tag: CALN).
-    ///
-    /// An identification or reference description used to file and retrieve
-    /// items from the holdings of a repository.
-    pub call_number: Option<String>,
-
-    /// Media type (tag: MEDI).
-    ///
-    /// Identifies the medium in which the referenced source is stored.
-    /// This helps researchers know what format to expect when accessing
-    /// the source at the repository.
-    ///
-    /// Common values include:
-    /// - `audio` - Audio recording
-    /// - `book` - Bound book
-    /// - `card` - Card or microfiche
-    /// - `electronic` - Electronic/digital format
-    /// - `fiche` - Microfiche
-    /// - `film` - Microfilm
-    /// - `magazine` - Magazine or periodical
-    /// - `manuscript` - Handwritten document
-    /// - `map` - Map or chart
-    /// - `newspaper` - Newspaper
-    /// - `photo` - Photograph
-    /// - `tombstone` - Gravestone or memorial
-    /// - `video` - Video recording
-    ///
-    /// See GEDCOM 5.5.1 spec, page 62; <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#enumset-MEDI>
-    pub media_type: Option<String>,
+    /// Call numbers of the source at this repository (tag: CALN), each with
+    /// its own medium (tag: MEDI). GEDCOM 5.5.1 and 7.0 allow any number.
+    pub call_numbers: Vec<CallNumber>,
 
     /// Notes about this repository citation.
     pub notes: Vec<Note>,
@@ -87,26 +128,50 @@ impl Citation {
         }
     }
 
-    /// Sets the call number for this citation.
+    /// Adds a call number for this citation.
     pub fn set_call_number(&mut self, call_number: &str) {
-        self.call_number = Some(call_number.to_string());
+        self.call_numbers.push(CallNumber {
+            value: call_number.to_string(),
+            ..CallNumber::default()
+        });
     }
 
-    /// Sets the media type for this citation.
+    /// Sets the medium of the last call number, adding a call number with an
+    /// empty value if there is none.
     pub fn set_media_type(&mut self, media_type: &str) {
-        self.media_type = Some(media_type.to_string());
+        if self.call_numbers.is_empty() {
+            self.call_numbers.push(CallNumber::default());
+        }
+        if let Some(last) = self.call_numbers.last_mut() {
+            last.medium = Some(media_type.to_string());
+        }
+    }
+
+    /// The first call number, if any.
+    #[must_use]
+    pub fn call_number(&self) -> Option<&str> {
+        self.call_numbers
+            .iter()
+            .map(|c| c.value.as_str())
+            .find(|v| !v.is_empty())
+    }
+
+    /// The first medium recorded for a call number, if any.
+    #[must_use]
+    pub fn media_type(&self) -> Option<&str> {
+        self.call_numbers.iter().find_map(|c| c.medium.as_deref())
     }
 
     /// Returns true if this citation has a call number.
     #[must_use]
     pub fn has_call_number(&self) -> bool {
-        self.call_number.is_some()
+        self.call_number().is_some()
     }
 
     /// Returns true if this citation has a media type.
     #[must_use]
     pub fn has_media_type(&self) -> bool {
-        self.media_type.is_some()
+        self.media_type().is_some()
     }
 }
 
@@ -114,11 +179,19 @@ impl Parser for Citation {
     fn parse(&mut self, tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<(), GedcomError> {
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             match tag {
-                "CALN" => {
-                    self.call_number = Some(tokenizer.take_line_value()?);
-                    // MEDI can be a substructure of CALN in some GEDCOM versions
+                "CALN" => self
+                    .call_numbers
+                    .push(CallNumber::parse(tokenizer, level + 1)?),
+                // MEDI belongs under CALN; some files put it directly under REPO.
+                // It then describes the last call number, or one with no value.
+                "MEDI" => {
+                    if self.call_numbers.last().is_none_or(|c| c.medium.is_some()) {
+                        self.call_numbers.push(CallNumber::default());
+                    }
+                    if let Some(last) = self.call_numbers.last_mut() {
+                        last.parse_medium(tokenizer, level + 1)?;
+                    }
                 }
-                "MEDI" => self.media_type = Some(tokenizer.take_line_value()?),
                 "NOTE" => self.notes.push(Note::new(tokenizer, level + 1)?),
                 _ => {
                     // Gracefully skip unknown tags
@@ -142,8 +215,8 @@ mod tests {
     fn test_citation_for_repository() {
         let citation = Citation::for_repository("@R1@");
         assert_eq!(citation.xref, "@R1@");
-        assert!(citation.call_number.is_none());
-        assert!(citation.media_type.is_none());
+        assert!(citation.call_numbers.is_empty());
+        assert!(!citation.has_media_type());
     }
 
     #[test]
@@ -151,7 +224,7 @@ mod tests {
         let mut citation = Citation::for_repository("@R1@");
         citation.set_call_number("FHL Film 123456");
         assert!(citation.has_call_number());
-        assert_eq!(citation.call_number.as_ref().unwrap(), "FHL Film 123456");
+        assert_eq!(citation.call_number(), Some("FHL Film 123456"));
     }
 
     #[test]
@@ -159,6 +232,6 @@ mod tests {
         let mut citation = Citation::for_repository("@R1@");
         citation.set_media_type("film");
         assert!(citation.has_media_type());
-        assert_eq!(citation.media_type.as_ref().unwrap(), "film");
+        assert_eq!(citation.media_type(), Some("film"));
     }
 }
