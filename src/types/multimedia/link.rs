@@ -3,11 +3,12 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     parser::{parse_subset, Parser},
-    tokenizer::Tokenizer,
+    tokenizer::{Token, Tokenizer},
     types::{
         multimedia::{Format, Reference},
         Xref,
     },
+    util::is_xref_pointer,
     GedcomError,
 };
 
@@ -54,8 +55,16 @@ impl Link {
 
 impl Parser for Link {
     fn parse(&mut self, tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<(), GedcomError> {
-        // skip current line
+        // Step past the OBJE tag. A link to a multimedia record, `1 OBJE @M1@`,
+        // carries its pointer as the line value: keep it.
         tokenizer.next_token()?;
+        if let Token::LineValue(value) = &tokenizer.current_token {
+            let value = value.trim();
+            if is_xref_pointer(value) && self.xref.is_none() {
+                self.xref = Some(value.to_string());
+            }
+            tokenizer.next_token()?;
+        }
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             match tag {

@@ -10,7 +10,7 @@ use crate::{
         custom::UserDefinedTag,
         multimedia::Multimedia,
         note::Note,
-        source::{citation::data::SourceCitationData, quay::CertaintyAssessment},
+        source::{citation::data::SourceCitationData, quay::CertaintyAssessment, text::Text},
         Xref,
     },
     util::is_xref_pointer,
@@ -94,7 +94,12 @@ pub struct Citation {
     /// Page number of source
     pub page: Option<String>,
     pub data: Option<SourceCitationData>,
-    pub note: Option<Note>,
+    /// Notes about the citation (tag: NOTE). GEDCOM allows any number.
+    pub notes: Vec<Note>,
+    /// Text from the source quoted directly under a free-text citation
+    /// (tag: TEXT, in the GEDCOM 5.5.1 description form of `SOURCE_CITATION`).
+    /// A citation of a `SOUR` record carries its text under `DATA` instead.
+    pub texts: Vec<Text>,
     pub certainty_assessment: Option<CertaintyAssessment>,
     /// handles "RFN" tag; found in Ancestry.com export
     pub submitter_registered_rfn: Option<String>,
@@ -118,10 +123,12 @@ impl Citation {
     /// This function will return an error if parsing fails.
     pub fn new(tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<Citation, GedcomError> {
         let mut citation = Citation {
-            source: CitationSource::parse(tokenizer.take_line_value()?),
+            // A free-text description may continue on CONT/CONC lines.
+            source: CitationSource::parse(tokenizer.take_continued_text(level)?),
             page: None,
             data: None,
-            note: None,
+            notes: Vec::new(),
+            texts: Vec::new(),
             certainty_assessment: None,
             multimedia: Vec::new(),
             custom_data: Vec::new(),
@@ -152,7 +159,8 @@ impl Parser for Citation {
             match tag {
                 "PAGE" => self.page = Some(tokenizer.take_continued_text(level + 1)?),
                 "DATA" => self.data = Some(SourceCitationData::new(tokenizer, level + 1)?),
-                "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
+                "NOTE" => self.notes.push(Note::new(tokenizer, level + 1)?),
+                "TEXT" => self.texts.push(Text::new(tokenizer, level + 1)?),
                 "QUAY" => {
                     self.certainty_assessment =
                         Some(CertaintyAssessment::new(tokenizer, level + 1)?);
@@ -161,9 +169,17 @@ impl Parser for Citation {
                 "OBJE" => self.add_multimedia(Multimedia::new(tokenizer, level + 1, pointer)?),
                 "EVEN" => {
                     self.event_type = Some(tokenizer.take_line_value()?);
-                    // Parse ROLE if it's a substructure of EVEN
-                    // The ROLE tag should be at level + 2 (under EVEN at level + 1)
+                    // ROLE is a substructure of EVEN
+                    parse_subset(tokenizer, level + 1, |tag, tokenizer| {
+                        if tag == "ROLE" {
+                            self.role = Some(tokenizer.take_line_value()?);
+                        } else {
+                            tokenizer.take_line_value()?;
+                        }
+                        Ok(())
+                    })?;
                 }
+                // Tolerated directly under SOUR, as earlier versions did.
                 "ROLE" => self.role = Some(tokenizer.take_line_value()?),
                 _ => {
                     // Gracefully skip unknown tags instead of failing
