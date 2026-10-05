@@ -26,7 +26,7 @@
 use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
-    types::{date::Date, note::Note, source::citation::Citation},
+    types::{date::Date, note::Note, place::Place, source::citation::Citation},
     GedcomError,
 };
 
@@ -203,6 +203,7 @@ impl std::fmt::Display for LdsOrdinanceStatus {
 /// 1 BAPL
 /// 2 DATE 15 MAR 1990
 /// 2 TEMP SLAKE
+/// 2 PLAC Sampletown
 /// 2 STAT COMPLETED
 /// ```
 ///
@@ -221,6 +222,12 @@ pub struct LdsOrdinance {
     /// A code identifying an LDS temple. See the GEDCOM specification for
     /// a list of valid temple codes.
     pub temple: Option<String>,
+
+    /// The place where the ordinance was performed (tag: PLAC).
+    ///
+    /// In GEDCOM 5.5.1 a place name only (`PLACE_LIVING_ORDINANCE`), in
+    /// GEDCOM 7.0 a full place structure.
+    pub place: Option<Place>,
 
     /// The status of the ordinance.
     pub status: Option<LdsOrdinanceStatus>,
@@ -327,6 +334,7 @@ impl Parser for LdsOrdinance {
             match tag {
                 "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
                 "TEMP" => self.temple = Some(tokenizer.take_line_value()?),
+                "PLAC" => self.place = Some(Place::new(tokenizer, level + 1)?),
                 "STAT" => {
                     let status_str = tokenizer.take_line_value()?;
                     self.status = LdsOrdinanceStatus::parse(&status_str);
