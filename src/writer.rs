@@ -46,6 +46,7 @@ use crate::types::{
     submitter::Submitter,
     GedcomData,
 };
+use crate::util::{escape_at_signs, is_xref_pointer};
 use std::fmt::Write;
 use std::io;
 
@@ -1961,7 +1962,14 @@ impl GedcomWriter {
 
         if let Some(v) = value {
             if !v.is_empty() {
-                write!(writer, " {v}").map_err(io_error)?;
+                // A leading `@` of text is escaped as `@@`, or it would read as
+                // a pointer; pointers and calendar escapes are written as is.
+                if v.starts_with("@#") || is_xref_pointer(v) {
+                    write!(writer, " {v}").map_err(io_error)?;
+                } else {
+                    // The GEDCOM 7.0 rule is exactly "the leading `@` only".
+                    write!(writer, " {}", escape_at_signs(v, true)).map_err(io_error)?;
+                }
             }
         }
 
