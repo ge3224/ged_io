@@ -55,7 +55,9 @@ use std::io;
 pub struct WriterConfig {
     /// Line ending to use (default: "\n")
     pub line_ending: String,
-    /// Maximum line length before CONC/CONT wrapping (default: 255, GEDCOM spec max)
+    /// Maximum length of a line, in bytes, before CONC/CONT wrapping
+    /// (default: 255, the GEDCOM 5.5.1 maximum). It counts the whole line:
+    /// level, xref, tag, value, delimiters and line terminator.
     pub max_line_length: usize,
     /// Whether to include empty optional fields (default: false)
     pub include_empty_fields: bool,
@@ -126,7 +128,9 @@ impl GedcomWriter {
         self
     }
 
-    /// Sets the maximum line length before wrapping with CONC/CONT.
+    /// Sets the maximum line length before wrapping with CONC/CONT: the
+    /// length of the whole line, level, xref, tag, value, delimiters and line
+    /// terminator included.
     #[must_use]
     pub fn max_line_length(mut self, length: usize) -> Self {
         self.config.max_line_length = length;
@@ -1944,12 +1948,10 @@ impl GedcomWriter {
         tag: &str,
         value: Option<&str>,
     ) -> Result<(), io::Error> {
+        // A value that fits on its line is written on it alone.
         match value {
             None => self.write_line(writer, level, tag, None),
-            Some(v) if v.contains('\n') || v.len() > self.config.max_line_length => {
-                self.write_long_text(writer, level, tag, v)
-            }
-            Some(v) => self.write_line(writer, level, tag, Some(v)),
+            Some(v) => self.write_long_text(writer, level, tag, v),
         }
     }
 
@@ -2011,6 +2013,27 @@ impl GedcomWriter {
         Ok(())
     }
 
+    /// How many bytes of `value` fit on a line of `tag` at `level`, carrying
+    /// `xref` when there is one, for the whole line to fit in
+    /// `max_line_length`: GEDCOM 5.5.1 counts the level, xref, tag, delimiters
+    /// and terminator with the value. A value starting with `@` is given one
+    /// byte less, for the `@@` it may be written with.
+    fn value_room(&self, level: u8, xref: Option<&str>, tag: &str, value: &str) -> usize {
+        let level_len = match level {
+            0..=9 => 1,
+            10..=99 => 2,
+            _ => 3,
+        };
+        let line_len = level_len
+            + xref.map_or(0, |xref| xref.len() + 1)
+            + 1
+            + tag.len()
+            + 1
+            + usize::from(value.starts_with('@'))
+            + self.config.line_ending.len();
+        self.config.max_line_length.saturating_sub(line_len)
+    }
+
     /// Writes long text with CONC/CONT continuation lines.
     fn write_long_text<W: Write>(
         &self,
@@ -2042,17 +2065,19 @@ impl GedcomWriter {
             let line_value = Some(line);
             if i == 0 {
                 // First line uses the main tag
-                if line.len() <= self.config.max_line_length {
+                let room = self.value_room(level, xref, tag, line);
+                if line.len() <= room {
                     write_first(writer, line)?;
                 } else {
                     // Need to split with CONC
-                    let split_at = conc_split_point(line, self.config.max_line_length);
+                    let split_at = conc_split_point(line, room);
                     let first_part = &line[..split_at];
                     write_first(writer, first_part)?;
 
                     let mut remaining = &line[split_at..];
                     while !remaining.is_empty() {
-                        let chunk_len = conc_split_point(remaining, self.config.max_line_length);
+                        let room = self.value_room(level + 1, None, "CONC", remaining);
+                        let chunk_len = conc_split_point(remaining, room);
                         let chunk = &remaining[..chunk_len];
                         self.write_line(writer, level + 1, "CONC", Some(chunk))?;
                         remaining = &remaining[chunk_len..];
@@ -2060,17 +2085,19 @@ impl GedcomWriter {
                 }
             } else {
                 // Subsequent lines use CONT
-                if line.len() <= self.config.max_line_length {
+                let room = self.value_room(level + 1, None, "CONT", line);
+                if line.len() <= room {
                     self.write_line(writer, level + 1, "CONT", line_value)?;
                 } else {
                     // Split with CONT first, then CONC
-                    let split_at = conc_split_point(line, self.config.max_line_length);
+                    let split_at = conc_split_point(line, room);
                     let first_part = &line[..split_at];
                     self.write_line(writer, level + 1, "CONT", Some(first_part))?;
 
                     let mut remaining = &line[split_at..];
                     while !remaining.is_empty() {
-                        let chunk_len = conc_split_point(remaining, self.config.max_line_length);
+                        let room = self.value_room(level + 1, None, "CONC", remaining);
+                        let chunk_len = conc_split_point(remaining, room);
                         let chunk = &remaining[..chunk_len];
                         self.write_line(writer, level + 1, "CONC", Some(chunk))?;
                         remaining = &remaining[chunk_len..];
@@ -2671,7 +2698,8 @@ mod tests {
 
     #[test]
     fn test_write_long_utf8_text_splits_on_char_boundary() {
-        let note = format!("{}é continued", "a".repeat(254));
+        // `1 NOTE ` and the line feed leave 247 bytes, which end inside `é`.
+        let note = format!("{}é continued", "a".repeat(246));
         let source = format!("0 HEAD\n1 GEDC\n2 VERS 5.5\n0 @I1@ INDI\n1 NOTE {note}\n0 TRLR");
         let data = GedcomBuilder::new().build_from_str(&source).unwrap();
 
