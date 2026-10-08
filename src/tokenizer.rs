@@ -420,8 +420,9 @@ impl<'a> Tokenizer<'a> {
                 self.next_token()?;
                 value
             }
-            // gracefully handle an attempt to take a value from a valueless line
-            Token::Level(_) => String::new(),
+            // gracefully handle an attempt to take a value from a valueless
+            // line, including the last line of a file without a trailer
+            Token::Level(_) | Token::EOF => String::new(),
             _ => {
                 return Err(GedcomError::ParseError {
                     line: self.line,
@@ -950,7 +951,7 @@ impl<R: BufRead> TokenizerTrait for StreamTokenizer<R> {
                 self.next_token()?;
                 Ok(value)
             }
-            Token::Level(_) => Ok(String::new()),
+            Token::Level(_) | Token::EOF => Ok(String::new()),
             _ => Err(GedcomError::ParseError {
                 line: self.line,
                 message: format!("Expected LineValue, found {:?}", self.current_token),

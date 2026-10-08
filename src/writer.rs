@@ -1902,7 +1902,8 @@ impl GedcomWriter {
     }
 
     /// Writes extension (user-defined) tags, each with its substructures, the
-    /// first ones at `level`.
+    /// first ones at `level`. A value with a newline, or over the line length,
+    /// is continued on `CONT`/`CONC` lines, written before the substructures.
     fn write_custom_data<W: Write>(
         &self,
         writer: &mut W,
@@ -1910,16 +1911,15 @@ impl GedcomWriter {
         tags: &[Box<UserDefinedTag>],
     ) -> Result<(), io::Error> {
         for tag in tags {
-            if let Some(ref xref) = tag.xref {
-                self.write_line_with_xref(
-                    writer,
-                    level,
-                    Some(xref),
-                    &tag.tag,
-                    tag.value.as_deref(),
-                )?;
-            } else {
-                self.write_line(writer, level, &tag.tag, tag.value.as_deref())?;
+            let xref = tag.xref.as_deref();
+            match (tag.value.as_deref(), xref) {
+                (Some(value), _) => {
+                    self.write_long_text_with_xref(writer, level, xref, &tag.tag, value)?;
+                }
+                (None, Some(_)) => {
+                    self.write_line_with_xref(writer, level, xref, &tag.tag, None)?;
+                }
+                (None, None) => self.write_line(writer, level, &tag.tag, None)?,
             }
             self.write_custom_data(writer, level + 1, &tag.children)?;
         }
