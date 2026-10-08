@@ -79,8 +79,12 @@ impl UserDefinedTag {
         tokenizer: &mut T,
         level: u8,
     ) -> Result<(), GedcomError> {
-        // skip ahead of initial tag
-        tokenizer.next_token()?;
+        // The value, with its CONC/CONT continuations when the tokenizer reads
+        // them, which are not children.
+        let value = tokenizer.take_line_value()?;
+        if !value.is_empty() {
+            self.value = Some(value);
+        }
 
         let mut has_child = false;
         loop {
@@ -131,8 +135,11 @@ impl UserDefinedTag {
 
 impl Parser for UserDefinedTag {
     fn parse(&mut self, tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<(), GedcomError> {
-        // skip ahead of initial tag
-        tokenizer.next_token()?;
+        // The value, with its CONC/CONT continuations, which are not children.
+        let value = tokenizer.take_line_value()?;
+        if !value.is_empty() {
+            self.value = Some(value);
+        }
 
         let mut has_child = false;
         loop {
