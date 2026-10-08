@@ -302,6 +302,12 @@ pub struct ParsedDateTime {
     pub dual_year: Option<i32>,
     /// BCE indicator (year is before common era).
     pub bce: bool,
+    /// The wording of the date, after its qualifier and calendar marker, when
+    /// it holds words the fields above do not model (`vers 1850`,
+    /// `1850 environ`). The fields then hold what was recognised, and
+    /// [`to_gedcom_date`](Self::to_gedcom_date) writes this text in place of
+    /// them, so that no word is dropped. `None` when every word was read.
+    pub text: Option<String>,
 }
 
 /// Gregorian/Julian month abbreviations used in GEDCOM.
@@ -530,6 +536,7 @@ impl ParsedDateTime {
 
                     // Parse dual year suffix (could be "00", "01", etc.)
                     if let Ok(dual) = dual_suffix.parse::<i32>() {
+                        idx += 1;
                         // Convert suffix to full year
                         let century = (y / 100) * 100;
                         let dual_full = if dual < (y % 100) {
@@ -540,7 +547,6 @@ impl ParsedDateTime {
                         result.dual_year = Some(dual_full);
                     }
                 }
-                idx += 1;
             } else if let Ok(y) = year_str.parse::<i32>() {
                 result.year = Some(y);
                 idx += 1;
@@ -555,7 +561,13 @@ impl ParsedDateTime {
                 if let Some(y) = result.year {
                     result.year = Some(-y);
                 }
+                idx += 1;
             }
+        }
+
+        // Words left unread: keep the date's wording whole.
+        if idx < tokens.len() {
+            result.text = Some(remaining.trim().to_string());
         }
 
         Ok(result)
@@ -643,9 +655,17 @@ impl ParsedDateTime {
     /// Returns an error if:
     /// - The date is not complete (missing year, month, or day)
     /// - The date has a qualifier that prevents exact conversion
+    /// - The date holds words it does not model ([`text`](Self::text)),
+    ///   which the converted date could not keep
     /// - The conversion fails for calendar-specific reasons
     #[cfg(feature = "calendar")]
     pub fn convert_to(&self, target: Calendar) -> Result<ParsedDateTime, CalendarConversionError> {
+        if let Some(text) = &self.text {
+            return Err(CalendarConversionError::ParseError {
+                message: format!("Unrecognised words in date: {text}"),
+            });
+        }
+
         if !self.is_complete() {
             return Err(CalendarConversionError::IncompleteDate {
                 year: self.year,
@@ -868,6 +888,12 @@ impl ParsedDateTime {
         // Calendar escape (skipped for Gregorian, the default)
         if self.calendar != Calendar::Gregorian {
             parts.push(self.calendar.gedcom_escape().to_string());
+        }
+
+        // Wording with words the fields do not model: written as read.
+        if let Some(text) = &self.text {
+            parts.push(text.clone());
+            return parts.join(" ");
         }
 
         // Add date components
