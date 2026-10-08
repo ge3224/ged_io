@@ -47,6 +47,7 @@ use crate::types::{
     GedcomData,
 };
 use crate::util::{escape_at_signs, is_xref_pointer};
+use std::borrow::Cow;
 use std::fmt::Write;
 use std::io;
 
@@ -1944,12 +1945,10 @@ impl GedcomWriter {
         tag: &str,
         value: Option<&str>,
     ) -> Result<(), io::Error> {
+        // A value that fits on its line is written on it alone.
         match value {
             None => self.write_line(writer, level, tag, None),
-            Some(v) if v.contains('\n') || v.len() > self.config.max_line_length => {
-                self.write_long_text(writer, level, tag, v)
-            }
-            Some(v) => self.write_line(writer, level, tag, Some(v)),
+            Some(v) => self.write_long_text(writer, level, tag, v),
         }
     }
 
@@ -2036,6 +2035,7 @@ impl GedcomWriter {
             Some(_) => self.write_line_with_xref(writer, level, xref, tag, Some(value)),
             None => self.write_line(writer, level, tag, Some(value)),
         };
+        let text = with_line_feeds(text);
         for (i, line) in text.split('\n').enumerate() {
             // Empty continuation lines must still be represented explicitly with `CONT` + an empty value.
             // `CONT` means “new line”, so dropping them would merge lines.
@@ -2080,6 +2080,17 @@ impl GedcomWriter {
         }
 
         Ok(())
+    }
+}
+
+/// `text` with each line break as a line feed. A carriage return, alone or
+/// before a line feed (`\r\n`), is a line break as GEDCOM reads a line
+/// terminator: written as is inside a value, it would end the line there.
+fn with_line_feeds(text: &str) -> Cow<'_, str> {
+    if text.contains('\r') {
+        Cow::Owned(text.replace("\r\n", "\n").replace('\r', "\n"))
+    } else {
+        Cow::Borrowed(text)
     }
 }
 
