@@ -145,6 +145,10 @@ pub enum LdsOrdinanceStatus {
     Submitted,
     /// The person has not been baptized, so endowment cannot be done.
     Uncleared,
+    /// A status the variants above do not name, kept as the file writes it:
+    /// a value of the specification they do not cover (5.5.1's and 7.0's
+    /// `EXCLUDED`, for instance) or an extension value (`_PENDING`).
+    Other(String),
 }
 
 impl LdsOrdinanceStatus {
@@ -168,7 +172,7 @@ impl LdsOrdinanceStatus {
 
     /// Returns the GEDCOM value for this status.
     #[must_use]
-    pub fn to_gedcom_value(&self) -> &'static str {
+    pub fn to_gedcom_value(&self) -> &str {
         match self {
             LdsOrdinanceStatus::BicCompleted | LdsOrdinanceStatus::BornInCovenant => "BIC",
             LdsOrdinanceStatus::Canceled => "CANCELED",
@@ -182,6 +186,7 @@ impl LdsOrdinanceStatus {
             LdsOrdinanceStatus::Stillborn => "STILLBORN",
             LdsOrdinanceStatus::Submitted => "SUBMITTED",
             LdsOrdinanceStatus::Uncleared => "UNCLEARED",
+            LdsOrdinanceStatus::Other(value) => value,
         }
     }
 }
@@ -337,7 +342,12 @@ impl Parser for LdsOrdinance {
                 "PLAC" => self.place = Some(Place::new(tokenizer, level + 1)?),
                 "STAT" => {
                     let status_str = tokenizer.take_line_value()?;
-                    self.status = LdsOrdinanceStatus::parse(&status_str);
+                    // A status outside the enumeration is kept as written.
+                    self.status = match LdsOrdinanceStatus::parse(&status_str) {
+                        None if status_str.is_empty() => None,
+                        None => Some(LdsOrdinanceStatus::Other(status_str)),
+                        status => status,
+                    };
                     // `+2 DATE <CHANGE_DATE>` (5.5.1), `+2 DATE <DateExact>` with
                     // `+3 TIME` (7.0): the date the status was set.
                     parse_subset(tokenizer, level + 1, |tag, tokenizer| {
@@ -448,6 +458,10 @@ mod tests {
         assert_eq!(LdsOrdinanceStatus::BornInCovenant.to_gedcom_value(), "BIC");
         assert_eq!(LdsOrdinanceStatus::Completed.to_gedcom_value(), "COMPLETED");
         assert_eq!(LdsOrdinanceStatus::Stillborn.to_gedcom_value(), "STILLBORN");
+        assert_eq!(
+            LdsOrdinanceStatus::Other("EXCLUDED".to_string()).to_gedcom_value(),
+            "EXCLUDED"
+        );
     }
 
     #[test]
