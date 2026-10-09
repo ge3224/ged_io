@@ -282,10 +282,31 @@ impl<T> Arena<T> {
         self.iter().next()
     }
 
+    /// Returns a mutable reference to the first element in insertion order, or
+    /// `None` if empty.
+    pub fn first_mut(&mut self) -> Option<&mut T> {
+        let i = self.head?;
+
+        match &mut self.slots[i as usize] {
+            Slot::Occupied { value, .. } => Some(value),
+            Slot::Vacant { .. } => None,
+        }
+    }
+
     /// Returns a reference to the last element in insertion order, or `None` if empty.
     #[must_use]
     pub fn last(&self) -> Option<&T> {
         self.iter().last()
+    }
+
+    /// Returns a mutable reference to the last element in insertion order, or
+    /// `None` if empty.
+    pub fn last_mut(&mut self) -> Option<&mut T> {
+        let i = self.tail?;
+        match &mut self.slots[i as usize] {
+            Slot::Occupied { value, .. } => Some(value),
+            Slot::Vacant { .. } => None,
+        }
     }
 
     /// Removes all elements for which `keep` returns `false`; the rest keep

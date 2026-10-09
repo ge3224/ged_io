@@ -39,12 +39,10 @@ impl Parser for Format {
         self.value = Some(tokenizer.take_line_value()?);
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
-            match tag {
-                "TYPE" => self.source_media_type = Some(tokenizer.take_line_value()?),
-                _ => {
-                    // Gracefully skip unknown tags
-                    tokenizer.take_line_value()?;
-                }
+            // Unknown tags are left to `parse_subset`, which keeps them with
+            // their substructures.
+            if tag == "TYPE" {
+                self.source_media_type = Some(tokenizer.take_line_value()?);
             }
             Ok(())
         };

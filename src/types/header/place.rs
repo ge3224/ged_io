@@ -50,19 +50,15 @@ impl Parser for HeadPlac {
         tokenizer.next_token()?;
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
-            match tag {
-                "FORM" => {
-                    let form = tokenizer.take_line_value()?;
-                    let jurisdictional_titles = form.split(',');
+            // Unknown tags are left to `parse_subset`, which keeps them with
+            // their substructures.
+            if tag == "FORM" {
+                let form = tokenizer.take_line_value()?;
+                let jurisdictional_titles = form.split(',');
 
-                    for t in jurisdictional_titles {
-                        let v = t.trim();
-                        self.push_jurisdictional_title(v.to_string());
-                    }
-                }
-                _ => {
-                    // Gracefully skip unknown tags
-                    tokenizer.take_line_value()?;
+                for t in jurisdictional_titles {
+                    let v = t.trim();
+                    self.push_jurisdictional_title(v.to_string());
                 }
             }
             Ok(())

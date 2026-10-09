@@ -2,9 +2,10 @@
 use serde::Serialize;
 
 use crate::{
+    arena::Arena,
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
-    types::{date::Date, source::text::Text},
+    types::{custom::UserDefinedTag, date::Date, source::text::Text},
     GedcomError,
 };
 
@@ -12,11 +13,14 @@ use crate::{
 /// Actual text from the source that was used in making assertions, for example a date phrase as
 /// actually recorded in the source, or significant notes written by the recorder, or an applicable
 /// sentence from a letter. This is stored in the SOUR.DATA.TEXT context.
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Debug, Default, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize))]
 pub struct SourceCitationData {
     pub date: Option<Date>,
-    pub text: Option<Text>,
+    /// Text from the source (tag: TEXT). GEDCOM allows any number.
+    pub texts: Arena<Text>,
+    /// Extension (user-defined) tags found under this structure.
+    pub user_defined_tags: Arena<UserDefinedTag>,
 }
 
 impl SourceCitationData {
@@ -31,7 +35,8 @@ impl SourceCitationData {
     ) -> Result<SourceCitationData, GedcomError> {
         let mut data = SourceCitationData {
             date: None,
-            text: None,
+            texts: Arena::default(),
+            user_defined_tags: Arena::default(),
         };
         data.parse(tokenizer, level)?;
         Ok(data)
@@ -45,16 +50,20 @@ impl Parser for SourceCitationData {
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             match tag {
                 "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
-                "TEXT" => self.text = Some(Text::new(tokenizer, level + 1)?),
+                "TEXT" => {
+                    self.texts.insert(Text::new(tokenizer, level + 1)?);
+                }
                 _ => {
-                    // Gracefully skip unknown tags
-                    tokenizer.take_line_value()?;
+                    // Leave unknown tags to `parse_subset`, which keeps them with
+                    // their substructures.
                 }
             }
             Ok(())
         };
 
-        parse_subset(tokenizer, level, handle_subset)?;
+        for udt in parse_subset(tokenizer, level, handle_subset)? {
+            self.user_defined_tags.insert(*udt);
+        }
 
         Ok(())
     }

@@ -44,8 +44,8 @@ pub struct Submitter {
     pub automated_record_id: Option<String>,
     /// Date of the last change to the record
     pub change_date: Option<ChangeDate>,
-    /// Note provided by submitter about the enclosing data
-    pub note: Option<Note>,
+    /// Notes provided by the submitter (tag: NOTE)
+    pub notes: Arena<Note>,
     /// Phone number(s) of the submitter (tag: PHON).
     pub phone: Arena<String>,
     /// Email address(es) of the submitter (tag: EMAIL).
@@ -80,7 +80,7 @@ impl Submitter {
             language: None,
             multimedia_links: Arena::default(),
             name: None,
-            note: None,
+            notes: Arena::default(),
             phone: Arena::default(),
             registered_refn: None,
             uid: None,
@@ -140,7 +140,9 @@ impl Parser for Submitter {
                 "ADDR" => self.address = Some(Address::new(tokenizer, level + 1)?),
                 "OBJE" => self.add_multimedia(Link::new(tokenizer, level + 1)?),
                 "LANG" => self.language = Some(tokenizer.take_line_value()?),
-                "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
+                "NOTE" => {
+                    self.notes.insert(Note::new(tokenizer, level + 1)?);
+                }
                 "CHAN" => self.change_date = Some(ChangeDate::new(tokenizer, level + 1)?),
                 "PHON" => {
                     self.phone.insert(tokenizer.take_line_value()?);
@@ -159,8 +161,8 @@ impl Parser for Submitter {
                 "RFN" => self.registered_refn = Some(tokenizer.take_line_value()?),
                 "REFN" => self.user_reference_number = Some(tokenizer.take_line_value()?),
                 _ => {
-                    // Gracefully skip unknown tags
-                    tokenizer.take_line_value()?;
+                    // Leave unknown tags to `parse_subset`, which keeps them with
+                    // their substructures.
                 }
             }
 

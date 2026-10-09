@@ -11,7 +11,7 @@ use crate::{
         custom::UserDefinedTag,
         multimedia::link::{Link, LinkTarget},
         note::Note,
-        source::{citation::data::SourceCitationData, quay::CertaintyAssessment},
+        source::{citation::data::SourceCitationData, quay::CertaintyAssessment, text::Text},
         Xref,
     },
     util::is_pointer_use,
@@ -89,7 +89,12 @@ pub struct Citation {
     /// Page number of source
     pub page: Option<String>,
     pub data: Option<SourceCitationData>,
-    pub note: Option<Note>,
+    /// Notes about the citation (tag: NOTE). GEDCOM allows any number.
+    pub notes: Arena<Note>,
+    /// Text from the source quoted directly under a free-text citation
+    /// (tag: TEXT, in the GEDCOM 5.5.1 description form of `SOURCE_CITATION`).
+    /// A citation of a `SOUR` record carries its text under `DATA` instead.
+    pub texts: Arena<Text>,
     pub certainty_assessment: Option<CertaintyAssessment>,
     /// handles "RFN" tag; found in Ancestry.com export
     pub submitter_registered_rfn: Option<String>,
@@ -123,9 +128,11 @@ impl Citation {
 
         let mut citation = Citation {
             target: source,
+            // A free-text description may continue on CONT/CONC lines.
             page: None,
             data: None,
-            note: None,
+            notes: Arena::default(),
+            texts: Arena::default(),
             certainty_assessment: None,
             multimedia_links: Arena::default(),
             user_defined_tags: Arena::default(),
@@ -149,7 +156,8 @@ impl Citation {
             target: CitationSource::Record(xref),
             page: None,
             data: None,
-            note: None,
+            notes: Arena::default(),
+            texts: Arena::default(),
             certainty_assessment: None,
             multimedia_links: Arena::default(),
             user_defined_tags: Arena::default(),
@@ -192,7 +200,12 @@ impl Parser for Citation {
             match tag {
                 "PAGE" => self.page = Some(tokenizer.take_continued_text(level + 1)?),
                 "DATA" => self.data = Some(SourceCitationData::new(tokenizer, level + 1)?),
-                "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
+                "NOTE" => {
+                    self.notes.insert(Note::new(tokenizer, level + 1)?);
+                }
+                "TEXT" => {
+                    self.texts.insert(Text::new(tokenizer, level + 1)?);
+                }
                 "QUAY" => {
                     self.certainty_assessment =
                         Some(CertaintyAssessment::new(tokenizer, level + 1)?);
@@ -201,14 +214,19 @@ impl Parser for Citation {
                 "OBJE" => self.add_multimedia(Link::new(tokenizer, level + 1)?),
                 "EVEN" => {
                     self.event_type = Some(tokenizer.take_line_value()?);
-                    // Parse ROLE if it's a substructure of EVEN
-                    // The ROLE tag should be at level + 2 (under EVEN at level + 1)
+                    // ROLE is a substructure of EVEN
+                    parse_subset(tokenizer, level + 1, |tag, tokenizer| {
+                        if tag == "ROLE" {
+                            self.role = Some(tokenizer.take_line_value()?);
+                        }
+                        Ok(())
+                    })?;
                 }
+                // Tolerated directly under SOUR, as earlier versions did.
                 "ROLE" => self.role = Some(tokenizer.take_line_value()?),
                 _ => {
-                    // Gracefully skip unknown tags instead of failing
-                    // This handles non-standard extensions from various GEDCOM generators
-                    tokenizer.take_line_value()?;
+                    // Leave unknown tags to `parse_subset`, which keeps them with
+                    // their substructures.
                 }
             }
 

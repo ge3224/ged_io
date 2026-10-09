@@ -49,7 +49,8 @@ pub struct FamilyLink {
     pub pedigree_linkage_type: Option<Pedigree>,
     pub child_linkage_status: Option<ChildLinkStatus>,
     pub adopted_by: Option<AdoptedByWhichParent>,
-    pub note: Option<Note>,
+    /// Notes (tag: NOTE).
+    pub notes: Arena<Note>,
     pub user_defined_tags: Arena<UserDefinedTag>,
 }
 
@@ -79,7 +80,7 @@ impl FamilyLink {
             pedigree_linkage_type: None,
             child_linkage_status: None,
             adopted_by: None,
-            note: None,
+            notes: Arena::default(),
             user_defined_tags: Arena::default(),
         };
         family_link.parse(tokenizer, level)?;
@@ -186,14 +187,16 @@ impl Parser for FamilyLink {
                     tokenizer.take_line_value()?.as_str(),
                     tokenizer.line,
                 )?,
-                "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
+                "NOTE" => {
+                    self.notes.insert(Note::new(tokenizer, level + 1)?);
+                }
                 "ADOP" => self.set_adopted_by_which_parent(
                     tokenizer.take_line_value()?.as_str(),
                     tokenizer.line,
                 )?,
                 _ => {
-                    // Gracefully skip unknown tags
-                    tokenizer.take_line_value()?;
+                    // Leave unknown tags to `parse_subset`, which keeps them with
+                    // their substructures.
                 }
             }
             Ok(())

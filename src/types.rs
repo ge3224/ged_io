@@ -45,6 +45,7 @@ use crate::{
             link::{Link, LinkTarget},
             Multimedia,
         },
+        note::Note,
         repository::Repository,
         shared_note::SharedNote,
         source::{
@@ -225,7 +226,11 @@ impl GedcomData {
                 }
             } else if let Token::CustomTag(tag) = &tokenizer.current_token {
                 let tag_clone = tag.clone();
-                for udt in UserDefinedTag::drain_subtree(tokenizer, level, &tag_clone)? {
+                let mut udts = UserDefinedTag::drain_subtree(tokenizer, level, &tag_clone)?;
+                if let Some(first) = udts.first_mut() {
+                    first.xref = pointer;
+                }
+                for udt in udts {
                     self.add_user_defined_tags(udt)?;
                 }
             } else if tokenizer.current_token == Token::EOF {
@@ -1441,7 +1446,7 @@ impl GedcomData {
                 pedigree_linkage_type: None,
                 child_linkage_status: None,
                 adopted_by: None,
-                note: None,
+                notes: Arena::default(),
                 user_defined_tags: Arena::default(),
             });
         }
@@ -1594,7 +1599,7 @@ impl GedcomData {
                 pedigree_linkage_type: None,
                 child_linkage_status: None,
                 adopted_by: None,
-                note: None,
+                notes: Arena::default(),
                 user_defined_tags: Arena::default(),
             });
         }
@@ -2387,23 +2392,34 @@ impl GedcomData {
         Ok(Some(rec))
     }
 
-    /// Adds a [`UserDefinedTag`] record to the genealogy data.
-    ///
-    /// The identifier is assigned at construction via [`crate::util::next_id`] and
-    /// is stable for the lifetime of the process. It is not persisted to output.
-    ///
-    /// # Returns
-    ///
-    /// The `u64` handle used to locate, mutate, or remove the tag later.
+    /// Adds a [`UserDefinedTag`] to the genealogy data and returns its handle.
     ///
     /// # Errors
     ///
-    /// This function always returns successfully; the `Result` type is used for API consistency.
+    /// Returns an error if the tag carries an xref that is already in use (for
+    /// example, a `0 @I1@ _LOC` record in a file that also has `0 @I1@ INDI`).
     pub fn add_user_defined_tags(
         &mut self,
         user_defined_tag: UserDefinedTag,
     ) -> Result<Handle<UserDefinedTag>, GedcomError> {
+        let xref = user_defined_tag.xref.clone();
+
+        if let Some(ref xref) = xref {
+            if self.xrefs.handle(xref).is_some() {
+                return Err(GedcomError::DuplicateXref {
+                    xref: xref.clone(),
+                    record_type: UserDefinedTag::RECORD_TYPE.to_string(),
+                });
+            }
+        }
+
         let handle = self.user_defined_tags.insert(user_defined_tag);
+
+        if let Some(xref) = xref {
+            self.xrefs
+                .register(xref, AnyHandle::UserDefinedTag(handle))?;
+        }
+
         Ok(handle)
     }
 
@@ -2425,19 +2441,44 @@ impl GedcomData {
         self.user_defined_tags.get_mut(handle)
     }
 
-    /// Removes a [`UserDefinedTag`] by its runtime identifier.
-    ///
-    /// # Returns
-    ///
-    /// The removed tag, or `None` if no tag with the given `id` exists.
+    /// Returns the handle of the extension record defined under `xref`, or
+    /// `None` if no extension record has that xref (for example, `@I1@` names
+    /// an individual).
+    #[must_use]
+    pub fn find_user_defined_tag_handle(&self, xref: &str) -> Option<Handle<UserDefinedTag>> {
+        match self.xrefs.handle(xref)? {
+            AnyHandle::UserDefinedTag(h) => Some(h),
+            _ => None,
+        }
+    }
+
+    /// Removes a [`UserDefinedTag`], returning it, or `None` if the handle is stale.
     ///
     /// # Errors
     ///
-    /// This function always returns successfully; the `Result` type is used for API consistency.
+    /// Returns an error if the tag carries an xref that something still points to
+    /// (for example, removing `0 @L1@ _LOC` while a `_LOC @L1@` refers to it).
     pub fn remove_user_defined_tag(
         &mut self,
         handle: Handle<UserDefinedTag>,
     ) -> Result<Option<UserDefinedTag>, GedcomError> {
+        let Some(xref) = self.user_defined_tags.get(handle).map(|t| t.xref.clone()) else {
+            return Ok(None);
+        };
+
+        if let Some(ref xref) = xref {
+            let use_count = self.xrefs.use_count(xref);
+            if use_count > 0 {
+                return Err(GedcomError::StillReferenced {
+                    xref: xref.clone(),
+                    record_type: UserDefinedTag::RECORD_TYPE.to_string(),
+                    references: use_count,
+                });
+            }
+
+            self.xrefs.remove(xref);
+        }
+
         Ok(self.user_defined_tags.remove(handle))
     }
 
@@ -2576,6 +2617,16 @@ impl GedcomData {
             + stats.on_other;
 
         stats
+    }
+
+    /// The text of a note structure: its own text, or the text of the shared
+    /// note record it points to. `None` when the pointed-to record does not exist.
+    #[must_use]
+    pub fn resolve_note<'a>(&'a self, note: &'a Note) -> Option<&'a str> {
+        match note.shared_note_xref() {
+            Some(xref) => self.find_shared_note(xref).map(|n| n.text.as_str()),
+            None => note.value.as_deref(),
+        }
     }
 
     /// Gets the families where an individual is a spouse/partner.
@@ -3031,6 +3082,7 @@ pub struct SourceCitationStats {
 mod tests {
     use super::*;
     use crate::Gedcom;
+    use crate::GedcomBuilder;
 
     #[test]
     fn test_parse_shared_note() {
@@ -3134,7 +3186,7 @@ mod tests {
     }
 
     #[test]
-    fn test_add_custom_data_returns_handle() {
+    fn test_add_user_defined_tag_returns_handle() {
         let mut data = GedcomData::default();
         let tag = UserDefinedTag::new("_FOO", 0);
         let handle = data.add_user_defined_tags(tag).unwrap();
@@ -3172,7 +3224,7 @@ mod tests {
     }
 
     #[test]
-    fn test_remove_custom_data() {
+    fn test_remove_user_define_tag() {
         let mut data = GedcomData::default();
         let handle_a = data
             .add_user_defined_tags(UserDefinedTag::new("_A", 0))
@@ -3194,7 +3246,7 @@ mod tests {
     }
 
     #[test]
-    fn test_custom_data_round_trip() {
+    fn test_user_defined_tag_round_trip() {
         let mut data = GedcomData::default();
 
         let mut tag = UserDefinedTag::new("_MILT", 0);
@@ -3222,7 +3274,7 @@ mod tests {
     }
 
     #[test]
-    fn test_add_custom_data_preserves_insertion_order() {
+    fn test_add_user_defined_tag_preserves_insertion_order() {
         let mut data = GedcomData::default();
         data.add_user_defined_tags(UserDefinedTag::new("_A", 0))
             .unwrap();
@@ -3451,5 +3503,14 @@ mod tests {
         let mut data = aliased_individual();
         data.unlink_individual_and_alias("@I1@", "@I2@").unwrap();
         assert_eq!(data.xrefs.use_count("@I2@"), 0);
+    }
+
+    #[test]
+    fn resolve_note_follows_shared_note_pointer() {
+        let source = "0 HEAD\n1 GEDC\n2 VERS 7.0\n0 @F1@ FAM\n1 SNOTE @N1@\n0 @N1@ SNOTE Shared text\n0 TRLR";
+        let data = GedcomBuilder::new().build_from_str(source).unwrap();
+        let note = &data.iter_families().next().unwrap().notes.first().unwrap();
+        assert_eq!(note.shared_note_xref(), Some("@N1@"));
+        assert_eq!(data.resolve_note(note), Some("Shared text"));
     }
 }

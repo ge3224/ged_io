@@ -58,7 +58,8 @@ pub struct Individual {
     pub events: Arena<Detail>,
     pub multimedia_links: Arena<Link>,
     pub last_updated: Option<String>,
-    pub note: Option<Note>,
+    /// Notes (tag: NOTE). GEDCOM allows any number of them.
+    pub notes: Arena<Note>,
     pub change_date: Option<ChangeDate>,
     #[cfg_attr(feature = "json", serde(skip))]
     pub user_defined_tags: Arena<UserDefinedTag>,
@@ -125,6 +126,7 @@ pub struct Individual {
     /// External identifiers maintained by external authorities that apply to
     /// this individual.
     pub external_ids: Arena<ExternalId>,
+    pub submitters: Arena<Xref>,
 }
 
 impl Individual {
@@ -144,7 +146,7 @@ impl Individual {
             events: Arena::default(),
             multimedia_links: Arena::default(),
             last_updated: None,
-            note: None,
+            notes: Arena::default(),
             change_date: None,
             user_defined_tags: Arena::default(),
             non_events: Arena::default(),
@@ -160,6 +162,7 @@ impl Individual {
             ancestor_interest: Arena::default(),
             descendant_interest: Arena::default(),
             external_ids: Arena::default(),
+            submitters: Arena::default(),
         }
     }
 
@@ -538,6 +541,12 @@ impl Individual {
         for ne in &self.non_events {
             ne.outbound_refs(sink);
         }
+
+        for xref in &self.submitters {
+            if is_real_reference(xref) {
+                sink(xref);
+            }
+        }
     }
 }
 
@@ -578,7 +587,9 @@ impl Parser for Individual {
                     self.add_source_citation(Citation::new(tokenizer, level + 1)?);
                 }
                 "OBJE" => self.add_multimedia_link(Link::new(tokenizer, level + 1)?),
-                "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
+                "NOTE" => {
+                    self.notes.insert(Note::new(tokenizer, level + 1)?);
+                }
                 "NO" => {
                     self.non_events.insert(NonEvent::new(tokenizer, level + 1)?);
                 }
@@ -599,7 +610,12 @@ impl Parser for Individual {
                 // User reference number
                 "REFN" => {
                     self.user_reference_number = Some(tokenizer.take_line_value()?);
-                    // Note: TYPE substructure would need to be parsed here
+                    parse_subset(tokenizer, level + 1, |tag, tokenizer| {
+                        if tag == "TYPE" {
+                            self.user_reference_type = Some(tokenizer.take_line_value()?);
+                        }
+                        Ok(())
+                    })?;
                 }
                 // Automated record ID
                 "RIN" => self.automated_record_id = Some(tokenizer.take_line_value()?),
@@ -623,9 +639,12 @@ impl Parser for Individual {
                     let id = tokenizer.take_line_value()?;
                     self.external_ids.insert(ExternalId { id, type_uri: None });
                 }
+                "SUBM" => {
+                    self.submitters.insert(tokenizer.take_line_value()?);
+                }
                 _ => {
-                    // Gracefully skip unknown tags
-                    tokenizer.take_line_value()?;
+                    // Leave unknown tags to `parse_subset`, which keeps them with
+                    // their substructures.
                 }
             }
 
@@ -913,8 +932,8 @@ mod tests {
                 .data
                 .as_ref()
                 .unwrap()
-                .text
-                .as_ref()
+                .texts
+                .first()
                 .unwrap()
                 .value
                 .as_ref()
@@ -926,7 +945,7 @@ mod tests {
             "Direct"
         );
         assert_eq!(
-            a_sour.note.as_ref().unwrap().value.as_ref().unwrap(),
+            a_sour.notes.first().unwrap().value.as_ref().unwrap(),
             "A note\nNote continued here. The word TEST should not be broken!"
         );
     }

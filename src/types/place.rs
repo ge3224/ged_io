@@ -211,8 +211,8 @@ impl Parser for MapCoordinates {
                 "LATI" => self.latitude = Some(tokenizer.take_line_value()?),
                 "LONG" => self.longitude = Some(tokenizer.take_line_value()?),
                 _ => {
-                    // Gracefully skip unknown tags
-                    tokenizer.take_line_value()?;
+                    // Leave unknown tags to `parse_subset`, which keeps them with
+                    // their substructures.
                 }
             }
             Ok(())
@@ -277,12 +277,10 @@ impl PlaceVariation {
 impl Parser for PlaceVariation {
     fn parse(&mut self, tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<(), GedcomError> {
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
-            match tag {
-                "TYPE" => self.variation_type = Some(tokenizer.take_line_value()?),
-                _ => {
-                    // Gracefully skip unknown tags
-                    tokenizer.take_line_value()?;
-                }
+            // Unknown tags are left to `parse_subset`, which keeps them with
+            // their substructures.
+            if tag == "TYPE" {
+                self.variation_type = Some(tokenizer.take_line_value()?);
             }
             Ok(())
         };
@@ -388,8 +386,8 @@ impl Parser for Place {
                     self.external_ids.insert(ExternalId { id, type_uri: None });
                 }
                 _ => {
-                    // Gracefully skip unknown tags
-                    tokenizer.take_line_value()?;
+                    // Leave unknown tags to `parse_subset`, which keeps them with
+                    // their substructures.
                 }
             }
             Ok(())

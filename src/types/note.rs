@@ -2,6 +2,7 @@ use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{source::Source, translation::Translation},
+    util::is_pointer_use,
     GedcomError,
 };
 
@@ -57,6 +58,20 @@ impl Note {
         note.parse(tokenizer, level)?;
         Ok(note)
     }
+
+    /// The xref of the shared note record this note points to, as in
+    /// `NOTE @N1@` (GEDCOM 5.5.1) or `SNOTE @N1@` (GEDCOM 7.0), or `None`
+    /// for a note that carries its own text.
+    ///
+    /// Use [`crate::types::GedcomData::resolve_note`] to get the text either
+    /// way.
+    #[must_use]
+    pub fn shared_note_xref(&self) -> Option<&str> {
+        self.value
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| is_pointer_use(value))
+    }
 }
 
 impl Parser for Note {
@@ -69,8 +84,8 @@ impl Parser for Note {
                 "TRANS" => self.translation = Some(Translation::new(tokenizer, level + 1)?),
                 "LANG" => self.language = Some(tokenizer.take_line_value()?),
                 _ => {
-                    // Gracefully skip unknown tags
-                    tokenizer.take_line_value()?;
+                    // Leave unknown tags to `parse_subset`, which keeps them with
+                    // their substructures.
                 }
             }
 

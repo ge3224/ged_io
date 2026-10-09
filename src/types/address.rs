@@ -66,8 +66,8 @@ impl Parser for Address {
                 "POST" => self.post = Some(tokenizer.take_line_value()?),
                 "CTRY" => self.country = Some(tokenizer.take_line_value()?),
                 _ => {
-                    // Gracefully skip unknown tags
-                    tokenizer.take_line_value()?;
+                    // Leave unknown tags to `parse_subset`, which keeps them with
+                    // their substructures.
                 }
             }
             Ok(())

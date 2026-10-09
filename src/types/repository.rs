@@ -191,7 +191,12 @@ impl Parser for Repository {
                 "CHAN" => self.change_date = Some(ChangeDate::new(tokenizer, level + 1)?),
                 "REFN" => {
                     self.user_reference_number = Some(tokenizer.take_line_value()?);
-                    // Note: TYPE substructure would need to be parsed here
+                    parse_subset(tokenizer, level + 1, |tag, tokenizer| {
+                        if tag == "TYPE" {
+                            self.user_reference_type = Some(tokenizer.take_line_value()?);
+                        }
+                        Ok(())
+                    })?;
                 }
                 "RIN" => self.automated_record_id = Some(tokenizer.take_line_value()?),
                 "UID" => self.uid = Some(tokenizer.take_line_value()?),
@@ -200,8 +205,8 @@ impl Parser for Repository {
                     self.external_ids.insert(ExternalId { id, type_uri: None });
                 }
                 _ => {
-                    // Gracefully skip unknown tags
-                    tokenizer.take_line_value()?;
+                    // Leave unknown tags to `parse_subset`, which keeps them with
+                    // their substructures.
                 }
             }
 

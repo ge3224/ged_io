@@ -8,8 +8,9 @@ use crate::{
     types::{
         address::Address,
         age::Age,
+        custom::UserDefinedTag,
         date::Date,
-        individual::attribute::IndividualAttribute,
+        individual::{association::Association, attribute::IndividualAttribute},
         list::ListEnum,
         multimedia::link::{Link, LinkTarget},
         note::Note,
@@ -42,7 +43,8 @@ pub struct AttributeDetail {
     pub place: Option<Place>,
     pub date: Option<Date>,
     pub sources: Arena<Citation>,
-    pub note: Option<Note>,
+    /// Notes (tag: NOTE). GEDCOM allows any number of them.
+    pub notes: Arena<Note>,
     /// `attribute_type` handles the TYPE tag, a descriptive word or phrase used to further
     /// classify the parent event or attribute tag. This should be used to define what kind of
     /// identification number or fact classification is being defined.
@@ -62,12 +64,25 @@ pub struct AttributeDetail {
     ///
     /// Commonly used with RESI (residence) attributes.
     pub address: Option<Address>,
+    /// Phone numbers (tag: PHON).
+    pub phone: Vec<String>,
+    /// Email addresses (tag: EMAIL).
+    pub email: Vec<String>,
+    /// Fax numbers (tag: FAX).
+    pub fax: Vec<String>,
+    /// Web pages (tag: WWW).
+    pub website: Vec<String>,
+    /// Individuals associated with this attribute (tag: ASSO), such as an
+    /// employer for an occupation.
+    pub associations: Arena<Association>,
     /// Cause related to this attribute (tag: CAUS).
     pub cause: Option<String>,
     /// Responsible agency (tag: AGNC).
     pub agency: Option<String>,
     /// Multimedia attached to this attribute (tag: OBJE).
     pub multimedia_links: Arena<Link>,
+    /// Extension (user-defined) tags found under this structure.
+    pub user_defined_tags: Arena<UserDefinedTag>,
 }
 
 impl AttributeDetail {
@@ -87,14 +102,20 @@ impl AttributeDetail {
             value: None,
             date: None,
             sources: Arena::default(),
-            note: None,
+            notes: Arena::default(),
             attribute_type: None,
             restriction: ListEnum::default(),
             age: None,
             address: None,
+            phone: Vec::new(),
+            email: Vec::new(),
+            fax: Vec::new(),
+            website: Vec::new(),
+            associations: Arena::default(),
             cause: None,
             agency: None,
             multimedia_links: Arena::default(),
+            user_defined_tags: Arena::default(),
         };
         attribute.parse(tokenizer, level)?;
         Ok(attribute)
@@ -179,6 +200,10 @@ impl AttributeDetail {
         if let Some(p) = &self.place {
             p.outbound_refs(sink);
         }
+
+        for a in &self.associations {
+            a.outbound_refs(sink);
+        }
     }
 }
 
@@ -198,24 +223,40 @@ impl Parser for AttributeDetail {
                 "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
                 "SOUR" => self.add_source_citation(Citation::new(tokenizer, level + 1)?),
                 "PLAC" => self.place = Some(Place::new(tokenizer, level + 1)?),
-                "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
+                "NOTE" => {
+                    self.notes.insert(Note::new(tokenizer, level + 1)?);
+                }
                 "TYPE" => self.attribute_type = Some(tokenizer.take_continued_text(level + 1)?),
                 "RESN" => self.restriction = ListEnum::from_payload(&tokenizer.take_line_value()?),
                 "AGE" => self.age = Some(Age::new(tokenizer, level + 1)?),
                 "ADDR" => self.address = Some(Address::new(tokenizer, level + 1)?),
+                "PHON" => self.phone.push(tokenizer.take_line_value()?),
+                "EMAIL" => self.email.push(tokenizer.take_line_value()?),
+                "FAX" => self.fax.push(tokenizer.take_line_value()?),
+                "WWW" => self.website.push(tokenizer.take_line_value()?),
+                "ASSO" => {
+                    self.associations.insert(
+                        crate::types::individual::association::Association::new(
+                            tokenizer,
+                            level + 1,
+                        )?,
+                    );
+                }
                 "CAUS" => self.cause = Some(tokenizer.take_continued_text(level + 1)?),
                 "AGNC" => self.agency = Some(tokenizer.take_line_value()?),
                 "OBJE" => self.add_multimedia_record(Link::new(tokenizer, level + 1)?),
                 _ => {
-                    // Gracefully skip unknown tags instead of failing
-                    tokenizer.take_line_value()?;
+                    // Leave unknown tags to `parse_subset`, which keeps them with
+                    // their substructures.
                 }
             }
 
             Ok(())
         };
 
-        parse_subset(tokenizer, level, handle_subset)?;
+        for udt in parse_subset(tokenizer, level, handle_subset)? {
+            self.user_defined_tags.insert(*udt);
+        }
 
         if !value.is_empty() {
             self.value = Some(value);

@@ -249,7 +249,7 @@ fn remove_individual_releases_outbound_pointers() {
             2 VERS 5.5\n\
             0 @I1@ INDI\n\
             1 SOUR @S1@\n\
-            1 BIRTH\n\
+            1 BIRT\n\
             2 SOUR @S1@\n\
             0 @S1@ SOUR\n\
             0 TRLR";
@@ -315,4 +315,46 @@ fn header_link_unlink_submitter_and_submission() {
 
     assert_eq!(data.remove_submitter(subm).unwrap().unwrap().xref, "@U1@");
     assert_eq!(data.remove_submission(subn).unwrap().unwrap().xref, "@N1@");
+}
+
+#[test]
+fn extension_record_xref_is_registered() {
+    let sample = "\
+          0 HEAD\n\
+          1 GEDC\n\
+          2 VERS 5.5.1\n\
+          0 @I1@ INDI\n\
+          1 _PLACE @L1@\n\
+          0 @L1@ _LOC Sampletown\n\
+          0 @L2@ _LOC Otherville\n\
+          0 TRLR";
+
+    let mut data = Gedcom::new(sample.chars()).unwrap().parse_data().unwrap();
+
+    let l1 = data
+        .find_user_defined_tag_handle("@L1@")
+        .expect("@L1@ is an extension record");
+    assert_eq!(data.reference_count("@L1@"), 1);
+    let err = data.remove_user_defined_tag(l1).unwrap_err();
+    assert!(
+        matches!(err, GedcomError::StillReferenced { xref, references: 1, .. } if xref == "@L1@")
+    );
+
+    let l2 = data
+        .find_user_defined_tag_handle("@L2@")
+        .expect("@L2@ is an extension record");
+    assert_eq!(
+        data.remove_user_defined_tag(l2).unwrap().unwrap().tag,
+        "_LOC"
+    );
+    assert!(data.find_user_defined_tag_handle("@L2@").is_none());
+
+    assert!(data.find_user_defined_tag_handle("@I1@").is_none());
+
+    let duplicate = "0 HEAD\n1 GEDC\n2 VERS 5.5.1\n0 @I1@ INDI\n0 @I1@ _LOC Sampletown\n0 TRLR";
+    let err = Gedcom::new(duplicate.chars())
+        .unwrap()
+        .parse_data()
+        .unwrap_err();
+    assert!(matches!(err, GedcomError::DuplicateXref { xref, .. } if xref == "@I1@"));
 }

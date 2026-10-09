@@ -453,7 +453,7 @@ fn test_parse_individual_non_event() {
         non_event.date.as_ref().unwrap().value,
         Some("BEF 1900".to_string())
     );
-    assert!(non_event.note.is_some());
+    assert!(!non_event.notes.is_empty());
 }
 
 /// Test parsing GEDCOM 7.0 with NO (non-event) structure for families.
@@ -488,7 +488,7 @@ fn test_parse_family_non_event() {
         .next()
         .unwrap();
     assert_eq!(non_event.event_type, "CHIL");
-    assert!(non_event.note.is_some());
+    assert!(!non_event.notes.is_empty());
 }
 
 /// Test parsing GEDCOM 7.0 with CROP structure for multimedia.

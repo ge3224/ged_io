@@ -6,8 +6,9 @@ use std::collections::HashMap;
 use crate::{
     arena::Handle,
     types::{
-        family::Family, individual::Individual, multimedia::Multimedia, repository::Repository,
-        shared_note::SharedNote, source::Source, submission::Submission, submitter::Submitter,
+        custom::UserDefinedTag, family::Family, individual::Individual, multimedia::Multimedia,
+        repository::Repository, shared_note::SharedNote, source::Source, submission::Submission,
+        submitter::Submitter,
     },
     GedcomError,
 };
@@ -114,6 +115,7 @@ pub(crate) enum AnyHandle {
     Source(Handle<Source>),
     Multimedia(Handle<Multimedia>),
     SharedNote(Handle<SharedNote>),
+    UserDefinedTag(Handle<UserDefinedTag>),
 }
 
 impl AnyHandle {
@@ -127,6 +129,7 @@ impl AnyHandle {
             AnyHandle::Source(_) => Source::RECORD_TYPE,
             AnyHandle::Multimedia(_) => Multimedia::RECORD_TYPE,
             AnyHandle::SharedNote(_) => SharedNote::RECORD_TYPE,
+            AnyHandle::UserDefinedTag(_) => UserDefinedTag::RECORD_TYPE,
         }
     }
 }

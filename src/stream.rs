@@ -527,10 +527,10 @@ impl<R: BufRead> GedcomStreamParser<R> {
                     })?;
                     GedcomRecord::Multimedia(Multimedia::new(&mut tokenizer, 0, xref)?)
                 }
-                "SNOTE" => {
+                "NOTE" | "SNOTE" => {
                     let xref = pointer.ok_or_else(|| GedcomError::MissingRequiredValue {
                         line: self.line_number as usize,
-                        tag: "SNOTE".to_string(),
+                        tag: tag.to_string(),
                     })?;
                     GedcomRecord::SharedNote(SharedNote::new(&mut tokenizer, 0, xref)?)
                 }
@@ -550,11 +550,11 @@ impl<R: BufRead> GedcomStreamParser<R> {
             Ok(record)
         } else if let Token::CustomTag(tag) = &tokenizer.current_token {
             let tag_clone = tag.clone();
-            Ok(GedcomRecord::CustomData(UserDefinedTag::drain_subtree(
-                &mut tokenizer,
-                0,
-                &tag_clone,
-            )?))
+            let mut udts = UserDefinedTag::drain_subtree(&mut tokenizer, 0, &tag_clone)?;
+            if let Some(first) = udts.first_mut() {
+                first.xref = pointer;
+            }
+            Ok(GedcomRecord::CustomData(udts))
         } else if tokenizer.current_token == Token::EOF {
             Err(GedcomError::ParseError {
                 line: self.line_number,
@@ -800,7 +800,7 @@ mod tests {
 
         assert_eq!(records.len(), 2);
         let indi = records[1].as_individual().unwrap();
-        assert!(indi.note.is_some());
+        assert!(!indi.notes.is_empty());
     }
 
     #[test]

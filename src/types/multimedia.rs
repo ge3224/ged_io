@@ -4,9 +4,11 @@ pub mod link;
 pub mod user;
 
 use crate::{
+    arena::Arena,
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{
+        custom::UserDefinedTag,
         date::change_date::ChangeDate,
         multimedia::{file::Reference, format::Format, user::UserReferenceNumber},
         note::Note,
@@ -45,7 +47,10 @@ pub struct Multimedia {
     pub automated_record_id: Option<String>,
     pub(crate) source_citation: Option<Citation>,
     pub change_date: Option<ChangeDate>,
-    pub note_structure: Option<Note>,
+    /// Notes about the multimedia record (tag: NOTE).
+    pub notes: Arena<Note>,
+    /// Extension (user-defined) tags found under this structure.
+    pub user_defined_tags: Arena<UserDefinedTag>,
 }
 
 impl Multimedia {
@@ -121,18 +126,23 @@ impl Parser for Multimedia {
                         Some(UserReferenceNumber::new(tokenizer, level + 1)?);
                 }
                 "RIN" => self.automated_record_id = Some(tokenizer.take_line_value()?),
-                "NOTE" => self.note_structure = Some(Note::new(tokenizer, level + 1)?),
+                "NOTE" => {
+                    self.notes.insert(Note::new(tokenizer, level + 1)?);
+                }
                 "SOUR" => self.source_citation = Some(Citation::new(tokenizer, level + 1)?),
                 "CHAN" => self.change_date = Some(ChangeDate::new(tokenizer, level + 1)?),
                 _ => {
-                    // Gracefully skip unknown tags
-                    tokenizer.take_line_value()?;
+                    // Leave unknown tags to `parse_subset`, which keeps them with
+                    // their substructures.
                 }
             }
 
             Ok(())
         };
-        parse_subset(tokenizer, level, handle_subset)?;
+
+        for udt in parse_subset(tokenizer, level, handle_subset)? {
+            self.user_defined_tags.insert(*udt);
+        }
 
         Ok(())
     }

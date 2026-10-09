@@ -27,11 +27,7 @@ use crate::{
     arena::Arena,
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
-    types::{
-        date::Date,
-        note::Note,
-        source::citation::{Citation, CitationSource},
-    },
+    types::{date::Date, note::Note, place::Place, source::citation::Citation, CitationSource},
     GedcomError,
 };
 
@@ -208,6 +204,7 @@ impl std::fmt::Display for LdsOrdinanceStatus {
 /// 1 BAPL
 /// 2 DATE 15 MAR 1990
 /// 2 TEMP SLAKE
+/// 2 PLAC Sampletown
 /// 2 STAT COMPLETED
 /// ```
 ///
@@ -227,12 +224,20 @@ pub struct LdsOrdinance {
     /// a list of valid temple codes.
     pub temple: Option<String>,
 
+    /// The place where the ordinance was performed (tag: PLAC).
+    ///
+    /// In GEDCOM 5.5.1 a place name only (`PLACE_LIVING_ORDINANCE`), in
+    /// GEDCOM 7.0 a full place structure.
+    pub place: Option<Place>,
+
     /// The status of the ordinance.
     pub status: Option<LdsOrdinanceStatus>,
 
-    /// The date the status was changed (GEDCOM 7.0).
+    /// The date the status was changed.
     ///
-    /// The date that the status was set.
+    /// The date that the status was set: the `DATE` under `STAT`
+    /// (`CHANGE_DATE` in GEDCOM 5.5.1, a `DateExact` with an optional `TIME`
+    /// in GEDCOM 7.0). It is only written together with `status`.
     pub status_date: Option<Date>,
 
     /// A reference to the family where this sealing was performed.
@@ -240,8 +245,8 @@ pub struct LdsOrdinance {
     /// Used with `SLGC` to indicate the family to which the child was sealed.
     pub family_xref: Option<String>,
 
-    /// Notes about this ordinance.
-    pub note: Option<Note>,
+    /// Notes about this ordinance (tag: NOTE).
+    pub notes: Arena<Note>,
 
     /// Source citations for this ordinance.
     pub source_citations: Arena<Citation>,
@@ -326,7 +331,14 @@ impl LdsOrdinance {
         self.source_citations
             .retain(|c| !matches!(&c.target, CitationSource::Record(x) if x == xref));
 
-        before - self.source_citations.len()
+        let mut removed = before - self.source_citations.len();
+
+        removed += self
+            .place
+            .as_mut()
+            .map_or(0, |p| p.remove_citation_to(xref));
+
+        removed
     }
 
     pub(crate) fn remove_multimedia_link_to(&mut self, xref: &str) -> usize {
@@ -343,12 +355,20 @@ impl LdsOrdinance {
             }
         }
 
+        if let Some(p) = &mut self.place {
+            removed += p.remove_multimedia_link_to(xref);
+        }
+
         removed
     }
 
     pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
         for source in &self.source_citations {
             source.outbound_refs(sink);
+        }
+
+        if let Some(p) = &self.place {
+            p.outbound_refs(sink);
         }
     }
 }
@@ -362,19 +382,30 @@ impl Parser for LdsOrdinance {
             match tag {
                 "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
                 "TEMP" => self.temple = Some(tokenizer.take_line_value()?),
+                "PLAC" => self.place = Some(Place::new(tokenizer, level + 1)?),
                 "STAT" => {
                     let status_str = tokenizer.take_line_value()?;
                     self.status = LdsOrdinanceStatus::parse(&status_str);
+                    // `+2 DATE <CHANGE_DATE>` (5.5.1), `+2 DATE <DateExact>` with
+                    // `+3 TIME` (7.0): the date the status was set.
+                    parse_subset(tokenizer, level + 1, |tag, tokenizer| {
+                        if tag == "DATE" {
+                            self.status_date = Some(Date::new(tokenizer, level + 2)?);
+                        }
+                        Ok(())
+                    })?;
                 }
                 "FAMC" => self.family_xref = Some(tokenizer.take_line_value()?),
-                "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
+                "NOTE" => {
+                    self.notes.insert(Note::new(tokenizer, level + 1)?);
+                }
                 "SOUR" => {
                     self.source_citations
                         .insert(Citation::new(tokenizer, level + 1)?);
                 }
                 _ => {
-                    // Gracefully skip unknown tags
-                    tokenizer.take_line_value()?;
+                    // Leave unknown tags to `parse_subset`, which keeps them with
+                    // their substructures.
                 }
             }
             Ok(())

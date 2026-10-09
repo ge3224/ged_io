@@ -1,5 +1,6 @@
 use crate::{
     tokenizer::{Token, TokenizerTrait},
+    xref::Xref,
     GedcomError,
 };
 #[cfg(feature = "json")]
@@ -9,16 +10,23 @@ use serde::Serialize;
 /// transmission. This tag must begin with an underscore (_) and should only be
 /// interpreted in the context of the sending system.
 ///
+/// A structure whose tag the parser does not recognise (a non-standard tag without the
+/// underscore, such as `MILI`) is kept the same way, with its substructures, so that they are
+/// not mistaken for substructures of the enclosing structure.
+///
 /// See <https://gedcom.io/specifications/ged55.pdf> (page 49).
 #[derive(Debug, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize))]
 pub struct UserDefinedTag {
+    pub xref: Option<Xref>,
     pub tag: String,
     pub level: u8,
     pub value: Option<String>,
 }
 
 impl UserDefinedTag {
+    pub(crate) const RECORD_TYPE: &'static str = "UserDefinedTag";
+
     /// Creates a bare `UserDefinedTag` with the given tag name and a fresh
     /// runtime id. No value, no children — the caller is expected to populate
     /// those via direct field access or helper methods.
@@ -27,6 +35,7 @@ impl UserDefinedTag {
     /// stream, use [`UserDefinedTag::drain_subtree`].
     pub fn new(tag: impl Into<String>, level: u8) -> Self {
         Self {
+            xref: None,
             tag: tag.into(),
             level,
             value: None,
@@ -107,6 +116,7 @@ impl UserDefinedTag {
 impl Clone for UserDefinedTag {
     fn clone(&self) -> Self {
         Self {
+            xref: self.xref.clone(),
             tag: self.tag.clone(),
             level: self.level,
             value: self.value.clone(),

@@ -53,8 +53,8 @@ impl Parser for HeadSour {
                 "CORP" => self.corporation = Some(Corporation::new(tokenizer, level + 1)?),
                 "DATA" => self.data = Some(HeadSourData::new(tokenizer, level + 1)?),
                 _ => {
-                    // Gracefully skip unknown tags
-                    tokenizer.take_line_value()?;
+                    // Leave unknown tags to `parse_subset`, which keeps them with
+                    // their substructures.
                 }
             }
             Ok(())

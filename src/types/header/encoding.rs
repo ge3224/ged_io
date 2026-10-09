@@ -64,8 +64,8 @@ impl Parser for Encoding {
                 // SOUR is non-standard but used by some generators (e.g., Geneanet/GeneWeb)
                 "SOUR" => self.source = Some(Citation::new(tokenizer, level + 1)?),
                 _ => {
-                    // Gracefully skip unknown tags instead of failing
-                    tokenizer.take_line_value()?;
+                    // Leave unknown tags to `parse_subset`, which keeps them with
+                    // their substructures.
                 }
             }
             Ok(())

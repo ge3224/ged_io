@@ -10,7 +10,6 @@ use crate::{
     types::{
         custom::UserDefinedTag,
         date::change_date::ChangeDate,
-        event::detail::Detail,
         external_id::ExternalId,
         multimedia::link::{Link, LinkTarget},
         note::Note,
@@ -145,14 +144,9 @@ impl Parser for Source {
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             match tag {
-                "DATA" => tokenizer.next_token()?,
-                "EVEN" => {
-                    let events_recorded = tokenizer.take_line_value()?;
-                    let mut event = Detail::new(tokenizer, level + 2, "OTHER")?;
-                    event.with_source_data(events_recorded);
-                    self.data.add_event(event);
-                    return Ok(());
-                }
+                "DATA" => self.data.parse(tokenizer, level + 1)?,
+                // Tolerated directly under SOUR, as earlier versions did.
+                "EVEN" => self.data.parse_event(tokenizer, level + 1)?,
                 "AGNC" => self.data.agency = Some(tokenizer.take_line_value()?),
                 "ABBR" => self.abbreviation = Some(tokenizer.take_continued_text(level + 1)?),
                 "CHAN" => self.change_date = Some(Box::new(ChangeDate::new(tokenizer, level + 1)?)),
@@ -171,7 +165,12 @@ impl Parser for Source {
                 // User reference number
                 "REFN" => {
                     self.user_reference_number = Some(tokenizer.take_line_value()?);
-                    // Note: TYPE substructure would need to be parsed here
+                    parse_subset(tokenizer, level + 1, |tag, tokenizer| {
+                        if tag == "TYPE" {
+                            self.user_reference_type = Some(tokenizer.take_line_value()?);
+                        }
+                        Ok(())
+                    })?;
                 }
                 // Automated record ID
                 "RIN" => self.automated_record_id = Some(tokenizer.take_line_value()?),
@@ -181,8 +180,8 @@ impl Parser for Source {
                     self.external_ids.insert(ExternalId { id, type_uri: None });
                 }
                 _ => {
-                    // Gracefully skip unknown tags
-                    tokenizer.take_line_value()?;
+                    // Leave unknown tags to `parse_subset`, which keeps them with
+                    // their substructures.
                 }
             }
 
@@ -289,7 +288,7 @@ mod tests {
             .unwrap();
 
         assert_eq!(
-            citation_data.text.as_ref().unwrap().value.as_ref().unwrap(),
+            citation_data.texts.first().unwrap().value.as_ref().unwrap(),
             "a sample text\nSample text continued here. The word TEST should not be broken!"
         );
     }

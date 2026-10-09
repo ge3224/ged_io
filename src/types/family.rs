@@ -90,6 +90,8 @@ pub struct Family {
     /// External identifiers maintained by external authorities that apply to
     /// this family.
     pub external_ids: Arena<ExternalId>,
+    /// Submitters who contributed this record (tag: SUBM, GEDCOM 5.5.1).
+    pub submitters: Arena<Xref>,
 }
 
 impl Family {
@@ -120,6 +122,7 @@ impl Family {
             user_reference_type: Option::default(),
             automated_record_id: Option::default(),
             external_ids: Arena::default(),
+            submitters: Arena::default(),
         }
     }
 
@@ -358,6 +361,12 @@ impl Family {
         for o in &self.lds_ordinances {
             o.outbound_refs(sink);
         }
+
+        for xref in &self.submitters {
+            if is_real_reference(xref) {
+                sink(xref);
+            }
+        }
     }
 }
 
@@ -383,6 +392,7 @@ impl PartialEq for Family {
             && self.user_reference_type == other.user_reference_type
             && self.automated_record_id == other.automated_record_id
             && self.external_ids == other.external_ids
+            && self.submitters == other.submitters
     }
 }
 
@@ -421,7 +431,12 @@ impl Parser for Family {
                 // User reference number
                 "REFN" => {
                     self.user_reference_number = Some(tokenizer.take_line_value()?);
-                    // Note: TYPE substructure would need to be parsed here
+                    parse_subset(tokenizer, level + 1, |tag, tokenizer| {
+                        if tag == "TYPE" {
+                            self.user_reference_type = Some(tokenizer.take_line_value()?);
+                        }
+                        Ok(())
+                    })?;
                 }
                 // Automated record ID
                 "RIN" => self.automated_record_id = Some(tokenizer.take_line_value()?),
@@ -430,9 +445,12 @@ impl Parser for Family {
                     let id = tokenizer.take_line_value()?;
                     self.external_ids.insert(ExternalId { id, type_uri: None });
                 }
+                "SUBM" => {
+                    self.submitters.insert(tokenizer.take_line_value()?);
+                }
                 _ => {
-                    // Gracefully skip unknown tags
-                    tokenizer.take_line_value()?;
+                    // Leave unknown tags to `parse_subset`, which keeps them with
+                    // their substructures.
                 }
             }
 

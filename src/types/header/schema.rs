@@ -210,16 +210,12 @@ impl Parser for Schema {
         tokenizer.next_token()?;
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
-            match tag {
-                "TAG" => {
-                    let payload = tokenizer.take_line_value()?;
-                    if let Some(definition) = TagDefinition::from_payload(&payload) {
-                        self.tag_definitions.insert(definition);
-                    }
-                }
-                _ => {
-                    // Gracefully skip unknown tags
-                    tokenizer.take_line_value()?;
+            // Unknown tags are left to `parse_subset`, which keeps them with
+            // their substructures.
+            if tag == "TAG" {
+                let payload = tokenizer.take_line_value()?;
+                if let Some(definition) = TagDefinition::from_payload(&payload) {
+                    self.tag_definitions.insert(definition);
                 }
             }
             Ok(())

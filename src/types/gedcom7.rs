@@ -90,8 +90,8 @@ impl Parser for SortDate {
                 "TIME" => self.time = Some(tokenizer.take_line_value()?),
                 "PHRASE" => self.phrase = Some(tokenizer.take_line_value()?),
                 _ => {
-                    // Gracefully skip unknown tags
-                    tokenizer.take_line_value()?;
+                    // Leave unknown tags to `parse_subset`, which keeps them with
+                    // their substructures.
                 }
             }
             Ok(())
@@ -143,12 +143,10 @@ impl Parser for CreationDate {
         tokenizer.next_token()?;
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
-            match tag {
-                "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
-                _ => {
-                    // Gracefully skip unknown tags
-                    tokenizer.take_line_value()?;
-                }
+            // Unknown tags are left to `parse_subset`, which keeps them with
+            // their substructures.
+            if tag == "DATE" {
+                self.date = Some(Date::new(tokenizer, level + 1)?);
             }
             Ok(())
         };
@@ -258,6 +256,15 @@ impl Parser for Crop {
         tokenizer.next_token()?;
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
+            let field = match tag {
+                "TOP" => &mut self.top,
+                "LEFT" => &mut self.left,
+                "HEIGHT" => &mut self.height,
+                "WIDTH" => &mut self.width,
+                // Leave unknown tags to `parse_subset`, which keeps them with
+                // their substructures.
+                _ => return Ok(()),
+            };
             let value_str = tokenizer.take_line_value()?;
             let value: f32 = value_str
                 .parse()
@@ -266,17 +273,7 @@ impl Parser for Crop {
                     value: value_str.clone(),
                     expected_format: "numeric value (0-100)".to_string(),
                 })?;
-
-            match tag {
-                "TOP" => self.top = Some(value),
-                "LEFT" => self.left = Some(value),
-                "HEIGHT" => self.height = Some(value),
-                "WIDTH" => self.width = Some(value),
-                _ => {
-                    // Gracefully skip unknown tags
-                    tokenizer.take_line_value()?;
-                }
-            }
+            *field = Some(value);
             Ok(())
         };
 
@@ -317,8 +314,8 @@ pub struct NonEvent {
     /// For example, "BEF 1900" means the event did not occur before 1900.
     pub date: Option<Date>,
 
-    /// A note providing additional context about the non-event.
-    pub note: Option<Note>,
+    /// Notes providing additional context about the non-event (tag: NOTE).
+    pub notes: Vec<Note>,
 
     /// Source citations supporting the claim that the event did not occur.
     pub source_citations: Arena<Citation>,
@@ -406,14 +403,14 @@ impl Parser for NonEvent {
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             match tag {
                 "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
-                "NOTE" => self.note = Some(Note::new(tokenizer, level + 1)?),
+                "NOTE" => self.notes.push(Note::new(tokenizer, level + 1)?),
                 "SOUR" => {
                     self.source_citations
                         .insert(Citation::new(tokenizer, level + 1)?);
                 }
                 _ => {
-                    // Gracefully skip unknown tags
-                    tokenizer.take_line_value()?;
+                    // Leave unknown tags to `parse_subset`, which keeps them with
+                    // their substructures.
                 }
             }
             Ok(())

@@ -73,6 +73,14 @@ pub enum GedzipError {
     IoError(std::io::Error),
     /// A media file referenced in the GEDCOM was not found in the archive.
     MissingMediaFile(String),
+    /// An entry is larger than the limit set with
+    /// [`GedzipReader::max_entry_size`].
+    EntryTooLarge {
+        /// The entry's name in the archive.
+        name: String,
+        /// The limit, in bytes.
+        limit: u64,
+    },
 }
 
 impl std::fmt::Display for GedzipError {
@@ -85,6 +93,9 @@ impl std::fmt::Display for GedzipError {
             Self::MissingMediaFile(name) => {
                 write!(f, "Media file not found in archive: {name}")
             }
+            Self::EntryTooLarge { name, limit } => {
+                write!(f, "Archive entry {name} exceeds the {limit}-byte limit")
+            }
         }
     }
 }
@@ -95,7 +106,9 @@ impl std::error::Error for GedzipError {
             Self::ZipError(e) => Some(e),
             Self::GedcomError(e) => Some(e),
             Self::IoError(e) => Some(e),
-            Self::MissingGedcomFile | Self::MissingMediaFile(_) => None,
+            Self::MissingGedcomFile | Self::MissingMediaFile(_) | Self::EntryTooLarge { .. } => {
+                None
+            }
         }
     }
 }
@@ -151,6 +164,7 @@ impl From<std::io::Error> for GedzipError {
 pub struct GedzipReader<R: Read + Seek> {
     archive: ZipArchive<R>,
     file_names: Vec<String>,
+    max_entry_size: Option<u64>,
 }
 
 impl<R: Read + Seek> GedzipReader<R> {
@@ -176,7 +190,64 @@ impl<R: Read + Seek> GedzipReader<R> {
         Ok(Self {
             archive,
             file_names,
+            max_entry_size: None,
         })
+    }
+
+    /// Refuses to read any entry whose uncompressed size exceeds `limit`
+    /// bytes, with [`GedzipError::EntryTooLarge`].
+    ///
+    /// An archive comes from outside: without a limit, a small archive can
+    /// expand to any size in memory (a "zip bomb"). The limit is checked
+    /// against the size the archive declares and enforced while reading, so
+    /// an entry that declares less than it holds is refused too.
+    #[must_use]
+    pub fn max_entry_size(mut self, limit: u64) -> Self {
+        self.max_entry_size = Some(limit);
+        self
+    }
+
+    /// Reads a whole entry, within the configured limit.
+    fn read_entry(&mut self, name: &str) -> Result<Vec<u8>, GedzipError> {
+        let limit = self.max_entry_size;
+        let file = self.archive.by_name(name)?;
+        let too_large = || GedzipError::EntryTooLarge {
+            name: name.to_string(),
+            limit: limit.unwrap_or_default(),
+        };
+        let mut bytes = Vec::new();
+        if let Some(limit) = limit {
+            if file.size() > limit {
+                return Err(too_large());
+            }
+            file.take(limit.saturating_add(1)).read_to_end(&mut bytes)?;
+            if bytes.len() as u64 > limit {
+                return Err(too_large());
+            }
+        } else {
+            let mut file = file;
+            file.read_to_end(&mut bytes)?;
+        }
+        Ok(bytes)
+    }
+
+    /// The name of the archive entry a `FILE` reference points at, if the
+    /// archive holds it.
+    ///
+    /// The exact name is preferred. Otherwise the reference is matched the
+    /// way producers write it: with backslashes or forward slashes, a leading
+    /// `./` or `/`, percent-encoded (GEDCOM 7.0 `FILE` values are URI
+    /// references, so a space is `%20`), and in any letter case.
+    #[must_use]
+    pub fn find_entry(&self, file_ref: &str) -> Option<&str> {
+        if let Some(name) = self.file_names.iter().find(|n| *n == file_ref) {
+            return Some(name);
+        }
+        let wanted = entry_key(file_ref);
+        self.file_names
+            .iter()
+            .find(|n| entry_key(n) == wanted)
+            .map(String::as_str)
     }
 
     /// Parses and returns the GEDCOM data from the archive.
@@ -199,10 +270,7 @@ impl<R: Read + Seek> GedzipReader<R> {
     ///
     /// Returns an error if the file cannot be read.
     pub fn read_gedcom_bytes(&mut self) -> Result<Vec<u8>, GedzipError> {
-        let mut file = self.archive.by_name(GEDCOM_FILENAME)?;
-        let mut bytes = Vec::new();
-        file.read_to_end(&mut bytes)?;
-        Ok(bytes)
+        self.read_entry(GEDCOM_FILENAME)
     }
 
     /// Returns a list of all file names in the archive.
@@ -227,25 +295,26 @@ impl<R: Read + Seek> GedzipReader<R> {
     ///
     /// # Arguments
     ///
-    /// * `name` - The file name (path) within the archive
+    /// * `name` - The file name (path) within the archive, or a `FILE`
+    ///   reference to it (see [`GedzipReader::find_entry`])
     ///
     /// # Errors
     ///
-    /// Returns an error if the file does not exist or cannot be read.
+    /// Returns an error if the file does not exist, cannot be read, or
+    /// exceeds the limit set with [`GedzipReader::max_entry_size`].
     pub fn read_media_file(&mut self, name: &str) -> Result<Vec<u8>, GedzipError> {
-        let mut file = self
-            .archive
-            .by_name(name)
-            .map_err(|_| GedzipError::MissingMediaFile(name.to_string()))?;
-        let mut bytes = Vec::new();
-        file.read_to_end(&mut bytes)?;
-        Ok(bytes)
+        let entry = self
+            .find_entry(name)
+            .ok_or_else(|| GedzipError::MissingMediaFile(name.to_string()))?
+            .to_string();
+        self.read_entry(&entry)
     }
 
-    /// Checks if a file exists in the archive.
+    /// Checks if a file exists in the archive, by name or `FILE` reference
+    /// (see [`GedzipReader::find_entry`]).
     #[must_use]
     pub fn contains_file(&self, name: &str) -> bool {
-        self.file_names.iter().any(|n| n == name)
+        self.find_entry(name).is_some()
     }
 
     /// Returns the number of files in the archive.
@@ -371,8 +440,8 @@ impl<W: Write + Seek> GedzipWriter<W> {
     ///
     /// Returns an error if the file cannot be written.
     pub fn add_media_file(&mut self, name: &str, bytes: &[u8]) -> Result<(), GedzipError> {
-        let options = zip::write::FileOptions::<()>::default()
-            .compression_method(CompressionMethod::Deflated);
+        let options =
+            zip::write::FileOptions::<()>::default().compression_method(media_compression(name));
 
         self.zip.start_file(name, options)?;
         self.zip.write_all(bytes)?;
@@ -414,6 +483,48 @@ impl<W: Write + Seek> GedzipWriter<W> {
     pub fn has_gedcom(&self) -> bool {
         self.has_gedcom
     }
+}
+
+/// How to store a media file: formats that are already compressed (most
+/// images, audio, video, PDF and archives) gain nothing from Deflate and cost
+/// time on both ends, so they are stored as they are.
+fn media_compression(name: &str) -> CompressionMethod {
+    const COMPRESSED: [&str; 18] = [
+        "jpg", "jpeg", "png", "gif", "webp", "avif", "heic", "jp2", "pdf", "mp3", "m4a", "ogg",
+        "opus", "mp4", "m4v", "webm", "zip", "gz",
+    ];
+    let extension = name
+        .rsplit_once('.')
+        .map(|(_, ext)| ext.to_ascii_lowercase());
+    match extension {
+        Some(ext) if COMPRESSED.contains(&ext.as_str()) => CompressionMethod::Stored,
+        _ => CompressionMethod::Deflated,
+    }
+}
+
+/// The form of an entry name or `FILE` reference used to match one against
+/// the other: forward slashes, no leading `./` or `/`, percent-decoded, lower
+/// case.
+fn entry_key(name: &str) -> String {
+    let slashed = name.replace('\\', "/");
+    let trimmed = slashed.trim_start_matches("./").trim_start_matches('/');
+    let bytes = trimmed.as_bytes();
+    let mut decoded = Vec::with_capacity(bytes.len());
+    let mut i = 0;
+    while i < bytes.len() {
+        let hex = |b: u8| char::from(b).to_digit(16);
+        if bytes[i] == b'%' && i + 2 < bytes.len() {
+            if let (Some(hi), Some(lo)) = (hex(bytes[i + 1]), hex(bytes[i + 2])) {
+                // Both digits are below 16, so the byte fits.
+                decoded.push(u8::try_from(hi * 16 + lo).unwrap_or(b'%'));
+                i += 3;
+                continue;
+            }
+        }
+        decoded.push(bytes[i]);
+        i += 1;
+    }
+    String::from_utf8_lossy(&decoded).to_lowercase()
 }
 
 /// Reads a GEDZIP file from bytes and returns the parsed GEDCOM data.

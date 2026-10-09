@@ -2,9 +2,11 @@
 use serde::Serialize;
 
 use crate::{
+    arena::Arena,
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{
+        custom::UserDefinedTag,
         multimedia::{Format, Reference},
         Xref,
     },
@@ -29,6 +31,7 @@ pub struct Link {
     /// The 5.5 spec, page 26, shows TITL as a sub-structure of FILE, but the struct appears as a
     /// sibling in an Ancestry.com export.
     pub title: Option<String>,
+    pub user_defined_tags: Arena<UserDefinedTag>,
 }
 
 impl Link {
@@ -52,6 +55,7 @@ impl Link {
             file: None,
             form: None,
             title: None,
+            user_defined_tags: Arena::default(),
         };
         obje.parse(tokenizer, level)?;
         Ok(obje)
@@ -70,6 +74,7 @@ impl Link {
             file: None,
             form: None,
             title: None,
+            user_defined_tags: Arena::default(),
         }
     }
 
@@ -88,14 +93,16 @@ impl Parser for Link {
                 "FORM" => self.form = Some(Format::new(tokenizer, level + 1)?),
                 "TITL" => self.title = Some(tokenizer.take_line_value()?),
                 _ => {
-                    // Gracefully skip unknown tags
-                    tokenizer.take_line_value()?;
+                    // Leave unknown tags to `parse_subset`, which keeps them with
+                    // their substructures.
                 }
             }
             Ok(())
         };
 
-        parse_subset(tokenizer, level, handle_subset)?;
+        for udt in parse_subset(tokenizer, level, handle_subset)? {
+            self.user_defined_tags.insert(*udt);
+        }
 
         Ok(())
     }
