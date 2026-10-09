@@ -22,8 +22,28 @@ fn test_round_trip_record_submitter_pointers() {
 0 TRLR"#;
 
     let data1 = GedcomBuilder::new().build_from_str(original).unwrap();
-    assert_eq!(data1.individuals[0].submitters, ["@U1@", "@U2@"]);
-    assert_eq!(data1.families[0].submitters, ["@U2@"]);
+    assert_eq!(
+        data1
+            .iter_individuals()
+            .next()
+            .unwrap()
+            .submitters
+            .iter()
+            .map(String::as_str)
+            .collect::<Vec<_>>(),
+        ["@U1@", "@U2@"]
+    );
+    assert_eq!(
+        data1
+            .iter_families()
+            .next()
+            .unwrap()
+            .submitters
+            .iter()
+            .map(String::as_str)
+            .collect::<Vec<_>>(),
+        ["@U2@"]
+    );
 
     let written = GedcomWriter::new().write_to_string(&data1).unwrap();
     assert!(
@@ -36,6 +56,12 @@ fn test_round_trip_record_submitter_pointers() {
     );
 
     let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();
-    assert_eq!(data1.individuals[0], data2.individuals[0]);
-    assert_eq!(data1.families[0], data2.families[0]);
+    assert_eq!(
+        data1.iter_individuals().next().unwrap(),
+        data2.iter_individuals().next().unwrap()
+    );
+    assert_eq!(
+        data1.iter_families().next().unwrap(),
+        data2.iter_families().next().unwrap()
+    );
 }

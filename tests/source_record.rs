@@ -37,7 +37,7 @@ fn test_round_trip_source_record_substructures() {
 0 TRLR"#;
 
     let data1 = GedcomBuilder::new().build_from_str(original).unwrap();
-    let source = &data1.sources[0];
+    let source = &data1.iter_sources().next().unwrap();
     // DATA.NOTE belongs to the data, not to the record.
     assert_eq!(source.data.notes.len(), 1);
     assert_eq!(source.notes.len(), 1);
@@ -66,7 +66,10 @@ fn test_round_trip_source_record_substructures() {
     }
 
     let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();
-    assert_eq!(data1.sources[0], data2.sources[0]);
+    assert_eq!(
+        data1.iter_sources().next().unwrap(),
+        data2.iter_sources().next().unwrap()
+    );
 }
 
 #[test]

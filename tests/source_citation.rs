@@ -35,15 +35,15 @@ fn test_round_trip_source_citation_substructures() {
 0 TRLR"#;
 
     let data1 = GedcomBuilder::new().build_from_str(original).unwrap();
-    let person = &data1.individuals[0];
-    let cited = &person.events[0].citations[0];
+    let person = &data1.iter_individuals().next().unwrap();
+    let cited = &person.events.first().unwrap().citations.first().unwrap();
     assert_eq!(cited.event_type.as_deref(), Some("BIRT"));
     assert_eq!(cited.role.as_deref(), Some("CHIL"));
     assert_eq!(cited.notes.len(), 2);
     assert_eq!(cited.data.as_ref().unwrap().texts.len(), 2);
-    let free = &person.source[0];
+    let free = &person.sources.first().unwrap();
     assert_eq!(
-        free.source.as_description(),
+        free.target().as_description(),
         Some("Parish register of Sampletown,\nbaptisms 1890-1910")
     );
     assert_eq!(free.texts.len(), 1);
@@ -66,5 +66,8 @@ fn test_round_trip_source_citation_substructures() {
     }
 
     let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();
-    assert_eq!(data1.individuals[0], data2.individuals[0]);
+    assert_eq!(
+        data1.iter_individuals().next().unwrap(),
+        data2.iter_individuals().next().unwrap()
+    );
 }

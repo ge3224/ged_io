@@ -26,7 +26,12 @@ fn test_round_trip_repository_record() {
 
     let data1 = GedcomBuilder::new().build_from_str(original).unwrap();
     assert_eq!(
-        data1.repositories[0].user_reference_type.as_deref(),
+        data1
+            .iter_repositories()
+            .next()
+            .unwrap()
+            .user_reference_type
+            .as_deref(),
         Some("catalogue")
     );
 
@@ -48,5 +53,8 @@ fn test_round_trip_repository_record() {
     }
 
     let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();
-    assert_eq!(data1.repositories[0], data2.repositories[0]);
+    assert_eq!(
+        data1.iter_repositories().collect::<Vec<_>>(),
+        data2.iter_repositories().collect::<Vec<_>>()
+    );
 }

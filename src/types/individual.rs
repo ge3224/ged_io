@@ -4,95 +4,90 @@ pub mod family_link;
 pub mod gender;
 pub mod name;
 
+use std::fmt;
+
 use crate::{
+    arena::Arena,
     parser::{parse_subset, Parser},
+    reference::BlockingReference,
     tokenizer::Tokenizer,
     types::{
         custom::UserDefinedTag,
         date::change_date::ChangeDate,
         event::{detail::Detail, util::HasEvents},
+        external_id::ExternalId,
         gedcom7::NonEvent,
         individual::{
             association::Association, attribute::detail::AttributeDetail, family_link::FamilyLink,
             gender::Gender, name::Name,
         },
         lds::LdsOrdinance,
-        multimedia::Multimedia,
+        list::ListEnum,
+        multimedia::link::{Link, LinkTarget},
         note::Note,
-        source::citation::Citation,
+        restriction::Restriction,
+        source::citation::{Citation, CitationSource},
         Xref,
     },
+    util::is_real_reference,
     GedcomError,
 };
 
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
-/// Individual (tag: INDI) represents a compilation of facts or hypothesized facts about an
-/// individual. These facts may come from multiple sources. Source citations and notes allow
-/// documentation of the source where each of the facts were discovered. See
-/// <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#INDIVIDUAL_RECORD>.
-///
-/// # GEDCOM 7.0 Additions
-///
-/// In GEDCOM 7.0, individuals can have:
-/// - `NO` - Non-event assertions (e.g., "NO MARR" means never married)
-///
-/// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#NO>
-#[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+/// A record for an individual (tag: `INDI`) — a compilation of facts or
+/// hypothesized facts about a person, drawn from one or more sources. Source
+/// citations and notes on each fact document where it was found. Defined in
+/// GEDCOM 5.5.1 (p. 23) and GEDCOM 7 (§`INDIVIDUAL_RECORD`); the 7.0 revision
+/// adds non-event assertions (`NO`, e.g. "NO MARR") to distinguish "did not
+/// happen" from "unknown".
+#[derive(Debug, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Individual {
-    pub xref: Option<Xref>,
+    pub xref: Xref,
     /// All `NAME` structures for this individual, in source order.
     ///
     /// GEDCOM 5.5.1 and 7.0 allow `{0:M}` `PERSONAL_NAME_STRUCTURE` per
     /// individual. Use `names.first()` for the primary name.
-    #[cfg_attr(feature = "json", serde(default))]
-    pub names: Vec<Name>,
+    pub names: Arena<Name>,
     pub sex: Option<Gender>,
-    pub families: Vec<FamilyLink>,
-    pub attributes: Vec<AttributeDetail>,
-    pub source: Vec<Citation>,
-    pub events: Vec<Detail>,
-    pub multimedia: Vec<Multimedia>,
+    pub families: Arena<FamilyLink>,
+    pub attributes: Arena<AttributeDetail>,
+    pub sources: Arena<Citation>,
+    pub events: Arena<Detail>,
+    pub multimedia_links: Arena<Link>,
     pub last_updated: Option<String>,
     /// Notes (tag: NOTE). GEDCOM allows any number of them.
-    pub notes: Vec<Note>,
+    pub notes: Arena<Note>,
     pub change_date: Option<ChangeDate>,
-    pub custom_data: Vec<Box<UserDefinedTag>>,
+    #[cfg_attr(feature = "json", serde(skip))]
+    pub user_defined_tags: Arena<UserDefinedTag>,
     /// Non-event assertions for GEDCOM 7.0.
     ///
     /// These assert that specific events did NOT occur (e.g., "NO MARR" means
     /// the individual never married). This is distinct from omitting an event
     /// (which means unknown).
-    pub non_events: Vec<NonEvent>,
+    pub non_events: Arena<NonEvent>,
     /// LDS (Latter-day Saints) ordinances.
     ///
     /// These include BAPL (Baptism), CONL (Confirmation), INIL (Initiatory - GEDCOM 7.0 only),
     /// ENDL (Endowment), and SLGC (Sealing to parents).
-    pub lds_ordinances: Vec<LdsOrdinance>,
+    pub lds_ordinances: Arena<LdsOrdinance>,
     /// Associations with other individuals.
     ///
     /// Used to link individuals who have some relationship not covered by other
     /// standard tags (e.g., friends, neighbors, witnesses).
-    pub associations: Vec<Association>,
-    /// Unique identifier (tag: UID).
-    ///
-    /// A globally unique identifier for this record. In GEDCOM 7.0, this is
-    /// a URI that uniquely identifies the record across all datasets.
-    ///
-    /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#UID>
+    pub associations: Arena<Association>,
+    /// Unique identifier (tag: UID). A globally unique identifier for this record.
     pub uid: Option<String>,
-    /// Restriction notice (tag: RESN).
-    ///
-    /// A flag that indicates access to information has been restricted.
-    /// Valid values are:
-    /// - `confidential` - Not for public distribution
-    /// - `locked` - Cannot be modified
-    /// - `privacy` - Information is private
-    ///
-    /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#RESN>
-    pub restriction: Option<String>,
+    /// Restriction notice (tag: RESN). A flag that indicates access to
+    /// information has been restricted.
+    #[cfg_attr(
+        feature = "json",
+        serde(default, skip_serializing_if = "ListEnum::is_empty")
+    )]
+    pub restriction: ListEnum<Restriction>,
     /// User reference number (tag: REFN).
     ///
     /// A user-defined number or text that the submitter uses to identify
@@ -117,80 +112,107 @@ pub struct Individual {
     /// Pointers to other individual records that may be the same person.
     /// Used when combining records from different sources that may refer
     /// to the same individual.
-    pub aliases: Vec<Xref>,
+    pub aliases: Arena<Xref>,
     /// Interest in ancestors (tag: ANCI).
     ///
     /// Indicates an interest in researching the ancestry of this individual.
     /// Points to a submitter record who has this interest.
-    pub ancestor_interest: Option<Xref>,
+    pub ancestor_interest: Arena<Xref>,
     /// Interest in descendants (tag: DESI).
     ///
     /// Indicates an interest in researching the descendants of this individual.
     /// Points to a submitter record who has this interest.
-    pub descendant_interest: Option<Xref>,
-    /// External identifiers (tag: EXID, GEDCOM 7.0).
-    ///
-    /// Identifiers maintained by external authorities that apply to this individual.
-    pub external_ids: Vec<String>,
-    /// Submitters who contributed this record (tag: SUBM, GEDCOM 5.5.1).
-    pub submitters: Vec<Xref>,
+    pub descendant_interest: Arena<Xref>,
+    /// External identifiers maintained by external authorities that apply to
+    /// this individual.
+    pub external_ids: Arena<ExternalId>,
+    pub submitters: Arena<Xref>,
 }
 
 impl Individual {
+    pub(crate) const RECORD_TYPE: &'static str = "Individual";
+
+    /// Creates an empty record with the given `xref`. All other fields are
+    /// empty / `None`.
     #[must_use]
-    fn with_xref(xref: Option<Xref>) -> Self {
+    pub fn new(xref: impl Into<Xref>) -> Self {
         Self {
-            xref,
-            ..Default::default()
+            xref: xref.into(),
+            names: Arena::default(),
+            sex: None,
+            families: Arena::default(),
+            attributes: Arena::default(),
+            sources: Arena::default(),
+            events: Arena::default(),
+            multimedia_links: Arena::default(),
+            last_updated: None,
+            notes: Arena::default(),
+            change_date: None,
+            user_defined_tags: Arena::default(),
+            non_events: Arena::default(),
+            lds_ordinances: Arena::default(),
+            associations: Arena::default(),
+            uid: None,
+            restriction: ListEnum::default(),
+            user_reference_number: None,
+            user_reference_type: None,
+            automated_record_id: None,
+            ancestral_file_number: None,
+            aliases: Arena::default(),
+            ancestor_interest: Arena::default(),
+            descendant_interest: Arena::default(),
+            external_ids: Arena::default(),
+            submitters: Arena::default(),
         }
     }
 
-    /// Creates a new `Individual` from a `Tokenizer`.
+    /// Parses an `INDI` record at `level`, seeding the record with `xref` read
+    /// from the source line. For in-memory construction, use [`Individual::new`].
     ///
     /// # Errors
     ///
-    /// This function will return an error if parsing fails.
-    pub fn new(
-        tokenizer: &mut Tokenizer<'_>,
+    /// Returns [`GedcomError::ParseError`] on malformed or unexpected tokens.
+    pub fn from_tokenizer(
+        tokenizer: &mut Tokenizer,
         level: u8,
-        xref: Option<Xref>,
+        xref: Xref,
     ) -> Result<Individual, GedcomError> {
-        let mut indi = Individual::with_xref(xref);
+        let mut indi = Individual::new(xref);
         indi.parse(tokenizer, level)?;
         Ok(indi)
     }
 
     pub fn add_family(&mut self, link: FamilyLink) {
         let mut do_add = true;
-        let xref = &link.xref;
+        let xref = &link.target;
         for family in &self.families {
-            if family.xref.as_str() == xref.as_str() {
+            if family.target.as_str() == xref.as_str() {
                 do_add = false;
             }
         }
         if do_add {
-            self.families.push(link);
+            self.families.insert(link);
         }
     }
 
     pub fn add_source_citation(&mut self, sour: Citation) {
-        self.source.push(sour);
+        self.sources.insert(sour);
     }
 
-    pub fn add_multimedia(&mut self, multimedia: Multimedia) {
-        self.multimedia.push(multimedia);
+    pub fn add_multimedia_link(&mut self, multimedia_link: Link) {
+        self.multimedia_links.insert(multimedia_link);
     }
 
     pub fn add_name(&mut self, name: Name) {
-        self.names.push(name);
+        self.names.insert(name);
     }
 
     pub fn add_attribute(&mut self, attribute: AttributeDetail) {
-        self.attributes.push(attribute);
+        self.attributes.insert(attribute);
     }
 
     #[must_use]
-    pub fn families(&self) -> &[FamilyLink] {
+    pub fn families(&self) -> &Arena<FamilyLink> {
         &self.families
     }
 
@@ -209,7 +231,7 @@ impl Individual {
     /// let mut gedcom = Gedcom::new(source.chars()).unwrap();
     /// let data = gedcom.parse_data().unwrap();
     ///
-    /// let name = data.individuals[0].full_name();
+    /// let name = data.find_individual("@I1@").unwrap().full_name();
     /// assert_eq!(name, Some("John Doe".to_string()));
     /// ```
     #[must_use]
@@ -307,16 +329,234 @@ impl Individual {
     /// Checks if the individual has any sources cited.
     #[must_use]
     pub fn has_sources(&self) -> bool {
-        !self.source.is_empty()
+        !self.sources.is_empty()
+    }
+
+    pub(crate) fn remove_citation_to(&mut self, xref: &str) -> usize {
+        let before = self.sources.len();
+        self.sources
+            .retain(|c| !matches!(&c.target, CitationSource::Record(x) if x == xref));
+
+        let mut removed = before - self.sources.len();
+
+        for h in self
+            .names
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(n) = self.names.get_mut(h) {
+                removed += n.remove_citation_to(xref);
+            }
+        }
+
+        for h in self
+            .attributes
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(a) = self.attributes.get_mut(h) {
+                removed += a.remove_citation_to(xref);
+            }
+        }
+
+        for h in self
+            .events
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(e) = self.events.get_mut(h) {
+                removed += e.remove_citation_to(xref);
+            }
+        }
+
+        for h in self
+            .lds_ordinances
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(o) = self.lds_ordinances.get_mut(h) {
+                removed += o.remove_citation_to(xref);
+            }
+        }
+
+        for h in self
+            .non_events
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(ne) = self.non_events.get_mut(h) {
+                removed += ne.remove_citation_to(xref);
+            }
+        }
+
+        if let Some(g) = &mut self.sex {
+            removed += g.remove_citation_to(xref);
+        }
+
+        removed
+    }
+
+    pub(crate) fn remove_multimedia_link_to(&mut self, xref: &str) -> usize {
+        let before = self.multimedia_links.len();
+
+        self.multimedia_links
+            .retain(|l| !matches!(&l.target, LinkTarget::Record(x) if x == xref));
+
+        let mut removed = before - self.multimedia_links.len();
+
+        removed += self
+            .sex
+            .as_mut()
+            .map_or(0, |g| g.remove_multimedia_link_to(xref));
+
+        for h in self
+            .sources
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(s) = self.sources.get_mut(h) {
+                removed += s.remove_multimedia_link_to(xref);
+            }
+        }
+
+        for h in self
+            .names
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(n) = self.names.get_mut(h) {
+                removed += n.remove_multimedia_link_to(xref);
+            }
+        }
+
+        for h in self
+            .attributes
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(a) = self.attributes.get_mut(h) {
+                removed += a.remove_multimedia_link_to(xref);
+            }
+        }
+
+        for h in self
+            .events
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(e) = self.events.get_mut(h) {
+                removed += e.remove_multimedia_link_to(xref);
+            }
+        }
+
+        for h in self
+            .lds_ordinances
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(o) = self.lds_ordinances.get_mut(h) {
+                removed += o.remove_multimedia_link_to(xref);
+            }
+        }
+
+        for h in self
+            .non_events
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(ne) = self.non_events.get_mut(h) {
+                removed += ne.remove_multimedia_link_to(xref);
+            }
+        }
+
+        removed
+    }
+
+    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
+        for f in &self.families {
+            f.outbound_refs(sink);
+        }
+
+        for s in &self.sources {
+            s.outbound_refs(sink);
+        }
+
+        for m in &self.multimedia_links {
+            m.outbound_refs(sink);
+        }
+
+        for a in &self.associations {
+            a.outbound_refs(sink);
+        }
+
+        for xref in &self.aliases {
+            if is_real_reference(xref) {
+                sink(xref);
+            }
+        }
+
+        for xref in &self.ancestor_interest {
+            if is_real_reference(xref) {
+                sink(xref);
+            }
+        }
+
+        for xref in &self.descendant_interest {
+            if is_real_reference(xref) {
+                sink(xref);
+            }
+        }
+
+        for n in &self.names {
+            n.outbound_refs(sink);
+        }
+
+        if let Some(g) = &self.sex {
+            g.outbound_refs(sink);
+        }
+
+        for a in &self.attributes {
+            a.outbound_refs(sink);
+        }
+
+        for e in &self.events {
+            e.outbound_refs(sink);
+        }
+
+        for o in &self.lds_ordinances {
+            o.outbound_refs(sink);
+        }
+
+        for ne in &self.non_events {
+            ne.outbound_refs(sink);
+        }
+
+        for xref in &self.submitters {
+            if is_real_reference(xref) {
+                sink(xref);
+            }
+        }
     }
 }
 
 impl HasEvents for Individual {
     fn add_event(&mut self, event: Detail) {
-        self.events.push(event);
+        self.events.insert(event);
     }
-    fn events(&self) -> Vec<Detail> {
-        self.events.clone()
+
+    fn events(&self) -> &Arena<Detail> {
+        &self.events
     }
 }
 
@@ -346,23 +586,27 @@ impl Parser for Individual {
                 "SOUR" => {
                     self.add_source_citation(Citation::new(tokenizer, level + 1)?);
                 }
-                "OBJE" => self.add_multimedia(Multimedia::new(tokenizer, level + 1, None)?),
-                "NOTE" => self.notes.push(Note::new(tokenizer, level + 1)?),
-                "NO" => self.non_events.push(NonEvent::new(tokenizer, level + 1)?),
+                "OBJE" => self.add_multimedia_link(Link::new(tokenizer, level + 1)?),
+                "NOTE" => {
+                    self.notes.insert(Note::new(tokenizer, level + 1)?);
+                }
+                "NO" => {
+                    self.non_events.insert(NonEvent::new(tokenizer, level + 1)?);
+                }
                 // LDS Ordinances (INIL is GEDCOM 7.0 only)
                 "BAPL" | "CONL" | "INIL" | "ENDL" | "SLGC" => {
                     self.lds_ordinances
-                        .push(LdsOrdinance::new(tokenizer, level + 1, tag)?);
+                        .insert(LdsOrdinance::new(tokenizer, level + 1, tag)?);
                 }
                 // Associations with other individuals
                 "ASSO" => {
                     self.associations
-                        .push(Association::new(tokenizer, level + 1)?);
+                        .insert(Association::new(tokenizer, level + 1)?);
                 }
                 // Unique identifier (GEDCOM 7.0)
                 "UID" => self.uid = Some(tokenizer.take_line_value()?),
                 // Restriction notice
-                "RESN" => self.restriction = Some(tokenizer.take_line_value()?),
+                "RESN" => self.restriction = ListEnum::from_payload(&tokenizer.take_line_value()?),
                 // User reference number
                 "REFN" => {
                     self.user_reference_number = Some(tokenizer.take_line_value()?);
@@ -378,14 +622,26 @@ impl Parser for Individual {
                 // Ancestral File Number (LDS)
                 "AFN" => self.ancestral_file_number = Some(tokenizer.take_line_value()?),
                 // Alias pointer
-                "ALIA" => self.aliases.push(tokenizer.take_line_value()?),
+                "ALIA" => {
+                    self.aliases.insert(tokenizer.take_line_value()?);
+                }
                 // Interest in ancestors
-                "ANCI" => self.ancestor_interest = Some(tokenizer.take_line_value()?),
+                "ANCI" => {
+                    self.ancestor_interest.insert(tokenizer.take_line_value()?);
+                }
                 // Interest in descendants
-                "DESI" => self.descendant_interest = Some(tokenizer.take_line_value()?),
+                "DESI" => {
+                    self.descendant_interest
+                        .insert(tokenizer.take_line_value()?);
+                }
                 // External identifier (GEDCOM 7.0)
-                "EXID" => self.external_ids.push(tokenizer.take_line_value()?),
-                "SUBM" => self.submitters.push(tokenizer.take_line_value()?),
+                "EXID" => {
+                    let id = tokenizer.take_line_value()?;
+                    self.external_ids.insert(ExternalId { id, type_uri: None });
+                }
+                "SUBM" => {
+                    self.submitters.insert(tokenizer.take_line_value()?);
+                }
                 _ => {
                     // Leave unknown tags to `parse_subset`, which keeps them with
                     // their substructures.
@@ -395,32 +651,104 @@ impl Parser for Individual {
             Ok(())
         };
 
-        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
+        for udt in parse_subset(tokenizer, level, handle_subset)? {
+            self.user_defined_tags.insert(*udt);
+        }
 
         Ok(())
     }
 }
 
+/// The locations that may hold an xref pointer to an individual.
+/// Carried inside [`GedcomError::StillReferenced`] when a
+/// [`remove_individual`](crate::GedcomData::remove_individual) call is refused
+/// because other records still reference the target.
+#[derive(Debug)]
+pub enum IndividualReference {
+    /// The individual fills a spouse slot (`individual1` or `individual2`) on a family.
+    FamilySpouse {
+        family_xref: String,
+        individual_xref: String,
+    },
+    /// The individual appears in a family's `children` list.
+    FamilyChild {
+        family_xref: String,
+        individual_xref: String,
+    },
+    /// Another individual lists this one in their `ALIA` (alias) pointers.
+    IndividualAlias { from_xref: String, to_xref: String },
+    /// Another individual has an `ASSO` (association) pointing at this one.
+    ///
+    /// Note: `ASSO.to` is `XREF_ANY` in the GEDCOM spec — it may legitimately
+    /// point at non-individual records. When scanning blockers for an
+    /// individual deletion, associations are included unconditionally.
+    IndividualAssociation { from_xref: String, to_xref: String },
+}
+
+impl fmt::Display for IndividualReference {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            IndividualReference::FamilySpouse {
+                family_xref,
+                individual_xref,
+            } => write!(
+                f,
+                "family {family_xref} references {individual_xref} as a spouse"
+            ),
+            IndividualReference::FamilyChild {
+                family_xref,
+                individual_xref,
+            } => write!(
+                f,
+                "family {family_xref} references {individual_xref} as a child"
+            ),
+            IndividualReference::IndividualAlias { from_xref, to_xref } => {
+                write!(f, "individual {from_xref} has {to_xref} in their aliases")
+            }
+            IndividualReference::IndividualAssociation { from_xref, to_xref } => {
+                write!(f, "individual {from_xref} has an association to {to_xref}")
+            }
+        }
+    }
+}
+
+impl BlockingReference for IndividualReference {}
+
 #[cfg(test)]
 mod tests {
-    use crate::Gedcom;
+    use super::Individual;
+    use crate::{types::source::citation::CitationSource, Gedcom};
+
+    #[test]
+    fn test_new_assigns_unique_id() {
+        let a = Individual::new("@A@");
+        let b = Individual::new("@B@");
+        assert_ne!(a.xref, b.xref);
+    }
+
+    #[test]
+    fn test_two_individuals_have_different_xrefs() {
+        let a = Individual::new("@A@");
+        let b = Individual::new("@B@");
+        assert_ne!(a.xref, b.xref);
+    }
 
     #[test]
     fn test_parse_individual_record() {
         let sample = "\
-           0 HEAD\n\
-           1 GEDC\n\
-           2 VERS 5.5\n\
-           0 @PERSON1@ INDI\n\
-           1 NAME John Doe\n\
-           1 SEX M\n\
-           0 TRLR";
+            0 HEAD\n\
+            1 GEDC\n\
+            2 VERS 5.5\n\
+            0 @PERSON1@ INDI\n\
+            1 NAME John Doe\n\
+            1 SEX M\n\
+            0 TRLR";
 
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let indi = &data.individuals[0];
-        assert_eq!(indi.xref.as_ref().unwrap(), "@PERSON1@");
+        let indi = data.find_individual("@PERSON1@").unwrap();
+        assert_eq!(indi.xref.as_str(), "@PERSON1@");
         assert_eq!(
             indi.names.first().unwrap().value.as_ref().unwrap(),
             "John Doe"
@@ -447,14 +775,25 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let sex = data.individuals[0].sex.as_ref().unwrap();
+        let sex = data
+            .find_individual("@PERSON1@")
+            .unwrap()
+            .sex
+            .as_ref()
+            .unwrap();
         assert_eq!(sex.value.to_string(), "Male");
         assert_eq!(
             sex.fact.as_ref().unwrap(),
             "A fact about an individual's gender"
         );
-        assert_eq!(sex.sources[0].source.as_xref(), Some("@CITATION1@"));
-        assert_eq!(sex.sources[0].page.as_ref().unwrap(), "Page: 132");
+        let CitationSource::Record(xref) = &sex.sources.iter().next().unwrap().target else {
+            panic!("expected a Record citation");
+        };
+        assert_eq!(xref, "@CITATION1@");
+        assert_eq!(
+            sex.sources.iter().next().unwrap().page.as_ref().unwrap(),
+            "Page: 132"
+        );
     }
 
     #[test]
@@ -477,8 +816,17 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let famc = data.individuals[0].events[0].family_link.as_ref().unwrap();
-        assert_eq!(famc.xref, "@ADOPTIVE_PARENTS@");
+        let famc = data
+            .find_individual("@PERSON1@")
+            .unwrap()
+            .events
+            .iter()
+            .next()
+            .unwrap()
+            .family_link
+            .as_ref()
+            .unwrap();
+        assert_eq!(famc.target, "@ADOPTIVE_PARENTS@");
         assert_eq!(famc.family_link_type.to_string(), "Child");
         assert_eq!(
             famc.pedigree_linkage_type.as_ref().unwrap().to_string(),
@@ -504,8 +852,8 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let indi = &data.individuals[0];
-        assert_eq!(indi.xref.as_ref().unwrap(), "@PERSON1@");
+        let indi = data.find_individual("@PERSON1@").unwrap();
+        assert_eq!(indi.xref.as_str(), "@PERSON1@");
         assert_eq!(
             indi.names.first().unwrap().value.as_ref().unwrap(),
             "John Doe"
@@ -543,7 +891,8 @@ mod tests {
 
         assert_eq!(data.individuals.len(), 1);
 
-        let attr = &data.individuals[0].attributes[0];
+        let indi = data.find_individual("@PERSON1@").unwrap();
+        let attr = &indi.attributes.iter().next().unwrap();
         assert_eq!(attr.attribute.to_string(), "PhysicalDescription");
         assert_eq!(attr.value.as_ref().unwrap(), "Physical description");
         assert_eq!(
@@ -555,7 +904,15 @@ mod tests {
             "The place"
         );
 
-        let a_sour = &data.individuals[0].attributes[0].sources[0];
+        let a_sour = &indi
+            .attributes
+            .iter()
+            .next()
+            .unwrap()
+            .sources
+            .iter()
+            .next()
+            .unwrap();
         assert_eq!(a_sour.page.as_ref().unwrap(), "42");
         assert_eq!(
             a_sour
@@ -571,7 +928,13 @@ mod tests {
             "31 DEC 1900"
         );
         assert_eq!(
-            a_sour.data.as_ref().unwrap().texts[0]
+            a_sour
+                .data
+                .as_ref()
+                .unwrap()
+                .texts
+                .first()
+                .unwrap()
                 .value
                 .as_ref()
                 .unwrap(),
@@ -582,7 +945,7 @@ mod tests {
             "Direct"
         );
         assert_eq!(
-            a_sour.notes[0].value.as_ref().unwrap(),
+            a_sour.notes.first().unwrap().value.as_ref().unwrap(),
             "A note\nNote continued here. The word TEST should not be broken!"
         );
     }
@@ -605,10 +968,16 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let indi = &data.individuals[0];
+        let indi = data.individuals.iter().next().unwrap();
         assert_eq!(indi.names.len(), 2);
-        assert_eq!(indi.names[0].value.as_ref().unwrap(), "Mary /Smith/");
-        assert_eq!(indi.names[1].value.as_ref().unwrap(), "Mary /Smith-Jones/");
+        assert_eq!(
+            indi.names.iter().next().unwrap().value.as_ref().unwrap(),
+            "Mary /Smith/"
+        );
+        assert_eq!(
+            indi.names.iter().nth(1).unwrap().value.as_ref().unwrap(),
+            "Mary /Smith-Jones/"
+        );
         assert_eq!(
             indi.names.last().unwrap().value.as_ref().unwrap(),
             "Mary /Smith-Jones/"
@@ -628,9 +997,12 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let indi = &data.individuals[0];
+        let indi = data.individuals.iter().next().unwrap();
         assert_eq!(indi.names.len(), 1);
-        assert_eq!(indi.names[0].value.as_ref().unwrap(), "John /Doe/");
+        assert_eq!(
+            indi.names.iter().next().unwrap().value.as_ref().unwrap(),
+            "John /Doe/"
+        );
         assert_eq!(
             indi.names.first().unwrap().value.as_ref().unwrap(),
             "John /Doe/"
@@ -650,7 +1022,7 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let indi = &data.individuals[0];
+        let indi = data.individuals.iter().next().unwrap();
         assert!(indi.names.is_empty());
     }
 
@@ -673,9 +1045,15 @@ mod tests {
         let written = writer.write_to_string(&data).unwrap();
 
         let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();
-        let indi = &data2.individuals[0];
+        let indi = data2.individuals.iter().next().unwrap();
         assert_eq!(indi.names.len(), 2);
-        assert_eq!(indi.names[0].value.as_ref().unwrap(), "Mary /Smith/");
-        assert_eq!(indi.names[1].value.as_ref().unwrap(), "Mary /Smith-Jones/");
+        assert_eq!(
+            indi.names.iter().next().unwrap().value.as_ref().unwrap(),
+            "Mary /Smith/"
+        );
+        assert_eq!(
+            indi.names.iter().nth(1).unwrap().value.as_ref().unwrap(),
+            "Mary /Smith-Jones/"
+        );
     }
 }

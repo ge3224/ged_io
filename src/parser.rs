@@ -48,7 +48,8 @@ pub trait StreamParser {
 ///
 /// # Errors
 ///
-/// Returns a `GedcomError` if an unhandled token is encountered or if `UserDefinedTag::new` fails.
+/// Returns a `GedcomError` if an unhandled token is encountered or if
+/// `UserDefinedTag::drain_subtree` fails.
 #[inline]
 pub fn parse_subset<F>(
     tokenizer: &mut Tokenizer<'_>,
@@ -75,19 +76,19 @@ where
                 let unhandled = tokenizer.line == line
                     && matches!(&tokenizer.current_token, Token::Tag(t) if *t == tag_clone);
                 if unhandled {
-                    let unknown = UserDefinedTag::new(tokenizer, line_level, &tag_clone)?;
+                    let unknown = UserDefinedTag::drain_subtree(tokenizer, line_level, &tag_clone)?;
                     if line_level == level + 1 {
-                        non_standard_dataset.push(Box::new(unknown));
+                        non_standard_dataset.extend(unknown.into_iter().map(Box::new));
                     }
                 }
             }
             Token::CustomTag(tag) => {
                 let tag_clone = tag.clone();
-                non_standard_dataset.push(Box::new(UserDefinedTag::new(
-                    tokenizer,
-                    level + 1,
-                    &tag_clone,
-                )?));
+                non_standard_dataset.extend(
+                    UserDefinedTag::drain_subtree(tokenizer, level + 1, &tag_clone)?
+                        .into_iter()
+                        .map(Box::new),
+                );
             }
             Token::Level(curl_level) => {
                 line_level = *curl_level;
@@ -134,7 +135,8 @@ fn substructure_tag(tag: &str) -> &str {
 ///
 /// # Errors
 ///
-/// Returns a `GedcomError` if an unhandled token is encountered or if `UserDefinedTag::new_from_tokenizer` fails.
+/// Returns a `GedcomError` if an unhandled token is encountered or if
+/// `UserDefinedTag::drain_subtree` fails.
 #[inline]
 pub fn parse_subset_stream<T, F>(
     tokenizer: &mut T,
@@ -162,20 +164,19 @@ where
                 let unhandled = tokenizer.line() == line
                     && matches!(tokenizer.current_token(), Token::Tag(t) if *t == tag_clone);
                 if unhandled {
-                    let unknown =
-                        UserDefinedTag::new_from_tokenizer(tokenizer, line_level, &tag_clone)?;
+                    let unknown = UserDefinedTag::drain_subtree(tokenizer, line_level, &tag_clone)?;
                     if line_level == level + 1 {
-                        non_standard_dataset.push(Box::new(unknown));
+                        non_standard_dataset.extend(unknown.into_iter().map(Box::new));
                     }
                 }
             }
             Token::CustomTag(tag) => {
                 let tag_clone = tag.clone();
-                non_standard_dataset.push(Box::new(UserDefinedTag::new_from_tokenizer(
-                    tokenizer,
-                    level + 1,
-                    &tag_clone,
-                )?));
+                non_standard_dataset.extend(
+                    UserDefinedTag::drain_subtree(tokenizer, level + 1, &tag_clone)?
+                        .into_iter()
+                        .map(Box::new),
+                );
             }
             Token::Level(curl_level) => {
                 line_level = *curl_level;

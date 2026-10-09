@@ -66,6 +66,66 @@ pub enum GedcomError {
 
     /// An I/O error occurred.
     IoError(String),
+
+    /// A duplicate cross-reference identifier was found
+    DuplicateXref {
+        /// The duplicate xref identifier
+        xref: String,
+        /// The type of record that had the duplicate
+        record_type: String,
+    },
+
+    /// An xref was referenced but no record with that id exists.
+    XrefNotFound {
+        /// The xref that could not be resolved.
+        xref: String,
+        /// The type of record that was expected (e.g. "Individual", "Family").
+        record_type: String,
+    },
+
+    /// A runtime id was referenced but no record with that id exists.
+    IdNotFound {
+        /// The id that could not be resolved.
+        id: u64,
+        /// The type of record that was expected (e.g. "Individual", "Family").
+        record_type: String,
+    },
+
+    /// Attempted to link records that are already linked.
+    AlreadyLinked {
+        /// The individual's xref.
+        from_xref: String,
+        /// The family's xref.
+        to_xref: String,
+        /// The kind of link that already exists ("child" or "spouse").
+        link_type: String,
+    },
+
+    /// Attempted to unlink records that are not linked.
+    NotLinked {
+        /// The individual's xref.
+        from_xref: String,
+        /// The family's xref.
+        to_xref: String,
+        /// The kind of link that was expected.
+        link_type: String,
+    },
+
+    /// Tried to add a spouse to a family whose individual1/individual2 slots are both filled.
+    FamilyHasTwoSpouses {
+        /// The family whose spouse slots are both occupied.
+        family_xref: String,
+    },
+    /// A `remove_*` call was refused because other records still reference
+    /// the target. The caller must unlink each blocker and retry.
+    StillReferenced {
+        /// The xref of the record that could not be removed.
+        xref: String,
+        /// The type of record (e.g. "Individual", "Family").
+        record_type: String,
+        /// Every site that still points at the target.
+        references: usize,
+    },
 }
 
 impl fmt::Display for GedcomError {
@@ -109,6 +169,44 @@ impl fmt::Display for GedcomError {
                 )
             }
             GedcomError::IoError(msg) => write!(f, "I/O error: {msg}"),
+            GedcomError::DuplicateXref { xref, record_type } => {
+                write!(f, "Duplicate xref '{xref}' for {record_type} record")
+            }
+            GedcomError::XrefNotFound { xref, record_type } => {
+                write!(f, "An xref was referenced but no record with that id exists: {xref}, {record_type}")
+            }
+            GedcomError::IdNotFound { id, record_type } => {
+                write!(
+                    f,
+                    "An id was referenced but no record with that id exists: {id}, {record_type}"
+                )
+            }
+            GedcomError::AlreadyLinked {
+                from_xref: individual_xref,
+                to_xref: family_xref,
+                link_type,
+            } => {
+                write!(f, "Attempted to link records that are already linked: {individual_xref}, {family_xref}, {link_type}")
+            }
+            GedcomError::NotLinked {
+                from_xref: individual_xref,
+                to_xref: family_xref,
+                link_type,
+            } => {
+                write!(f, "Attempted to unlink {link_type} records that are not linked: {individual_xref}, {family_xref}")
+            }
+
+            GedcomError::FamilyHasTwoSpouses { family_xref } => {
+                write!(f, "Tried to add a spouse to a family whose individual1/individual2 slots are both filed: {family_xref}")
+            }
+            GedcomError::StillReferenced {
+                xref,
+                record_type,
+                references,
+            } => write!(
+                f,
+                "{record_type} record '{xref}' is still referenced by {references} other record(s)"
+            ),
         }
     }
 }

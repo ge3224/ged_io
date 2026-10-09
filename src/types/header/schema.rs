@@ -16,6 +16,7 @@
 //! See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#SCHMA>
 
 use crate::{
+    arena::Arena,
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::custom::UserDefinedTag,
@@ -23,7 +24,7 @@ use crate::{
 };
 
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 /// A schema structure containing extension tag definitions.
 ///
@@ -32,13 +33,13 @@ use serde::{Deserialize, Serialize};
 /// The schema's substructures are tag definitions.
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#SCHMA>
-#[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[derive(Debug, Default, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Schema {
     /// Tag definitions mapping extension tags to URIs.
-    pub tag_definitions: Vec<TagDefinition>,
+    pub tag_definitions: Arena<TagDefinition>,
     /// Custom data not part of the standard.
-    pub custom_data: Vec<Box<UserDefinedTag>>,
+    pub user_defined_tags: Arena<UserDefinedTag>,
 }
 
 /// A tag definition mapping an extension tag to a URI.
@@ -55,7 +56,7 @@ pub struct Schema {
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#TAG>
 #[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct TagDefinition {
     /// The extension tag (e.g., `_SKYPEID`).
     ///
@@ -186,7 +187,7 @@ impl Schema {
 
     /// Adds a tag definition to the schema.
     pub fn add_definition(&mut self, definition: TagDefinition) {
-        self.tag_definitions.push(definition);
+        self.tag_definitions.insert(definition);
     }
 
     /// Returns true if the schema is empty (no tag definitions).
@@ -214,13 +215,15 @@ impl Parser for Schema {
             if tag == "TAG" {
                 let payload = tokenizer.take_line_value()?;
                 if let Some(definition) = TagDefinition::from_payload(&payload) {
-                    self.tag_definitions.push(definition);
+                    self.tag_definitions.insert(definition);
                 }
             }
             Ok(())
         };
 
-        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
+        for udt in parse_subset(tokenizer, level, handle_subset)? {
+            self.user_defined_tags.insert(*udt);
+        }
 
         Ok(())
     }

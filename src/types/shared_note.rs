@@ -16,14 +16,21 @@
 //! See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#SHARED_NOTE_RECORD>
 
 use crate::{
+    arena::Arena,
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
-    types::{custom::UserDefinedTag, date::change_date::ChangeDate, source::citation::Citation},
+    types::{
+        custom::UserDefinedTag,
+        date::change_date::ChangeDate,
+        external_id::ExternalId,
+        source::citation::{Citation, CitationSource},
+        Xref,
+    },
     GedcomError,
 };
 
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 /// A shared note record (SNOTE).
 ///
@@ -40,11 +47,11 @@ use serde::{Deserialize, Serialize};
 /// This structure is only valid in GEDCOM 7.0 and later.
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#SHARED_NOTE_RECORD>
-#[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[derive(Debug, Default, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct SharedNote {
     /// The cross-reference identifier for this shared note (e.g., `@N1@`).
-    pub xref: Option<String>,
+    pub xref: Xref,
 
     /// The text content of the note.
     ///
@@ -68,13 +75,13 @@ pub struct SharedNote {
     pub language: Option<String>,
 
     /// Translations of the note into different languages or media types.
-    pub translations: Vec<NoteTranslation>,
+    pub translations: Arena<NoteTranslation>,
 
     /// Source citations supporting the note content.
-    pub source_citations: Vec<Citation>,
+    pub source_citations: Arena<Citation>,
 
     /// External identifiers for this note.
-    pub external_ids: Vec<ExternalId>,
+    pub external_ids: Arena<ExternalId>,
 
     /// The date of the most recent change to this record.
     pub change_date: Option<ChangeDate>,
@@ -83,91 +90,12 @@ pub struct SharedNote {
     pub creation_date: Option<ChangeDate>,
 
     /// Custom data (extension tags).
-    pub custom_data: Vec<Box<UserDefinedTag>>,
-}
-
-/// A translation of a note into a different language or media type.
-///
-/// Each translation must have either a `MIME` or `LANG` substructure or both.
-/// If either is missing, it is assumed to have the same value as the superstructure.
-///
-/// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#NOTE-TRAN>
-#[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
-pub struct NoteTranslation {
-    /// The translated text.
-    pub text: String,
-
-    /// The media type of the translation (e.g., `text/plain`, `text/html`).
-    pub mime: Option<String>,
-
-    /// The language of the translation (BCP 47 tag).
-    pub language: Option<String>,
-}
-
-/// An external identifier for a structure.
-///
-/// An identifier maintained by an external authority that applies to the
-/// subject of the structure. Unlike `UID` and `REFN`, `EXID` does not
-/// identify a structure; structures with the same `EXID` may have
-/// originated independently.
-///
-/// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#EXID>
-#[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
-pub struct ExternalId {
-    /// The external identifier value.
-    pub id: String,
-
-    /// The authority issuing the identifier, represented as a URI.
-    ///
-    /// If the authority maintains stable URLs for each identifier,
-    /// appending the `id` to this `type_uri` should yield that URL.
-    pub type_uri: Option<String>,
-}
-
-impl ExternalId {
-    /// Creates a new external identifier.
-    #[must_use]
-    pub fn new(id: &str, type_uri: Option<&str>) -> Self {
-        ExternalId {
-            id: id.to_string(),
-            type_uri: type_uri.map(String::from),
-        }
-    }
-
-    /// Returns the full URL for this identifier, if possible.
-    ///
-    /// This concatenates the type URI with the identifier.
-    #[must_use]
-    pub fn full_url(&self) -> Option<String> {
-        self.type_uri
-            .as_ref()
-            .map(|uri| format!("{}{}", uri, self.id))
-    }
-}
-
-impl NoteTranslation {
-    /// Creates a new note translation.
-    #[must_use]
-    pub fn new(text: &str, mime: Option<&str>, language: Option<&str>) -> Self {
-        NoteTranslation {
-            text: text.to_string(),
-            mime: mime.map(String::from),
-            language: language.map(String::from),
-        }
-    }
-
-    /// Returns true if this translation has valid distinguishing attributes.
-    ///
-    /// Per the spec, each translation must have either MIME or LANG or both.
-    #[must_use]
-    pub fn is_valid(&self) -> bool {
-        self.mime.is_some() || self.language.is_some()
-    }
+    pub user_defined_tags: Arena<UserDefinedTag>,
 }
 
 impl SharedNote {
+    pub(crate) const RECORD_TYPE: &'static str = "SharedNote";
+
     /// Creates a new `SharedNote` from a `Tokenizer`.
     ///
     /// # Errors
@@ -176,7 +104,7 @@ impl SharedNote {
     pub fn new(
         tokenizer: &mut Tokenizer<'_>,
         level: u8,
-        xref: Option<String>,
+        xref: Xref,
     ) -> Result<SharedNote, GedcomError> {
         let mut note = SharedNote {
             xref,
@@ -190,7 +118,7 @@ impl SharedNote {
     #[must_use]
     pub fn with_text(xref: &str, text: &str) -> Self {
         SharedNote {
-            xref: Some(xref.to_string()),
+            xref: xref.to_string(),
             text: text.to_string(),
             ..Default::default()
         }
@@ -198,17 +126,17 @@ impl SharedNote {
 
     /// Adds a translation to this shared note.
     pub fn add_translation(&mut self, translation: NoteTranslation) {
-        self.translations.push(translation);
+        self.translations.insert(translation);
     }
 
     /// Adds a source citation to this shared note.
     pub fn add_source_citation(&mut self, citation: Citation) {
-        self.source_citations.push(citation);
+        self.source_citations.insert(citation);
     }
 
     /// Adds an external identifier to this shared note.
     pub fn add_external_id(&mut self, external_id: ExternalId) {
-        self.external_ids.push(external_id);
+        self.external_ids.insert(external_id);
     }
 
     /// Returns true if this note has HTML content.
@@ -263,6 +191,77 @@ impl SharedNote {
         result = result.replace("&amp;", "&");
 
         result.trim().to_string()
+    }
+
+    pub(crate) fn remove_citation_to(&mut self, xref: &str) -> usize {
+        let before = self.source_citations.len();
+
+        self.source_citations
+            .retain(|c| !matches!(&c.target, CitationSource::Record(x) if x == xref));
+
+        before - self.source_citations.len()
+    }
+
+    pub(crate) fn remove_multimedia_link_to(&mut self, xref: &str) -> usize {
+        let mut removed = 0;
+
+        for h in self
+            .source_citations
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(s) = self.source_citations.get_mut(h) {
+                removed += s.remove_multimedia_link_to(xref);
+            }
+        }
+
+        removed
+    }
+
+    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
+        for source in &self.source_citations {
+            source.outbound_refs(sink);
+        }
+    }
+}
+
+/// A translation of a note into a different language or media type.
+///
+/// Each translation must have either a `MIME` or `LANG` substructure or both.
+/// If either is missing, it is assumed to have the same value as the superstructure.
+///
+/// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#NOTE-TRAN>
+#[derive(Debug, Default, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize))]
+pub struct NoteTranslation {
+    /// The translated text.
+    pub text: String,
+
+    /// The media type of the translation (e.g., `text/plain`, `text/html`).
+    pub mime: Option<String>,
+
+    /// The language of the translation (BCP 47 tag).
+    pub language: Option<String>,
+}
+
+impl NoteTranslation {
+    /// Creates a new note translation.
+    #[must_use]
+    pub fn new(text: &str, mime: Option<&str>, language: Option<&str>) -> Self {
+        NoteTranslation {
+            text: text.to_string(),
+            mime: mime.map(String::from),
+            language: language.map(String::from),
+        }
+    }
+
+    /// Returns true if this translation has valid distinguishing attributes.
+    ///
+    /// Per the spec, each translation must have either MIME or LANG or both.
+    #[must_use]
+    pub fn is_valid(&self) -> bool {
+        self.mime.is_some() || self.language.is_some()
     }
 }
 
@@ -324,15 +323,15 @@ impl Parser for SharedNote {
                         ..Default::default()
                     };
                     // Parse TRAN substructures would go here
-                    self.translations.push(translation);
+                    self.translations.insert(translation);
                 }
                 "SOUR" => {
                     self.source_citations
-                        .push(Citation::new(tokenizer, level + 1)?);
+                        .insert(Citation::new(tokenizer, level + 1)?);
                 }
                 "EXID" => {
                     let id = tokenizer.take_line_value()?;
-                    self.external_ids.push(ExternalId {
+                    self.external_ids.insert(ExternalId {
                         id,
                         type_uri: None, // TYPE substructure would be parsed here
                     });
@@ -351,7 +350,9 @@ impl Parser for SharedNote {
             Ok(())
         };
 
-        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
+        for udt in parse_subset(tokenizer, level, handle_subset)? {
+            self.user_defined_tags.insert(*udt);
+        }
 
         Ok(())
     }
@@ -381,15 +382,15 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let note = &data.shared_notes[0];
-        assert_eq!(note.xref, Some("@N1@".to_string()));
+        let note = &data.shared_notes.iter().next().unwrap();
+        assert_eq!(note.xref, "@N1@".to_string());
         assert_eq!(note.text, "Bill Clinton was born William Jefferson Blythe IV.  His last name was legally\nchanged to Clinton on 12 June 1962 in Garland, Arkansas.  Won the 1992\nelection over then president George Bush (votes not currently available).\nHe was inaugurated as the 42nd President of the United States\non 20 January 1993.");
     }
 
     #[test]
     fn test_shared_note_with_text() {
         let note = SharedNote::with_text("@N1@", "This is a test note.");
-        assert_eq!(note.xref, Some("@N1@".to_string()));
+        assert_eq!(note.xref, "@N1@".to_string());
         assert_eq!(note.text, "This is a test note.");
     }
 

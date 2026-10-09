@@ -160,7 +160,7 @@ fn test_invalid_tag_error_has_context() {
 fn test_duplicate_xref() {
     let sample = "0 HEAD\n1 GEDC\n2 VERS 5.5\n0 @I1@ INDI\n0 @I1@ INDI\n0 TRLR";
     let mut gedcom = Gedcom::new(sample.chars()).unwrap();
-    assert!(gedcom.parse_data().is_ok());
+    assert!(gedcom.parse_data().is_err());
 }
 
 #[test]
@@ -200,5 +200,5 @@ fn test_family_without_members() {
     let sample = "0 HEAD\n1 GEDC\n2 VERS 5.5\n0 @F1@ FAM\n0 TRLR";
     let mut gedcom = Gedcom::new(sample.chars()).unwrap();
     let data = gedcom.parse_data().unwrap();
-    assert_eq!(data.families.len(), 1);
+    assert_eq!(data.count_family(), 1);
 }

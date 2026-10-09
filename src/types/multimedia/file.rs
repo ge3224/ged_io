@@ -1,5 +1,5 @@
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::{
     parser::{parse_subset, Parser},
@@ -19,7 +19,7 @@ use crate::{
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#MULTIMEDIA_LINK>
 #[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Reference {
     pub value: Option<String>,
     pub title: Option<String>,

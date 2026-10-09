@@ -1,19 +1,20 @@
 pub mod data;
 
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::{
+    arena::Arena,
     parser::{parse_subset, Parser},
-    tokenizer::{Token, Tokenizer},
+    tokenizer::Tokenizer,
     types::{
         custom::UserDefinedTag,
-        multimedia::Multimedia,
+        multimedia::link::{Link, LinkTarget},
         note::Note,
         source::{citation::data::SourceCitationData, quay::CertaintyAssessment, text::Text},
         Xref,
     },
-    util::is_xref_pointer,
+    util::is_pointer_use,
     GedcomError,
 };
 
@@ -31,12 +32,14 @@ use crate::{
 /// this distinction, callers can't tell a resolvable xref apart from a
 /// description that merely looks like one, which risks silently dropping the
 /// text when trying to resolve it as a pointer.
-#[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[derive(Debug, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub enum CitationSource {
-    /// Pointer to a structured `Source` record, e.g. `@S1@`.
-    Xref(Xref),
-    /// Free-text source description, used when there is no structured `Source` record.
+    /// A reference to a source record elsewhere in the dataset.
+    Record(Xref),
+    /// A reserved placeholder, used when no source record applies.
+    Void,
+    /// A source description carried inline, with no record to reference.
     Description(String),
 }
 
@@ -49,8 +52,10 @@ impl CitationSource {
     /// GEDCOM 7's `@VOID@`-adjacent free text or a URL, is a description.
     #[must_use]
     pub fn parse(value: String) -> Self {
-        if is_xref_pointer(&value) {
-            CitationSource::Xref(value)
+        if value == "@VOID@" {
+            CitationSource::Void
+        } else if is_pointer_use(&value) {
+            CitationSource::Record(value)
         } else {
             CitationSource::Description(value)
         }
@@ -60,8 +65,8 @@ impl CitationSource {
     #[must_use]
     pub fn as_xref(&self) -> Option<&str> {
         match self {
-            CitationSource::Xref(xref) => Some(xref),
-            CitationSource::Description(_) => None,
+            CitationSource::Record(xref) => Some(xref),
+            CitationSource::Void | CitationSource::Description(_) => None,
         }
     }
 
@@ -70,41 +75,31 @@ impl CitationSource {
     pub fn as_description(&self) -> Option<&str> {
         match self {
             CitationSource::Description(description) => Some(description),
-            CitationSource::Xref(_) => None,
-        }
-    }
-
-    /// Returns the underlying string value, regardless of variant.
-    #[must_use]
-    pub fn value(&self) -> &str {
-        match self {
-            CitationSource::Xref(value) | CitationSource::Description(value) => value,
+            CitationSource::Record(_) | CitationSource::Void => None,
         }
     }
 }
 
 /// The data provided in the `SourceCitation` structure is source-related information specific to
 /// the data being cited. (See GEDCOM 5.5 Specification page 39.)
-#[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[derive(Debug, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Citation {
-    /// What this citation refers to: a structured `Source` record (xref) or
-    /// a free-text description.
-    pub source: CitationSource,
+    pub(crate) target: CitationSource,
     /// Page number of source
     pub page: Option<String>,
     pub data: Option<SourceCitationData>,
     /// Notes about the citation (tag: NOTE). GEDCOM allows any number.
-    pub notes: Vec<Note>,
+    pub notes: Arena<Note>,
     /// Text from the source quoted directly under a free-text citation
     /// (tag: TEXT, in the GEDCOM 5.5.1 description form of `SOURCE_CITATION`).
     /// A citation of a `SOUR` record carries its text under `DATA` instead.
-    pub texts: Vec<Text>,
+    pub texts: Arena<Text>,
     pub certainty_assessment: Option<CertaintyAssessment>,
     /// handles "RFN" tag; found in Ancestry.com export
     pub submitter_registered_rfn: Option<String>,
-    pub multimedia: Vec<Multimedia>,
-    pub custom_data: Vec<Box<UserDefinedTag>>,
+    pub multimedia_links: Arena<Link>,
+    pub user_defined_tags: Arena<UserDefinedTag>,
     /// Event type cited from the source (tag: EVEN).
     ///
     /// Indicates what type of event was cited from the source.
@@ -122,16 +117,25 @@ impl Citation {
     ///
     /// This function will return an error if parsing fails.
     pub fn new(tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<Citation, GedcomError> {
+        let raw = tokenizer.take_continued_text(level)?;
+        let source = if raw == "@VOID@" {
+            CitationSource::Void
+        } else if is_pointer_use(&raw) {
+            CitationSource::Record(raw)
+        } else {
+            CitationSource::Description(raw)
+        };
+
         let mut citation = Citation {
+            target: source,
             // A free-text description may continue on CONT/CONC lines.
-            source: CitationSource::parse(tokenizer.take_continued_text(level)?),
             page: None,
             data: None,
-            notes: Vec::new(),
-            texts: Vec::new(),
+            notes: Arena::default(),
+            texts: Arena::default(),
             certainty_assessment: None,
-            multimedia: Vec::new(),
-            custom_data: Vec::new(),
+            multimedia_links: Arena::default(),
+            user_defined_tags: Arena::default(),
             submitter_registered_rfn: None,
             event_type: None,
             role: None,
@@ -140,8 +144,50 @@ impl Citation {
         Ok(citation)
     }
 
-    pub fn add_multimedia(&mut self, m: Multimedia) {
-        self.multimedia.push(m);
+    /// Returns what this citation points at: a source record, an inline
+    /// description, or `@VOID@`.
+    #[must_use]
+    pub fn target(&self) -> &CitationSource {
+        &self.target
+    }
+
+    pub(crate) fn with_source(xref: Xref) -> Self {
+        Citation {
+            target: CitationSource::Record(xref),
+            page: None,
+            data: None,
+            notes: Arena::default(),
+            texts: Arena::default(),
+            certainty_assessment: None,
+            multimedia_links: Arena::default(),
+            user_defined_tags: Arena::default(),
+            submitter_registered_rfn: None,
+            event_type: None,
+            role: None,
+        }
+    }
+
+    pub fn add_multimedia(&mut self, m: Link) {
+        self.multimedia_links.insert(m);
+    }
+
+    pub(crate) fn remove_multimedia_link_to(&mut self, xref: &str) -> usize {
+        let before = self.multimedia_links.len();
+
+        self.multimedia_links
+            .retain(|l| !matches!(&l.target, LinkTarget::Record(x) if x == xref));
+
+        before - self.multimedia_links.len()
+    }
+
+    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
+        if let CitationSource::Record(xref) = &self.target {
+            sink(xref);
+        }
+
+        for link in &self.multimedia_links {
+            link.outbound_refs(sink);
+        }
     }
 }
 
@@ -151,22 +197,21 @@ impl Parser for Citation {
         // at the next Level token after Citation::new() called take_line_value()
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
-            let mut pointer: Option<String> = None;
-            if let Token::Pointer(xref) = &tokenizer.current_token {
-                pointer = Some(xref.to_string());
-                tokenizer.next_token()?;
-            }
             match tag {
                 "PAGE" => self.page = Some(tokenizer.take_continued_text(level + 1)?),
                 "DATA" => self.data = Some(SourceCitationData::new(tokenizer, level + 1)?),
-                "NOTE" => self.notes.push(Note::new(tokenizer, level + 1)?),
-                "TEXT" => self.texts.push(Text::new(tokenizer, level + 1)?),
+                "NOTE" => {
+                    self.notes.insert(Note::new(tokenizer, level + 1)?);
+                }
+                "TEXT" => {
+                    self.texts.insert(Text::new(tokenizer, level + 1)?);
+                }
                 "QUAY" => {
                     self.certainty_assessment =
                         Some(CertaintyAssessment::new(tokenizer, level + 1)?);
                 }
                 "RFN" => self.submitter_registered_rfn = Some(tokenizer.take_line_value()?),
-                "OBJE" => self.add_multimedia(Multimedia::new(tokenizer, level + 1, pointer)?),
+                "OBJE" => self.add_multimedia(Link::new(tokenizer, level + 1)?),
                 "EVEN" => {
                     self.event_type = Some(tokenizer.take_line_value()?);
                     // ROLE is a substructure of EVEN
@@ -187,7 +232,10 @@ impl Parser for Citation {
 
             Ok(())
         };
-        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
+
+        for udt in parse_subset(tokenizer, level, handle_subset)? {
+            self.user_defined_tags.insert(*udt);
+        }
 
         Ok(())
     }
@@ -218,11 +266,11 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let indi = &data.individuals[0];
-        let birt = &indi.events[0];
-        let sour = &birt.citations[0];
+        let indi = data.find_individual("@I1@").unwrap();
+        let birt = &indi.events.iter().next().unwrap();
+        let sour = &birt.citations.iter().next().unwrap();
 
-        assert_eq!(sour.source.as_xref(), Some("@S1@"));
+        assert_eq!(sour.target.as_xref(), Some("@S1@"));
         assert_eq!(sour.page.as_ref().unwrap(), "Page 42");
         assert_eq!(sour.event_type.as_ref().unwrap(), "BIRT");
         assert_eq!(sour.role.as_ref().unwrap(), "CHIL");
@@ -246,14 +294,14 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let indi = &data.individuals[0];
-        let birt = &indi.events[0];
-        let sour = &birt.citations[0];
+        let indi = data.individuals.iter().next().unwrap();
+        let birt = &indi.events.iter().next().unwrap();
+        let sour = &birt.citations.iter().next().unwrap();
 
         assert_eq!(
-            sour.source.as_description(),
+            sour.target.as_description(),
             Some("https://example.com/records/123")
         );
-        assert_eq!(sour.source.as_xref(), None);
+        assert_eq!(sour.target.as_xref(), None);
     }
 }

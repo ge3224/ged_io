@@ -49,15 +49,15 @@ impl std::str::FromStr for ValidationLevel {
 
 fn print_help() {
     println!(
-        "ged_io - GEDCOM inspection tool\n\
+        "ged-io - GEDCOM inspection tool\n\
 \n\
 USAGE:\n\
-  ged_io <file.ged>\n\
-  ged_io --individual <XREF> <file.ged>\n\
-  ged_io --individual-lastname <LASTNAME> <file.ged>\n\
-  ged_io --individual-firstname <FIRSTNAME> <file.ged>\n\
-  ged_io --validate <file.ged>\n\
-  ged_io --validate --validation-level strict <file.ged>\n\
+  ged-io <file.ged>\n\
+  ged-io --individual <XREF> <file.ged>\n\
+  ged-io --individual-lastname <LASTNAME> <file.ged>\n\
+  ged-io --individual-firstname <FIRSTNAME> <file.ged>\n\
+  ged-io --validate <file.ged>\n\
+  ged-io --validate --validation-level strict <file.ged>\n\
 \n\
 OPTIONS:\n\
   -h, --help                        Print this help\n\
@@ -125,7 +125,7 @@ fn parse_args(argv: &[String]) -> Result<CliArgs, CliError> {
                         "Found more args than expected: {:?}\n\
 \
 Hint: this tool expects exactly one .ged file path (quote it if it contains spaces), for example:\n\
-  ged_io --individual-lastname \"/path/with spaces/family.ged\"",
+  ged-io --individual-lastname \"/path/with spaces/family.ged\"",
                         &argv[1..]
                     )));
                 }
@@ -276,11 +276,7 @@ fn run() -> Result<RunOutcome, CliError> {
     let data = doc.parse_data()?;
 
     if let Some(xref) = args.individual_xref.as_deref() {
-        if let Some(individual) = data
-            .individuals
-            .iter()
-            .find(|i| i.xref.as_deref() == Some(xref))
-        {
+        if let Some(individual) = data.find_individual(xref) {
             println!("{individual}");
             return Ok(RunOutcome::Success);
         }
@@ -297,7 +293,7 @@ fn run() -> Result<RunOutcome, CliError> {
             .as_deref()
             .map(|s| s.to_lowercase());
 
-        for individual in &data.individuals {
+        for individual in data.iter_individuals() {
             let display_name = individual
                 .names
                 .first()

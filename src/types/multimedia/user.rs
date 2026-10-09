@@ -1,5 +1,5 @@
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::{
     parser::{parse_subset, Parser},
@@ -11,7 +11,7 @@ use crate::{
 /// record. For instance, it may be a record number within the submitter's automated or manual
 /// system, or it may be a page and position number on a pedigree chart.
 #[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct UserReferenceNumber {
     /// line value
     pub value: Option<String>,

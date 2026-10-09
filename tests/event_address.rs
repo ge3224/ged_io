@@ -26,10 +26,10 @@ fn test_round_trip_event_and_attribute_address_and_associations() {
 0 TRLR"#;
 
     let data1 = GedcomBuilder::new().build_from_str(original).unwrap();
-    let person = &data1.individuals[0];
-    assert!(person.events[0].address.is_some());
-    assert_eq!(person.events[0].phone, ["+00 000 001"]);
-    assert_eq!(person.attributes[0].associations.len(), 1);
+    let person = &data1.iter_individuals().next().unwrap();
+    assert!(person.events.first().unwrap().address.is_some());
+    assert_eq!(person.events.first().unwrap().phone, ["+00 000 001"]);
+    assert_eq!(person.attributes.first().unwrap().associations.len(), 1);
 
     let written = GedcomWriter::new().write_to_string(&data1).unwrap();
     for expected in [
@@ -44,5 +44,8 @@ fn test_round_trip_event_and_attribute_address_and_associations() {
     }
 
     let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();
-    assert_eq!(data1.individuals[0], data2.individuals[0]);
+    assert_eq!(
+        data1.iter_individuals().next().unwrap(),
+        data2.iter_individuals().next().unwrap()
+    );
 }

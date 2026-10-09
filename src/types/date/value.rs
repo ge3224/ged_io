@@ -8,7 +8,7 @@
 //! grammar.
 
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use super::calendar::{Calendar, CalendarConversionError, ParsedDateTime};
 
@@ -26,7 +26,7 @@ use super::calendar::{Calendar, CalendarConversionError, ParsedDateTime};
 /// assert_eq!(value.to_string(), "BET @#DJULIAN@ 1700 AND @#DJULIAN@ 1710");
 /// ```
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub enum DateValue {
     /// A single date, possibly qualified (`ABT`, `CAL`, `EST`, `BEF`, `AFT`).
     Date(ParsedDateTime),

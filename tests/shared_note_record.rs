@@ -6,7 +6,10 @@ use ged_io::{GedcomBuilder, GedcomWriter};
 fn test_round_trip_multi_line_shared_note_record() {
     let original = "0 HEAD\n1 GEDC\n2 VERS 5.5.1\n0 @N1@ NOTE First line\n1 CONT Second line\n0 @I1@ INDI\n1 NOTE @N1@\n0 TRLR";
     let data1 = GedcomBuilder::new().build_from_str(original).unwrap();
-    assert_eq!(data1.shared_notes[0].text, "First line\nSecond line");
+    assert_eq!(
+        data1.iter_shared_notes().next().unwrap().text,
+        "First line\nSecond line"
+    );
 
     for version in ["5.5.1", "7.0"] {
         let written = GedcomWriter::new()
@@ -26,7 +29,13 @@ fn test_round_trip_multi_line_shared_note_record() {
         );
 
         let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();
-        assert_eq!(data2.shared_notes[0].text, "First line\nSecond line");
-        assert_eq!(data2.shared_notes[0].xref.as_deref(), Some("@N1@"));
+        assert_eq!(
+            data2.iter_shared_notes().next().unwrap().text,
+            "First line\nSecond line"
+        );
+        assert_eq!(
+            data2.iter_shared_notes().next().unwrap().xref.as_str(),
+            "@N1@"
+        );
     }
 }

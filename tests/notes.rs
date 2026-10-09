@@ -45,15 +45,15 @@ fn test_round_trip_keeps_every_note() {
 0 TRLR"#;
 
     let data1 = GedcomBuilder::new().build_from_str(original).unwrap();
-    let person = &data1.individuals[0];
+    let person = &data1.iter_individuals().next().unwrap();
     assert_eq!(person.notes.len(), 2);
-    assert_eq!(person.names[0].notes.len(), 2);
-    assert_eq!(person.events[0].notes.len(), 2);
-    assert_eq!(person.attributes[0].notes.len(), 2);
-    assert_eq!(person.families[0].notes.len(), 2);
-    assert_eq!(person.associations[0].notes.len(), 2);
-    assert_eq!(data1.multimedia[0].notes.len(), 2);
-    assert_eq!(data1.submitters[0].notes.len(), 2);
+    assert_eq!(person.names.first().unwrap().notes.len(), 2);
+    assert_eq!(person.events.first().unwrap().notes.len(), 2);
+    assert_eq!(person.attributes.first().unwrap().notes.len(), 2);
+    assert_eq!(person.families.first().unwrap().notes.len(), 2);
+    assert_eq!(person.associations.first().unwrap().notes.len(), 2);
+    assert_eq!(data1.iter_multimedia().next().unwrap().notes.len(), 2);
+    assert_eq!(data1.iter_submitters().next().unwrap().notes.len(), 2);
 
     let written = GedcomWriter::new().write_to_string(&data1).unwrap();
     for owner in [
@@ -76,7 +76,16 @@ fn test_round_trip_keeps_every_note() {
     }
 
     let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();
-    assert_eq!(data1.individuals[0], data2.individuals[0]);
-    assert_eq!(data1.multimedia[0], data2.multimedia[0]);
-    assert_eq!(data1.submitters[0], data2.submitters[0]);
+    assert_eq!(
+        data1.iter_individuals().next().unwrap(),
+        data2.iter_individuals().next().unwrap()
+    );
+    assert_eq!(
+        data1.iter_multimedia().next().unwrap(),
+        data2.iter_multimedia().next().unwrap()
+    );
+    assert_eq!(
+        data1.iter_submitters().next().unwrap(),
+        data2.iter_submitters().next().unwrap()
+    );
 }

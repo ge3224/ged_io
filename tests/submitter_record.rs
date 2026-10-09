@@ -1,6 +1,6 @@
 //! Round trip of the `SUBM` record.
 
-use ged_io::{GedcomBuilder, GedcomWriter};
+use ged_io::{types::multimedia::link::LinkTarget, GedcomBuilder, GedcomWriter};
 
 #[test]
 fn test_round_trip_submitter_record() {
@@ -34,8 +34,15 @@ fn test_round_trip_submitter_record() {
 
     let data1 = GedcomBuilder::new().build_from_str(original).unwrap();
     assert_eq!(
-        data1.submitters[0].multimedia[0].xref.as_deref(),
-        Some("@M1@")
+        data1
+            .iter_submitters()
+            .next()
+            .unwrap()
+            .multimedia_links
+            .first()
+            .unwrap()
+            .target(),
+        &LinkTarget::Record("@M1@".to_string())
     );
 
     let written = GedcomWriter::new().write_to_string(&data1).unwrap();
@@ -56,7 +63,10 @@ fn test_round_trip_submitter_record() {
     }
 
     let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();
-    assert_eq!(data1.submitters[0], data2.submitters[0]);
+    assert_eq!(
+        data1.iter_submitters().next().unwrap(),
+        data2.iter_submitters().next().unwrap()
+    );
 }
 
 #[test]

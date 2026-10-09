@@ -6,7 +6,9 @@
 //! Both tokenizers implement the [`TokenizerTrait`] trait, allowing parsers to
 //! work with either implementation.
 
+use crate::util::{is_real_reference, unescape_at_signs};
 use crate::GedcomError;
+use std::collections::HashMap;
 use std::io::BufRead;
 use std::str::Chars;
 
@@ -153,10 +155,12 @@ const POINTER_CAPACITY: usize = 16;
 /// 5.5.1 and 7.0 write a leading `@` of text as `@@`. Further `@@` are left
 /// alone: 5.5.1 doubles every `@` of text, 7.0 only the leading one, so what
 /// they stand for depends on the version.
-fn unescape_leading_at(value: &mut String) {
+fn unescape_leading_at(value: Box<str>) -> Box<str> {
     if value.starts_with("@@") {
         // The GEDCOM 7.0 rule is exactly "the leading `@@` only".
-        *value = crate::util::unescape_at_signs(value, true);
+        unescape_at_signs(&value, true).into_boxed_str()
+    } else {
+        value
     }
 }
 
@@ -170,6 +174,7 @@ pub struct Tokenizer<'a> {
     chars: Chars<'a>,
     /// The current line number of the file we are parsing
     pub line: u32,
+    pub(crate) pending_uses: HashMap<Box<str>, usize>,
     /// The level number of the line being tokenized
     line_level: u8,
 }
@@ -183,6 +188,7 @@ impl<'a> Tokenizer<'a> {
             current_token: Token::None,
             chars,
             line: 0,
+            pending_uses: HashMap::default(),
             line_level: 0,
         }
     }
@@ -291,7 +297,11 @@ impl<'a> Tokenizer<'a> {
                 {
                     Token::LineValue("".into())
                 } else {
-                    Token::LineValue(self.extract_value_with_capacity(VALUE_CAPACITY))
+                    let v = self.extract_value_with_capacity(VALUE_CAPACITY);
+                    if is_real_reference(&v) {
+                        *self.pending_uses.entry(v.clone()).or_insert(0) += 1;
+                    }
+                    Token::LineValue(unescape_leading_at(v))
                 }
             }
             _ => {
@@ -365,7 +375,6 @@ impl<'a> Tokenizer<'a> {
             value.push(self.current_char);
             self.next_char();
         }
-        unescape_leading_at(&mut value);
         value.into_boxed_str()
     }
 
@@ -806,8 +815,7 @@ impl<R: BufRead> StreamTokenizer<R> {
             value.push(self.current_char);
             self.next_char()?;
         }
-        unescape_leading_at(&mut value);
-        Ok(value.into_boxed_str())
+        Ok(unescape_leading_at(value.into_boxed_str()))
     }
 
     fn next_token_impl(&mut self) -> Result<(), GedcomError> {

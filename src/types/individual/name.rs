@@ -1,10 +1,15 @@
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::{
+    arena::{Arena, Handle},
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
-    types::{custom::UserDefinedTag, note::Note, source::citation::Citation},
+    types::{
+        custom::UserDefinedTag,
+        note::Note,
+        source::citation::{Citation, CitationSource},
+    },
     GedcomError,
 };
 
@@ -13,8 +18,8 @@ use crate::{
 /// Indicates the type or purpose of the name.
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#enumset-NAME-TYPE>
-#[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[derive(Debug, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub enum NameType {
     /// Name given at or near birth (AKA, birth name, maiden name)
     Birth,
@@ -78,7 +83,7 @@ impl std::fmt::Display for NameType {
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#PERSONAL_NAME_PIECES>
 #[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct NameVariation {
     /// The full name variation value.
     pub value: String,
@@ -176,8 +181,8 @@ impl Parser for NameVariation {
 /// payload in some form, possibly adjusted for gender-specific suffixes or the like. It is
 /// permitted for the payload to contain information not present in any name piece substructure.
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#PERSONAL_NAME_STRUCTURE>.
-#[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[derive(Debug, Default, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Name {
     /// The full name value with surname in slashes (e.g., "John /Doe/").
     pub value: Option<String>,
@@ -204,7 +209,7 @@ pub struct Name {
     pub nickname: Option<String>,
 
     /// Source citations for this name.
-    pub source: Vec<Citation>,
+    pub sources: Arena<Citation>,
 
     /// The type of name (tag: TYPE).
     ///
@@ -217,16 +222,24 @@ pub struct Name {
     ///
     /// Used to provide phonetic representations of names
     /// for non-Latin scripts.
-    pub phonetic: Vec<NameVariation>,
+    pub phonetic: Arena<NameVariation>,
 
     /// Romanized variations of the name (tag: ROMN).
     ///
     /// Used to provide romanized (Latin alphabet) representations
     /// of names originally in non-Latin scripts.
-    pub romanized: Vec<NameVariation>,
+    pub romanized: Arena<NameVariation>,
 
     /// Custom data (extension tags).
-    pub custom_data: Vec<Box<UserDefinedTag>>,
+    pub user_defined_tags: Arena<UserDefinedTag>,
+
+    // Intrusive chain links — wired by GedcomData::add_name / remove_name; never set directly.
+    #[cfg_attr(feature = "json", serde(skip))]
+    pub(crate) previous: Option<Handle<Name>>,
+
+    // Intrusive chain links — wired by GedcomData::add_name / remove_name; never set directly.
+    #[cfg_attr(feature = "json", serde(skip))]
+    pub(crate) next: Option<Handle<Name>>,
 }
 
 impl Name {
@@ -242,17 +255,17 @@ impl Name {
     }
 
     pub fn add_source_citation(&mut self, sour: Citation) {
-        self.source.push(sour);
+        self.sources.insert(sour);
     }
 
     /// Adds a phonetic variation of the name.
     pub fn add_phonetic(&mut self, variation: NameVariation) {
-        self.phonetic.push(variation);
+        self.phonetic.insert(variation);
     }
 
     /// Adds a romanized variation of the name.
     pub fn add_romanized(&mut self, variation: NameVariation) {
-        self.romanized.push(variation);
+        self.romanized.insert(variation);
     }
 
     /// Returns the full name with slashes removed.
@@ -292,6 +305,36 @@ impl Name {
             self.surname = Some(surname.to_string());
         }
     }
+
+    pub(crate) fn remove_citation_to(&mut self, xref: &str) -> usize {
+        let before = self.sources.len();
+        self.sources
+            .retain(|c| !matches!(&c.target, CitationSource::Record(x) if x == xref));
+        before - self.sources.len()
+    }
+
+    pub(crate) fn remove_multimedia_link_to(&mut self, xref: &str) -> usize {
+        let mut removed = 0;
+
+        for h in self
+            .sources
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(s) = self.sources.get_mut(h) {
+                removed += s.remove_multimedia_link_to(xref);
+            }
+        }
+
+        removed
+    }
+
+    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
+        for s in &self.sources {
+            s.outbound_refs(sink);
+        }
+    }
 }
 
 impl Parser for Name {
@@ -312,12 +355,14 @@ impl Parser for Name {
                     let type_value = tokenizer.take_line_value()?;
                     self.name_type = Some(NameType::parse(&type_value));
                 }
-                "FONE" => self
-                    .phonetic
-                    .push(NameVariation::new(tokenizer, level + 1)?),
-                "ROMN" => self
-                    .romanized
-                    .push(NameVariation::new(tokenizer, level + 1)?),
+                "FONE" => {
+                    self.phonetic
+                        .insert(NameVariation::new(tokenizer, level + 1)?);
+                }
+                "ROMN" => {
+                    self.romanized
+                        .insert(NameVariation::new(tokenizer, level + 1)?);
+                }
                 _ => {
                     // Leave unknown tags to `parse_subset`, which keeps them with
                     // their substructures.
@@ -325,7 +370,10 @@ impl Parser for Name {
             }
             Ok(())
         };
-        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
+
+        for udt in parse_subset(tokenizer, level, handle_subset)? {
+            self.user_defined_tags.insert(*udt);
+        }
 
         Ok(())
     }
@@ -336,7 +384,7 @@ mod tests {
     use super::*;
     use crate::Gedcom;
 
-    fn help_test_name(name: &str) -> Name {
+    fn help_test_full_name(name: &str) -> String {
         let sample = format!(
             "\
             0 HEAD\n\
@@ -350,35 +398,19 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let indi = &data.individuals[0];
-        let name = indi.names.first().unwrap();
-        name.clone()
+        let indi = data.individuals.iter().next().unwrap();
+        indi.names.first().unwrap().full_name().unwrap()
     }
 
     #[test]
     fn test_full_name() {
-        assert_eq!(help_test_name("John Doe").full_name().unwrap(), "John Doe");
-        assert_eq!(
-            help_test_name("John /Doe/").full_name().unwrap(),
-            "John Doe"
-        );
-        assert_eq!(help_test_name("John/Doe/").full_name().unwrap(), "John Doe");
-        assert_eq!(
-            help_test_name("John Doe Carter").full_name().unwrap(),
-            "John Doe Carter"
-        );
-        assert_eq!(
-            help_test_name("John /Doe/ Carter").full_name().unwrap(),
-            "John Doe Carter"
-        );
-        assert_eq!(
-            help_test_name("John/Doe/ Carter").full_name().unwrap(),
-            "John Doe Carter"
-        );
-        assert_eq!(
-            help_test_name("John/Doe/Carter").full_name().unwrap(),
-            "John Doe Carter"
-        );
+        assert_eq!(help_test_full_name("John Doe"), "John Doe");
+        assert_eq!(help_test_full_name("John /Doe/"), "John Doe");
+        assert_eq!(help_test_full_name("John/Doe/"), "John Doe");
+        assert_eq!(help_test_full_name("John Doe Carter"), "John Doe Carter");
+        assert_eq!(help_test_full_name("John /Doe/ Carter"), "John Doe Carter");
+        assert_eq!(help_test_full_name("John/Doe/ Carter"), "John Doe Carter");
+        assert_eq!(help_test_full_name("John/Doe/Carter"), "John Doe Carter");
     }
 
     #[test]
@@ -415,7 +447,7 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let indi = &data.individuals[0];
+        let indi = data.find_individual("@I1@").unwrap();
         let name = indi.names.first().unwrap();
         assert_eq!(name.name_type, Some(NameType::Maiden));
         assert_eq!(name.given.as_ref().unwrap(), "Mary");
@@ -437,7 +469,7 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let indi = &data.individuals[0];
+        let indi = data.iter_individuals().next().unwrap();
         let name = indi.names.first().unwrap();
         assert_eq!(name.name_type, Some(NameType::Maiden));
         assert_eq!(name.given.as_ref().unwrap(), "Mary");
@@ -460,7 +492,7 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let indi = &data.individuals[0];
+        let indi = data.iter_individuals().next().unwrap();
         let name = indi.names.first().unwrap();
         assert_eq!(name.name_type, Some(NameType::Maiden));
         assert_eq!(name.given.as_ref().unwrap(), "Mary");
@@ -484,14 +516,23 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let indi = &data.individuals[0];
+        let indi = data.find_individual("@I1@").unwrap();
         let name = indi.names.first().unwrap();
         assert!(name.has_phonetic());
         assert_eq!(name.phonetic.len(), 1);
-        assert_eq!(name.phonetic[0].value, "Yamada /Taro/");
-        assert_eq!(name.phonetic[0].variation_type, Some("romaji".to_string()));
-        assert_eq!(name.phonetic[0].given, Some("Taro".to_string()));
-        assert_eq!(name.phonetic[0].surname, Some("Yamada".to_string()));
+        assert_eq!(name.phonetic.iter().next().unwrap().value, "Yamada /Taro/");
+        assert_eq!(
+            name.phonetic.iter().next().unwrap().variation_type,
+            Some("romaji".to_string())
+        );
+        assert_eq!(
+            name.phonetic.iter().next().unwrap().given,
+            Some("Taro".to_string())
+        );
+        assert_eq!(
+            name.phonetic.iter().next().unwrap().surname,
+            Some("Yamada".to_string())
+        );
     }
 
     #[test]
@@ -509,12 +550,18 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let indi = &data.individuals[0];
+        let indi = data.find_individual("@I1@").unwrap();
         let name = indi.names.first().unwrap();
         assert!(name.has_romanized());
         assert_eq!(name.romanized.len(), 1);
-        assert_eq!(name.romanized[0].value, "Wang /Xiaoming/");
-        assert_eq!(name.romanized[0].variation_type, Some("pinyin".to_string()));
+        assert_eq!(
+            name.romanized.iter().next().unwrap().value,
+            "Wang /Xiaoming/"
+        );
+        assert_eq!(
+            name.romanized.iter().next().unwrap().variation_type,
+            Some("pinyin".to_string())
+        );
     }
 
     #[test]

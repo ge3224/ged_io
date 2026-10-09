@@ -1,15 +1,20 @@
 use crate::{
+    arena::Arena,
     parser::{parse_subset, Parser},
-    tokenizer::{Token, Tokenizer},
+    tokenizer::Tokenizer,
     types::{
-        address::Address, custom::UserDefinedTag, date::change_date::ChangeDate,
-        multimedia::link::Link, note::Note, Xref,
+        address::Address,
+        custom::UserDefinedTag,
+        date::change_date::ChangeDate,
+        multimedia::link::{Link, LinkTarget},
+        note::Note,
+        Xref,
     },
     GedcomError,
 };
 
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 /// The submitter record identifies an individual or organization that contributed information
 /// contained in the GEDCOM transmission. All records in the transmission are assumed to be
@@ -17,17 +22,17 @@ use serde::{Deserialize, Serialize};
 /// specific record points at a different `SUBMITTER` record.
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#SUBMITTER_RECORD>
-#[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[derive(Debug, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Submitter {
-    /// Optional reference to link to this submitter
-    pub xref: Option<Xref>,
+    /// Cross-reference to link to this submitter
+    pub xref: Xref,
     /// Name of the submitter
     pub name: Option<String>,
     /// Physical address of the submitter
     pub address: Option<Address>,
     /// A multimedia asset linked to a fact
-    pub multimedia: Vec<Link>,
+    pub multimedia_links: Arena<Link>,
     /// Language preference
     pub language: Option<String>,
     /// A registered number of a submitter of Ancestral File data. This number is used in
@@ -40,15 +45,15 @@ pub struct Submitter {
     /// Date of the last change to the record
     pub change_date: Option<ChangeDate>,
     /// Notes provided by the submitter (tag: NOTE)
-    pub notes: Vec<Note>,
+    pub notes: Arena<Note>,
     /// Phone number(s) of the submitter (tag: PHON).
-    pub phone: Vec<String>,
+    pub phone: Arena<String>,
     /// Email address(es) of the submitter (tag: EMAIL).
-    pub email: Vec<String>,
+    pub email: Arena<String>,
     /// Fax number(s) of the submitter (tag: FAX).
-    pub fax: Vec<String>,
+    pub fax: Arena<String>,
     /// Website URL(s) of the submitter (tag: WWW).
-    pub website: Vec<String>,
+    pub website: Arena<String>,
     /// Unique identifier (tag: UID, GEDCOM 7.0).
     ///
     /// A globally unique identifier for this record.
@@ -58,15 +63,31 @@ pub struct Submitter {
     /// A user-defined number or text that the submitter uses to identify
     /// this record.
     pub user_reference_number: Option<String>,
-    pub custom_data: Vec<Box<UserDefinedTag>>,
+    pub user_defined_tags: Arena<UserDefinedTag>,
 }
 
 impl Submitter {
+    pub(crate) const RECORD_TYPE: &'static str = "Submitter";
+
     #[must_use]
-    fn with_xref(xref: Option<Xref>) -> Self {
+    fn with_xref(xref: impl Into<Xref>) -> Self {
         Self {
-            xref,
-            ..Default::default()
+            address: None,
+            automated_record_id: None,
+            change_date: None,
+            email: Arena::default(),
+            fax: Arena::default(),
+            language: None,
+            multimedia_links: Arena::default(),
+            name: None,
+            notes: Arena::default(),
+            phone: Arena::default(),
+            registered_refn: None,
+            uid: None,
+            user_reference_number: None,
+            website: Arena::default(),
+            xref: xref.into(),
+            user_defined_tags: Arena::default(),
         }
     }
 
@@ -79,7 +100,7 @@ impl Submitter {
     pub fn new(
         tokenizer: &mut Tokenizer<'_>,
         level: u8,
-        xref: Option<Xref>,
+        xref: Xref,
     ) -> Result<Submitter, GedcomError> {
         let mut subm = Submitter::with_xref(xref);
         subm.parse(tokenizer, level)?;
@@ -88,7 +109,22 @@ impl Submitter {
 
     /// Adds a `Multimedia` to the tree
     pub fn add_multimedia(&mut self, multimedia: Link) {
-        self.multimedia.push(multimedia);
+        self.multimedia_links.insert(multimedia);
+    }
+
+    pub(crate) fn remove_multimedia_link_to(&mut self, xref: &str) -> usize {
+        let before = self.multimedia_links.len();
+
+        self.multimedia_links
+            .retain(|l| !matches!(&l.target, LinkTarget::Record(x) if x == xref));
+
+        before - self.multimedia_links.len()
+    }
+
+    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
+        for l in &self.multimedia_links {
+            l.outbound_refs(sink);
+        }
     }
 }
 
@@ -99,22 +135,27 @@ impl Parser for Submitter {
         tokenizer.next_token()?;
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
-            let mut pointer: Option<String> = None;
-            if let Token::Pointer(xref) = &tokenizer.current_token {
-                pointer = Some(xref.to_string());
-                tokenizer.next_token()?;
-            }
             match tag {
                 "NAME" => self.name = Some(tokenizer.take_line_value()?),
                 "ADDR" => self.address = Some(Address::new(tokenizer, level + 1)?),
-                "OBJE" => self.add_multimedia(Link::new(tokenizer, level + 1, pointer)?),
+                "OBJE" => self.add_multimedia(Link::new(tokenizer, level + 1)?),
                 "LANG" => self.language = Some(tokenizer.take_line_value()?),
-                "NOTE" => self.notes.push(Note::new(tokenizer, level + 1)?),
+                "NOTE" => {
+                    self.notes.insert(Note::new(tokenizer, level + 1)?);
+                }
                 "CHAN" => self.change_date = Some(ChangeDate::new(tokenizer, level + 1)?),
-                "PHON" => self.phone.push(tokenizer.take_line_value()?),
-                "EMAIL" => self.email.push(tokenizer.take_line_value()?),
-                "FAX" => self.fax.push(tokenizer.take_line_value()?),
-                "WWW" => self.website.push(tokenizer.take_line_value()?),
+                "PHON" => {
+                    self.phone.insert(tokenizer.take_line_value()?);
+                }
+                "EMAIL" => {
+                    self.email.insert(tokenizer.take_line_value()?);
+                }
+                "FAX" => {
+                    self.fax.insert(tokenizer.take_line_value()?);
+                }
+                "WWW" => {
+                    self.website.insert(tokenizer.take_line_value()?);
+                }
                 "UID" => self.uid = Some(tokenizer.take_line_value()?),
                 "RIN" => self.automated_record_id = Some(tokenizer.take_line_value()?),
                 "RFN" => self.registered_refn = Some(tokenizer.take_line_value()?),
@@ -128,7 +169,9 @@ impl Parser for Submitter {
             Ok(())
         };
 
-        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
+        for udt in parse_subset(tokenizer, level, handle_subset)? {
+            self.user_defined_tags.insert(*udt);
+        }
 
         Ok(())
     }

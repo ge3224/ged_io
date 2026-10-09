@@ -1,12 +1,14 @@
 use crate::{
+    arena::Arena,
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{custom::UserDefinedTag, date::change_date::ChangeDate, note::Note, Xref},
+    util::is_real_reference,
     GedcomError,
 };
 
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 /// GEDCOM Submission Record Structure
 ///
@@ -24,12 +26,12 @@ use serde::{Deserialize, Serialize};
 /// References:
 /// [GEDCOM 5.5.1 specification, page 28](https://gedcom.io/specifications/ged551.pdf)
 /// [GEDCOM 7.0 Specification](gedcom.io/specifications/FamilySearchGEDCOMv7.html)
-#[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[derive(Debug, Default, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Submission {
     /// Cross-reference identifier for this submission record
     /// Format: `@XREF:SUBN@`
-    pub xref: Option<Xref>,
+    pub xref: Xref,
     /// Name of the family file being submitted
     /// Used to identify the source family file
     /// Tag: `FAMF`
@@ -70,14 +72,16 @@ pub struct Submission {
     /// These tags allow for extensions to the GEDCOM format, storing
     /// non-standard or proprietary data associated with the submission.
     /// Tag: `_XXXX` (where XXXX is a user-defined tag)
-    pub custom: Vec<Box<UserDefinedTag>>,
+    pub user_defined_tags: Arena<UserDefinedTag>,
 }
 
 impl Submission {
+    pub(crate) const RECORD_TYPE: &'static str = "Submission";
+
     #[must_use]
-    fn with_xref(xref: Option<Xref>) -> Self {
+    fn with_xref(xref: impl Into<Xref>) -> Self {
         Self {
-            xref,
+            xref: xref.into(),
             ..Default::default()
         }
     }
@@ -91,11 +95,19 @@ impl Submission {
     pub fn new(
         tokenizer: &mut Tokenizer<'_>,
         level: u8,
-        xref: Option<Xref>,
+        xref: Xref,
     ) -> Result<Submission, GedcomError> {
         let mut subn = Submission::with_xref(xref);
         subn.parse(tokenizer, level)?;
         Ok(subn)
+    }
+
+    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
+        if let Some(xref) = &self.submitter_ref {
+            if is_real_reference(xref) {
+                sink(xref);
+            }
+        }
     }
 }
 
@@ -122,7 +134,9 @@ impl Parser for Submission {
             Ok(())
         };
 
-        self.custom = parse_subset(tokenizer, level, handle_subset)?;
+        for udt in parse_subset(tokenizer, level, handle_subset)? {
+            self.user_defined_tags.insert(*udt);
+        }
 
         Ok(())
     }
@@ -130,7 +144,7 @@ impl Parser for Submission {
 
 #[cfg(test)]
 mod tests {
-    use crate::{types::Submission, Gedcom};
+    use crate::Gedcom;
 
     #[test]
     fn test_parse_submission_record() {
@@ -156,45 +170,54 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let gedcom_data = doc.parse_data().unwrap();
 
-        let mut submissions = gedcom_data.submissions;
-        assert!(!submissions.is_empty());
+        assert!(!gedcom_data.submissions.is_empty());
 
-        let first_submission = submissions.remove(0);
+        let submission = gedcom_data.find_submission("@SUBMISSION@").unwrap();
 
-        let Submission {
-            submitter_ref,
-            family_file_name,
-            temple_code,
-            custom,
-            ancestor_generations,
-            descendant_generations,
-            ordinance_process_flag,
-            automated_record_id,
-            change_date,
-            ..
-        } = first_submission;
-
-        assert_eq!(submitter_ref.unwrap(), "@SUBMITTER@");
-        assert_eq!(family_file_name.unwrap(), "NameOfFamilyFile");
-        assert_eq!(temple_code.unwrap(), "LDS");
-        assert_eq!(ancestor_generations.unwrap(), "1");
-        assert_eq!(descendant_generations.unwrap(), "1");
-        assert_eq!(ordinance_process_flag.unwrap(), "LDS");
-        assert_eq!(automated_record_id.unwrap(), "12345");
-
-        let date = change_date.unwrap().date.unwrap();
-        assert_eq!(date.value.unwrap(), "1 APR 1998");
-        assert_eq!(date.time.unwrap(), "12:34:56.789");
-
-        assert_eq!(custom[0].tag, "_MYCUSTOMTAG");
-        assert_eq!(custom[0].value.as_ref().unwrap(), "Some custom data here");
-        assert!(custom[0].children.is_empty());
-
-        assert_eq!(custom[1].tag, "_ANOTHER_TAG");
+        assert_eq!(submission.submitter_ref.as_deref(), Some("@SUBMITTER@"));
         assert_eq!(
-            custom[1].value.as_ref().unwrap(),
-            "Another piece of custom data"
+            submission.family_file_name.as_deref(),
+            Some("NameOfFamilyFile")
         );
-        assert!(custom[1].children.is_empty());
+        assert_eq!(submission.temple_code.as_deref(), Some("LDS"));
+        assert_eq!(submission.ancestor_generations.as_deref(), Some("1"));
+        assert_eq!(submission.descendant_generations.as_deref(), Some("1"));
+        assert_eq!(submission.ordinance_process_flag.as_deref(), Some("LDS"));
+        assert_eq!(submission.automated_record_id.as_deref(), Some("12345"));
+
+        let change_date = submission.change_date.as_ref().unwrap();
+        let date = change_date.date.as_ref().unwrap();
+        assert_eq!(date.value.as_deref(), Some("1 APR 1998"));
+        assert_eq!(date.time.as_deref(), Some("12:34:56.789"));
+
+        assert_eq!(
+            submission.user_defined_tags.iter().next().unwrap().tag,
+            "_MYCUSTOMTAG"
+        );
+        assert_eq!(
+            submission
+                .user_defined_tags
+                .iter()
+                .next()
+                .unwrap()
+                .value
+                .as_deref(),
+            Some("Some custom data here")
+        );
+
+        assert_eq!(
+            submission.user_defined_tags.iter().nth(1).unwrap().tag,
+            "_ANOTHER_TAG"
+        );
+        assert_eq!(
+            submission
+                .user_defined_tags
+                .iter()
+                .nth(1)
+                .unwrap()
+                .value
+                .as_deref(),
+            Some("Another piece of custom data"),
+        );
     }
 }

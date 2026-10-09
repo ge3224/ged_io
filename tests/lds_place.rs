@@ -29,9 +29,13 @@ fn test_round_trip_lds_ordinance_place_gedcom_5() {
 0 TRLR";
     let data = GedcomBuilder::new().build_from_str(source).unwrap();
 
-    let person = &data.individuals[0];
+    let person = &data.iter_individuals().next().unwrap();
     let place = |i: usize| {
-        person.lds_ordinances[i]
+        person
+            .lds_ordinances
+            .iter()
+            .nth(i)
+            .unwrap()
             .place
             .as_ref()
             .and_then(|p| p.value.as_deref())
@@ -39,14 +43,19 @@ fn test_round_trip_lds_ordinance_place_gedcom_5() {
     assert_eq!(place(0), Some("Sampletown"));
     assert_eq!(place(1), Some("Otherville"));
     assert_eq!(
-        data.families[0].lds_ordinances[0]
+        data.iter_families()
+            .next()
+            .unwrap()
+            .lds_ordinances
+            .first()
+            .unwrap()
             .place
             .as_ref()
             .and_then(|p| p.value.as_deref()),
         Some("Sampletown")
     );
     // The place does not end up anywhere else.
-    assert!(person.custom_data.is_empty());
+    assert!(person.user_defined_tags.is_empty());
 
     let written = GedcomWriter::new().write_to_string(&data).unwrap();
     assert!(written.contains("1 BAPL\n2 DATE 15 MAR 1990\n2 TEMP SLAKE\n2 PLAC Sampletown\n"));
@@ -55,12 +64,12 @@ fn test_round_trip_lds_ordinance_place_gedcom_5() {
 
     let reread = GedcomBuilder::new().build_from_str(&written).unwrap();
     assert_eq!(
-        reread.individuals[0].lds_ordinances,
-        data.individuals[0].lds_ordinances
+        reread.iter_individuals().next().unwrap().lds_ordinances,
+        data.iter_individuals().next().unwrap().lds_ordinances
     );
     assert_eq!(
-        reread.families[0].lds_ordinances,
-        data.families[0].lds_ordinances
+        reread.iter_families().next().unwrap().lds_ordinances,
+        data.iter_families().next().unwrap().lds_ordinances
     );
 }
 
@@ -84,12 +93,18 @@ fn test_round_trip_lds_ordinance_place_structure_gedcom_7() {
 0 TRLR";
     let data = GedcomBuilder::new().build_from_str(source).unwrap();
 
-    let place = data.individuals[0].lds_ordinances[0]
+    let place = data
+        .iter_individuals()
+        .next()
+        .unwrap()
+        .lds_ordinances
+        .first()
+        .unwrap()
         .place
         .as_ref()
         .unwrap();
     assert_eq!(place.value.as_deref(), Some("Sampletown, Sample County"));
-    assert_eq!(place.form.as_deref(), Some("City, County"));
+    assert_eq!(place.form.to_payload(), "City, County");
     assert_eq!(
         place.map.as_ref().unwrap().latitude.as_deref(),
         Some("N10.5")
@@ -100,7 +115,7 @@ fn test_round_trip_lds_ordinance_place_structure_gedcom_7() {
 
     let reread = GedcomBuilder::new().build_from_str(&written).unwrap();
     assert_eq!(
-        reread.individuals[0].lds_ordinances,
-        data.individuals[0].lds_ordinances
+        reread.iter_individuals().next().unwrap().lds_ordinances,
+        data.iter_individuals().next().unwrap().lds_ordinances
     );
 }

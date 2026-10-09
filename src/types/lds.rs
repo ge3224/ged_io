@@ -24,18 +24,19 @@
 //! See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#LDS_INDIVIDUAL_ORDINANCE>
 
 use crate::{
+    arena::Arena,
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
-    types::{date::Date, note::Note, place::Place, source::citation::Citation},
+    types::{date::Date, note::Note, place::Place, source::citation::Citation, CitationSource},
     GedcomError,
 };
 
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 /// The type of LDS ordinance.
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub enum LdsOrdinanceType {
     /// Baptism (LDS) - Tag: `BAPL`
     Baptism,
@@ -115,7 +116,7 @@ impl std::fmt::Display for LdsOrdinanceType {
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#enumset-ord-STAT>
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub enum LdsOrdinanceStatus {
     /// The ordinance was completed but the date is not known.
     BicCompleted,
@@ -208,8 +209,8 @@ impl std::fmt::Display for LdsOrdinanceStatus {
 /// ```
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#LDS_INDIVIDUAL_ORDINANCE>
-#[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[derive(Debug, Default, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct LdsOrdinance {
     /// The type of ordinance.
     pub ordinance_type: Option<LdsOrdinanceType>,
@@ -245,10 +246,10 @@ pub struct LdsOrdinance {
     pub family_xref: Option<String>,
 
     /// Notes about this ordinance (tag: NOTE).
-    pub notes: Vec<Note>,
+    pub notes: Arena<Note>,
 
     /// Source citations for this ordinance.
-    pub source_citations: Vec<Citation>,
+    pub source_citations: Arena<Citation>,
 }
 
 impl LdsOrdinance {
@@ -323,6 +324,53 @@ impl LdsOrdinance {
             .as_ref()
             .is_some_and(LdsOrdinanceType::is_gedcom_7_only)
     }
+
+    pub(crate) fn remove_citation_to(&mut self, xref: &str) -> usize {
+        let before = self.source_citations.len();
+
+        self.source_citations
+            .retain(|c| !matches!(&c.target, CitationSource::Record(x) if x == xref));
+
+        let mut removed = before - self.source_citations.len();
+
+        removed += self
+            .place
+            .as_mut()
+            .map_or(0, |p| p.remove_citation_to(xref));
+
+        removed
+    }
+
+    pub(crate) fn remove_multimedia_link_to(&mut self, xref: &str) -> usize {
+        let mut removed = 0;
+
+        for h in self
+            .source_citations
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(s) = self.source_citations.get_mut(h) {
+                removed += s.remove_multimedia_link_to(xref);
+            }
+        }
+
+        if let Some(p) = &mut self.place {
+            removed += p.remove_multimedia_link_to(xref);
+        }
+
+        removed
+    }
+
+    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
+        for source in &self.source_citations {
+            source.outbound_refs(sink);
+        }
+
+        if let Some(p) = &self.place {
+            p.outbound_refs(sink);
+        }
+    }
 }
 
 impl Parser for LdsOrdinance {
@@ -348,10 +396,12 @@ impl Parser for LdsOrdinance {
                     })?;
                 }
                 "FAMC" => self.family_xref = Some(tokenizer.take_line_value()?),
-                "NOTE" => self.notes.push(Note::new(tokenizer, level + 1)?),
+                "NOTE" => {
+                    self.notes.insert(Note::new(tokenizer, level + 1)?);
+                }
                 "SOUR" => {
                     self.source_citations
-                        .push(Citation::new(tokenizer, level + 1)?);
+                        .insert(Citation::new(tokenizer, level + 1)?);
                 }
                 _ => {
                     // Leave unknown tags to `parse_subset`, which keeps them with

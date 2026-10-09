@@ -70,44 +70,34 @@ impl IndexedGedcomData {
     fn build_indexes(&mut self) {
         // Index individuals
         for (i, individual) in self.data.individuals.iter().enumerate() {
-            if let Some(ref xref) = individual.xref {
-                self.individual_index.insert(xref.clone().into(), i);
-            }
+            self.individual_index
+                .insert(individual.xref.clone().into(), i);
         }
 
         // Index families
-        for (i, family) in self.data.families.iter().enumerate() {
-            if let Some(ref xref) = family.xref {
-                self.family_index.insert(xref.clone().into(), i);
-            }
+        for (i, family) in self.data.iter_families().enumerate() {
+            self.family_index.insert(family.xref.clone().into(), i);
         }
 
         // Index sources
-        for (i, source) in self.data.sources.iter().enumerate() {
-            if let Some(ref xref) = source.xref {
-                self.source_index.insert(xref.clone().into(), i);
-            }
+        for (i, source) in self.data.iter_sources().enumerate() {
+            self.source_index.insert(source.xref.clone().into(), i);
         }
 
         // Index repositories
-        for (i, repo) in self.data.repositories.iter().enumerate() {
-            if let Some(ref xref) = repo.xref {
-                self.repository_index.insert(xref.clone().into(), i);
-            }
+        for (i, repo) in self.data.iter_repositories().enumerate() {
+            self.repository_index.insert(repo.xref.clone().into(), i);
         }
 
         // Index multimedia
-        for (i, media) in self.data.multimedia.iter().enumerate() {
-            if let Some(ref xref) = media.xref {
-                self.multimedia_index.insert(xref.clone().into(), i);
-            }
+        for (i, media) in self.data.iter_multimedia().enumerate() {
+            self.multimedia_index.insert(media.xref.clone().into(), i);
         }
 
         // Index submitters
-        for (i, submitter) in self.data.submitters.iter().enumerate() {
-            if let Some(ref xref) = submitter.xref {
-                self.submitter_index.insert(xref.clone().into(), i);
-            }
+        for (i, submitter) in self.data.iter_submitters().enumerate() {
+            self.submitter_index
+                .insert(submitter.xref.clone().into(), i);
         }
     }
 
@@ -141,54 +131,42 @@ impl IndexedGedcomData {
     #[inline]
     #[must_use]
     pub fn find_individual(&self, xref: &str) -> Option<&Individual> {
-        self.individual_index
-            .get(xref)
-            .map(|&idx| &self.data.individuals[idx])
+        self.data.find_individual(xref)
     }
 
     /// Finds a family by cross-reference ID in O(1) time.
     #[inline]
     #[must_use]
     pub fn find_family(&self, xref: &str) -> Option<&Family> {
-        self.family_index
-            .get(xref)
-            .map(|&idx| &self.data.families[idx])
+        self.data.find_family(xref)
     }
 
     /// Finds a source by cross-reference ID in O(1) time.
     #[inline]
     #[must_use]
     pub fn find_source(&self, xref: &str) -> Option<&Source> {
-        self.source_index
-            .get(xref)
-            .map(|&idx| &self.data.sources[idx])
+        self.data.find_source(xref)
     }
 
     /// Finds a repository by cross-reference ID in O(1) time.
     #[inline]
     #[must_use]
     pub fn find_repository(&self, xref: &str) -> Option<&Repository> {
-        self.repository_index
-            .get(xref)
-            .map(|&idx| &self.data.repositories[idx])
+        self.data.find_repository(xref)
     }
 
     /// Finds a multimedia record by cross-reference ID in O(1) time.
     #[inline]
     #[must_use]
     pub fn find_multimedia(&self, xref: &str) -> Option<&Multimedia> {
-        self.multimedia_index
-            .get(xref)
-            .map(|&idx| &self.data.multimedia[idx])
+        self.data.find_multimedia(xref)
     }
 
     /// Finds a submitter by cross-reference ID in O(1) time.
     #[inline]
     #[must_use]
     pub fn find_submitter(&self, xref: &str) -> Option<&Submitter> {
-        self.submitter_index
-            .get(xref)
-            .map(|&idx| &self.data.submitters[idx])
+        self.data.find_submitter(xref)
     }
 
     /// Gets the families where an individual is a spouse/partner.
@@ -282,7 +260,7 @@ impl IndexedGedcomData {
 
     /// Returns the number of indexed individuals.
     #[must_use]
-    pub fn individual_count(&self) -> usize {
+    pub fn count_individual(&self) -> usize {
         self.data.individuals.len()
     }
 
@@ -376,7 +354,7 @@ mod tests {
         let data = create_test_data();
         let indexed = IndexedGedcomData::from(data);
 
-        assert_eq!(indexed.individual_count(), 3);
+        assert_eq!(indexed.count_individual(), 3);
         assert_eq!(indexed.family_count(), 1);
     }
 

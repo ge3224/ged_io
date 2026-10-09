@@ -1,10 +1,12 @@
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::{
+    arena::Arena,
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{custom::UserDefinedTag, note::Note, Xref},
+    util::is_real_reference,
     GedcomError,
 };
 
@@ -14,7 +16,7 @@ use crate::{
 /// See GEDCOM 5.5.1, `SOURCE_REPOSITORY_CITATION` (p. 40), and
 /// <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#CALN>.
 #[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct CallNumber {
     /// An identification or reference description used to file and retrieve
     /// items from the holdings of a repository. May be empty when only the
@@ -78,28 +80,28 @@ impl CallNumber {
 /// referenced repository and provides details about how to find it there.
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#SOURCE_REPOSITORY_CITATION>
-#[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[derive(Debug, Default, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Citation {
     /// Reference to the `Repository`
-    pub xref: Xref,
+    pub(crate) target: Xref,
 
     /// Call numbers of the source at this repository (tag: CALN), each with
     /// its own medium (tag: MEDI). GEDCOM 5.5.1 and 7.0 allow any number.
-    pub call_numbers: Vec<CallNumber>,
+    pub call_numbers: Arena<CallNumber>,
 
     /// Notes about this repository citation.
-    pub notes: Vec<Note>,
+    pub notes: Arena<Note>,
 
     /// Custom data (extension tags).
-    pub custom_data: Vec<Box<UserDefinedTag>>,
+    pub user_defined_tags: Arena<UserDefinedTag>,
 }
 
 impl Citation {
     #[must_use]
-    fn with_xref(xref: Xref) -> Self {
+    fn with_xref(target: Xref) -> Self {
         Self {
-            xref,
+            target,
             ..Default::default()
         }
     }
@@ -116,18 +118,24 @@ impl Citation {
         Ok(rc)
     }
 
+    /// Returns the repository this citation points at.
+    #[must_use]
+    pub fn target(&self) -> &Xref {
+        &self.target
+    }
+
     /// Creates a citation with the given repository xref.
     #[must_use]
     pub fn for_repository(xref: &str) -> Self {
         Self {
-            xref: xref.to_string(),
+            target: xref.to_string(),
             ..Default::default()
         }
     }
 
     /// Adds a call number for this citation.
     pub fn set_call_number(&mut self, call_number: &str) {
-        self.call_numbers.push(CallNumber {
+        self.call_numbers.insert(CallNumber {
             value: call_number.to_string(),
             ..CallNumber::default()
         });
@@ -137,7 +145,7 @@ impl Citation {
     /// empty value if there is none.
     pub fn set_media_type(&mut self, media_type: &str) {
         if self.call_numbers.is_empty() {
-            self.call_numbers.push(CallNumber::default());
+            self.call_numbers.insert(CallNumber::default());
         }
         if let Some(last) = self.call_numbers.last_mut() {
             last.medium = Some(media_type.to_string());
@@ -170,26 +178,35 @@ impl Citation {
     pub fn has_media_type(&self) -> bool {
         self.media_type().is_some()
     }
+
+    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
+        if is_real_reference(&self.target) {
+            sink(&self.target);
+        }
+    }
 }
 
 impl Parser for Citation {
     fn parse(&mut self, tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<(), GedcomError> {
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             match tag {
-                "CALN" => self
-                    .call_numbers
-                    .push(CallNumber::parse(tokenizer, level + 1)?),
+                "CALN" => {
+                    self.call_numbers
+                        .insert(CallNumber::parse(tokenizer, level + 1)?);
+                }
                 // MEDI belongs under CALN; some files put it directly under REPO.
                 // It then describes the last call number, or one with no value.
                 "MEDI" => {
                     if self.call_numbers.last().is_none_or(|c| c.medium.is_some()) {
-                        self.call_numbers.push(CallNumber::default());
+                        self.call_numbers.insert(CallNumber::default());
                     }
                     if let Some(last) = self.call_numbers.last_mut() {
                         last.parse_medium(tokenizer, level + 1)?;
                     }
                 }
-                "NOTE" => self.notes.push(Note::new(tokenizer, level + 1)?),
+                "NOTE" => {
+                    self.notes.insert(Note::new(tokenizer, level + 1)?);
+                }
                 _ => {
                     // Leave unknown tags to `parse_subset`, which keeps them with
                     // their substructures.
@@ -198,7 +215,9 @@ impl Parser for Citation {
             Ok(())
         };
 
-        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
+        for udt in parse_subset(tokenizer, level, handle_subset)? {
+            self.user_defined_tags.insert(*udt);
+        }
 
         Ok(())
     }
@@ -211,8 +230,9 @@ mod tests {
     #[test]
     fn test_citation_for_repository() {
         let citation = Citation::for_repository("@R1@");
-        assert_eq!(citation.xref, "@R1@");
-        assert!(citation.call_numbers.is_empty());
+        assert_eq!(citation.target, "@R1@");
+        assert!(citation.call_number().is_none());
+        assert!(citation.media_type().is_none());
         assert!(!citation.has_media_type());
     }
 

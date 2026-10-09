@@ -25,7 +25,14 @@ fn test_association_role_per_version() {
 0 TRLR"#;
 
     let data = GedcomBuilder::new().build_from_str(original).unwrap();
-    let assoc = &data.individuals[0].associations;
+    let assoc: Vec<_> = data
+        .iter_individuals()
+        .next()
+        .unwrap()
+        .associations
+        .iter()
+        .collect();
+
     assert_eq!(assoc[0].role.as_deref(), Some("GODP"));
     assert_eq!(assoc[1].role.as_deref(), Some("OTHER"));
     assert_eq!(assoc[1].role_phrase.as_deref(), Some("Best man"));
@@ -44,7 +51,10 @@ fn test_association_role_per_version() {
         assert!(v7.contains(expected), "missing {expected:?} in:\n{v7}");
     }
     let reparsed = GedcomBuilder::new().build_from_str(&v7).unwrap();
-    assert_eq!(data.individuals[0], reparsed.individuals[0]);
+    assert_eq!(
+        data.iter_individuals().next().unwrap(),
+        reparsed.iter_individuals().next().unwrap()
+    );
 
     // 5.5.1 has no ROLE: the role is stated as RELA.
     let v551 = GedcomWriter::new()

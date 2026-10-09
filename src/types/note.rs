@@ -2,12 +2,12 @@ use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{source::Source, translation::Translation},
-    util::is_xref_pointer,
+    util::is_pointer_use,
     GedcomError,
 };
 
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 /// A `NOTE_STRUCTURE` containing additional information for understanding the enclosing data.
 ///
@@ -26,8 +26,8 @@ use serde::{Deserialize, Serialize};
 /// Conforms to the GEDCOM `NOTE_STRUCTURE` specification.
 /// See: <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#NOTE>
 /// See: <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#NOTE_STRUCTURE>
-#[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[derive(Debug, Default, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Note {
     pub value: Option<String>,
     /// tag: MIME, indicates the media type of the payload of the superstructure, as defined by BCP
@@ -70,7 +70,7 @@ impl Note {
         self.value
             .as_deref()
             .map(str::trim)
-            .filter(|value| is_xref_pointer(value))
+            .filter(|value| is_pointer_use(value))
     }
 }
 

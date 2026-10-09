@@ -29,7 +29,10 @@ fn test_individual_equality() {
     let data2 = gedcom2.parse_data().unwrap();
 
     // Same data should be equal
-    assert_eq!(data1.individuals[0], data2.individuals[0]);
+    assert_eq!(
+        data1.find_individual("@I1@").unwrap(),
+        data2.find_individual("@I1@").unwrap()
+    );
 }
 
 #[test]
@@ -59,7 +62,10 @@ fn test_individual_inequality() {
     let data2 = gedcom2.parse_data().unwrap();
 
     // Different data should not be equal
-    assert_ne!(data1.individuals[0], data2.individuals[0]);
+    assert_ne!(
+        data1.find_individual("@I1@").unwrap(),
+        data2.find_individual("@I1@").unwrap()
+    );
 }
 
 #[test]
@@ -90,7 +96,10 @@ fn test_family_equality() {
     let mut gedcom2 = Gedcom::new(sample2.chars()).unwrap();
     let data2 = gedcom2.parse_data().unwrap();
 
-    assert_eq!(data1.families[0], data2.families[0]);
+    assert_eq!(
+        data1.find_family("@F1@").unwrap(),
+        data2.find_family("@F1@").unwrap()
+    );
 }
 
 #[test]
@@ -119,7 +128,10 @@ fn test_family_inequality() {
     let mut gedcom2 = Gedcom::new(sample2.chars()).unwrap();
     let data2 = gedcom2.parse_data().unwrap();
 
-    assert_ne!(data1.families[0], data2.families[0]);
+    assert_ne!(
+        data1.find_family("@F1@").unwrap(),
+        data2.find_family("@F1@").unwrap()
+    );
 }
 
 #[test]
@@ -192,11 +204,14 @@ fn test_source_equality() {
     let mut gedcom2 = Gedcom::new(sample2.chars()).unwrap();
     let data2 = gedcom2.parse_data().unwrap();
 
-    assert_eq!(data1.sources[0], data2.sources[0]);
+    assert_eq!(
+        data1.find_source("@S1@").unwrap(),
+        data2.find_source("@S1@").unwrap()
+    );
 }
 
 #[test]
-fn test_clone_and_compare() {
+fn test_compare_two_individuals() {
     let sample = "\
         0 HEAD\n\
         1 GEDC\n\
@@ -204,20 +219,20 @@ fn test_clone_and_compare() {
         0 @I1@ INDI\n\
         1 NAME John /Doe/\n\
         1 SEX M\n\
+        0 @I2@ INDI\n\
+        1 NAME Jane /Doe/\n\
         0 TRLR";
 
     let mut gedcom = Gedcom::new(sample.chars()).unwrap();
     let data = gedcom.parse_data().unwrap();
 
-    // Clone an individual and verify equality
-    let individual = &data.individuals[0];
-    let cloned = individual.clone();
-
-    assert_eq!(*individual, cloned);
+    let indi1 = data.find_individual("@I1@").unwrap();
+    let indi2 = data.find_individual("@I2@").unwrap();
+    assert_ne!(indi1, indi2);
 }
 
 #[test]
-fn test_equality_in_collections() {
+fn test_find_individual_by_xref() {
     let sample = "\
         0 HEAD\n\
         1 GEDC\n\
@@ -231,7 +246,8 @@ fn test_equality_in_collections() {
     let mut gedcom = Gedcom::new(sample.chars()).unwrap();
     let data = gedcom.parse_data().unwrap();
 
-    // Test that we can use contains with PartialEq
-    let individual = data.individuals[0].clone();
-    assert!(data.individuals.contains(&individual));
+    // Verify we can find individuals by xref
+    assert!(data.find_individual("@I1@").is_some());
+    assert!(data.find_individual("@I2@").is_some());
+    assert!(data.find_individual("@I999@").is_none());
 }

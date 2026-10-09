@@ -11,7 +11,6 @@ description = "A parser for GEDCOM files"
 keywords = ["genealogy", "gedcom", "parser", "family-trees"]
 categories = ["parser-implementations", "data-structures"]
 license = "MIT"
-readme = "README.md"
 repository = "https://github.com/ge3224/ged_io"
 edition = "2021"
 include = ["Cargo.toml", "src/**/*.rs"]
@@ -53,5 +52,5 @@ name = "ged_io"
 path = "src/lib.rs"
 
 [[bin]]
-name = "ged_io"
+name = "ged-io"
 path = "src/bin.rs"

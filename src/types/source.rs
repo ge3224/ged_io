@@ -4,17 +4,24 @@ pub mod quay;
 pub mod text;
 
 use crate::{
+    arena::Arena,
     parser::{parse_subset, Parser},
-    tokenizer::{Token, Tokenizer},
+    tokenizer::Tokenizer,
     types::{
-        custom::UserDefinedTag, date::change_date::ChangeDate, multimedia::Multimedia, note::Note,
-        repository::citation::Citation, source::data::Data, Xref,
+        custom::UserDefinedTag,
+        date::change_date::ChangeDate,
+        external_id::ExternalId,
+        multimedia::link::{Link, LinkTarget},
+        note::Note,
+        repository::citation::Citation,
+        source::data::Data,
+        Xref,
     },
     GedcomError,
 };
 
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 /// Source for genealogy facts
 ///
@@ -22,10 +29,10 @@ use serde::{Deserialize, Serialize};
 /// from which you have obtained your genealogical information.
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#SOURCE_RECORD>
-#[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[derive(Debug, Default, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Source {
-    pub xref: Option<String>,
+    pub xref: String,
     pub data: Data,
     pub abbreviation: Option<String>,
     pub title: Option<String>,
@@ -33,12 +40,12 @@ pub struct Source {
     pub publication_facts: Option<String>,
     pub citation_from_source: Option<String>,
     pub change_date: Option<Box<ChangeDate>>,
-    pub multimedia: Vec<Multimedia>,
-    pub notes: Vec<Note>,
-    pub repo_citations: Vec<Citation>,
+    pub multimedia_links: Arena<Link>,
+    pub notes: Arena<Note>,
+    pub repo_citations: Arena<Citation>,
     /// handles "RFN" tag; found in Ancestry.com export
     pub submitter_registered_rfn: Option<String>,
-    pub custom_data: Vec<Box<UserDefinedTag>>,
+    pub user_defined_tags: Arena<UserDefinedTag>,
     /// Unique identifier (tag: UID, GEDCOM 7.0).
     ///
     /// A globally unique identifier for this record. In GEDCOM 7.0, this is
@@ -60,17 +67,18 @@ pub struct Source {
     /// A unique record identification number assigned to the record by
     /// the source system. Used for reconciling differences between systems.
     pub automated_record_id: Option<String>,
-    /// External identifiers (tag: EXID, GEDCOM 7.0).
-    ///
-    /// Identifiers maintained by external authorities that apply to this source.
-    pub external_ids: Vec<String>,
+    /// External identifiers maintained by external authorities that apply to
+    /// this source.
+    pub external_ids: Arena<ExternalId>,
 }
 
 impl Source {
+    pub(crate) const RECORD_TYPE: &'static str = "Source";
+
     #[must_use]
-    fn with_xref(xref: Option<Xref>) -> Self {
+    fn with_xref(xref: impl Into<Xref>) -> Self {
         Self {
-            xref,
+            xref: xref.into(),
             ..Default::default()
         }
     }
@@ -84,23 +92,48 @@ impl Source {
     pub fn new(
         tokenizer: &mut Tokenizer<'_>,
         level: u8,
-        xref: Option<String>,
+        xref: Xref,
     ) -> Result<Source, GedcomError> {
         let mut sour = Source::with_xref(xref);
         sour.parse(tokenizer, level)?;
         Ok(sour)
     }
 
-    pub fn add_multimedia(&mut self, media: Multimedia) {
-        self.multimedia.push(media);
+    pub fn add_multimedia(&mut self, media: Link) {
+        self.multimedia_links.insert(media);
     }
 
     pub fn add_note(&mut self, note: Note) {
-        self.notes.push(note);
+        self.notes.insert(note);
     }
 
     pub fn add_repo_citation(&mut self, citation: Citation) {
-        self.repo_citations.push(citation);
+        self.repo_citations.insert(citation);
+    }
+
+    pub(crate) fn remove_repo_citation_to(&mut self, xref: &str) -> usize {
+        let before = self.repo_citations.len();
+        self.repo_citations.retain(|r| r.target != xref);
+        before - self.repo_citations.len()
+    }
+
+    pub(crate) fn remove_multimedia_link_to(&mut self, xref: &str) -> usize {
+        let before = self.multimedia_links.len();
+        self.multimedia_links
+            .retain(|l| !matches!(&l.target, LinkTarget::Record(x) if x == xref));
+        before - self.multimedia_links.len()
+    }
+
+    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
+        for l in &self.multimedia_links {
+            l.outbound_refs(sink);
+        }
+
+        for c in &self.repo_citations {
+            c.outbound_refs(sink);
+        }
+
+        self.data.outbound_refs(sink);
     }
 }
 
@@ -110,11 +143,6 @@ impl Parser for Source {
         tokenizer.next_token()?;
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
-            let mut pointer: Option<String> = None;
-            if let Token::Pointer(xref) = &tokenizer.current_token {
-                pointer = Some(xref.to_string());
-                tokenizer.next_token()?;
-            }
             match tag {
                 "DATA" => self.data.parse(tokenizer, level + 1)?,
                 // Tolerated directly under SOUR, as earlier versions did.
@@ -128,7 +156,7 @@ impl Parser for Source {
                 "TEXT" => {
                     self.citation_from_source = Some(tokenizer.take_continued_text(level + 1)?);
                 }
-                "OBJE" => self.add_multimedia(Multimedia::new(tokenizer, level + 1, pointer)?),
+                "OBJE" => self.add_multimedia(Link::new(tokenizer, level + 1)?),
                 "NOTE" => self.add_note(Note::new(tokenizer, level + 1)?),
                 "REPO" => self.add_repo_citation(Citation::new(tokenizer, level + 1)?),
                 "RFN" => self.submitter_registered_rfn = Some(tokenizer.take_line_value()?),
@@ -147,7 +175,10 @@ impl Parser for Source {
                 // Automated record ID
                 "RIN" => self.automated_record_id = Some(tokenizer.take_line_value()?),
                 // External identifier (GEDCOM 7.0)
-                "EXID" => self.external_ids.push(tokenizer.take_line_value()?),
+                "EXID" => {
+                    let id = tokenizer.take_line_value()?;
+                    self.external_ids.insert(ExternalId { id, type_uri: None });
+                }
                 _ => {
                     // Leave unknown tags to `parse_subset`, which keeps them with
                     // their substructures.
@@ -157,7 +188,9 @@ impl Parser for Source {
             Ok(())
         };
 
-        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
+        for udt in parse_subset(tokenizer, level, handle_subset)? {
+            self.user_defined_tags.insert(*udt);
+        }
 
         Ok(())
     }
@@ -165,7 +198,7 @@ impl Parser for Source {
 
 #[cfg(test)]
 mod tests {
-    use crate::Gedcom;
+    use crate::{types::source::citation::CitationSource, Gedcom};
 
     #[test]
     fn test_parse_source_citation_record() {
@@ -182,11 +215,14 @@ mod tests {
         let mut ged = Gedcom::new(sample.chars()).unwrap();
         let data = ged.parse_data().unwrap();
 
-        assert_eq!(
-            data.individuals[0].source[0].source.as_xref(),
-            Some("@SOURCE1@")
-        );
-        assert_eq!(data.individuals[0].source[0].page.as_ref().unwrap(), "42");
+        let indi = data.find_individual("@PERSON1@").unwrap();
+
+        let s = indi.sources.iter().next().unwrap();
+        let CitationSource::Record(x) = &s.target else {
+            panic!("expected a Record citation");
+        };
+        assert_eq!(x, "@SOURCE1@");
+        assert_eq!(s.page.as_ref().unwrap(), "42");
     }
     #[test]
     fn test_parse_source_citation_data_record() {
@@ -204,7 +240,16 @@ mod tests {
 
         let mut ged = Gedcom::new(sample.chars()).unwrap();
         let data = ged.parse_data().unwrap();
-        let citation_data = data.individuals[0].source[0].data.as_ref().unwrap();
+        let citation_data = data
+            .find_individual("@PERSON1@")
+            .unwrap()
+            .sources
+            .iter()
+            .next()
+            .unwrap()
+            .data
+            .as_ref()
+            .unwrap();
 
         assert_eq!(
             citation_data.date.as_ref().unwrap().value.as_ref().unwrap(),
@@ -231,10 +276,19 @@ mod tests {
 
         let mut ged = Gedcom::new(sample.chars()).unwrap();
         let data = ged.parse_data().unwrap();
-        let citation_data = data.individuals[0].source[0].data.as_ref().unwrap();
+        let citation_data = data
+            .find_individual("@PERSON1@")
+            .unwrap()
+            .sources
+            .iter()
+            .next()
+            .unwrap()
+            .data
+            .as_ref()
+            .unwrap();
 
         assert_eq!(
-            citation_data.texts[0].value.as_ref().unwrap(),
+            citation_data.texts.first().unwrap().value.as_ref().unwrap(),
             "a sample text\nSample text continued here. The word TEST should not be broken!"
         );
     }
@@ -254,7 +308,13 @@ mod tests {
 
         let mut ged = Gedcom::new(sample.chars()).unwrap();
         let data = ged.parse_data().unwrap();
-        let quay = data.individuals[0].source[0]
+        let quay = data
+            .find_individual("@PERSON1@")
+            .unwrap()
+            .sources
+            .iter()
+            .next()
+            .unwrap()
             .certainty_assessment
             .as_ref()
             .unwrap();
@@ -276,7 +336,7 @@ mod tests {
 
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
-        let source = &data.sources[0];
+        let source = data.find_source("@S1@").unwrap();
         assert_eq!(source.title.as_deref(), Some("Real title"));
         assert_eq!(source.author.as_deref(), Some("Real author"));
     }

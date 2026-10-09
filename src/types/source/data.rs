@@ -1,7 +1,8 @@
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::{
+    arena::Arena,
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{event::detail::Detail, note::Note},
@@ -13,25 +14,31 @@ use crate::{
 ///
 /// See GEDCOM 5.5.1, `SOURCE_RECORD` (p. 27).
 #[allow(clippy::module_name_repetitions)]
-#[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[derive(Debug, Default, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Data {
-    events: Vec<Detail>,
+    events: Arena<Detail>,
     pub agency: Option<String>,
     /// Notes about the recorded data (tag: NOTE under DATA).
-    pub notes: Vec<Note>,
+    pub notes: Arena<Note>,
 }
 
 impl Data {
     pub fn add_event(&mut self, event: Detail) {
-        self.events.push(event);
+        self.events.insert(event);
+    }
+
+    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
+        for e in &self.events {
+            e.outbound_refs(sink);
+        }
     }
 
     /// The events recorded (tag: EVEN under DATA). Each one is an
     /// `Event::SourceData` holding the recorded event types, with the period
     /// (`DATE`) and jurisdiction (`PLAC`) covered by the source.
     #[must_use]
-    pub fn events(&self) -> &[Detail] {
+    pub fn events(&self) -> &Arena<Detail> {
         &self.events
     }
 
@@ -67,7 +74,9 @@ impl Parser for Data {
             match tag {
                 "EVEN" => self.parse_event(tokenizer, level + 1)?,
                 "AGNC" => self.agency = Some(tokenizer.take_line_value()?),
-                "NOTE" => self.notes.push(Note::new(tokenizer, level + 1)?),
+                "NOTE" => {
+                    self.notes.insert(Note::new(tokenizer, level + 1)?);
+                }
                 _ => {
                     // Leave unknown tags to `parse_subset`, which keeps them with
                     // their substructures.

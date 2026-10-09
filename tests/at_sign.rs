@@ -22,7 +22,15 @@ fn test_leading_at_sign_round_trip() {
 
     let data1 = GedcomBuilder::new().build_from_str(original).unwrap();
     assert_eq!(
-        data1.families[0].notes[0].value.as_deref(),
+        data1
+            .iter_families()
+            .next()
+            .unwrap()
+            .notes
+            .first()
+            .unwrap()
+            .value
+            .as_deref(),
         Some("@home in the village\n@noon every day")
     );
 
@@ -40,8 +48,14 @@ fn test_leading_at_sign_round_trip() {
     }
 
     let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();
-    assert_eq!(data1.individuals[0], data2.individuals[0]);
-    assert_eq!(data1.families[0], data2.families[0]);
+    assert_eq!(
+        data1.iter_individuals().next().unwrap(),
+        data2.iter_individuals().next().unwrap()
+    );
+    assert_eq!(
+        data1.iter_families().next().unwrap(),
+        data2.iter_families().next().unwrap()
+    );
 }
 
 #[test]

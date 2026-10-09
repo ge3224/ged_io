@@ -51,10 +51,21 @@ fn test_round_trip_extension_tags() {
 0 TRLR"#;
 
     let data1 = GedcomBuilder::new().build_from_str(original).unwrap();
-    assert_eq!(data1.custom_data.len(), 2);
-    assert_eq!(data1.custom_data[0].xref.as_deref(), Some("@L1@"));
-    assert_eq!(data1.custom_data[0].children.len(), 1);
-    assert_eq!(data1.custom_data[1].children.len(), 1);
+    let tags: Vec<_> = data1
+        .iter_user_defined_tags()
+        .map(|t| (t.level, t.tag.as_str()))
+        .collect();
+
+    assert_eq!(
+        tags,
+        [
+            (0, "_LOC"),
+            (1, "NAME"),
+            (2, "DATE"),
+            (0, "_PUBLISH"),
+            (1, "_TREE")
+        ]
+    );
 
     let written = GedcomWriter::new().write_to_string(&data1).unwrap();
     for expected in [
@@ -82,14 +93,29 @@ fn test_round_trip_extension_tags() {
     }
 
     let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();
-    assert_eq!(data1.individuals, data2.individuals);
-    assert_eq!(data1.families, data2.families);
-    assert_eq!(data1.sources, data2.sources);
-    assert_eq!(data1.multimedia, data2.multimedia);
-    assert_eq!(data1.custom_data, data2.custom_data);
     assert_eq!(
-        data1.header.as_ref().unwrap().custom_data,
-        data2.header.as_ref().unwrap().custom_data
+        data1.iter_individuals().collect::<Vec<_>>(),
+        data2.iter_individuals().collect::<Vec<_>>(),
+    );
+    assert_eq!(
+        data1.iter_families().collect::<Vec<_>>(),
+        data2.iter_families().collect::<Vec<_>>(),
+    );
+    assert_eq!(
+        data1.iter_sources().collect::<Vec<_>>(),
+        data2.iter_sources().collect::<Vec<_>>()
+    );
+    assert_eq!(
+        data1.iter_multimedia().collect::<Vec<_>>(),
+        data2.iter_multimedia().collect::<Vec<_>>()
+    );
+    assert_eq!(
+        data1.iter_user_defined_tags().collect::<Vec<_>>(),
+        data2.iter_user_defined_tags().collect::<Vec<_>>()
+    );
+    assert_eq!(
+        data1.header.as_ref().unwrap().user_defined_tags,
+        data2.header.as_ref().unwrap().user_defined_tags
     );
 }
 
@@ -108,8 +134,6 @@ fn test_stream_parser_extension_record_with_xref() {
         .collect::<Result<GedcomData, _>>()
         .unwrap();
 
-    let record = &data.custom_data[0];
-    assert_eq!(record.xref.as_deref(), Some("@L1@"));
+    let record = &data.iter_user_defined_tags().next().unwrap();
     assert_eq!(record.tag, "_LOC");
-    assert_eq!(record.children[0].tag, "NAME");
 }

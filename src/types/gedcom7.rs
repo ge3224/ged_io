@@ -12,14 +12,19 @@
 //! See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html>
 
 use crate::{
+    arena::Arena,
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
-    types::{date::Date, note::Note},
+    types::{
+        date::Date,
+        note::Note,
+        source::citation::{Citation, CitationSource},
+    },
     GedcomError,
 };
 
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 /// A sort date structure for GEDCOM 7.0.
 ///
@@ -42,7 +47,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#SDATE>
 #[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct SortDate {
     /// The date value used for sorting.
     pub value: Option<String>,
@@ -114,7 +119,7 @@ impl Parser for SortDate {
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#CREATION_DATE>
 #[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct CreationDate {
     /// The date the record was created.
     pub date: Option<Date>,
@@ -173,7 +178,7 @@ impl Parser for CreationDate {
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#CROP>
 #[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Crop {
     /// The distance from the top of the image to the top of the crop region.
     /// Expressed as a percentage (0-100) of the image height.
@@ -296,8 +301,8 @@ impl Parser for Crop {
 /// ```
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#NO>
-#[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[derive(Debug, Default, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct NonEvent {
     /// The event type that did not occur.
     ///
@@ -313,7 +318,7 @@ pub struct NonEvent {
     pub notes: Vec<Note>,
 
     /// Source citations supporting the claim that the event did not occur.
-    pub source_citations: Vec<crate::types::source::citation::Citation>,
+    pub source_citations: Arena<Citation>,
 }
 
 impl NonEvent {
@@ -356,6 +361,38 @@ impl NonEvent {
             _ => &self.event_type,
         }
     }
+
+    pub(crate) fn remove_citation_to(&mut self, xref: &str) -> usize {
+        let before = self.source_citations.len();
+
+        self.source_citations
+            .retain(|c| !matches!(&c.target, CitationSource::Record(x) if x == xref));
+
+        before - self.source_citations.len()
+    }
+
+    pub(crate) fn remove_multimedia_link_to(&mut self, xref: &str) -> usize {
+        let mut removed = 0;
+
+        for h in self
+            .source_citations
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(s) = self.source_citations.get_mut(h) {
+                removed += s.remove_multimedia_link_to(xref);
+            }
+        }
+
+        removed
+    }
+
+    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
+        for source in &self.source_citations {
+            source.outbound_refs(sink);
+        }
+    }
 }
 
 impl Parser for NonEvent {
@@ -369,10 +406,7 @@ impl Parser for NonEvent {
                 "NOTE" => self.notes.push(Note::new(tokenizer, level + 1)?),
                 "SOUR" => {
                     self.source_citations
-                        .push(crate::types::source::citation::Citation::new(
-                            tokenizer,
-                            level + 1,
-                        )?);
+                        .insert(Citation::new(tokenizer, level + 1)?);
                 }
                 _ => {
                     // Leave unknown tags to `parse_subset`, which keeps them with
@@ -405,7 +439,7 @@ impl Parser for NonEvent {
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#PHRASE>
 #[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Phrase {
     /// The free-text phrase.
     pub value: String,

@@ -1,17 +1,21 @@
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::{
+    arena::Arena,
     parser::{parse_subset, Parser},
     tokenizer::{Token, Tokenizer},
-    types::{custom::UserDefinedTag, source::citation::Citation},
+    types::{
+        custom::UserDefinedTag,
+        source::citation::{Citation, CitationSource},
+    },
     GedcomError,
 };
 
 /// `GenderType` is a set of enumerated values that indicate the sex of an individual at birth. See
 /// 5.5 specification, p. 61; <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#SEX>.
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub enum GenderType {
     /// Tag 'M'
     Male,
@@ -33,13 +37,13 @@ impl std::fmt::Display for GenderType {
 /// Related concepts of gender identity or sexual preference are not currently given their own tag.
 /// Cultural or personal gender preference may be indicated using the FACT tag. See
 /// <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#SEX>.
-#[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[derive(Debug, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Gender {
     pub value: GenderType,
     pub fact: Option<String>,
-    pub sources: Vec<Citation>,
-    pub custom_data: Vec<Box<UserDefinedTag>>,
+    pub sources: Arena<Citation>,
+    pub user_defined_tags: Arena<UserDefinedTag>,
 }
 
 impl Gender {
@@ -52,15 +56,15 @@ impl Gender {
         let mut sex = Gender {
             value: GenderType::Unknown,
             fact: None,
-            sources: Vec::new(),
-            custom_data: Vec::new(),
+            sources: Arena::default(),
+            user_defined_tags: Arena::default(),
         };
         sex.parse(tokenizer, level)?;
         Ok(sex)
     }
 
     pub fn add_source_citation(&mut self, sour: Citation) {
-        self.sources.push(sour);
+        self.sources.insert(sour);
     }
 
     #[must_use]
@@ -71,6 +75,38 @@ impl Gender {
     #[must_use]
     pub fn is_male(&self) -> bool {
         matches!(self.value, GenderType::Male)
+    }
+
+    pub(crate) fn remove_citation_to(&mut self, xref: &str) -> usize {
+        let before = self.sources.len();
+
+        self.sources
+            .retain(|c| !matches!(&c.target, CitationSource::Record(x) if x == xref));
+
+        before - self.sources.len()
+    }
+
+    pub(crate) fn remove_multimedia_link_to(&mut self, xref: &str) -> usize {
+        let mut removed = 0;
+
+        for h in self
+            .sources
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(s) = self.sources.get_mut(h) {
+                removed += s.remove_multimedia_link_to(xref);
+            }
+        }
+
+        removed
+    }
+
+    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
+        for cite in &self.sources {
+            cite.outbound_refs(sink);
+        }
     }
 }
 
@@ -106,7 +142,9 @@ impl Parser for Gender {
             Ok(())
         };
 
-        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
+        for udt in parse_subset(tokenizer, level, handle_subset)? {
+            self.user_defined_tags.insert(*udt);
+        }
 
         Ok(())
     }

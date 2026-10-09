@@ -1,16 +1,16 @@
 use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
-    types::source::citation::Citation,
+    types::source::citation::{Citation, CitationSource},
     GedcomError,
 };
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 /// Encoding (tag: CHAR) is a code value that represents the character set to be used to
 /// interpret this data. See GEDCOM 5.5.1 specification, p. 44
-#[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[derive(Debug, Default, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Encoding {
     pub value: Option<String>,
     /// tag: VERS
@@ -30,6 +30,26 @@ impl Encoding {
         let mut chars = Encoding::default();
         chars.parse(tokenizer, level)?;
         Ok(chars)
+    }
+
+    pub(crate) fn remove_citation_to(&mut self, xref: &str) -> usize {
+        let hit = self
+            .source
+            .as_ref()
+            .is_some_and(|c| matches!(&c.target, CitationSource::Record(x) if x == xref));
+
+        if hit {
+            self.source = None;
+            1
+        } else {
+            0
+        }
+    }
+
+    pub(crate) fn remove_multimedia_link_to(&mut self, xref: &str) -> usize {
+        self.source
+            .as_mut()
+            .map_or(0, |s| s.remove_multimedia_link_to(xref))
     }
 }
 

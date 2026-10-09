@@ -19,34 +19,50 @@
 //! # }
 //! ```
 
-use crate::types::{
-    address::Address,
-    age::Age,
-    custom::UserDefinedTag,
-    date::Date,
-    event::{detail::Detail as EventDetail, spouse::Spouse, Event},
-    family::Family,
-    gedcom7::{Crop, NonEvent, SortDate},
-    header::{meta::HeadMeta, schema::Schema, source::HeadSour},
-    individual::{
-        association::Association,
-        attribute::detail::AttributeDetail,
-        family_link::FamilyLink,
-        gender::{Gender, GenderType},
-        name::Name,
-        Individual,
+use crate::util::{escape_at_signs, is_pointer_use};
+use crate::{
+    arena::Arena,
+    types::{
+        address::Address,
+        age::Age,
+        custom::UserDefinedTag,
+        date::Date,
+        event::{detail::Detail as EventDetail, spouse::Spouse, Event},
+        external_id::ExternalId,
+        family::Family,
+        gedcom7::{Crop, NonEvent, SortDate},
+        header::{meta::HeadMeta, schema::Schema, source::HeadSour},
+        individual::{
+            association::{Association, AssociationTarget},
+            attribute::detail::AttributeDetail,
+            family_link::FamilyLink,
+            gender::{Gender, GenderType},
+            name::Name,
+            Individual,
+        },
+        lds::LdsOrdinance,
+        list::ListEnum,
+        multimedia::{
+            file::Reference,
+            format::Format,
+            link::{Link, LinkTarget},
+            Multimedia,
+        },
+        note::Note,
+        repository::Repository,
+        restriction::Restriction,
+        shared_note::SharedNote,
+        source::{
+            citation::{Citation, CitationSource},
+            data::Data as SourceData,
+            quay::CertaintyAssessment,
+            Source,
+        },
+        submission::Submission,
+        submitter::Submitter,
+        GedcomData,
     },
-    lds::LdsOrdinance,
-    multimedia::Multimedia,
-    note::Note,
-    repository::Repository,
-    shared_note::SharedNote,
-    source::{citation::Citation, data::Data as SourceData, quay::CertaintyAssessment, Source},
-    submission::Submission,
-    submitter::Submitter,
-    GedcomData,
 };
-use crate::util::{escape_at_signs, is_xref_pointer};
 use std::fmt::Write;
 use std::io;
 
@@ -188,67 +204,55 @@ impl GedcomWriter {
         // Write header
         self.write_header(writer, data)?;
 
-        // Every record line needs an xref of its own.
-        let filled = with_missing_xrefs(data);
-        let data = filled.as_ref().unwrap_or(data);
-
         // Write submitters
-        for submitter in &data.submitters {
+        for submitter in data.iter_submitters() {
             self.write_submitter(writer, submitter)?;
         }
 
-        // Write submissions
-        for submission in &data.submissions {
+        for submission in data.iter_submissions() {
             self.write_submission(writer, submission)?;
         }
 
-        // Write individuals
-        for individual in &data.individuals {
+        for individual in data.iter_individuals() {
             self.write_individual(writer, individual)?;
         }
 
-        // Write families
-        for family in &data.families {
+        for family in data.iter_families() {
             self.write_family(writer, family)?;
         }
 
-        // Write sources
-        for source in &data.sources {
+        for source in data.iter_sources() {
             self.write_source(writer, source)?;
         }
 
-        // Write repositories
-        for repo in &data.repositories {
+        for repo in data.iter_repositories() {
             self.write_repository(writer, repo)?;
         }
 
-        // Write multimedia
-        for media in &data.multimedia {
+        for media in data.iter_multimedia() {
             self.write_multimedia(writer, media)?;
         }
 
-        // Write shared notes (GEDCOM 7.0)
-        for shared_note in &data.shared_notes {
+        for shared_note in data.iter_shared_notes() {
             self.write_shared_note(writer, shared_note)?;
         }
 
-        // Extension records (`0 _XXX`)
-        self.write_custom_data(writer, 0, &data.custom_data)?;
+        for udt in data.iter_user_defined_tags() {
+            self.write_user_defined_tag(writer, udt)?;
+        }
 
-        // Write trailer (final line; do not add a line terminator after TRLR)
+        // final line; do not add a line terminator after TRLR
         self.write_trailer(writer)?;
 
         Ok(())
     }
 
-    /// Writes the GEDCOM header.
     fn write_header<W: Write>(&self, writer: &mut W, data: &GedcomData) -> Result<(), io::Error> {
         self.write_line(writer, 0, "HEAD", None)?;
 
         if let Some(ref header) = data.header {
-            // GEDC block
             if let Some(ref gedc) = header.gedcom {
-                self.write_gedcom_header(writer, gedc)?;
+                self.write_head_gedc(writer, gedc)?;
             } else {
                 // Write default GEDC if none exists
                 self.write_line(writer, 1, "GEDC", None)?;
@@ -256,59 +260,60 @@ impl GedcomWriter {
                 self.write_line(writer, 2, "FORM", Some("LINEAGE-LINKED"))?;
             }
 
-            // Character encoding
             if let Some(ref encoding) = header.encoding {
                 if let Some(ref value) = encoding.value {
                     self.write_value_or_wrap(writer, 1, "CHAR", Some(value))?;
                 }
             }
 
-            // Source
             if let Some(ref source) = header.source {
-                self.write_header_source(writer, source)?;
+                self.write_head_sour(writer, source)?;
             }
 
-            // Destination
             if let Some(ref dest) = header.destination {
                 self.write_value_or_wrap(writer, 1, "DEST", Some(dest))?;
             }
 
-            // Date
+            // Place form (document-wide default PLAC.FORM)
+            if let Some(ref place) = header.place {
+                let form = place.form.to_payload();
+                if !form.is_empty() {
+                    self.write_line(writer, 1, "PLAC", None)?;
+                    self.write_value_or_wrap(writer, 2, "FORM", Some(&form))?;
+                }
+            }
+
             if let Some(ref date) = header.date {
                 self.write_date(writer, 1, date)?;
             }
 
-            // Submitter reference
             if let Some(ref subm) = header.submitter_tag {
                 self.write_line(writer, 1, "SUBM", Some(subm))?;
             }
 
-            // File name
             if let Some(ref file) = header.filename {
                 self.write_value_or_wrap(writer, 1, "FILE", Some(file))?;
             }
 
-            // Copyright
             if let Some(ref copyright) = header.copyright {
                 self.write_value_or_wrap(writer, 1, "COPR", Some(copyright))?;
             }
 
-            // Language
             if let Some(ref lang) = header.language {
                 self.write_value_or_wrap(writer, 1, "LANG", Some(lang))?;
             }
 
-            // Note
             if let Some(ref note) = header.note {
                 self.write_note(writer, 1, note)?;
             }
 
-            // Schema (GEDCOM 7.0)
             if let Some(ref schema) = header.schema {
                 self.write_schema(writer, schema)?;
             }
 
-            self.write_custom_data(writer, 1, &header.custom_data)?;
+            for udt in &header.user_defined_tags {
+                self.write_user_defined_tag(writer, udt)?;
+            }
         } else {
             // Write minimal required header
             self.write_line(writer, 1, "GEDC", None)?;
@@ -320,12 +325,7 @@ impl GedcomWriter {
         Ok(())
     }
 
-    /// Writes the GEDC header block.
-    fn write_gedcom_header<W: Write>(
-        &self,
-        writer: &mut W,
-        gedc: &HeadMeta,
-    ) -> Result<(), io::Error> {
+    fn write_head_gedc<W: Write>(&self, writer: &mut W, gedc: &HeadMeta) -> Result<(), io::Error> {
         self.write_line(writer, 1, "GEDC", None)?;
 
         match gedc.version {
@@ -344,8 +344,7 @@ impl GedcomWriter {
         Ok(())
     }
 
-    /// Writes the header source block.
-    fn write_header_source<W: Write>(
+    fn write_head_sour<W: Write>(
         &self,
         writer: &mut W,
         source: &HeadSour,
@@ -383,16 +382,15 @@ impl GedcomWriter {
         Ok(())
     }
 
-    /// Writes an individual record.
     fn write_individual<W: Write>(
         &self,
         writer: &mut W,
         individual: &Individual,
     ) -> Result<(), io::Error> {
-        self.write_line_with_xref(writer, 0, individual.xref.as_deref(), "INDI", None)?;
+        self.write_line_with_xref(writer, 0, Some(individual.xref.as_str()), "INDI", None)?;
 
-        if let Some(ref restriction) = individual.restriction {
-            self.write_value_or_wrap(writer, 1, "RESN", Some(restriction))?;
+        if let Some(resn) = self.resn_payload(&individual.restriction) {
+            self.write_value_or_wrap(writer, 1, "RESN", Some(&resn))?;
         }
 
         if !individual.names.is_empty() {
@@ -425,7 +423,7 @@ impl GedcomWriter {
 
         for family_link in &individual.families {
             let tag = family_link.family_link_type.to_tag();
-            self.write_line(writer, 1, tag, Some(&family_link.xref))?;
+            self.write_line(writer, 1, tag, Some(&family_link.target))?;
             self.write_family_link_detail(writer, 2, family_link)?;
         }
 
@@ -433,15 +431,13 @@ impl GedcomWriter {
             self.write_line(writer, 1, "SUBM", Some(submitter))?;
         }
 
-        for citation in &individual.source {
+        for citation in &individual.sources {
             self.write_citation(writer, 1, citation)?;
         }
 
-        // Associations (witnesses, godparents, ...), e.g. `1 ASSO @I2@` /
-        // `2 RELA Witness` — must be a direct child of the INDI record per
-        // the GEDCOM 5.5.1 grammar; nesting it inside an event (as the
-        // `write_event` ASSO branch above does) is a non-standard extension
-        // most readers, including Gramps, reject.
+        // ASSO must be a direct level-1 child of INDI per the 5.5.1 grammar;
+        // nesting it under an event (as write_event does) is a non-standard
+        // extension that readers like Gramps reject.
         for association in &individual.associations {
             self.write_association(writer, 1, association)?;
         }
@@ -449,12 +445,15 @@ impl GedcomWriter {
         for alias in &individual.aliases {
             self.write_line(writer, 1, "ALIA", Some(alias))?;
         }
-        if let Some(ref ancestor_interest) = individual.ancestor_interest {
-            self.write_line(writer, 1, "ANCI", Some(ancestor_interest))?;
+
+        for ai in &individual.ancestor_interest {
+            self.write_line(writer, 1, "ANCI", Some(ai))?;
         }
-        if let Some(ref descendant_interest) = individual.descendant_interest {
-            self.write_line(writer, 1, "DESI", Some(descendant_interest))?;
+
+        for di in &individual.descendant_interest {
+            self.write_line(writer, 1, "DESI", Some(di))?;
         }
+
         if let Some(ref afn) = individual.ancestral_file_number {
             self.write_value_or_wrap(writer, 1, "AFN", Some(afn))?;
         }
@@ -467,7 +466,7 @@ impl GedcomWriter {
             &individual.external_ids,
         )?;
 
-        for media in &individual.multimedia {
+        for media in &individual.multimedia_links {
             self.write_multimedia_link(writer, 1, media)?;
         }
 
@@ -482,12 +481,13 @@ impl GedcomWriter {
             }
         }
 
-        self.write_custom_data(writer, 1, &individual.custom_data)?;
+        for udt in &individual.user_defined_tags {
+            self.write_user_defined_tag(writer, udt)?;
+        }
 
         Ok(())
     }
 
-    /// Writes a name structure.
     fn write_name<W: Write>(&self, writer: &mut W, name: &Name) -> Result<(), io::Error> {
         self.write_value_or_wrap(writer, 1, "NAME", name.value.as_deref())?;
 
@@ -520,7 +520,7 @@ impl GedcomWriter {
         }
 
         // Source citations for name
-        for citation in &name.source {
+        for citation in &name.sources {
             self.write_citation(writer, 2, citation)?;
         }
 
@@ -529,12 +529,13 @@ impl GedcomWriter {
             self.write_note(writer, 2, note)?;
         }
 
-        self.write_custom_data(writer, 2, &name.custom_data)?;
+        for udt in &name.user_defined_tags {
+            self.write_user_defined_tag(writer, udt)?;
+        }
 
         Ok(())
     }
 
-    /// Writes a gender record.
     fn write_gender<W: Write>(&self, writer: &mut W, gender: &Gender) -> Result<(), io::Error> {
         let sex_char = match gender.value {
             GenderType::Male => "M",
@@ -552,12 +553,34 @@ impl GedcomWriter {
             self.write_citation(writer, 2, citation)?;
         }
 
-        self.write_custom_data(writer, 2, &gender.custom_data)?;
+        for udt in &gender.user_defined_tags {
+            self.write_user_defined_tag(writer, udt)?;
+        }
 
         Ok(())
     }
 
-    /// Writes an event detail.
+    fn resn_payload(&self, restriction: &ListEnum<Restriction>) -> Option<String> {
+        if self.config.gedcom_version.starts_with('5') {
+            // 5.5.1 RESTRICTION_NOTICE is a single value {Size=6:7} drawn from
+            // a closed set, so a multi-value 7.0 list can't survive the
+            // downgrade. Keep the strongest disclosure restriction and drop the
+            // rest, so the conversion never loosens a restriction. Extension
+            // values have no 5.5.1 form.
+            [
+                Restriction::Confidential,
+                Restriction::Privacy,
+                Restriction::Locked,
+            ]
+            .into_iter()
+            .find(|r| restriction.iter().any(|x| x == r))
+            .map(|r| r.to_string().to_ascii_lowercase())
+        } else {
+            let payload = restriction.to_payload();
+            (!payload.is_empty()).then_some(payload)
+        }
+    }
+
     fn write_event<W: Write>(
         &self,
         writer: &mut W,
@@ -578,8 +601,9 @@ impl GedcomWriter {
 
         if let Some(ref place) = event.place {
             self.write_value_or_wrap(writer, level + 1, "PLAC", place.value.as_deref())?;
-            if let Some(ref form) = place.form {
-                self.write_value_or_wrap(writer, level + 2, "FORM", Some(form))?;
+            let form = place.form.to_payload();
+            if !form.is_empty() {
+                self.write_value_or_wrap(writer, level + 2, "FORM", Some(&form))?;
             }
             if let Some(ref map) = place.map {
                 self.write_line(writer, level + 2, "MAP", None)?;
@@ -603,7 +627,10 @@ impl GedcomWriter {
                     self.write_value_or_wrap(writer, level + 3, "TYPE", Some(vtype))?;
                 }
             }
-            self.write_custom_data(writer, level + 2, &place.custom_data)?;
+
+            for udt in &place.user_defined_tags {
+                self.write_user_defined_tag(writer, udt)?;
+            }
         }
 
         self.write_event_address(writer, level + 1, event)?;
@@ -616,7 +643,7 @@ impl GedcomWriter {
             self.write_citation(writer, level + 1, citation)?;
         }
 
-        for media in &event.multimedia {
+        for media in &event.multimedia_links {
             self.write_multimedia_link(writer, level + 1, media)?;
         }
 
@@ -629,8 +656,8 @@ impl GedcomWriter {
             self.write_long_text(writer, level + 1, "CAUS", cause)?;
         }
 
-        if let Some(ref restriction) = event.restriction {
-            self.write_value_or_wrap(writer, level + 1, "RESN", Some(restriction))?;
+        if let Some(resn) = self.resn_payload(&event.restriction) {
+            self.write_value_or_wrap(writer, level + 1, "RESN", Some(&resn))?;
         }
 
         if let Some(ref age) = event.age {
@@ -660,7 +687,7 @@ impl GedcomWriter {
         // Adoptive/foster family link, e.g. `1 ADOP` / `2 FAMC @F1@` / `3 ADOP HUSB`.
         if let Some(ref family_link) = event.family_link {
             let tag = family_link.family_link_type.to_tag();
-            self.write_line(writer, level + 1, tag, Some(&family_link.xref))?;
+            self.write_line(writer, level + 1, tag, Some(&family_link.target))?;
             self.write_family_link_detail(writer, level + 2, family_link)?;
         }
 
@@ -669,7 +696,9 @@ impl GedcomWriter {
             self.write_association(writer, level + 1, association)?;
         }
 
-        self.write_custom_data(writer, level + 1, &event.custom_data)?;
+        for udt in &event.user_defined_tags {
+            self.write_user_defined_tag(writer, udt)?;
+        }
 
         Ok(())
     }
@@ -741,7 +770,9 @@ impl GedcomWriter {
             self.write_note(writer, level, note)?;
         }
 
-        self.write_custom_data(writer, level, &family_link.custom_data)?;
+        for udt in &family_link.user_defined_tags {
+            self.write_user_defined_tag(writer, udt)?;
+        }
 
         Ok(())
     }
@@ -755,7 +786,10 @@ impl GedcomWriter {
         level: u8,
         association: &Association,
     ) -> Result<(), io::Error> {
-        self.write_line(writer, level, "ASSO", Some(&association.xref))?;
+        match &association.target {
+            AssociationTarget::Record(x) => self.write_line(writer, level, "ASSO", Some(x))?,
+            AssociationTarget::Void => self.write_line(writer, level, "ASSO", Some("@VOID@"))?,
+        }
 
         if self.config.gedcom_version.starts_with('5') {
             // 5.5.1 states the relationship in words (RELA). A role read from a
@@ -790,7 +824,10 @@ impl GedcomWriter {
         if let Some(ref association_type) = association.association_type {
             self.write_value_or_wrap(writer, level + 1, "TYPE", Some(association_type))?;
         }
-        self.write_custom_data(writer, level + 1, &association.custom_data)?;
+
+        for udt in &association.user_defined_tags {
+            self.write_user_defined_tag(writer, udt)?;
+        }
 
         for note in &association.notes {
             self.write_note(writer, level + 1, note)?;
@@ -811,8 +848,9 @@ impl GedcomWriter {
         place: &crate::types::place::Place,
     ) -> Result<(), io::Error> {
         self.write_value_or_wrap(writer, level, "PLAC", place.value.as_deref())?;
-        if let Some(ref form) = place.form {
-            self.write_value_or_wrap(writer, level + 1, "FORM", Some(form))?;
+        let form = place.form.to_payload();
+        if !form.is_empty() {
+            self.write_value_or_wrap(writer, level + 1, "FORM", Some(&form))?;
         }
         if let Some(ref map) = place.map {
             self.write_line(writer, level + 1, "MAP", None)?;
@@ -836,7 +874,10 @@ impl GedcomWriter {
                 self.write_value_or_wrap(writer, level + 2, "TYPE", Some(vtype))?;
             }
         }
-        self.write_custom_data(writer, level + 1, &place.custom_data)?;
+
+        for udt in &place.user_defined_tags {
+            self.write_user_defined_tag(writer, udt)?;
+        }
 
         Ok(())
     }
@@ -858,7 +899,7 @@ impl GedcomWriter {
         }
         if !self.config.gedcom_version.starts_with('5') {
             for exid in &place.external_ids {
-                self.write_value_or_wrap(writer, level, "EXID", Some(exid))?;
+                self.write_value_or_wrap(writer, level, "EXID", Some(&exid.id))?;
             }
         }
         Ok(())
@@ -875,6 +916,10 @@ impl GedcomWriter {
 
         if let Some(ref date) = attr.date {
             self.write_date(writer, 2, date)?;
+        }
+
+        if let Some(resn) = self.resn_payload(&attr.restriction) {
+            self.write_value_or_wrap(writer, 2, "RESN", Some(&resn))?;
         }
 
         if let Some(ref place) = attr.place {
@@ -901,7 +946,7 @@ impl GedcomWriter {
             self.write_citation(writer, 2, citation)?;
         }
 
-        for media in &attr.multimedia {
+        for media in &attr.multimedia_links {
             self.write_multimedia_link(writer, 2, media)?;
         }
 
@@ -913,10 +958,6 @@ impl GedcomWriter {
             self.write_long_text(writer, 2, "CAUS", cause)?;
         }
 
-        if let Some(ref restriction) = attr.restriction {
-            self.write_value_or_wrap(writer, 2, "RESN", Some(restriction))?;
-        }
-
         if let Some(ref age) = attr.age {
             self.write_age(writer, 2, age)?;
         }
@@ -925,7 +966,9 @@ impl GedcomWriter {
             self.write_value_or_wrap(writer, 2, "AGNC", Some(agency))?;
         }
 
-        self.write_custom_data(writer, 2, &attr.custom_data)?;
+        for udt in &attr.user_defined_tags {
+            self.write_user_defined_tag(writer, udt)?;
+        }
 
         Ok(())
     }
@@ -971,10 +1014,10 @@ impl GedcomWriter {
 
     /// Writes a family record.
     fn write_family<W: Write>(&self, writer: &mut W, family: &Family) -> Result<(), io::Error> {
-        self.write_line_with_xref(writer, 0, family.xref.as_deref(), "FAM", None)?;
+        self.write_line_with_xref(writer, 0, Some(family.xref.as_str()), "FAM", None)?;
 
-        if let Some(ref restriction) = family.restriction {
-            self.write_value_or_wrap(writer, 1, "RESN", Some(restriction))?;
+        if let Some(resn) = self.resn_payload(&family.restriction) {
+            self.write_value_or_wrap(writer, 1, "RESN", Some(&resn))?;
         }
 
         if let Some(ref husb) = family.individual1 {
@@ -1023,7 +1066,7 @@ impl GedcomWriter {
             self.write_citation(writer, 1, citation)?;
         }
 
-        for media in &family.multimedia {
+        for media in &family.multimedia_links {
             self.write_multimedia_link(writer, 1, media)?;
         }
 
@@ -1038,7 +1081,9 @@ impl GedcomWriter {
             }
         }
 
-        self.write_custom_data(writer, 1, &family.custom_data)?;
+        for udt in &family.user_defined_tags {
+            self.write_user_defined_tag(writer, udt)?;
+        }
 
         Ok(())
     }
@@ -1053,7 +1098,7 @@ impl GedcomWriter {
         refn_type: Option<&str>,
         rin: Option<&str>,
         uid: Option<&str>,
-        external_ids: &[String],
+        external_ids: &Arena<ExternalId>,
     ) -> Result<(), io::Error> {
         if let Some(refn) = refn {
             self.write_value_or_wrap(writer, 1, "REFN", Some(refn))?;
@@ -1069,7 +1114,7 @@ impl GedcomWriter {
                 self.write_value_or_wrap(writer, 1, "UID", Some(uid))?;
             }
             for exid in external_ids {
-                self.write_value_or_wrap(writer, 1, "EXID", Some(exid))?;
+                self.write_value_or_wrap(writer, 1, "EXID", Some(&exid.id))?;
             }
         }
         Ok(())
@@ -1077,7 +1122,7 @@ impl GedcomWriter {
 
     /// Writes a source record.
     fn write_source<W: Write>(&self, writer: &mut W, source: &Source) -> Result<(), io::Error> {
-        self.write_line_with_xref(writer, 0, source.xref.as_deref(), "SOUR", None)?;
+        self.write_line_with_xref(writer, 0, Some(source.xref.as_str()), "SOUR", None)?;
 
         // What the source records: `DATA` with its `EVEN`, `AGNC` and `NOTE`
         if !source.data.is_empty() {
@@ -1127,7 +1172,7 @@ impl GedcomWriter {
                 self.write_value_or_wrap(writer, 1, "UID", Some(uid))?;
             }
             for exid in &source.external_ids {
-                self.write_value_or_wrap(writer, 1, "EXID", Some(exid))?;
+                self.write_value_or_wrap(writer, 1, "EXID", Some(&exid.id))?;
             }
         }
 
@@ -1137,7 +1182,7 @@ impl GedcomWriter {
         }
 
         // Multimedia links
-        for media in &source.multimedia {
+        for media in &source.multimedia_links {
             self.write_multimedia_link(writer, 1, media)?;
         }
 
@@ -1149,7 +1194,9 @@ impl GedcomWriter {
             }
         }
 
-        self.write_custom_data(writer, 1, &source.custom_data)?;
+        for udt in &source.user_defined_tags {
+            self.write_user_defined_tag(writer, udt)?;
+        }
 
         Ok(())
     }
@@ -1194,12 +1241,15 @@ impl GedcomWriter {
         writer: &mut W,
         repo: &Repository,
     ) -> Result<(), io::Error> {
-        self.write_line_with_xref(writer, 0, repo.xref.as_deref(), "REPO", None)?;
+        self.write_line_with_xref(writer, 0, Some(repo.xref.as_str()), "REPO", None)?;
 
         if let Some(ref name) = repo.name {
             self.write_value_or_wrap(writer, 1, "NAME", Some(name))?;
         }
-        self.write_custom_data(writer, 1, &repo.custom_data)?;
+
+        for udt in &repo.user_defined_tags {
+            self.write_user_defined_tag(writer, udt)?;
+        }
 
         if let Some(ref address) = repo.address {
             self.write_address(writer, 1, address)?;
@@ -1238,7 +1288,7 @@ impl GedcomWriter {
                 self.write_value_or_wrap(writer, 1, "UID", Some(uid))?;
             }
             for exid in &repo.external_ids {
-                self.write_value_or_wrap(writer, 1, "EXID", Some(exid))?;
+                self.write_value_or_wrap(writer, 1, "EXID", Some(&exid.id))?;
             }
         }
 
@@ -1258,7 +1308,7 @@ impl GedcomWriter {
         writer: &mut W,
         submitter: &Submitter,
     ) -> Result<(), io::Error> {
-        self.write_line_with_xref(writer, 0, submitter.xref.as_deref(), "SUBM", None)?;
+        self.write_line_with_xref(writer, 0, Some(submitter.xref.as_str()), "SUBM", None)?;
 
         if let Some(ref name) = submitter.name {
             self.write_value_or_wrap(writer, 1, "NAME", Some(name))?;
@@ -1280,8 +1330,8 @@ impl GedcomWriter {
             }
         }
 
-        for link in &submitter.multimedia {
-            self.write_submitter_multimedia(writer, link)?;
+        for link in &submitter.multimedia_links {
+            self.write_multimedia_link(writer, 1, link)?;
         }
 
         if let Some(ref lang) = submitter.language {
@@ -1320,43 +1370,10 @@ impl GedcomWriter {
             }
         }
 
-        self.write_custom_data(writer, 1, &submitter.custom_data)?;
+        for udt in &submitter.user_defined_tags {
+            self.write_user_defined_tag(writer, udt)?;
+        }
 
-        Ok(())
-    }
-
-    /// Writes a submitter's multimedia link: a pointer to a multimedia record,
-    /// or the file it describes inline.
-    fn write_submitter_multimedia<W: Write>(
-        &self,
-        writer: &mut W,
-        link: &crate::types::multimedia::link::Link,
-    ) -> Result<(), io::Error> {
-        if let Some(ref xref) = link.xref {
-            return self.write_line(writer, 1, "OBJE", Some(xref));
-        }
-        self.write_line(writer, 1, "OBJE", None)?;
-        if let Some(ref file) = link.file {
-            self.write_value_or_wrap(writer, 2, "FILE", file.value.as_deref())?;
-            if let Some(ref format) = file.form {
-                self.write_value_or_wrap(writer, 3, "FORM", format.value.as_deref())?;
-                if let Some(ref media_type) = format.source_media_type {
-                    self.write_value_or_wrap(writer, 4, "TYPE", Some(media_type))?;
-                }
-            }
-            if let Some(ref title) = file.title {
-                self.write_value_or_wrap(writer, 3, "TITL", Some(title))?;
-            }
-        }
-        if let Some(ref form) = link.form {
-            self.write_value_or_wrap(writer, 2, "FORM", form.value.as_deref())?;
-            if let Some(ref media_type) = form.source_media_type {
-                self.write_value_or_wrap(writer, 3, "TYPE", Some(media_type))?;
-            }
-        }
-        if let Some(ref title) = link.title {
-            self.write_value_or_wrap(writer, 2, "TITL", Some(title))?;
-        }
         Ok(())
     }
 
@@ -1366,7 +1383,7 @@ impl GedcomWriter {
         writer: &mut W,
         submission: &Submission,
     ) -> Result<(), io::Error> {
-        self.write_line_with_xref(writer, 0, submission.xref.as_deref(), "SUBN", None)?;
+        self.write_line_with_xref(writer, 0, Some(submission.xref.as_str()), "SUBN", None)?;
 
         if let Some(ref subm) = submission.submitter_ref {
             self.write_value_or_wrap(writer, 1, "SUBM", Some(subm))?;
@@ -1401,8 +1418,14 @@ impl GedcomWriter {
         writer: &mut W,
         media: &Multimedia,
     ) -> Result<(), io::Error> {
-        self.write_line_with_xref(writer, 0, media.xref.as_deref(), "OBJE", None)?;
-        self.write_multimedia_substructures(writer, 1, media)?;
+        self.write_line_with_xref(writer, 0, Some(media.xref.as_str()), "OBJE", None)?;
+        self.write_multimedia_substructures(
+            writer,
+            1,
+            media.file.as_ref(),
+            media.form.as_ref(),
+            media.title.as_deref(),
+        )?;
 
         // User reference number
         if let Some(ref refn) = media.user_reference_number {
@@ -1435,7 +1458,9 @@ impl GedcomWriter {
             }
         }
 
-        self.write_custom_data(writer, 1, &media.custom_data)?;
+        for udt in &media.user_defined_tags {
+            self.write_user_defined_tag(writer, udt)?;
+        }
 
         Ok(())
     }
@@ -1448,7 +1473,7 @@ impl GedcomWriter {
         level: u8,
         repo: &crate::types::repository::citation::Citation,
     ) -> Result<(), io::Error> {
-        self.write_line(writer, level, "REPO", Some(&repo.xref))?;
+        self.write_line(writer, level, "REPO", Some(&repo.target))?;
 
         for note in &repo.notes {
             self.write_note(writer, level + 1, note)?;
@@ -1498,27 +1523,41 @@ impl GedcomWriter {
         &self,
         writer: &mut W,
         level: u8,
-        media: &Multimedia,
+        media: &Link,
     ) -> Result<(), io::Error> {
-        if let Some(ref xref) = media.xref {
-            self.write_line(writer, level, "OBJE", Some(xref))?;
-        } else {
-            self.write_line(writer, level, "OBJE", None)?;
-            self.write_multimedia_substructures(writer, level + 1, media)?;
+        match media.target {
+            LinkTarget::Record(ref x) => self.write_line(writer, level, "OBJE", Some(x))?,
+            LinkTarget::Void => self.write_line(writer, level, "OBJE", Some("@VOID@"))?,
+            LinkTarget::Inline => {
+                self.write_line(writer, level, "OBJE", None)?;
+                self.write_multimedia_substructures(
+                    writer,
+                    level + 1,
+                    media.file.as_ref(),
+                    media.form.as_ref(),
+                    media.title.as_deref(),
+                )?;
+            }
         }
-        self.write_custom_data(writer, level + 1, &media.custom_data)?;
+
+        for udt in &media.user_defined_tags {
+            self.write_user_defined_tag(writer, udt)?;
+        }
+
         Ok(())
     }
 
-    /// Writes the `FILE`, `FORM` and `TITL` substructures shared by a multimedia
-    /// record and an inline multimedia link, starting at `level`.
+    /// Writes the `FILE`, `FORM`, and `TITLE` substructures shared by a
+    /// multimedia record and a inline multimedia link, starting at `level`.
     fn write_multimedia_substructures<W: Write>(
         &self,
         writer: &mut W,
         level: u8,
-        media: &Multimedia,
+        file: Option<&Reference>,
+        form: Option<&Format>,
+        title: Option<&str>,
     ) -> Result<(), io::Error> {
-        if let Some(ref file) = media.file {
+        if let Some(file) = file {
             self.write_value_or_wrap(writer, level, "FILE", file.value.as_deref())?;
             if let Some(ref format) = file.form {
                 self.write_value_or_wrap(writer, level + 1, "FORM", format.value.as_deref())?;
@@ -1526,24 +1565,24 @@ impl GedcomWriter {
                     self.write_value_or_wrap(writer, level + 2, "TYPE", Some(media_type))?;
                 }
             }
-            if let Some(ref title) = file.title {
-                self.write_value_or_wrap(writer, level + 1, "TITL", Some(title))?;
+            if let Some(ref file_title) = file.title {
+                self.write_value_or_wrap(writer, level + 1, "TITL", Some(file_title))?;
             }
             if let Some(ref crop) = file.crop {
                 self.write_crop(writer, level + 1, crop)?;
             }
         }
 
-        // The 5.5 spec puts FORM and TITL under FILE, but some exporters
-        // (e.g. Ancestry.com) write them as siblings of it.
-        if let Some(ref form) = media.form {
+        // The 5.5 spec puts FORM and TITL under FILE, but some exporters (e.g.
+        // Ancestry.com) write them as siblings of it.
+        if let Some(form) = form {
             self.write_line(writer, level, "FORM", form.value.as_deref())?;
             if let Some(ref media_type) = form.source_media_type {
                 self.write_value_or_wrap(writer, level + 1, "TYPE", Some(media_type))?;
             }
         }
 
-        if let Some(ref title) = media.title {
+        if let Some(title) = title {
             self.write_value_or_wrap(writer, level, "TITL", Some(title))?;
         }
 
@@ -1580,8 +1619,11 @@ impl GedcomWriter {
         level: u8,
         citation: &Citation,
     ) -> Result<(), io::Error> {
-        // A free-text description may span several lines.
-        self.write_value_or_wrap(writer, level, "SOUR", Some(citation.source.value()))?;
+        match &citation.target {
+            CitationSource::Record(x) => self.write_line(writer, level, "SOUR", Some(x))?,
+            CitationSource::Void => self.write_line(writer, level, "SOUR", Some("@VOID@"))?,
+            CitationSource::Description(s) => self.write_long_text(writer, level, "SOUR", s)?,
+        }
 
         if let Some(ref page) = citation.page {
             self.write_value_or_wrap(writer, level + 1, "PAGE", Some(page))?;
@@ -1596,7 +1638,11 @@ impl GedcomWriter {
 
         if let Some(ref data) = citation.data {
             self.write_line(writer, level + 1, "DATA", None)?;
-            self.write_custom_data(writer, level + 2, &data.custom_data)?;
+
+            for udt in &data.user_defined_tags {
+                self.write_user_defined_tag(writer, udt)?;
+            }
+
             if let Some(ref date) = data.date {
                 self.write_date(writer, level + 2, date)?;
             }
@@ -1613,7 +1659,7 @@ impl GedcomWriter {
             }
         }
 
-        for media in &citation.multimedia {
+        for media in &citation.multimedia_links {
             self.write_multimedia_link(writer, level + 1, media)?;
         }
 
@@ -1631,7 +1677,9 @@ impl GedcomWriter {
             self.write_note(writer, level + 1, note)?;
         }
 
-        self.write_custom_data(writer, level + 1, &citation.custom_data)?;
+        for udt in &citation.user_defined_tags {
+            self.write_user_defined_tag(writer, udt)?;
+        }
 
         Ok(())
     }
@@ -1682,7 +1730,9 @@ impl GedcomWriter {
             self.write_value_or_wrap(writer, 2, "TAG", Some(&payload))?;
         }
 
-        self.write_custom_data(writer, 2, &schema.custom_data)?;
+        for udt in &schema.user_defined_tags {
+            self.write_user_defined_tag(writer, udt)?;
+        }
 
         Ok(())
     }
@@ -1693,14 +1743,12 @@ impl GedcomWriter {
         writer: &mut W,
         note: &SharedNote,
     ) -> Result<(), io::Error> {
-        // The text spans as many CONT/CONC lines as it needs, like any other
-        // long text; written raw, its newlines would start bogus lines.
         let tag = if self.config.gedcom_version.starts_with('5') {
             "NOTE"
         } else {
             "SNOTE"
         };
-        self.write_long_text_with_xref(writer, 0, note.xref.as_deref(), tag, &note.text)?;
+        self.write_long_text_with_xref(writer, 0, Some(note.xref.as_str()), tag, &note.text)?;
 
         if let Some(ref mime) = note.mime {
             self.write_value_or_wrap(writer, 1, "MIME", Some(mime))?;
@@ -1731,9 +1779,35 @@ impl GedcomWriter {
             self.write_citation(writer, 1, citation)?;
         }
 
-        self.write_custom_data(writer, 1, &note.custom_data)?;
+        for udt in &note.user_defined_tags {
+            self.write_user_defined_tag(writer, udt)?;
+        }
 
         Ok(())
+    }
+
+    /// Writes a user-defined tag record.
+    fn write_user_defined_tag<W: Write>(
+        &self,
+        writer: &mut W,
+        custom_tag: &UserDefinedTag,
+    ) -> Result<(), io::Error> {
+        if let Some(ref xref) = custom_tag.xref {
+            return self.write_line_with_xref(
+                writer,
+                custom_tag.level,
+                Some(xref),
+                &custom_tag.tag,
+                custom_tag.value.as_deref(),
+            );
+        }
+
+        match custom_tag.value.as_deref() {
+            Some(value) => {
+                self.write_value_or_wrap(writer, custom_tag.level, &custom_tag.tag, Some(value))
+            }
+            None => self.write_line(writer, custom_tag.level, &custom_tag.tag, None),
+        }
     }
 
     /// Writes a sort date structure (GEDCOM 7.0).
@@ -1871,7 +1945,9 @@ impl GedcomWriter {
             self.write_value_or_wrap(writer, level + 1, "CTRY", Some(country))?;
         }
 
-        self.write_custom_data(writer, level + 1, &address.custom_data)?;
+        for udt in &address.user_defined_tags {
+            self.write_user_defined_tag(writer, udt)?;
+        }
 
         Ok(())
     }
@@ -1898,31 +1974,6 @@ impl GedcomWriter {
             self.write_line(writer, level, "NOTE", None)?;
         }
 
-        Ok(())
-    }
-
-    /// Writes extension (user-defined) tags, each with its substructures, the
-    /// first ones at `level`.
-    fn write_custom_data<W: Write>(
-        &self,
-        writer: &mut W,
-        level: u8,
-        tags: &[Box<UserDefinedTag>],
-    ) -> Result<(), io::Error> {
-        for tag in tags {
-            if let Some(ref xref) = tag.xref {
-                self.write_line_with_xref(
-                    writer,
-                    level,
-                    Some(xref),
-                    &tag.tag,
-                    tag.value.as_deref(),
-                )?;
-            } else {
-                self.write_line(writer, level, &tag.tag, tag.value.as_deref())?;
-            }
-            self.write_custom_data(writer, level + 1, &tag.children)?;
-        }
         Ok(())
     }
 
@@ -1972,7 +2023,7 @@ impl GedcomWriter {
             if !v.is_empty() {
                 // A leading `@` of text is escaped as `@@`, or it would read as
                 // a pointer; pointers and calendar escapes are written as is.
-                if v.starts_with("@#") || is_xref_pointer(v) {
+                if v.starts_with("@#") || is_pointer_use(v) {
                     write!(writer, " {v}").map_err(io_error)?;
                 } else {
                     // The GEDCOM 7.0 rule is exactly "the leading `@` only".
@@ -2327,81 +2378,6 @@ impl crate::types::individual::family_link::FamilyLinkType {
     }
 }
 
-/// A copy of `data` in which every record without an xref has one of its own,
-/// or `None` when no record lacks one.
-///
-/// A record line needs an xref, and nothing can point at a record that has
-/// none, so any xref not already used will do: `@I1@`, `@F1@`, … numbered past
-/// the ones in use.
-fn with_missing_xrefs(data: &GedcomData) -> Option<GedcomData> {
-    let missing = data.individuals.iter().any(|r| r.xref.is_none())
-        || data.families.iter().any(|r| r.xref.is_none())
-        || data.sources.iter().any(|r| r.xref.is_none())
-        || data.repositories.iter().any(|r| r.xref.is_none())
-        || data.submitters.iter().any(|r| r.xref.is_none())
-        || data.submissions.iter().any(|r| r.xref.is_none())
-        || data.multimedia.iter().any(|r| r.xref.is_none())
-        || data.shared_notes.iter().any(|r| r.xref.is_none());
-    if !missing {
-        return None;
-    }
-
-    let mut data = data.clone();
-    let mut used: std::collections::HashSet<String> = data
-        .individuals
-        .iter()
-        .map(|r| &r.xref)
-        .chain(data.families.iter().map(|r| &r.xref))
-        .chain(data.sources.iter().map(|r| &r.xref))
-        .chain(data.repositories.iter().map(|r| &r.xref))
-        .chain(data.submitters.iter().map(|r| &r.xref))
-        .chain(data.submissions.iter().map(|r| &r.xref))
-        .chain(data.multimedia.iter().map(|r| &r.xref))
-        .chain(data.shared_notes.iter().map(|r| &r.xref))
-        .flatten()
-        .cloned()
-        .collect();
-    let mut next = std::collections::HashMap::<&str, usize>::new();
-    let mut fill = |xref: &mut Option<String>, prefix: &'static str| {
-        if xref.is_some() {
-            return;
-        }
-        let n = next.entry(prefix).or_insert(0);
-        loop {
-            *n += 1;
-            let candidate = format!("@{prefix}{n}@");
-            if used.insert(candidate.clone()) {
-                *xref = Some(candidate);
-                return;
-            }
-        }
-    };
-
-    data.individuals
-        .iter_mut()
-        .for_each(|r| fill(&mut r.xref, "I"));
-    data.families
-        .iter_mut()
-        .for_each(|r| fill(&mut r.xref, "F"));
-    data.sources.iter_mut().for_each(|r| fill(&mut r.xref, "S"));
-    data.repositories
-        .iter_mut()
-        .for_each(|r| fill(&mut r.xref, "R"));
-    data.submitters
-        .iter_mut()
-        .for_each(|r| fill(&mut r.xref, "U"));
-    data.submissions
-        .iter_mut()
-        .for_each(|r| fill(&mut r.xref, "SUBN"));
-    data.multimedia
-        .iter_mut()
-        .for_each(|r| fill(&mut r.xref, "M"));
-    data.shared_notes
-        .iter_mut()
-        .for_each(|r| fill(&mut r.xref, "N"));
-    Some(data)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2419,6 +2395,19 @@ mod tests {
         assert!(output.contains("1 GEDC"));
         assert!(output.contains("2 VERS"));
         assert!(output.contains("0 TRLR"));
+    }
+
+    #[test]
+    fn test_round_trip_header_place_form() {
+        let source =
+            "0 HEAD\n1 GEDC\n2 VERS 5.5.1\n1 PLAC\n2 FORM City, County, State, Country\n0 TRLR";
+        let data = GedcomBuilder::new().build_from_str(source).unwrap();
+
+        let writer = GedcomWriter::new();
+        let output = writer.write_to_string(&data).unwrap();
+
+        assert!(output.contains("1 PLAC"));
+        assert!(output.contains("2 FORM City, County, State, Country"));
     }
 
     #[test]
@@ -2500,8 +2489,11 @@ mod tests {
 
         // Compare key data
         assert_eq!(data.individuals.len(), data2.individuals.len());
-        assert_eq!(data.individuals[0].xref, data2.individuals[0].xref);
-        assert_eq!(data.individuals[0].names, data2.individuals[0].names);
+
+        let indi1 = data.individuals.iter().next().unwrap();
+        let indi2 = data2.individuals.iter().next().unwrap();
+        assert_eq!(indi1.xref, indi2.xref);
+        assert_eq!(indi1.names.first().unwrap(), indi2.names.first().unwrap())
     }
 
     #[test]
@@ -2695,5 +2687,72 @@ mod tests {
         assert_eq!(config.max_line_length, 100);
         assert!(config.include_empty_fields);
         assert_eq!(config.gedcom_version, "5.5.1");
+    }
+
+    #[test]
+    fn test_resn_list_survives_a_7_0_write() {
+        let source = "0 HEAD\n1 GEDC\n2 VERS 7.0\n0 @I1@ INDI\n1 RESN CONFIDENTIAL, LOCKED\n0 TRLR";
+        let data = GedcomBuilder::new().build_from_str(source).unwrap();
+        let output = GedcomWriter::new()
+            .gedcom_version("7.0")
+            .write_to_string(&data)
+            .unwrap();
+
+        assert!(output.contains("1 RESN CONFIDENTIAL, LOCKED"));
+    }
+
+    #[test]
+    fn test_resn_list_collapses_to_one_value_for_5_5_1() {
+        // 5.5.1 holds a single value, so the strongest disclosure restriction
+        // wins no matter which order the 7.0 list wrote them in.
+        for payload in ["CONFIDENTIAL, LOCKED", "LOCKED, CONFIDENTIAL"] {
+            let source =
+                format!("0 HEAD\n1 GEDC\n2 VERS 7.0\n0 @I1@ INDI\n1 RESN {payload}\n0 TRLR");
+            let data = GedcomBuilder::new().build_from_str(&source).unwrap();
+
+            let output = GedcomWriter::new()
+                .gedcom_version("5.5.1")
+                .write_to_string(&data)
+                .unwrap();
+
+            assert!(
+                output.contains("1 RESN confidential"),
+                "payload: {payload:?}"
+            );
+            assert!(!output.contains("LOCKED"), "payload: {payload:?}");
+        }
+    }
+
+    #[test]
+    fn test_extension_resn_has_no_5_5_1_form() {
+        let source = "0 HEAD\n1 GEDC\n2 VERS 7.0\n0 @I1@ INDI\n1 RESN _MYRESN\n0 TRLR";
+        let data = GedcomBuilder::new().build_from_str(source).unwrap();
+        let v7 = GedcomWriter::new()
+            .gedcom_version("7.0")
+            .write_to_string(&data)
+            .unwrap();
+
+        assert!(v7.contains("1 RESN _MYRESN"));
+
+        let v5 = GedcomWriter::new()
+            .gedcom_version("5.5.1")
+            .write_to_string(&data)
+            .unwrap();
+
+        assert!(!v5.contains("RESN"));
+    }
+
+    #[test]
+    fn test_attribute_restriction_is_written() {
+        let source =
+            "0 HEAD\n1 GEDC\n2 VERS 5.5.1\n0 @I1@ INDI\n1 OCCU Farmer\n2 RESN privacy\n0 TRLR";
+        let data = GedcomBuilder::new().build_from_str(source).unwrap();
+
+        let output = GedcomWriter::new()
+            .gedcom_version("5.5.1")
+            .write_to_string(&data)
+            .unwrap();
+
+        assert!(output.contains("2 RESN privacy"));
     }
 }

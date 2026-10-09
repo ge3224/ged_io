@@ -11,14 +11,21 @@
 //! See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#PLACE_STRUCTURE>
 
 use crate::{
+    arena::Arena,
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
-    types::{custom::UserDefinedTag, note::Note, source::citation::Citation},
+    types::{
+        custom::UserDefinedTag,
+        external_id::ExternalId,
+        list::ListText,
+        note::Note,
+        source::citation::{Citation, CitationSource},
+    },
     GedcomError,
 };
 
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 /// The principal place in which the superstructure's subject occurred, represented as a List of
 /// jurisdictional entities in a sequence from the lowest to the highest jurisdiction. As with
@@ -30,8 +37,8 @@ use serde::{Deserialize, Serialize};
 /// beyond the lowest-to-highest order noted above.
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#PLACE_STRUCTURE>
-#[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[derive(Debug, Default, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Place {
     /// The place name value, typically a comma-separated list of jurisdictions
     /// from lowest to highest (e.g., "City, County, State, Country").
@@ -41,7 +48,7 @@ pub struct Place {
     ///
     /// A comma-separated list of jurisdiction types corresponding to the
     /// elements in the place value (e.g., "City, County, State, Country").
-    pub form: Option<String>,
+    pub form: ListText,
 
     /// Geographic coordinates for the place (tag: MAP).
     pub map: Option<MapCoordinates>,
@@ -50,25 +57,57 @@ pub struct Place {
     ///
     /// Used for places with names in non-Latin scripts to provide
     /// a phonetic representation.
-    pub phonetic: Vec<PlaceVariation>,
+    pub phonetic: Arena<PlaceVariation>,
 
     /// Romanized variations of the place name (tag: ROMN).
     ///
     /// Used for places with names in non-Latin scripts to provide
     /// a romanized (Latin alphabet) representation.
-    pub romanized: Vec<PlaceVariation>,
+    pub romanized: Arena<PlaceVariation>,
 
     /// Notes about the place.
-    pub notes: Vec<Note>,
+    pub notes: Arena<Note>,
 
     /// External identifiers for this place (GEDCOM 7.0).
-    pub external_ids: Vec<String>,
+    pub external_ids: Arena<ExternalId>,
 
     /// Source citations supporting this place.
-    pub citations: Vec<Citation>,
+    pub citations: Arena<Citation>,
 
     /// Custom data (extension tags).
-    pub custom_data: Vec<Box<UserDefinedTag>>,
+    pub user_defined_tags: Arena<UserDefinedTag>,
+}
+
+impl Place {
+    pub(crate) fn remove_citation_to(&mut self, xref: &str) -> usize {
+        let before = self.citations.len();
+        self.citations
+            .retain(|c| !matches!(&c.target, CitationSource::Record(x) if x == xref));
+        before - self.citations.len()
+    }
+
+    pub(crate) fn remove_multimedia_link_to(&mut self, xref: &str) -> usize {
+        let mut removed = 0;
+
+        for h in self
+            .citations
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(c) = self.citations.get_mut(h) {
+                removed += c.remove_multimedia_link_to(xref);
+            }
+        }
+
+        removed
+    }
+
+    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
+        for cite in &self.citations {
+            cite.outbound_refs(sink);
+        }
+    }
 }
 
 /// Geographic coordinates for a place.
@@ -78,7 +117,7 @@ pub struct Place {
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#MAP>
 #[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct MapCoordinates {
     /// Latitude coordinate (tag: LATI).
     ///
@@ -192,7 +231,7 @@ impl Parser for MapCoordinates {
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#PLAC-TRAN>
 #[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct PlaceVariation {
     /// The variation text.
     pub value: String,
@@ -303,12 +342,12 @@ impl Place {
 
     /// Adds a phonetic variation of the place name.
     pub fn add_phonetic(&mut self, variation: PlaceVariation) {
-        self.phonetic.push(variation);
+        self.phonetic.insert(variation);
     }
 
     /// Adds a romanized variation of the place name.
     pub fn add_romanized(&mut self, variation: PlaceVariation) {
-        self.romanized.push(variation);
+        self.romanized.insert(variation);
     }
 
     /// Returns the jurisdictions as a vector of strings.
@@ -326,17 +365,26 @@ impl Parser for Place {
     fn parse(&mut self, tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<(), GedcomError> {
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             match tag {
-                "FORM" => self.form = Some(tokenizer.take_line_value()?),
+                "FORM" => self.form = ListText::from_payload(&tokenizer.take_line_value()?),
                 "MAP" => self.map = Some(MapCoordinates::new(tokenizer, level + 1)?),
-                "FONE" => self
-                    .phonetic
-                    .push(PlaceVariation::new(tokenizer, level + 1)?),
-                "ROMN" => self
-                    .romanized
-                    .push(PlaceVariation::new(tokenizer, level + 1)?),
-                "NOTE" => self.notes.push(Note::new(tokenizer, level + 1)?),
-                "SOUR" => self.citations.push(Citation::new(tokenizer, level + 1)?),
-                "EXID" => self.external_ids.push(tokenizer.take_line_value()?),
+                "FONE" => {
+                    self.phonetic
+                        .insert(PlaceVariation::new(tokenizer, level + 1)?);
+                }
+                "ROMN" => {
+                    self.romanized
+                        .insert(PlaceVariation::new(tokenizer, level + 1)?);
+                }
+                "NOTE" => {
+                    self.notes.insert(Note::new(tokenizer, level + 1)?);
+                }
+                "SOUR" => {
+                    self.citations.insert(Citation::new(tokenizer, level + 1)?);
+                }
+                "EXID" => {
+                    let id = tokenizer.take_line_value()?;
+                    self.external_ids.insert(ExternalId { id, type_uri: None });
+                }
                 _ => {
                     // Leave unknown tags to `parse_subset`, which keeps them with
                     // their substructures.
@@ -345,7 +393,9 @@ impl Parser for Place {
             Ok(())
         };
 
-        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
+        for udt in parse_subset(tokenizer, level, handle_subset)? {
+            self.user_defined_tags.insert(*udt);
+        }
 
         Ok(())
     }

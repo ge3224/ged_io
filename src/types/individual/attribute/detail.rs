@@ -1,13 +1,22 @@
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::{
+    arena::Arena,
     parser::{parse_subset, Parser},
     tokenizer::{Token, Tokenizer},
     types::{
-        address::Address, age::Age, custom::UserDefinedTag, date::Date,
-        individual::attribute::IndividualAttribute, multimedia::Multimedia, note::Note,
-        place::Place, source::citation::Citation,
+        address::Address,
+        age::Age,
+        custom::UserDefinedTag,
+        date::Date,
+        individual::{association::Association, attribute::IndividualAttribute},
+        list::ListEnum,
+        multimedia::link::{Link, LinkTarget},
+        note::Note,
+        place::Place,
+        restriction::Restriction,
+        source::citation::{Citation, CitationSource},
     },
     GedcomError,
 };
@@ -19,8 +28,8 @@ use crate::{
 /// and/or address, etc. to be transmitted, just as the events are. Previous versions, which
 /// handled just a tag and value, can be read as usual by handling the subordinate attribute detail
 /// as an exception. . See GEDCOM 5.5 spec, page 69.
-#[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[derive(Debug, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct AttributeDetail {
     pub attribute: IndividualAttribute,
     pub value: Option<String>,
@@ -33,21 +42,20 @@ pub struct AttributeDetail {
     /// - Place form
     pub place: Option<Place>,
     pub date: Option<Date>,
-    pub sources: Vec<Citation>,
+    pub sources: Arena<Citation>,
     /// Notes (tag: NOTE). GEDCOM allows any number of them.
-    pub notes: Vec<Note>,
+    pub notes: Arena<Note>,
     /// `attribute_type` handles the TYPE tag, a descriptive word or phrase used to further
     /// classify the parent event or attribute tag. This should be used to define what kind of
     /// identification number or fact classification is being defined.
     pub attribute_type: Option<String>,
-    /// Restriction notice (tag: RESN).
-    ///
-    /// A flag that indicates access to information has been restricted.
-    /// Valid values are:
-    /// - `confidential` - Not for public distribution
-    /// - `locked` - Cannot be modified
-    /// - `privacy` - Information is private
-    pub restriction: Option<String>,
+    /// Restriction notice (tag: RESN) that indicates access to information has
+    /// been restricted.
+    #[cfg_attr(
+        feature = "json",
+        serde(default, skip_serializing_if = "ListEnum::is_empty")
+    )]
+    pub restriction: ListEnum<Restriction>,
     /// Age at the time of the attribute (tag: AGE).
     ///
     /// The age of the individual at the time the attribute was recorded.
@@ -66,14 +74,15 @@ pub struct AttributeDetail {
     pub website: Vec<String>,
     /// Individuals associated with this attribute (tag: ASSO), such as an
     /// employer for an occupation.
-    pub associations: Vec<crate::types::individual::association::Association>,
+    pub associations: Arena<Association>,
     /// Cause related to this attribute (tag: CAUS).
     pub cause: Option<String>,
     /// Responsible agency (tag: AGNC).
     pub agency: Option<String>,
-    pub multimedia: Vec<Multimedia>,
+    /// Multimedia attached to this attribute (tag: OBJE).
+    pub multimedia_links: Arena<Link>,
     /// Extension (user-defined) tags found under this structure.
-    pub custom_data: Vec<Box<UserDefinedTag>>,
+    pub user_defined_tags: Arena<UserDefinedTag>,
 }
 
 impl AttributeDetail {
@@ -92,21 +101,21 @@ impl AttributeDetail {
             place: None,
             value: None,
             date: None,
-            sources: Vec::new(),
-            notes: Vec::new(),
+            sources: Arena::default(),
+            notes: Arena::default(),
             attribute_type: None,
-            restriction: None,
+            restriction: ListEnum::default(),
             age: None,
             address: None,
             phone: Vec::new(),
             email: Vec::new(),
             fax: Vec::new(),
             website: Vec::new(),
-            associations: Vec::new(),
+            associations: Arena::default(),
             cause: None,
             agency: None,
-            multimedia: Vec::new(),
-            custom_data: Vec::new(),
+            multimedia_links: Arena::default(),
+            user_defined_tags: Arena::default(),
         };
         attribute.parse(tokenizer, level)?;
         Ok(attribute)
@@ -141,7 +150,60 @@ impl AttributeDetail {
     }
 
     pub fn add_source_citation(&mut self, sour: Citation) {
-        self.sources.push(sour);
+        self.sources.insert(sour);
+    }
+
+    pub fn add_multimedia_record(&mut self, m: Link) {
+        self.multimedia_links.insert(m);
+    }
+
+    pub(crate) fn remove_citation_to(&mut self, xref: &str) -> usize {
+        let before = self.sources.len();
+
+        self.sources
+            .retain(|c| !matches!(&c.target, CitationSource::Record(x) if x == xref));
+
+        let mut removed = before - self.sources.len();
+
+        if let Some(p) = &mut self.place {
+            removed += p.remove_citation_to(xref);
+        }
+
+        removed
+    }
+
+    pub(crate) fn remove_multimedia_link_to(&mut self, xref: &str) -> usize {
+        let before = self.multimedia_links.len();
+
+        self.multimedia_links
+            .retain(|l| !matches!(&l.target, LinkTarget::Record(x) if x == xref));
+
+        let mut removed = before - self.multimedia_links.len();
+
+        removed += self
+            .place
+            .as_mut()
+            .map_or(0, |p| p.remove_multimedia_link_to(xref));
+
+        removed
+    }
+
+    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
+        for c in &self.sources {
+            c.outbound_refs(sink);
+        }
+
+        for l in &self.multimedia_links {
+            l.outbound_refs(sink);
+        }
+
+        if let Some(p) = &self.place {
+            p.outbound_refs(sink);
+        }
+
+        for a in &self.associations {
+            a.outbound_refs(sink);
+        }
     }
 }
 
@@ -161,9 +223,11 @@ impl Parser for AttributeDetail {
                 "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
                 "SOUR" => self.add_source_citation(Citation::new(tokenizer, level + 1)?),
                 "PLAC" => self.place = Some(Place::new(tokenizer, level + 1)?),
-                "NOTE" => self.notes.push(Note::new(tokenizer, level + 1)?),
+                "NOTE" => {
+                    self.notes.insert(Note::new(tokenizer, level + 1)?);
+                }
                 "TYPE" => self.attribute_type = Some(tokenizer.take_continued_text(level + 1)?),
-                "RESN" => self.restriction = Some(tokenizer.take_line_value()?),
+                "RESN" => self.restriction = ListEnum::from_payload(&tokenizer.take_line_value()?),
                 "AGE" => self.age = Some(Age::new(tokenizer, level + 1)?),
                 "ADDR" => self.address = Some(Address::new(tokenizer, level + 1)?),
                 "PHON" => self.phone.push(tokenizer.take_line_value()?),
@@ -171,7 +235,7 @@ impl Parser for AttributeDetail {
                 "FAX" => self.fax.push(tokenizer.take_line_value()?),
                 "WWW" => self.website.push(tokenizer.take_line_value()?),
                 "ASSO" => {
-                    self.associations.push(
+                    self.associations.insert(
                         crate::types::individual::association::Association::new(
                             tokenizer,
                             level + 1,
@@ -180,9 +244,7 @@ impl Parser for AttributeDetail {
                 }
                 "CAUS" => self.cause = Some(tokenizer.take_continued_text(level + 1)?),
                 "AGNC" => self.agency = Some(tokenizer.take_line_value()?),
-                "OBJE" => self
-                    .multimedia
-                    .push(Multimedia::new(tokenizer, level + 1, None)?),
+                "OBJE" => self.add_multimedia_record(Link::new(tokenizer, level + 1)?),
                 _ => {
                     // Leave unknown tags to `parse_subset`, which keeps them with
                     // their substructures.
@@ -192,7 +254,9 @@ impl Parser for AttributeDetail {
             Ok(())
         };
 
-        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
+        for udt in parse_subset(tokenizer, level, handle_subset)? {
+            self.user_defined_tags.insert(*udt);
+        }
 
         if !value.is_empty() {
             self.value = Some(value);
@@ -222,9 +286,15 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let occu = &data.individuals[0].attributes[0];
+        let occu = &data
+            .find_individual("@I1@")
+            .unwrap()
+            .attributes
+            .iter()
+            .next()
+            .unwrap();
         assert_eq!(occu.value.as_ref().unwrap(), "Software Engineer");
-        assert_eq!(occu.restriction.as_ref().unwrap(), "privacy");
+        assert_eq!(occu.restriction.to_payload(), "PRIVACY");
     }
 
     #[test]
@@ -248,7 +318,13 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let resi = &data.individuals[0].attributes[0];
+        let resi = &data
+            .find_individual("@I1@")
+            .unwrap()
+            .attributes
+            .iter()
+            .next()
+            .unwrap();
         assert!(resi.address.is_some());
         let addr = resi.address.as_ref().unwrap();
         assert_eq!(addr.city.as_ref().unwrap(), "New York");
@@ -274,7 +350,13 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let resi = &data.individuals[0].attributes[0];
+        let resi = &data
+            .find_individual("@I1@")
+            .unwrap()
+            .attributes
+            .iter()
+            .next()
+            .unwrap();
         assert!(resi.place.is_some());
         let place = resi.place.as_ref().unwrap();
         assert_eq!(place.value.as_ref().unwrap(), "Paris, France");

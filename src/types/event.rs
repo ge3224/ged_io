@@ -6,11 +6,11 @@ pub mod util;
 use std::str::FromStr;
 
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 #[allow(clippy::module_name_repetitions)]
-#[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[derive(Debug, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub enum Event {
     Adoption,
     AdultChristening,
@@ -139,7 +139,15 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let event = data.individuals[0].events[0].event.to_string();
+        let event = data
+            .find_individual("@PERSON1@")
+            .unwrap()
+            .events
+            .iter()
+            .next()
+            .unwrap()
+            .event
+            .to_string();
         assert_eq!(event, "Census");
     }
 
@@ -176,7 +184,7 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let anul = &data.families[0].events;
+        let anul = &data.find_family("@FAMILY1@").unwrap().events;
         assert_eq!(anul.len(), 1);
     }
 
@@ -198,7 +206,7 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let events = &data.families[0].events;
+        let events = &data.find_family("@FAMILY1@").unwrap().events;
         assert_eq!(events.len(), 2);
 
         // Check the separation event

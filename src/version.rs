@@ -23,7 +23,7 @@
 //! - URIs for all structure types
 
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use std::fmt;
 
 /// Represents a GEDCOM specification version.
@@ -31,7 +31,7 @@ use std::fmt;
 /// This enum identifies which version of the GEDCOM specification a file conforms to,
 /// which affects parsing behavior and available features.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub enum GedcomVersion {
     /// GEDCOM 5.5.1 - The previous major version, widely supported.
     ///
@@ -52,7 +52,7 @@ pub enum GedcomVersion {
 
 /// A wrapper for version strings from unknown GEDCOM versions.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct VersionString(pub String);
 
 impl GedcomVersion {

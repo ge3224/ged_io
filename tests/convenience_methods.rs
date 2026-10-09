@@ -320,7 +320,7 @@ fn test_individual_full_name() {
     let mut gedcom = Gedcom::new(sample.chars()).unwrap();
     let data = gedcom.parse_data().unwrap();
 
-    let name = data.individuals[0].full_name();
+    let name = data.find_individual("@I1@").unwrap().full_name();
     assert_eq!(name, Some("John Robert Doe Jr.".to_string()));
 }
 
@@ -339,10 +339,10 @@ fn test_individual_is_male() {
     let mut gedcom = Gedcom::new(sample.chars()).unwrap();
     let data = gedcom.parse_data().unwrap();
 
-    assert!(data.individuals[0].is_male());
-    assert!(!data.individuals[0].is_female());
-    assert!(!data.individuals[1].is_male());
-    assert!(data.individuals[1].is_female());
+    assert!(data.find_individual("@I1@").unwrap().is_male());
+    assert!(!data.find_individual("@I1@").unwrap().is_female());
+    assert!(!data.find_individual("@I2@").unwrap().is_male());
+    assert!(data.find_individual("@I2@").unwrap().is_female());
 }
 
 #[test]
@@ -364,7 +364,7 @@ fn test_individual_birth_and_death() {
     let mut gedcom = Gedcom::new(sample.chars()).unwrap();
     let data = gedcom.parse_data().unwrap();
 
-    let individual = &data.individuals[0];
+    let individual = data.find_individual("@I1@").unwrap();
 
     assert!(individual.birth().is_some());
     assert_eq!(individual.birth_date(), Some("1 JAN 1900"));
@@ -391,8 +391,8 @@ fn test_individual_has_events() {
     let mut gedcom = Gedcom::new(sample.chars()).unwrap();
     let data = gedcom.parse_data().unwrap();
 
-    assert!(data.individuals[0].has_events());
-    assert!(!data.individuals[1].has_events());
+    assert!(data.find_individual("@I1@").unwrap().has_events());
+    assert!(!data.find_individual("@I2@").unwrap().has_events());
 }
 
 #[test]
@@ -410,7 +410,7 @@ fn test_individual_has_sources() {
     let mut gedcom = Gedcom::new(sample.chars()).unwrap();
     let data = gedcom.parse_data().unwrap();
 
-    assert!(data.individuals[0].has_sources());
+    assert!(data.find_individual("@I1@").unwrap().has_sources());
 }
 
 #[test]

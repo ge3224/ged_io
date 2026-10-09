@@ -1,7 +1,8 @@
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::{
+    arena::Arena,
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{date::Date, note::Note},
@@ -23,12 +24,12 @@ use crate::{
 ///
 /// [GEDCOM 5.5.1 specification, page 31](https://gedcom.io/specifications/ged551.pdf)
 /// [GEDCOM 7.0 Specification, page 44](gedcom.io/specifications/FamilySearchGEDCOMv7.html)
-#[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[derive(Debug, Default, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct ChangeDate {
     pub date: Option<Date>,
     /// Notes (tag: NOTE). GEDCOM allows any number of them.
-    pub notes: Vec<Note>,
+    pub notes: Arena<Note>,
 }
 
 impl ChangeDate {
@@ -51,7 +52,9 @@ impl Parser for ChangeDate {
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             match tag {
                 "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
-                "NOTE" => self.notes.push(Note::new(tokenizer, level + 1)?),
+                "NOTE" => {
+                    self.notes.insert(Note::new(tokenizer, level + 1)?);
+                }
                 _ => {
                     // Leave unknown tags to `parse_subset`, which keeps them with
                     // their substructures.

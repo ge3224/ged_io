@@ -1,7 +1,7 @@
 pub mod data;
 
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::{
     parser::{parse_subset, Parser},
@@ -14,8 +14,8 @@ use crate::{
 /// registration process for these identifiers existed for a time, but no longer does. If an
 /// existing identifier is known, it should be used. Otherwise, a URI owned by the product should
 /// be used instead. See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#HEAD-SOUR>.
-#[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[derive(Debug, Default, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct HeadSour {
     pub value: Option<String>,
     /// tag: VERS

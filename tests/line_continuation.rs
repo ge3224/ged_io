@@ -9,8 +9,16 @@ fn test_parse_keeps_spaces_after_conc_and_cont_delimiter() {
     // part of the value.
     let original = "0 HEAD\n1 GEDC\n2 VERS 5.5.1\n0 @F1@ FAM\n1 NOTE first\n2 CONC  second\n2 CONT    indented line\n0 TRLR";
     let data = GedcomBuilder::new().build_from_str(original).unwrap();
+
     assert_eq!(
-        data.families[0].notes[0].value.as_deref(),
+        data.iter_families()
+            .next()
+            .unwrap()
+            .notes
+            .first()
+            .unwrap()
+            .value
+            .as_deref(),
         Some("first second\n   indented line")
     );
 }
@@ -38,8 +46,17 @@ fn test_round_trip_long_text_keeps_spaces_at_conc_splits() {
         }
 
         let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();
+
         assert_eq!(
-            data2.families[0].notes[0].value.as_deref(),
+            data2
+                .iter_families()
+                .next()
+                .unwrap()
+                .notes
+                .first()
+                .unwrap()
+                .value
+                .as_deref(),
             Some(text.as_str()),
             "word length {word_len}"
         );
@@ -60,5 +77,9 @@ fn test_stream_parser_keeps_spaces_after_conc_delimiter() {
     let parser = GedcomStreamParser::new(reader).unwrap();
     let records: Vec<_> = parser.collect::<Result<Vec<_>, _>>().unwrap();
     let family = records[1].as_family().unwrap();
-    assert_eq!(family.notes[0].value.as_deref(), Some("first second"));
+
+    assert_eq!(
+        family.notes.first().unwrap().value.as_deref(),
+        Some("first second")
+    );
 }

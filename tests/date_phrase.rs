@@ -52,7 +52,10 @@ fn test_write_date_phrase_per_version() {
         assert!(v7.contains(expected), "missing {expected:?} in:\n{v7}");
     }
     let reparsed = GedcomBuilder::new().build_from_str(&v7).unwrap();
-    assert_eq!(data.individuals[0], reparsed.individuals[0]);
+    assert_eq!(
+        data.iter_individuals().next().unwrap(),
+        reparsed.iter_individuals().next().unwrap()
+    );
 }
 
 #[test]

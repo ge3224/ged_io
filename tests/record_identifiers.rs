@@ -32,11 +32,21 @@ fn test_round_trip_individual_and_family_identifiers() {
 
     let data1 = GedcomBuilder::new().build_from_str(original).unwrap();
     assert_eq!(
-        data1.individuals[0].user_reference_type.as_deref(),
+        data1
+            .iter_individuals()
+            .next()
+            .unwrap()
+            .user_reference_type
+            .as_deref(),
         Some("card")
     );
     assert_eq!(
-        data1.families[0].user_reference_type.as_deref(),
+        data1
+            .iter_families()
+            .next()
+            .unwrap()
+            .user_reference_type
+            .as_deref(),
         Some("box")
     );
 
@@ -61,8 +71,14 @@ fn test_round_trip_individual_and_family_identifiers() {
     }
 
     let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();
-    assert_eq!(data1.individuals[0], data2.individuals[0]);
-    assert_eq!(data1.families[0], data2.families[0]);
+    assert_eq!(
+        data1.iter_individuals().next().unwrap(),
+        data2.iter_individuals().next().unwrap()
+    );
+    assert_eq!(
+        data1.iter_families().next().unwrap(),
+        data2.iter_families().next().unwrap()
+    );
 }
 
 #[test]

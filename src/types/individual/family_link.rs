@@ -3,9 +3,10 @@ pub mod child_link;
 pub mod pedigree;
 
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::{
+    arena::Arena,
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{
@@ -16,6 +17,7 @@ use crate::{
         note::Note,
         Xref,
     },
+    util::is_real_reference,
     GedcomError,
 };
 
@@ -23,7 +25,7 @@ use crate::{
 /// where this person is a child (FAMC tag), or it is pointer to a family where this person is a
 /// spouse or parent (FAMS tag). See GEDCOM 5.5 spec, page 26.
 #[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub enum FamilyLinkType {
     Spouse,
     Child,
@@ -39,17 +41,17 @@ impl std::fmt::Display for FamilyLinkType {
 /// to a family through either the FAMC tag or the FAMS tag. The FAMC tag provides a pointer to a
 /// family where this person is a child. The FAMS tag provides a pointer to a family where this
 /// person is a spouse or parent. See GEDCOM 5.5 spec, page 26.
-#[derive(Clone, Debug, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[derive(Debug, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct FamilyLink {
-    pub xref: Xref,
+    pub(crate) target: Xref,
     pub family_link_type: FamilyLinkType,
     pub pedigree_linkage_type: Option<Pedigree>,
     pub child_linkage_status: Option<ChildLinkStatus>,
     pub adopted_by: Option<AdoptedByWhichParent>,
-    /// Notes (tag: NOTE). GEDCOM allows any number of them.
-    pub notes: Vec<Note>,
-    pub custom_data: Vec<Box<UserDefinedTag>>,
+    /// Notes (tag: NOTE).
+    pub notes: Arena<Note>,
+    pub user_defined_tags: Arena<UserDefinedTag>,
 }
 
 impl FamilyLink {
@@ -73,16 +75,22 @@ impl FamilyLink {
             }
         };
         let mut family_link = FamilyLink {
-            xref,
+            target: xref,
             family_link_type: link_type,
             pedigree_linkage_type: None,
             child_linkage_status: None,
             adopted_by: None,
-            notes: Vec::new(),
-            custom_data: Vec::new(),
+            notes: Arena::default(),
+            user_defined_tags: Arena::default(),
         };
         family_link.parse(tokenizer, level)?;
         Ok(family_link)
+    }
+
+    /// Returns the family this link points at.
+    #[must_use]
+    pub fn target(&self) -> &Xref {
+        &self.target
     }
 
     /// Sets the pedigree linkage type.
@@ -160,6 +168,12 @@ impl FamilyLink {
     pub fn child_linkage_status(&self) -> Option<&ChildLinkStatus> {
         self.child_linkage_status.as_ref()
     }
+
+    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
+        if is_real_reference(&self.target) {
+            sink(&self.target);
+        }
+    }
 }
 
 impl Parser for FamilyLink {
@@ -173,7 +187,9 @@ impl Parser for FamilyLink {
                     tokenizer.take_line_value()?.as_str(),
                     tokenizer.line,
                 )?,
-                "NOTE" => self.notes.push(Note::new(tokenizer, level + 1)?),
+                "NOTE" => {
+                    self.notes.insert(Note::new(tokenizer, level + 1)?);
+                }
                 "ADOP" => self.set_adopted_by_which_parent(
                     tokenizer.take_line_value()?.as_str(),
                     tokenizer.line,
@@ -186,7 +202,9 @@ impl Parser for FamilyLink {
             Ok(())
         };
 
-        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
+        for udt in parse_subset(tokenizer, level, handle_subset)? {
+            self.user_defined_tags.insert(*udt);
+        }
 
         Ok(())
     }

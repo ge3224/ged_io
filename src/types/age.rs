@@ -1,5 +1,5 @@
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::{parser::parse_subset, tokenizer::Tokenizer, GedcomError};
 
@@ -9,7 +9,7 @@ use crate::{parser::parse_subset, tokenizer::Tokenizer, GedcomError};
 /// (§2.6). The keyword variants (`CHILD`, `INFANT`, `STILLBORN`) are defined in GEDCOM 5.5.1; in
 /// GEDCOM 7 these are expressed via `PHRASE`.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub enum Age {
     /// An age less than `8` years
     Child,
@@ -214,7 +214,7 @@ impl std::fmt::Display for Age {
 ///
 /// See GEDCOM 5.5.1 (p. 42) and GEDCOM 7 (§2.6).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub enum AgeModifier {
     /// The age is exact (no modifier)
     #[default]
@@ -239,7 +239,15 @@ mod test {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        data.individuals[0].events[0].age.clone().unwrap()
+        data.find_individual("@I1@")
+            .unwrap()
+            .events
+            .iter()
+            .next()
+            .unwrap()
+            .age
+            .clone()
+            .unwrap()
     }
 
     #[test]
@@ -371,7 +379,13 @@ mod test {
         let sample = "0 HEAD\n1 GEDC\n2 VERS 5.5.1\n0 @I1@ INDI\n1 NAME Test /Person/\n1 DEAT Y\n2 AGE\n2 DATE 1900\n0 TRLR";
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
-        let event = &data.individuals[0].events[0];
+        let event = &data
+            .iter_individuals()
+            .next()
+            .unwrap()
+            .events
+            .first()
+            .unwrap();
         let age = event.age.clone().unwrap();
         assert!(!age.has_duration());
         assert_eq!(age.to_string(), "");
@@ -383,7 +397,16 @@ mod test {
         let sample = "0 HEAD\n1 GEDC\n2 VERS 7.0\n0 @I1@ INDI\n1 DEAT Y\n2 AGE\n3 PHRASE of full age\n0 TRLR";
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
-        let age = data.individuals[0].events[0].age.clone().unwrap();
+        let age = data
+            .iter_individuals()
+            .next()
+            .unwrap()
+            .events
+            .first()
+            .unwrap()
+            .age
+            .clone()
+            .unwrap();
         assert_eq!(age, phrase_only("of full age"));
     }
 
@@ -437,7 +460,16 @@ mod test {
         let sample = "0 HEAD\n1 GEDC\n2 VERS 7.0\n0 @I1@ INDI\n1 NAME Test /Person/\n1 DEAT Y\n2 AGE 0y\n3 PHRASE STILLBORN\n0 TRLR";
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
-        let age = data.individuals[0].events[0].age.clone().unwrap();
+        let age = data
+            .find_individual("@I1@")
+            .unwrap()
+            .events
+            .iter()
+            .next()
+            .unwrap()
+            .age
+            .clone()
+            .unwrap();
         assert_eq!(
             age,
             Age::Numeric {

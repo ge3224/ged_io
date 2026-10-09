@@ -1,22 +1,27 @@
 use crate::{
+    arena::Arena,
     parser::{parse_subset, Parser},
-    tokenizer::{Token, Tokenizer},
+    tokenizer::Tokenizer,
     types::{
         custom::UserDefinedTag,
         date::change_date::ChangeDate,
         event::{detail::Detail, util::HasEvents},
+        external_id::ExternalId,
         gedcom7::NonEvent,
         lds::LdsOrdinance,
-        multimedia::Multimedia,
+        list::ListEnum,
+        multimedia::link::{Link, LinkTarget},
         note::Note,
-        source::citation::Citation,
+        restriction::Restriction,
+        source::citation::{Citation, CitationSource},
         Xref,
     },
+    util::is_real_reference,
     GedcomError,
 };
 
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 /// Family fact, representing a relationship between `Individual`s
 ///
@@ -29,30 +34,31 @@ use serde::{Deserialize, Serialize};
 /// - `NO` - Non-event assertions (e.g., "NO CHIL" means no children)
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#NO>
-#[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[derive(Debug)]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Family {
-    pub xref: Option<Xref>,
+    pub xref: Xref,
     pub individual1: Option<Xref>, // mapped from HUSB
     pub individual2: Option<Xref>, // mapped from WIFE
-    pub family_event: Vec<Detail>,
-    pub children: Vec<Xref>,
+    pub family_events: Arena<Detail>,
+    pub children: Arena<Xref>,
     pub num_children: Option<String>,
     pub change_date: Option<ChangeDate>,
-    pub events: Vec<Detail>,
-    pub sources: Vec<Citation>,
-    pub multimedia: Vec<Multimedia>,
-    pub notes: Vec<Note>,
-    pub custom_data: Vec<Box<UserDefinedTag>>,
+    pub events: Arena<Detail>,
+    pub sources: Arena<Citation>,
+    pub multimedia_links: Arena<Link>,
+    pub notes: Arena<Note>,
+    #[cfg_attr(feature = "json", serde(skip))]
+    pub user_defined_tags: Arena<UserDefinedTag>,
     /// Non-event assertions for GEDCOM 7.0.
     ///
     /// These assert that specific events did NOT occur (e.g., "NO CHIL" means
     /// no children). This is distinct from omitting an event (which means unknown).
-    pub non_events: Vec<NonEvent>,
+    pub non_events: Arena<NonEvent>,
     /// LDS (Latter-day Saints) sealing ordinance.
     ///
     /// This includes SLGS (Sealing to spouse) for family records.
-    pub lds_ordinances: Vec<LdsOrdinance>,
+    pub lds_ordinances: Arena<LdsOrdinance>,
     /// Unique identifier (tag: UID).
     ///
     /// A globally unique identifier for this record. In GEDCOM 7.0, this is
@@ -60,16 +66,13 @@ pub struct Family {
     ///
     /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#UID>
     pub uid: Option<String>,
-    /// Restriction notice (tag: RESN).
-    ///
-    /// A flag that indicates access to information has been restricted.
-    /// Valid values are:
-    /// - `confidential` - Not for public distribution
-    /// - `locked` - Cannot be modified
-    /// - `privacy` - Information is private
-    ///
-    /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#RESN>
-    pub restriction: Option<String>,
+    /// Restriction notice (tag: RESN). A flag that indicates access to
+    /// information has been restricted.
+    #[cfg_attr(
+        feature = "json",
+        serde(default, skip_serializing_if = "ListEnum::is_empty")
+    )]
+    pub restriction: ListEnum<Restriction>,
     /// User reference number (tag: REFN).
     ///
     /// A user-defined number or text that the submitter uses to identify
@@ -84,20 +87,42 @@ pub struct Family {
     /// A unique record identification number assigned to the record by
     /// the source system. Used for reconciling differences between systems.
     pub automated_record_id: Option<String>,
-    /// External identifiers (tag: EXID, GEDCOM 7.0).
-    ///
-    /// Identifiers maintained by external authorities that apply to this family.
-    pub external_ids: Vec<String>,
+    /// External identifiers maintained by external authorities that apply to
+    /// this family.
+    pub external_ids: Arena<ExternalId>,
     /// Submitters who contributed this record (tag: SUBM, GEDCOM 5.5.1).
-    pub submitters: Vec<Xref>,
+    pub submitters: Arena<Xref>,
 }
 
 impl Family {
+    pub(crate) const RECORD_TYPE: &'static str = "Family";
+
+    /// Creates an empty record with a newly minted runtime id for [`Family`]
+    /// and no `xref`.
     #[must_use]
-    fn with_xref(xref: Option<Xref>) -> Self {
+    pub fn new(xref: impl Into<Xref>) -> Self {
         Self {
-            xref,
-            ..Default::default()
+            xref: xref.into(),
+            individual1: Option::default(),
+            individual2: Option::default(),
+            family_events: Arena::default(),
+            children: Arena::default(),
+            num_children: Option::default(),
+            change_date: Option::default(),
+            events: Arena::default(),
+            sources: Arena::default(),
+            multimedia_links: Arena::default(),
+            notes: Arena::default(),
+            user_defined_tags: Arena::default(),
+            non_events: Arena::default(),
+            lds_ordinances: Arena::default(),
+            uid: Option::default(),
+            restriction: ListEnum::default(),
+            user_reference_number: Option::default(),
+            user_reference_type: Option::default(),
+            automated_record_id: Option::default(),
+            external_ids: Arena::default(),
+            submitters: Arena::default(),
         }
     }
 
@@ -107,18 +132,12 @@ impl Family {
     ///
     /// This function will return an error if parsing fails.
     #[allow(clippy::double_must_use)]
-    pub fn new(
-        tokenizer: &mut Tokenizer<'_>,
+    pub fn from_tokenizer(
+        tokenizer: &mut Tokenizer,
         level: u8,
-        xref: Option<Xref>,
+        xref: Xref,
     ) -> Result<Family, GedcomError> {
-        let mut fam = Family::with_xref(xref);
-        fam.children = Vec::new();
-        fam.events = Vec::new();
-        fam.sources = Vec::new();
-        fam.multimedia = Vec::new();
-        fam.notes = Vec::new();
-        fam.custom_data = Vec::new();
+        let mut fam = Family::new(xref);
         fam.parse(tokenizer, level)?;
         Ok(fam)
     }
@@ -156,28 +175,224 @@ impl Family {
     }
 
     pub fn add_child(&mut self, xref: Xref) {
-        self.children.push(xref);
+        self.children.insert(xref);
     }
 
     pub fn add_event(&mut self, family_event: Detail) {
-        self.events.push(family_event);
+        self.events.insert(family_event);
     }
 
     pub fn add_source(&mut self, sour: Citation) {
-        self.sources.push(sour);
+        self.sources.insert(sour);
     }
 
-    pub fn add_multimedia(&mut self, media: Multimedia) {
-        self.multimedia.push(media);
+    pub fn add_multimedia(&mut self, media: Link) {
+        self.multimedia_links.insert(media);
     }
 
     pub fn add_note(&mut self, note: Note) {
-        self.notes.push(note);
+        self.notes.insert(note);
     }
 
     #[must_use]
-    pub fn events(&self) -> &[Detail] {
+    pub fn events(&self) -> &Arena<Detail> {
         &self.events
+    }
+
+    pub(crate) fn remove_citation_to(&mut self, xref: &str) -> usize {
+        let before = self.sources.len();
+
+        self.sources
+            .retain(|c| !matches!(&c.target, CitationSource::Record(x) if x == xref));
+
+        let mut removed = before - self.sources.len();
+
+        for h in self
+            .family_events
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(fe) = self.family_events.get_mut(h) {
+                removed += fe.remove_citation_to(xref);
+            }
+        }
+
+        for h in self
+            .events
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(e) = self.events.get_mut(h) {
+                removed += e.remove_citation_to(xref);
+            }
+        }
+
+        for h in self
+            .non_events
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(ne) = self.non_events.get_mut(h) {
+                removed += ne.remove_citation_to(xref);
+            }
+        }
+
+        for h in self
+            .lds_ordinances
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(o) = self.lds_ordinances.get_mut(h) {
+                removed += o.remove_citation_to(xref);
+            }
+        }
+
+        removed
+    }
+
+    pub(crate) fn remove_multimedia_link_to(&mut self, xref: &str) -> usize {
+        let before = self.multimedia_links.len();
+        self.multimedia_links
+            .retain(|l| !matches!(&l.target, LinkTarget::Record(x) if x == xref));
+
+        let mut removed = before - self.multimedia_links.len();
+
+        for h in self
+            .sources
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(c) = self.sources.get_mut(h) {
+                removed += c.remove_multimedia_link_to(xref);
+            }
+        }
+
+        for h in self
+            .family_events
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(e) = self.family_events.get_mut(h) {
+                removed += e.remove_multimedia_link_to(xref);
+            }
+        }
+
+        for h in self
+            .events
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(e) = self.events.get_mut(h) {
+                removed += e.remove_multimedia_link_to(xref);
+            }
+        }
+
+        for h in self
+            .non_events
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(ne) = self.non_events.get_mut(h) {
+                removed += ne.remove_multimedia_link_to(xref);
+            }
+        }
+
+        for h in self
+            .lds_ordinances
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(o) = self.lds_ordinances.get_mut(h) {
+                removed += o.remove_multimedia_link_to(xref);
+            }
+        }
+
+        removed
+    }
+
+    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
+        if let Some(xref) = &self.individual1 {
+            if is_real_reference(xref) {
+                sink(xref);
+            }
+        }
+
+        if let Some(xref) = &self.individual2 {
+            if is_real_reference(xref) {
+                sink(xref);
+            }
+        }
+
+        for fe in &self.family_events {
+            fe.outbound_refs(sink);
+        }
+
+        for xref in &self.children {
+            if is_real_reference(xref) {
+                sink(xref);
+            }
+        }
+
+        for e in &self.events {
+            e.outbound_refs(sink);
+        }
+
+        for s in &self.sources {
+            s.outbound_refs(sink);
+        }
+
+        for l in &self.multimedia_links {
+            l.outbound_refs(sink);
+        }
+
+        for ne in &self.non_events {
+            ne.outbound_refs(sink);
+        }
+
+        for o in &self.lds_ordinances {
+            o.outbound_refs(sink);
+        }
+
+        for xref in &self.submitters {
+            if is_real_reference(xref) {
+                sink(xref);
+            }
+        }
+    }
+}
+
+impl PartialEq for Family {
+    fn eq(&self, other: &Self) -> bool {
+        self.xref == other.xref
+            && self.individual1 == other.individual1
+            && self.individual2 == other.individual2
+            && self.family_events == other.family_events
+            && self.children == other.children
+            && self.num_children == other.num_children
+            && self.change_date == other.change_date
+            && self.events == other.events
+            && self.sources == other.sources
+            && self.multimedia_links == other.multimedia_links
+            && self.notes == other.notes
+            && self.user_defined_tags == other.user_defined_tags
+            && self.non_events == other.non_events
+            && self.lds_ordinances == other.lds_ordinances
+            && self.uid == other.uid
+            && self.restriction == other.restriction
+            && self.user_reference_number == other.user_reference_number
+            && self.user_reference_type == other.user_reference_type
+            && self.automated_record_id == other.automated_record_id
+            && self.external_ids == other.external_ids
+            && self.submitters == other.submitters
     }
 }
 
@@ -188,12 +403,6 @@ impl Parser for Family {
         tokenizer.next_token()?;
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
-            let mut pointer: Option<String> = None;
-            if let Token::Pointer(xref) = &tokenizer.current_token {
-                pointer = Some(xref.to_string());
-                tokenizer.next_token()?;
-            }
-
             match tag {
                 "MARR" | "ANUL" | "CENS" | "DIV" | "DIVF" | "ENGA" | "MARB" | "MARC" | "MARL"
                 | "MARS" | "RESI" | "EVEN" | "SEP" => {
@@ -206,17 +415,19 @@ impl Parser for Family {
                 "CHAN" => self.change_date = Some(ChangeDate::new(tokenizer, level + 1)?),
                 "SOUR" => self.add_source(Citation::new(tokenizer, level + 1)?),
                 "NOTE" => self.add_note(Note::new(tokenizer, level + 1)?),
-                "OBJE" => self.add_multimedia(Multimedia::new(tokenizer, level + 1, pointer)?),
-                "NO" => self.non_events.push(NonEvent::new(tokenizer, level + 1)?),
+                "OBJE" => self.add_multimedia(Link::new(tokenizer, level + 1)?),
+                "NO" => {
+                    self.non_events.insert(NonEvent::new(tokenizer, level + 1)?);
+                }
                 // LDS Sealing to Spouse ordinance
                 "SLGS" => {
                     self.lds_ordinances
-                        .push(LdsOrdinance::new(tokenizer, level + 1, tag)?);
+                        .insert(LdsOrdinance::new(tokenizer, level + 1, tag)?);
                 }
                 // Unique identifier (GEDCOM 7.0)
                 "UID" => self.uid = Some(tokenizer.take_line_value()?),
                 // Restriction notice
-                "RESN" => self.restriction = Some(tokenizer.take_line_value()?),
+                "RESN" => self.restriction = ListEnum::from_payload(&tokenizer.take_line_value()?),
                 // User reference number
                 "REFN" => {
                     self.user_reference_number = Some(tokenizer.take_line_value()?);
@@ -230,8 +441,13 @@ impl Parser for Family {
                 // Automated record ID
                 "RIN" => self.automated_record_id = Some(tokenizer.take_line_value()?),
                 // External identifier (GEDCOM 7.0)
-                "EXID" => self.external_ids.push(tokenizer.take_line_value()?),
-                "SUBM" => self.submitters.push(tokenizer.take_line_value()?),
+                "EXID" => {
+                    let id = tokenizer.take_line_value()?;
+                    self.external_ids.insert(ExternalId { id, type_uri: None });
+                }
+                "SUBM" => {
+                    self.submitters.insert(tokenizer.take_line_value()?);
+                }
                 _ => {
                     // Leave unknown tags to `parse_subset`, which keeps them with
                     // their substructures.
@@ -241,7 +457,9 @@ impl Parser for Family {
             Ok(())
         };
 
-        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
+        for udt in parse_subset(tokenizer, level, handle_subset)? {
+            self.user_defined_tags.insert(*udt);
+        }
 
         Ok(())
     }
@@ -257,9 +475,9 @@ impl HasEvents for Family {
                 e.event
             );
         }
-        self.events.push(event);
+        self.events.insert(event);
     }
-    fn events(&self) -> Vec<Detail> {
-        self.events.clone()
+    fn events(&self) -> &Arena<Detail> {
+        &self.events
     }
 }

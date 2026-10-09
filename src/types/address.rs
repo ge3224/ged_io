@@ -1,8 +1,9 @@
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use std::fmt;
 
 use crate::{
+    arena::Arena,
     parser::{parse_subset, Parser},
     tokenizer::{Token, Tokenizer},
     types::UserDefinedTag,
@@ -10,8 +11,8 @@ use crate::{
 };
 
 /// Physical address at which a fact occurs
-#[derive(Clone, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[derive(Default, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Address {
     pub value: Option<String>,
     pub adr1: Option<String>,
@@ -21,7 +22,7 @@ pub struct Address {
     pub state: Option<String>,
     pub post: Option<String>,
     pub country: Option<String>,
-    pub custom_data: Vec<Box<UserDefinedTag>>,
+    pub user_defined_tags: Arena<UserDefinedTag>,
 }
 
 impl Address {
@@ -72,7 +73,9 @@ impl Parser for Address {
             Ok(())
         };
 
-        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
+        for udt in parse_subset(tokenizer, level, handle_subset)? {
+            self.user_defined_tags.insert(*udt);
+        }
 
         if !value.is_empty() {
             self.value = Some(value);

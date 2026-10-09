@@ -1,7 +1,8 @@
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 use crate::{
+    arena::Arena,
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{custom::UserDefinedTag, date::Date, source::text::Text},
@@ -12,14 +13,14 @@ use crate::{
 /// Actual text from the source that was used in making assertions, for example a date phrase as
 /// actually recorded in the source, or significant notes written by the recorder, or an applicable
 /// sentence from a letter. This is stored in the SOUR.DATA.TEXT context.
-#[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[derive(Debug, Default, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct SourceCitationData {
-    /// Extension (user-defined) tags found under this structure.
-    pub custom_data: Vec<Box<UserDefinedTag>>,
     pub date: Option<Date>,
     /// Text from the source (tag: TEXT). GEDCOM allows any number.
-    pub texts: Vec<Text>,
+    pub texts: Arena<Text>,
+    /// Extension (user-defined) tags found under this structure.
+    pub user_defined_tags: Arena<UserDefinedTag>,
 }
 
 impl SourceCitationData {
@@ -33,9 +34,9 @@ impl SourceCitationData {
         level: u8,
     ) -> Result<SourceCitationData, GedcomError> {
         let mut data = SourceCitationData {
-            custom_data: Vec::new(),
             date: None,
-            texts: Vec::new(),
+            texts: Arena::default(),
+            user_defined_tags: Arena::default(),
         };
         data.parse(tokenizer, level)?;
         Ok(data)
@@ -49,7 +50,9 @@ impl Parser for SourceCitationData {
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             match tag {
                 "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
-                "TEXT" => self.texts.push(Text::new(tokenizer, level + 1)?),
+                "TEXT" => {
+                    self.texts.insert(Text::new(tokenizer, level + 1)?);
+                }
                 _ => {
                     // Leave unknown tags to `parse_subset`, which keeps them with
                     // their substructures.
@@ -58,7 +61,9 @@ impl Parser for SourceCitationData {
             Ok(())
         };
 
-        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
+        for udt in parse_subset(tokenizer, level, handle_subset)? {
+            self.user_defined_tags.insert(*udt);
+        }
 
         Ok(())
     }

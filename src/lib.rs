@@ -90,53 +90,29 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut gedcom = Gedcom::new(malformed_gedcom.chars())?;
 
     match gedcom.parse_data() {
-        Ok(_) => println!("Parsing successful!"),
-        Err(e) => {
-            eprintln!("Error parsing GEDCOM: {}", e);
-            match e {
-                GedcomError::ParseError { line, message } => {
-                    eprintln!("Parse error at line {}: {}", line, message);
-                }
-                GedcomError::InvalidFormat(msg) => {
-                    eprintln!("Invalid format: {}", msg);
-                }
-                GedcomError::EncodingError(msg) => {
-                    eprintln!("Encoding error: {}", msg);
-                }
-                GedcomError::InvalidTag { line, tag } => {
-                    eprintln!("Invalid tag '{}' at line {}", tag, line);
-                }
-                GedcomError::UnexpectedLevel { line, expected, found } => {
-                    eprintln!("Unexpected level at line {}: expected {}, found {}", line, expected, found);
-                }
-                GedcomError::MissingRequiredValue { line, tag } => {
-                    eprintln!("Missing required value for '{}' at line {}", tag, line);
-                }
-                GedcomError::InvalidValueFormat { line, value, expected_format } => {
-                    eprintln!("Invalid format for '{}' at line {}: expected {}", value, line, expected_format);
-                }
-                GedcomError::FileSizeLimitExceeded { size, max_size } => {
-                    eprintln!("File too large: {} bytes (max: {} bytes)", size, max_size);
-                }
-                GedcomError::IoError(msg) => {
-                    eprintln!("I/O error: {}", msg);
-                }
-            }
-        }
-    }
+      Ok(_) => println!("Parsing successful!"),
+      Err(e) => {
+          eprintln!("Error parsing GEDCOM: {e}");
+          // Match specific variants when you need structured handling:
+          if let GedcomError::ParseError { line, message } = e {
+              eprintln!("...at line {line}: {message}");
+          }
+      }
+  }
     Ok(())
 }
 ```
 */
 #![cfg_attr(not(test), deny(clippy::cargo, clippy::pedantic, clippy::panic))]
 #![deny(clippy::all)]
-#![deny(missing_docs)]
+#![warn(missing_docs)]
 
 /// Character encoding detection and conversion for GEDCOM files.
 ///
 /// This module provides utilities for detecting and converting different character encodings
 /// commonly found in GEDCOM files, including UTF-8, UTF-16, ISO-8859-1, and ISO-8859-15.
 pub mod encoding;
+pub mod xref;
 
 /// Utility functions for GEDCOM processing.
 ///
@@ -185,9 +161,16 @@ pub mod error;
 #[cfg(feature = "gedzip")]
 pub mod gedzip;
 
+pub mod arena;
 /// Indexed GEDCOM data structure for O(1) lookups.
 pub mod indexed;
 pub mod parser;
+/// Traits and types describing xref-based references between GEDCOM records.
+///
+/// Used by `remove_*` methods on [`GedcomData`] to report the sites that still
+/// reference a record when a removal is refused. See
+/// [`GedcomError::StillReferenced`].
+pub mod reference;
 /// Streaming parser for large GEDCOM files.
 ///
 /// This module provides an iterator-based streaming parser that reads GEDCOM files
@@ -289,7 +272,7 @@ use std::str::Chars;
 /// let mut gedcom = Gedcom::new(source.chars()).unwrap();
 /// let data = gedcom.parse_data().unwrap();
 ///
-/// assert_eq!(data.individuals.len(), 1);
+/// assert_eq!(data.count_individual(), 1);
 /// ```
 pub struct Gedcom<'a> {
     tokenizer: Tokenizer<'a>,
@@ -318,7 +301,7 @@ impl<'a> Gedcom<'a> {
         if self.tokenizer.current_token == Token::EOF {
             return Ok(GedcomData::default());
         }
-        GedcomData::new(&mut self.tokenizer, 0)
+        GedcomData::new(&mut self.tokenizer)
     }
 }
 
@@ -361,19 +344,31 @@ mod tests {
         let data = doc.parse_data().unwrap();
 
         assert_eq!(data.submitters.len(), 1);
-        assert_eq!(data.submitters[0].xref.as_ref().unwrap(), "@SUBMITTER@");
+        assert_eq!(
+            data.find_submitter("@SUBMITTER@").unwrap().xref.as_str(),
+            "@SUBMITTER@"
+        );
 
-        assert_eq!(data.individuals.len(), 1);
-        assert_eq!(data.individuals[0].xref.as_ref().unwrap(), "@PERSON1@");
+        assert_eq!(data.count_individual(), 1);
+        assert_eq!(
+            data.find_individual("@PERSON1@").unwrap().xref.as_str(),
+            "@PERSON1@"
+        );
 
         assert_eq!(data.families.len(), 1);
-        assert_eq!(data.families[0].xref.as_ref().unwrap(), "@FAMILY1@");
+        assert_eq!(
+            data.find_family("@FAMILY1@").unwrap().xref.as_str(),
+            "@FAMILY1@"
+        );
 
         assert_eq!(data.repositories.len(), 1);
-        assert_eq!(data.repositories[0].xref.as_ref().unwrap(), "@R1@");
+        assert_eq!(data.find_repository("@R1@").unwrap().xref.as_str(), "@R1@");
 
         assert_eq!(data.sources.len(), 1);
-        assert_eq!(data.sources[0].xref.as_ref().unwrap(), "@SOURCE1@");
+        assert_eq!(
+            data.find_source("@SOURCE1@").unwrap().xref.as_str(),
+            "@SOURCE1@"
+        );
     }
 
     #[test]
@@ -389,8 +384,9 @@ mod tests {
         let data = doc.parse_data().unwrap();
 
         assert_eq!(data.shared_notes.len(), 1);
-        assert_eq!(data.shared_notes[0].xref.as_ref().unwrap(), "@N1@");
-        assert_eq!(data.shared_notes[0].text, "This is a shared note");
+        let note = data.find_shared_note("@N1@").unwrap();
+        assert_eq!(note.xref.as_str(), "@N1@");
+        assert_eq!(note.text, "This is a shared note");
         assert!(data.is_gedcom_7());
     }
 

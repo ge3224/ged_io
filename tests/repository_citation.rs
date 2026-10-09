@@ -25,7 +25,13 @@ fn test_round_trip_repository_citation_call_numbers() {
 0 TRLR"#;
 
     let data1 = GedcomBuilder::new().build_from_str(original).unwrap();
-    let repo = &data1.sources[0].repo_citations[0];
+    let repo = &data1
+        .iter_sources()
+        .next()
+        .unwrap()
+        .repo_citations
+        .first()
+        .unwrap();
     // Every CALN is kept, each with its own MEDI.
     let call_numbers: Vec<_> = repo
         .call_numbers
@@ -38,10 +44,21 @@ fn test_round_trip_repository_citation_call_numbers() {
     );
     assert_eq!(repo.notes.len(), 1);
     // A MEDI directly under REPO describes a call number without a value.
-    let legacy = &data1.sources[0].repo_citations[1].call_numbers;
+    let legacy = &data1
+        .iter_sources()
+        .next()
+        .unwrap()
+        .repo_citations
+        .iter()
+        .nth(1)
+        .unwrap()
+        .call_numbers;
     assert_eq!(legacy.len(), 1);
-    assert_eq!(legacy[0].value, "");
-    assert_eq!(legacy[0].medium.as_deref(), Some("manuscript"));
+    assert_eq!(legacy.first().unwrap().value, "");
+    assert_eq!(
+        legacy.first().unwrap().medium.as_deref(),
+        Some("manuscript")
+    );
 
     let written = GedcomWriter::new().write_to_string(&data1).unwrap();
     for expected in [
@@ -55,7 +72,13 @@ fn test_round_trip_repository_citation_call_numbers() {
     }
 
     let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();
-    let reread: Vec<_> = data2.sources[0].repo_citations[0]
+    let reread: Vec<_> = data2
+        .iter_sources()
+        .next()
+        .unwrap()
+        .repo_citations
+        .first()
+        .unwrap()
         .call_numbers
         .iter()
         .map(|c| (c.value.as_str(), c.medium.as_deref()))
@@ -65,8 +88,22 @@ fn test_round_trip_repository_citation_call_numbers() {
         [("111", Some("book")), ("222", Some("film")), ("333", None)]
     );
     assert_eq!(
-        data1.sources[0].repo_citations[0].notes,
-        data2.sources[0].repo_citations[0].notes
+        data1
+            .iter_sources()
+            .next()
+            .unwrap()
+            .repo_citations
+            .first()
+            .unwrap()
+            .notes,
+        data2
+            .iter_sources()
+            .next()
+            .unwrap()
+            .repo_citations
+            .first()
+            .unwrap()
+            .notes
     );
 }
 
@@ -91,7 +128,15 @@ fn test_write_call_number_medium_per_version() {
 
     let data = GedcomBuilder::new().build_from_str(original).unwrap();
     assert_eq!(
-        data.sources[0].repo_citations[0].call_numbers[0]
+        data.iter_sources()
+            .next()
+            .unwrap()
+            .repo_citations
+            .first()
+            .unwrap()
+            .call_numbers
+            .first()
+            .unwrap()
             .medium_phrase
             .as_deref(),
         Some("Parish register")

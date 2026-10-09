@@ -4,22 +4,22 @@ pub mod link;
 pub mod user;
 
 use crate::{
+    arena::Arena,
     parser::{parse_subset, Parser},
-    tokenizer::{Token, Tokenizer},
+    tokenizer::Tokenizer,
     types::{
         custom::UserDefinedTag,
         date::change_date::ChangeDate,
         multimedia::{file::Reference, format::Format, user::UserReferenceNumber},
         note::Note,
-        source::citation::Citation,
+        source::citation::{Citation, CitationSource},
         Xref,
     },
-    util::is_xref_pointer,
     GedcomError,
 };
 
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 /// `MultimediaRecord` refers to 1 or more external digital files, and may provide some
 /// additional information about the files and the media they encode.
@@ -31,13 +31,11 @@ use serde::{Deserialize, Serialize};
 /// The change and creation dates should be for the OBJE record itself, not the underlying files.
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#MULTIMEDIA_RECORD>.
-#[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[derive(Debug, Default, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Multimedia {
     /// Optional reference to link to this submitter
-    pub xref: Option<Xref>,
-    /// Extension (user-defined) tags found under this structure.
-    pub custom_data: Vec<Box<UserDefinedTag>>,
+    pub xref: Xref,
     pub file: Option<Reference>,
     /// The 5.5 spec, page 26, shows FORM as a sub-structure of FILE, but the struct appears as a
     /// sibling in an Ancestry.com export.
@@ -47,17 +45,21 @@ pub struct Multimedia {
     pub title: Option<String>,
     pub user_reference_number: Option<UserReferenceNumber>,
     pub automated_record_id: Option<String>,
-    pub source_citation: Option<Citation>,
+    pub(crate) source_citation: Option<Citation>,
     pub change_date: Option<ChangeDate>,
     /// Notes about the multimedia record (tag: NOTE).
-    pub notes: Vec<Note>,
+    pub notes: Arena<Note>,
+    /// Extension (user-defined) tags found under this structure.
+    pub user_defined_tags: Arena<UserDefinedTag>,
 }
 
 impl Multimedia {
+    pub(crate) const RECORD_TYPE: &'static str = "Multimedia";
+
     #[must_use]
-    fn with_xref(xref: Option<Xref>) -> Self {
+    fn with_xref(xref: impl Into<Xref>) -> Self {
         Self {
-            xref,
+            xref: xref.into(),
             ..Default::default()
         }
     }
@@ -70,28 +72,49 @@ impl Multimedia {
     pub fn new(
         tokenizer: &mut Tokenizer<'_>,
         level: u8,
-        xref: Option<Xref>,
+        xref: Xref,
     ) -> Result<Multimedia, GedcomError> {
         let mut obje = Multimedia::with_xref(xref);
         obje.parse(tokenizer, level)?;
         Ok(obje)
     }
+
+    /// Returns this record's source citation, if it has one.
+    #[must_use]
+    pub fn source_citation(&self) -> Option<&Citation> {
+        self.source_citation.as_ref()
+    }
+
+    pub(crate) fn remove_citation_to(&mut self, xref: &str) -> usize {
+        let hit = self
+            .source_citation
+            .as_ref()
+            .is_some_and(|c| matches!(&c.target, CitationSource::Record(x) if x == xref));
+        if hit {
+            self.source_citation = None;
+            1
+        } else {
+            0
+        }
+    }
+
+    pub(crate) fn remove_multimedia_link_to(&mut self, xref: &str) -> usize {
+        self.source_citation
+            .as_mut()
+            .map_or(0, |c| c.remove_multimedia_link_to(xref))
+    }
+
+    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
+        if let Some(c) = &self.source_citation {
+            c.outbound_refs(sink);
+        }
+    }
 }
 
 impl Parser for Multimedia {
     fn parse(&mut self, tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<(), GedcomError> {
-        // Step past the OBJE tag. A record-level `0 @M1@ OBJE` has already had its
-        // xref handed to us by the caller and the line ends here, but an inline
-        // `1 OBJE @M1@` carries the pointer as the line value, so take it from there.
+        // skip current line
         tokenizer.next_token()?;
-
-        if let Token::LineValue(value) = &tokenizer.current_token {
-            let value = value.trim();
-            if is_xref_pointer(value) && self.xref.is_none() {
-                self.xref = Some(value.to_string());
-            }
-            tokenizer.next_token()?;
-        }
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             match tag {
@@ -103,7 +126,9 @@ impl Parser for Multimedia {
                         Some(UserReferenceNumber::new(tokenizer, level + 1)?);
                 }
                 "RIN" => self.automated_record_id = Some(tokenizer.take_line_value()?),
-                "NOTE" => self.notes.push(Note::new(tokenizer, level + 1)?),
+                "NOTE" => {
+                    self.notes.insert(Note::new(tokenizer, level + 1)?);
+                }
                 "SOUR" => self.source_citation = Some(Citation::new(tokenizer, level + 1)?),
                 "CHAN" => self.change_date = Some(ChangeDate::new(tokenizer, level + 1)?),
                 _ => {
@@ -114,7 +139,10 @@ impl Parser for Multimedia {
 
             Ok(())
         };
-        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
+
+        for udt in parse_subset(tokenizer, level, handle_subset)? {
+            self.user_defined_tags.insert(*udt);
+        }
 
         Ok(())
     }
@@ -122,7 +150,29 @@ impl Parser for Multimedia {
 
 #[cfg(test)]
 mod tests {
-    use crate::Gedcom;
+    use crate::{
+        types::{multimedia::link::LinkTarget, GedcomData},
+        Gedcom,
+    };
+
+    fn parse(sample: &str) -> GedcomData {
+        let mut doc = Gedcom::new(sample.chars()).unwrap();
+        doc.parse_data().unwrap()
+    }
+
+    #[test]
+    fn void_pointer_is_neither_record_nor_inline() {
+        let data = parse("0 HEAD\n1 GEDC\n2 VERS 7.0\n0 @I1@ INDI\n1 OBJE @VOID@\n0 TRLR");
+        let link = data
+            .find_individual("@I1@")
+            .unwrap()
+            .multimedia_links
+            .first()
+            .unwrap();
+
+        assert_eq!(link.target(), &LinkTarget::Void);
+        assert_eq!(data.reference_count("@VOID@"), 0);
+    }
 
     #[test]
     fn test_parse_multimedia_record() {
@@ -140,11 +190,10 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        assert_eq!(data.multimedia.len(), 1);
-        let obje = &data.multimedia[0];
+        assert_eq!(data.count_multimedia(), 1);
+        let obje = data.find_multimedia("@MEDIA1@").unwrap();
 
-        let xref = obje.xref.as_ref().unwrap();
-        assert_eq!(xref, "@MEDIA1@");
+        assert_eq!(obje.xref, "@MEDIA1@");
 
         let titl = obje.title.as_ref().unwrap();
         assert_eq!(titl, "A Title");
@@ -165,17 +214,17 @@ mod tests {
             1 GEDC\n\
             2 VERS 5.5\n\
             2 FORM LINEAGE-LINKED\n\
-            0 OBJE\n\
-            1 FILE http://trees.ancestry.com/rd?f=image&guid=Xxxxxxxx-Xxxx-Xxxx-Xxxx-Xxxxxxxxxxxx&tid=Xxxxxxxx&pid=1\n\
-            1 FORM jpg\n\
-            1 TITL In Prague\n\
+             0 @M1@ OBJE\n\
+             1 FILE http://trees.ancestry.com/rd?f=image&guid=Xxxxxxxx-Xxxx-Xxxx-Xxxx-Xxxxxxxxxxxx&tid=Xxxxxxxx&pid=1\n\
+             1 FORM jpg\n\
+             1 TITL In Prague\n\
             0 TRLR";
 
         let mut record = Gedcom::new(sample.chars()).unwrap();
         let data = record.parse_data().unwrap();
-        assert_eq!(data.multimedia.len(), 1);
+        assert_eq!(data.count_multimedia(), 1);
 
-        let obje = &data.multimedia[0];
+        let obje = data.iter_multimedia().next().unwrap();
         assert_eq!(obje.title.as_ref().unwrap(), "In Prague");
 
         let form = obje.form.as_ref().unwrap();
@@ -200,9 +249,14 @@ mod tests {
 
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
-        assert_eq!(data.multimedia.len(), 1);
+        assert_eq!(data.count_multimedia(), 1);
 
-        let file = data.multimedia[0].file.as_ref().unwrap();
+        let file = data
+            .find_multimedia("@MEDIA1@")
+            .unwrap()
+            .file
+            .as_ref()
+            .unwrap();
         assert_eq!(
             file.value.as_ref().unwrap(),
             "/home/user/media/file_name.bmp"
@@ -229,62 +283,18 @@ mod tests {
 
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
-        assert_eq!(data.multimedia.len(), 1);
+        assert_eq!(data.count_multimedia(), 1);
 
-        let file = data.multimedia[0].file.as_ref().unwrap();
+        let file = data
+            .find_multimedia("@MEDIA1@")
+            .unwrap()
+            .file
+            .as_ref()
+            .unwrap();
 
         let form = file.form.as_ref().unwrap();
         assert_eq!(form.value.as_ref().unwrap(), "bmp");
         assert_eq!(form.source_media_type.as_ref().unwrap(), "photo");
-    }
-
-    #[test]
-    fn test_parse_multimedia_link_pointer() {
-        // `1 OBJE @M1@` links to a MULTIMEDIA_RECORD; the pointer is carried by
-        // the line value and is the only identity the link has.
-        let sample = "\
-            0 HEAD\n\
-            1 GEDC\n\
-            2 VERS 5.5.1\n\
-            0 @I1@ INDI\n\
-            1 NAME John /Smith/\n\
-            1 OBJE @MEDIA1@\n\
-            0 @MEDIA1@ OBJE\n\
-            1 FILE /home/user/media/file_name.bmp\n\
-            0 TRLR";
-
-        let mut doc = Gedcom::new(sample.chars()).unwrap();
-        let data = doc.parse_data().unwrap();
-
-        let link = &data.individuals[0].multimedia[0];
-        assert_eq!(link.xref.as_deref(), Some("@MEDIA1@"));
-        assert_eq!(link.file, None);
-
-        assert_eq!(data.multimedia[0].xref.as_deref(), Some("@MEDIA1@"));
-    }
-
-    #[test]
-    fn test_parse_multimedia_link_ignores_non_pointer_line_value() {
-        // A stray value on the OBJE line that isn't a pointer must not become
-        // an xref, and must not swallow the substructures that follow.
-        let sample = "\
-            0 HEAD\n\
-            1 GEDC\n\
-            2 VERS 5.5.1\n\
-            0 @I1@ INDI\n\
-            1 OBJE some stray text\n\
-            2 FILE photo@2x.jpg\n\
-            0 TRLR";
-
-        let mut doc = Gedcom::new(sample.chars()).unwrap();
-        let data = doc.parse_data().unwrap();
-
-        let link = &data.individuals[0].multimedia[0];
-        assert_eq!(link.xref, None);
-        assert_eq!(
-            link.file.as_ref().unwrap().value.as_deref(),
-            Some("photo@2x.jpg")
-        );
     }
 
     #[test]
@@ -302,9 +312,14 @@ mod tests {
 
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
-        assert_eq!(data.multimedia.len(), 1);
+        assert_eq!(data.count_multimedia(), 1);
 
-        let user_ref = data.multimedia[0].user_reference_number.as_ref().unwrap();
+        let user_ref = data
+            .find_multimedia("@MEDIA1@")
+            .unwrap()
+            .user_reference_number
+            .as_ref()
+            .unwrap();
         assert_eq!(user_ref.value.as_ref().unwrap(), "000");
         assert_eq!(
             user_ref.user_reference_type.as_ref().unwrap(),

@@ -33,12 +33,46 @@ fn test_round_trip_free_text_age() {
 
     let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();
     assert_eq!(
-        data1.individuals[0].events[0].age,
-        data2.individuals[0].events[0].age
+        data1
+            .iter_individuals()
+            .next()
+            .unwrap()
+            .events
+            .first()
+            .unwrap()
+            .age,
+        data2
+            .iter_individuals()
+            .next()
+            .unwrap()
+            .events
+            .first()
+            .unwrap()
+            .age
     );
     assert_eq!(
-        data1.families[0].events[0].family_event_details[0].age,
-        data2.families[0].events[0].family_event_details[0].age
+        data1
+            .iter_families()
+            .next()
+            .unwrap()
+            .events
+            .first()
+            .unwrap()
+            .family_event_details
+            .first()
+            .unwrap()
+            .age,
+        data2
+            .iter_families()
+            .next()
+            .unwrap()
+            .events
+            .first()
+            .unwrap()
+            .family_event_details
+            .first()
+            .unwrap()
+            .age
     );
 }
 
@@ -90,11 +124,37 @@ fn test_write_age_phrase_per_version() {
 
     let reparsed = GedcomBuilder::new().build_from_str(&v7).unwrap();
     assert_eq!(
-        data.individuals[0].events[1].age,
-        reparsed.individuals[0].events[1].age
+        data.iter_individuals()
+            .next()
+            .unwrap()
+            .events
+            .first()
+            .unwrap()
+            .age,
+        reparsed
+            .iter_individuals()
+            .next()
+            .unwrap()
+            .events
+            .first()
+            .unwrap()
+            .age
     );
     assert_eq!(
-        data.individuals[0].attributes[0].age,
-        reparsed.individuals[0].attributes[0].age
+        data.iter_individuals()
+            .next()
+            .unwrap()
+            .attributes
+            .first()
+            .unwrap()
+            .age,
+        reparsed
+            .iter_individuals()
+            .next()
+            .unwrap()
+            .attributes
+            .first()
+            .unwrap()
+            .age
     );
 }

@@ -6,6 +6,7 @@ pub mod source;
 
 use super::UserDefinedTag;
 use crate::{
+    arena::Arena,
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{
@@ -18,7 +19,7 @@ use crate::{
     GedcomError,
 };
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 /// Header (tag: HEAD) containing GEDCOM metadata.
 ///
@@ -30,8 +31,8 @@ use serde::{Deserialize, Serialize};
 /// - `LANG` and `PLAC` give default values for the rest of the document
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#HEADER>.
-#[derive(Clone, Debug, Default, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[derive(Debug, Default, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Header {
     /// tag: GEDC
     ///
@@ -75,12 +76,12 @@ pub struct Header {
     ///
     /// A pointer to a submitter record.
     /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#SUBM>.
-    pub submitter_tag: Option<String>,
+    pub(crate) submitter_tag: Option<String>,
 
     /// tag: SUBN (GEDCOM 5.5.1 only)
     ///
     /// A pointer to a submission record. This was removed in GEDCOM 7.0.
-    pub submission_tag: Option<String>,
+    pub(crate) submission_tag: Option<String>,
 
     /// tag: COPR
     ///
@@ -120,7 +121,7 @@ pub struct Header {
     pub place: Option<HeadPlac>,
 
     /// Custom data (extension tags).
-    pub custom_data: Vec<Box<UserDefinedTag>>,
+    pub user_defined_tags: Arena<UserDefinedTag>,
 }
 
 impl Header {
@@ -186,6 +187,30 @@ impl Header {
     pub fn find_extension_uri(&self, tag: &str) -> Option<&str> {
         self.schema.as_ref()?.find_uri(tag)
     }
+
+    /// The submitter record the header points at, if any.
+    #[must_use]
+    pub fn submitter_tag(&self) -> Option<&str> {
+        self.submitter_tag.as_deref()
+    }
+
+    /// The submission record the header points at, if any.
+    #[must_use]
+    pub fn submission_tag(&self) -> Option<&str> {
+        self.submission_tag.as_deref()
+    }
+
+    pub(crate) fn remove_citation_to(&mut self, xref: &str) -> usize {
+        self.encoding
+            .as_mut()
+            .map_or(0, |e| e.remove_citation_to(xref))
+    }
+
+    pub(crate) fn remove_multimedia_link_to(&mut self, xref: &str) -> usize {
+        self.encoding
+            .as_mut()
+            .map_or(0, |e| e.remove_multimedia_link_to(xref))
+    }
 }
 
 impl Parser for Header {
@@ -218,7 +243,9 @@ impl Parser for Header {
             Ok(())
         };
 
-        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
+        for udt in parse_subset(tokenizer, level, handle_subset)? {
+            self.user_defined_tags.insert(*udt);
+        }
 
         Ok(())
     }

@@ -97,7 +97,7 @@ Real-world GEDCOM files are messy. Granular error control and compat handling ar
 ### GEDCOM Sanitizer CLI
 - ✅ `GedcomWriter` round-trip support: `write_to_string()`, `write_to()`, configurable line endings / max line length / target version — `src/writer.rs:90`
 - ✅ Lenient parsing already available via `.strict_mode(false)`
-- `ged_io --sanitize <file.ged>` CLI wrapper — parse with lenient/compat mode, write strict standard-compliant output
+- `ged-io --sanitize <file.ged>` CLI wrapper — parse with lenient/compat mode, write strict standard-compliant output
 
 ---
 
@@ -109,7 +109,7 @@ Specialized but valuable for power users and tool builders. Significant substrat
 - ✅ `GedcomVersion` enum with feature predicates (`supports_conc`, `requires_utf8`, `supports_schema`, `supports_shared_notes`, `doubles_all_at_signs`, etc.) — `src/version.rs`
 - ✅ `detect_version()` and `VersionFeatures` for inspecting a parsed file
 - `convert_to(GedcomVersion) -> Result<GedcomData>` — actual record transformation (SNOTE↔NOTE, SCHMA handling, `@` doubling, `CONC` collapse, encoding declarations)
-- `ged_io --convert-to 7.0 <file.ged>` / `--convert-to 5.5.1` CLI flag
+- `ged-io --convert-to 7.0 <file.ged>` / `--convert-to 5.5.1` CLI flag
 
 ### Visitor/Event-based Parser Interface
 - ✅ Iterator-based streaming via `GedcomStreamParser` — `src/stream.rs`
@@ -119,7 +119,7 @@ Specialized but valuable for power users and tool builders. Significant substrat
 ### Encoding Conversion CLI
 - ✅ Encoding library: `detect_encoding()`, `decode_gedcom_bytes()`, `decode_with_encoding()`, `encode_to_bytes()` — `src/encoding.rs`
 - ✅ Supports UTF-8, UTF-16 LE/BE, ISO-8859-1/15, ASCII, ANSEL
-- `ged_io --convert-encoding utf-8 <file.ged>` CLI wrapper
+- `ged-io --convert-encoding utf-8 <file.ged>` CLI wrapper
 
 ---
 

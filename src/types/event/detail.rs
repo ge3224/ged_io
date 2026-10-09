@@ -1,8 +1,9 @@
 #[cfg(feature = "json")]
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 use std::{fmt, str::FromStr};
 
 use crate::{
+    arena::Arena,
     parser::{parse_subset, Parser},
     tokenizer::{Token, Tokenizer},
     types::{
@@ -12,10 +13,12 @@ use crate::{
         event::{family::FamilyEventDetail, Event},
         gedcom7::SortDate,
         individual::{association::Association, family_link::FamilyLink},
-        multimedia::Multimedia,
+        list::ListEnum,
+        multimedia::link::{Link, LinkTarget},
         note::Note,
         place::Place,
-        source::citation::Citation,
+        restriction::Restriction,
+        source::citation::{Citation, CitationSource},
     },
     GedcomError,
 };
@@ -34,8 +37,8 @@ use crate::{
 /// - `SDATE` - A sort date used for ordering events when the actual date is vague
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#INDIVIDUAL_EVENT_STRUCTURE>
-#[derive(Clone, PartialEq)]
-#[cfg_attr(feature = "json", derive(Serialize, Deserialize))]
+#[derive(PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Detail {
     pub event: Event,
     pub value: Option<String>,
@@ -60,15 +63,15 @@ pub struct Detail {
     /// - Place form
     pub place: Option<Place>,
     /// Notes (tag: NOTE). GEDCOM allows any number of them.
-    pub notes: Vec<Note>,
+    pub notes: Arena<Note>,
     pub family_link: Option<FamilyLink>,
-    pub family_event_details: Vec<FamilyEventDetail>,
+    pub family_event_details: Arena<FamilyEventDetail>,
     /// `event_type` handles the TYPE tag, a descriptive word or phrase used to further classify
     /// the parent event or attribute tag. This should be used whenever either of the generic EVEN
     /// or FACT tags are used. T. See GEDCOM 5.5 spec, page 35 and 49.
     pub event_type: Option<String>,
-    pub citations: Vec<Citation>,
-    pub multimedia: Vec<Multimedia>,
+    pub citations: Arena<Citation>,
+    pub multimedia_links: Arena<Link>,
     /// A sort date used for ordering events (GEDCOM 7.0).
     ///
     /// This is intended for use when the actual date is vague (e.g., "before 1820")
@@ -76,24 +79,18 @@ pub struct Detail {
     /// to use for sorting purposes.
     pub sort_date: Option<SortDate>,
     /// Associations with individuals related to this event (e.g., witnesses, godparents).
-    pub associations: Vec<Association>,
-    /// The cause of the event (tag: CAUS).
-    ///
-    /// Used to indicate what caused the event to occur. Commonly used with death events
-    /// to record the cause of death.
-    ///
-    /// See GEDCOM 5.5.1 spec, page 43; <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#CAUS>
+    pub associations: Arena<Association>,
+    /// The cause of the event (tag: CAUS). Used to indicate what caused the
+    /// event to occur. Commonly used with death events to record the cause of
+    /// death.
     pub cause: Option<String>,
-    /// Restriction notice (tag: RESN).
-    ///
-    /// A flag that indicates access to information has been restricted.
-    /// Valid values are:
-    /// - `confidential` - Not for public distribution
-    /// - `locked` - Cannot be modified
-    /// - `privacy` - Information is private
-    ///
-    /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#RESN>
-    pub restriction: Option<String>,
+    /// Restriction notice (tag: RESN) that indicates access to information has
+    /// been restricted.
+    #[cfg_attr(
+        feature = "json",
+        serde(default, skip_serializing_if = "ListEnum::is_empty")
+    )]
+    pub restriction: ListEnum<Restriction>,
     /// Age at the time of the event (tag: AGE).
     ///
     /// The age of the individual at the time the event occurred.
@@ -114,7 +111,7 @@ pub struct Detail {
     /// a record applies.
     pub religion: Option<String>,
     /// Extension (user-defined) tags found under this structure.
-    pub custom_data: Vec<Box<UserDefinedTag>>,
+    pub user_defined_tags: Arena<UserDefinedTag>,
 }
 
 impl Detail {
@@ -137,20 +134,20 @@ impl Detail {
             fax: Vec::new(),
             website: Vec::new(),
             place: None,
-            notes: Vec::new(),
+            notes: Arena::default(),
             family_link: None,
-            family_event_details: Vec::new(),
+            family_event_details: Arena::default(),
             event_type: None,
-            citations: Vec::new(),
-            multimedia: Vec::new(),
+            citations: Arena::default(),
+            multimedia_links: Arena::default(),
             sort_date: None,
-            associations: Vec::new(),
+            associations: Arena::default(),
             cause: None,
-            restriction: None,
+            restriction: ListEnum::default(),
             age: None,
             agency: None,
             religion: None,
-            custom_data: Vec::new(),
+            user_defined_tags: Arena::default(),
         };
         event.parse(tokenizer, level)?;
         Ok(event)
@@ -162,20 +159,79 @@ impl Detail {
     }
 
     pub fn add_citation(&mut self, citation: Citation) {
-        self.citations.push(citation);
+        self.citations.insert(citation);
     }
 
     pub fn add_family_event_detail(&mut self, detail: FamilyEventDetail) {
-        self.family_event_details.push(detail);
+        self.family_event_details.insert(detail);
     }
 
-    pub fn add_multimedia_record(&mut self, m: Multimedia) {
-        self.multimedia.push(m);
+    pub fn add_multimedia_record(&mut self, m: Link) {
+        self.multimedia_links.insert(m);
     }
 
-    #[must_use]
-    pub fn get_citations(&self) -> Vec<Citation> {
-        self.citations.clone()
+    pub(crate) fn remove_citation_to(&mut self, xref: &str) -> usize {
+        let before = self.citations.len();
+
+        self.citations
+            .retain(|c| !matches!(&c.target, CitationSource::Record(x) if x == xref));
+
+        let mut removed = before - self.citations.len();
+
+        if let Some(p) = &mut self.place {
+            removed += p.remove_citation_to(xref);
+        }
+
+        removed
+    }
+
+    pub(crate) fn remove_multimedia_link_to(&mut self, xref: &str) -> usize {
+        let before = self.multimedia_links.len();
+
+        self.multimedia_links
+            .retain(|l| !matches!(&l.target, LinkTarget::Record(x) if x == xref));
+
+        let mut removed = before - self.multimedia_links.len();
+
+        for h in self
+            .citations
+            .iter_handles()
+            .map(|(h, _)| h)
+            .collect::<Vec<_>>()
+        {
+            if let Some(c) = self.citations.get_mut(h) {
+                removed += c.remove_multimedia_link_to(xref);
+            }
+        }
+
+        removed += self
+            .place
+            .as_mut()
+            .map_or(0, |p| p.remove_multimedia_link_to(xref));
+
+        removed
+    }
+
+    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
+        for a in &self.associations {
+            a.outbound_refs(sink);
+        }
+
+        for c in &self.citations {
+            c.outbound_refs(sink);
+        }
+
+        for l in &self.multimedia_links {
+            l.outbound_refs(sink);
+        }
+
+        if let Some(fl) = &self.family_link {
+            fl.outbound_refs(sink);
+        }
+
+        if let Some(p) = &self.place {
+            p.outbound_refs(sink);
+        }
     }
 }
 
@@ -206,11 +262,6 @@ impl Parser for Detail {
         }
 
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
-            let mut pointer: Option<String> = None;
-            if let Token::Pointer(xref) = &tokenizer.current_token {
-                pointer = Some(xref.to_string());
-                tokenizer.next_token()?;
-            }
             match tag {
                 "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
                 "PLAC" => self.place = Some(Place::new(tokenizer, level + 1)?),
@@ -230,17 +281,20 @@ impl Parser for Detail {
                         tag,
                     )?);
                 }
-                "NOTE" => self.notes.push(Note::new(tokenizer, level + 1)?),
+                "NOTE" => {
+                    self.notes.insert(Note::new(tokenizer, level + 1)?);
+                }
                 "TYPE" => self.event_type = Some(tokenizer.take_line_value()?),
                 "OBJE" => {
-                    self.add_multimedia_record(Multimedia::new(tokenizer, level + 1, pointer)?);
+                    self.add_multimedia_record(Link::new(tokenizer, level + 1)?);
                 }
                 "SDATE" => self.sort_date = Some(SortDate::new(tokenizer, level + 1)?),
-                "ASSO" => self
-                    .associations
-                    .push(Association::new(tokenizer, level + 1)?),
+                "ASSO" => {
+                    self.associations
+                        .insert(Association::new(tokenizer, level + 1)?);
+                }
                 "CAUS" => self.cause = Some(tokenizer.take_continued_text(level + 1)?),
-                "RESN" => self.restriction = Some(tokenizer.take_line_value()?),
+                "RESN" => self.restriction = ListEnum::from_payload(&tokenizer.take_line_value()?),
                 "AGE" => self.age = Some(Age::new(tokenizer, level + 1)?),
                 "AGNC" => self.agency = Some(tokenizer.take_line_value()?),
                 "RELI" => self.religion = Some(tokenizer.take_line_value()?),
@@ -252,7 +306,9 @@ impl Parser for Detail {
             Ok(())
         };
 
-        self.custom_data = parse_subset(tokenizer, level, handle_subset)?;
+        for udt in parse_subset(tokenizer, level, handle_subset)? {
+            self.user_defined_tags.insert(*udt);
+        }
 
         if !value.is_empty() {
             self.value = Some(value);
@@ -265,7 +321,10 @@ impl Parser for Detail {
 #[cfg(test)]
 mod tests {
     use crate::{
-        types::age::{Age, AgeModifier},
+        types::{
+            age::{Age, AgeModifier},
+            list::ListEnum,
+        },
         Gedcom,
     };
 
@@ -286,7 +345,13 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let death = &data.individuals[0].events[0];
+        let death = &data
+            .find_individual("@I1@")
+            .unwrap()
+            .events
+            .iter()
+            .next()
+            .unwrap();
         assert_eq!(death.cause.as_ref().unwrap(), "Heart failure");
     }
 
@@ -306,8 +371,14 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let birth = &data.individuals[0].events[0];
-        assert_eq!(birth.restriction.as_ref().unwrap(), "confidential");
+        let birth = &data
+            .find_individual("@I1@")
+            .unwrap()
+            .events
+            .iter()
+            .next()
+            .unwrap();
+        assert_eq!(birth.restriction, ListEnum::from_payload("CONFIDENTIAL"));
     }
 
     #[test]
@@ -326,7 +397,13 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let death = &data.individuals[0].events[0];
+        let death = &data
+            .find_individual("@I1@")
+            .unwrap()
+            .events
+            .iter()
+            .next()
+            .unwrap();
         assert_eq!(
             death.age.as_ref().unwrap(),
             &Age::Numeric {
@@ -356,7 +433,13 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let grad = &data.individuals[0].events[0];
+        let grad = &data
+            .find_individual("@I1@")
+            .unwrap()
+            .events
+            .iter()
+            .next()
+            .unwrap();
         assert_eq!(grad.agency.as_ref().unwrap(), "Harvard University");
     }
 
@@ -376,7 +459,13 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let chr = &data.individuals[0].events[0];
+        let chr = &data
+            .find_individual("@I1@")
+            .unwrap()
+            .events
+            .iter()
+            .next()
+            .unwrap();
         assert_eq!(chr.religion.as_ref().unwrap(), "Catholic");
     }
 
@@ -400,7 +489,13 @@ mod tests {
         let mut doc = Gedcom::new(sample.chars()).unwrap();
         let data = doc.parse_data().unwrap();
 
-        let death = &data.individuals[0].events[0];
+        let death = &data
+            .find_individual("@I1@")
+            .unwrap()
+            .events
+            .iter()
+            .next()
+            .unwrap();
         assert_eq!(death.cause.as_ref().unwrap(), "Pneumonia");
         assert_eq!(
             death.age.as_ref().unwrap(),
@@ -417,6 +512,6 @@ mod tests {
             death.agency.as_ref().unwrap(),
             "Massachusetts General Hospital"
         );
-        assert_eq!(death.restriction.as_ref().unwrap(), "privacy");
+        assert_eq!(death.restriction, ListEnum::from_payload("PRIVACY"));
     }
 }
