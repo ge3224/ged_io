@@ -223,6 +223,10 @@ impl SharedNote {
         for source in &self.source_citations {
             source.outbound_refs(sink);
         }
+
+        for u in &self.user_defined_tags {
+            u.outbound_refs(sink);
+        }
     }
 }
 

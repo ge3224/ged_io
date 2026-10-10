@@ -188,6 +188,14 @@ impl Citation {
         for link in &self.multimedia_links {
             link.outbound_refs(sink);
         }
+
+        if let Some(d) = &self.data {
+            d.outbound_refs(sink);
+        }
+
+        for u in &self.user_defined_tags {
+            u.outbound_refs(sink);
+        }
     }
 }
 

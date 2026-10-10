@@ -125,6 +125,14 @@ impl Submitter {
         for l in &self.multimedia_links {
             l.outbound_refs(sink);
         }
+
+        if let Some(a) = &self.address {
+            a.outbound_refs(sink);
+        }
+
+        for u in &self.user_defined_tags {
+            u.outbound_refs(sink);
+        }
     }
 }
 

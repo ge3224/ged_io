@@ -107,6 +107,10 @@ impl Gender {
         for cite in &self.sources {
             cite.outbound_refs(sink);
         }
+
+        for u in &self.user_defined_tags {
+            u.outbound_refs(sink);
+        }
     }
 }
 

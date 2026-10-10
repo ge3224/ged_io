@@ -161,6 +161,16 @@ impl Repository {
             || !self.fax.is_empty()
             || !self.website.is_empty()
     }
+
+    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
+        if let Some(a) = &self.address {
+            a.outbound_refs(sink);
+        }
+
+        for u in &self.user_defined_tags {
+            u.outbound_refs(sink);
+        }
+    }
 }
 
 impl Parser for Repository {

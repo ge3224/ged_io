@@ -108,6 +108,10 @@ impl Multimedia {
         if let Some(c) = &self.source_citation {
             c.outbound_refs(sink);
         }
+
+        for u in &self.user_defined_tags {
+            u.outbound_refs(sink);
+        }
     }
 }
 

@@ -36,6 +36,12 @@ impl Address {
         addr.parse(tokenizer, level)?;
         Ok(addr)
     }
+
+    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
+        for u in &self.user_defined_tags {
+            u.outbound_refs(sink);
+        }
+    }
 }
 
 impl Parser for Address {

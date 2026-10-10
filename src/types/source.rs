@@ -133,6 +133,10 @@ impl Source {
             c.outbound_refs(sink);
         }
 
+        for u in &self.user_defined_tags {
+            u.outbound_refs(sink);
+        }
+
         self.data.outbound_refs(sink);
     }
 }

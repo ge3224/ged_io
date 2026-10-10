@@ -173,6 +173,10 @@ impl FamilyLink {
         if is_real_reference(&self.target) {
             sink(&self.target);
         }
+
+        for u in &self.user_defined_tags {
+            u.outbound_refs(sink);
+        }
     }
 }
 

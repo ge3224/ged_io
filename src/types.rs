@@ -1993,8 +1993,19 @@ impl GedcomData {
             });
         }
 
+        let Some(rep) = self.repositories.remove(handle) else {
+            unreachable!("handle was validated by get above")
+        };
+
+        let mut out = Vec::new();
+        rep.outbound_refs(&mut |x| out.push(x.to_owned()));
+        for x in &out {
+            self.xrefs.release(x);
+        }
+
         self.xrefs.remove(&xref);
-        Ok(self.repositories.remove(handle))
+
+        Ok(Some(rep))
     }
 
     /// Adds a new [`Source`] record to the genealogy data. If the source has no

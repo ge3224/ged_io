@@ -334,6 +334,10 @@ impl Name {
         for s in &self.sources {
             s.outbound_refs(sink);
         }
+
+        for u in &self.user_defined_tags {
+            u.outbound_refs(sink);
+        }
     }
 }
 

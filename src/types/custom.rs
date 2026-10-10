@@ -148,6 +148,12 @@ impl UserDefinedTag {
         }
         Ok(out)
     }
+
+    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
+        if let Some(UserDefinedValue::Record(xref)) = &self.value {
+            sink(xref);
+        }
+    }
 }
 
 impl Clone for UserDefinedTag {

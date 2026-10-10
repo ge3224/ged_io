@@ -358,3 +358,49 @@ fn extension_record_xref_is_registered() {
         .unwrap_err();
     assert!(matches!(err, GedcomError::DuplicateXref { xref, .. } if xref == "@I1@"));
 }
+
+#[test]
+fn extension_tag_pointers_release_on_remove() {
+    let sample = "\
+        0 HEAD\n\
+        1 GEDC\n\
+        2 VERS 5.5.1\n\
+        0 @I1@ INDI\n\
+        1 _FOO @S1@\n\
+        1 MILI\n\
+        2 SOUR @S1@\n\
+        0 @S1@ SOUR\n\
+        0 TRLR";
+
+    let mut data = Gedcom::new(sample.chars()).unwrap().parse_data().unwrap();
+    assert_eq!(data.reference_count("@S1@"), 2);
+
+    let i1 = data.find_individual_handle("@I1@").unwrap();
+    data.remove_individual(i1).unwrap();
+    assert_eq!(data.reference_count("@S1@"), 0);
+
+    let s1 = data.find_source_handle("@S1@").unwrap();
+    assert!(data.remove_source(s1).unwrap().is_some());
+}
+
+#[test]
+fn remove_repository_release() {
+    let sample = "\
+        0 HEAD\n\
+        1 GEDC\n\
+        2 VERS 5.5.1\n\
+        0 @R1@ REPO\n\
+        1 _FOO @S1@\n\
+        0 @S1@ SOUR\n\
+        0 TRLR";
+
+    let mut data = Gedcom::new(sample.chars()).unwrap().parse_data().unwrap();
+    assert_eq!(data.reference_count("@S1@"), 1);
+
+    let r1 = data.find_repository_handle("@R1@").unwrap();
+    data.remove_repository(r1).unwrap();
+    assert_eq!(data.reference_count("@S1@"), 0);
+
+    let s1 = data.find_source_handle("@S1@").unwrap();
+    assert!(data.remove_source(s1).unwrap().is_some());
+}

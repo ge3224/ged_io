@@ -107,6 +107,10 @@ impl Place {
         for cite in &self.citations {
             cite.outbound_refs(sink);
         }
+
+        for u in &self.user_defined_tags {
+            u.outbound_refs(sink);
+        }
     }
 }
 

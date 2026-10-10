@@ -7,6 +7,7 @@ use crate::{
     parser::{parse_subset, Parser},
     tokenizer::{Token, Tokenizer},
     types::{
+        address::Address,
         age::Age,
         custom::UserDefinedTag,
         date::Date,
@@ -45,7 +46,7 @@ pub struct Detail {
     pub date: Option<Date>,
     /// Address of the event (tag: ADDR), with the rest of the address
     /// structure below.
-    pub address: Option<crate::types::address::Address>,
+    pub address: Option<Address>,
     /// Phone numbers (tag: PHON).
     pub phone: Vec<String>,
     /// Email addresses (tag: EMAIL).
@@ -231,6 +232,14 @@ impl Detail {
 
         if let Some(p) = &self.place {
             p.outbound_refs(sink);
+        }
+
+        if let Some(a) = &self.address {
+            a.outbound_refs(sink);
+        }
+
+        for u in &self.user_defined_tags {
+            u.outbound_refs(sink);
         }
     }
 }

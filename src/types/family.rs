@@ -367,6 +367,10 @@ impl Family {
                 sink(xref);
             }
         }
+
+        for u in &self.user_defined_tags {
+            u.outbound_refs(sink);
+        }
     }
 }
 

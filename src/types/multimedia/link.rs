@@ -82,6 +82,10 @@ impl Link {
         if let LinkTarget::Record(xref) = &self.target {
             sink(xref);
         }
+
+        for u in &self.user_defined_tags {
+            u.outbound_refs(sink);
+        }
     }
 }
 
