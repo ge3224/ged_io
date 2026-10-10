@@ -3081,6 +3081,7 @@ pub struct SourceCitationStats {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::custom::UserDefinedValue;
     use crate::Gedcom;
     use crate::GedcomBuilder;
 
@@ -3215,10 +3216,14 @@ mod tests {
             .add_user_defined_tags(UserDefinedTag::new("_FOO", 0))
             .unwrap();
 
-        data.get_user_defined_tag_mut(handle).unwrap().value = Some("mutated".to_string());
+        data.get_user_defined_tag_mut(handle).unwrap().value =
+            Some(UserDefinedValue::Text("mutated".to_string()));
 
         assert_eq!(
-            data.get_user_defined_tag(handle).unwrap().value.as_deref(),
+            data.get_user_defined_tag(handle)
+                .unwrap()
+                .value()
+                .map(UserDefinedValue::as_str),
             Some("mutated")
         );
     }
@@ -3250,23 +3255,27 @@ mod tests {
         let mut data = GedcomData::default();
 
         let mut tag = UserDefinedTag::new("_MILT", 0);
-        tag.value = Some("initial".to_string());
+        tag.value = Some(UserDefinedValue::Text("initial".to_string()));
         let handle = data.add_user_defined_tags(tag).unwrap();
 
         let found = data
             .get_user_defined_tag(handle)
             .expect("should find after add");
         assert_eq!(found.tag, "_MILT");
-        assert_eq!(found.value.as_deref(), Some("initial"));
+        assert_eq!(found.value().map(UserDefinedValue::as_str), Some("initial"));
 
-        data.get_user_defined_tag_mut(handle).unwrap().value = Some("mutated".to_string());
+        data.get_user_defined_tag_mut(handle).unwrap().value =
+            Some(UserDefinedValue::Text("mutated".to_string()));
 
         let removed = data
             .remove_user_defined_tag(handle)
             .unwrap()
             .expect("should remove");
         assert_eq!(removed.tag, "_MILT");
-        assert_eq!(removed.value.as_deref(), Some("mutated"));
+        assert_eq!(
+            removed.value().map(UserDefinedValue::as_str),
+            Some("mutated")
+        );
 
         assert!(data.get_user_defined_tag(handle).is_none());
         assert!(data.remove_user_defined_tag(handle).unwrap().is_none());

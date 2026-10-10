@@ -19,6 +19,7 @@
 //! # }
 //! ```
 
+use crate::types::custom::UserDefinedValue;
 use crate::util::{escape_at_signs, is_pointer_use};
 use crate::{
     arena::Arena,
@@ -1798,11 +1799,11 @@ impl GedcomWriter {
                 custom_tag.level,
                 Some(xref),
                 &custom_tag.tag,
-                custom_tag.value.as_deref(),
+                custom_tag.value().map(UserDefinedValue::as_str),
             );
         }
 
-        match custom_tag.value.as_deref() {
+        match custom_tag.value().map(UserDefinedValue::as_str) {
             Some(value) => {
                 self.write_value_or_wrap(writer, custom_tag.level, &custom_tag.tag, Some(value))
             }

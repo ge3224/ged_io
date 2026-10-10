@@ -1,10 +1,49 @@
 use crate::{
     tokenizer::{Token, TokenizerTrait},
+    util::is_pointer_use,
     xref::Xref,
     GedcomError,
 };
 #[cfg(feature = "json")]
 use serde::Serialize;
+
+/// The payload of a user-defined tag: a pointer to a record, a `@VOID@`
+/// placeholder, or plain text.
+#[derive(Debug, PartialEq, Clone)]
+#[cfg_attr(feature = "json", derive(Serialize))]
+pub enum UserDefinedValue {
+    /// A reference to a record elsewhere in the dataset.
+    Record(Xref),
+    /// A reserved placeholder, used when no record applies.
+    Void,
+    /// Any other line value carried verbatim.
+    Text(String),
+}
+
+impl UserDefinedValue {
+    /// Classifies a raw line value as a pointer, `@VOID@`, or text.
+    #[must_use]
+    pub fn parse(value: String) -> Self {
+        if value == "@VOID@" {
+            UserDefinedValue::Void
+        } else if is_pointer_use(&value) {
+            UserDefinedValue::Record(value)
+        } else {
+            UserDefinedValue::Text(value)
+        }
+    }
+
+    /// Returns the value as it appears on the line (e.g. `@S1@`, `@VOID@`,
+    /// `foo`).
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        match self {
+            UserDefinedValue::Record(xref) => xref,
+            UserDefinedValue::Void => "@VOID@",
+            UserDefinedValue::Text(text) => text,
+        }
+    }
+}
 
 /// Handles a user-defined tag that is contained in the GEDCOM current
 /// transmission. This tag must begin with an underscore (_) and should only be
@@ -13,15 +52,13 @@ use serde::Serialize;
 /// A structure whose tag the parser does not recognise (a non-standard tag without the
 /// underscore, such as `MILI`) is kept the same way, with its substructures, so that they are
 /// not mistaken for substructures of the enclosing structure.
-///
-/// See <https://gedcom.io/specifications/ged55.pdf> (page 49).
 #[derive(Debug, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize))]
 pub struct UserDefinedTag {
     pub xref: Option<Xref>,
     pub tag: String,
     pub level: u8,
-    pub value: Option<String>,
+    pub(crate) value: Option<UserDefinedValue>,
 }
 
 impl UserDefinedTag {
@@ -42,6 +79,12 @@ impl UserDefinedTag {
         }
     }
 
+    /// Returns the tag's line value if it has one.
+    #[must_use]
+    pub fn value(&self) -> Option<&UserDefinedValue> {
+        self.value.as_ref()
+    }
+
     /// Parses a subtree of custom tags from a tokenizer.
     ///
     /// # Errors
@@ -60,18 +103,12 @@ impl UserDefinedTag {
 
         loop {
             let mut udt = UserDefinedTag::new(cur_tag.clone(), cur_level);
-            match tokenizer.current_token() {
-                Token::LineValue(v) => {
-                    if !v.is_empty() {
-                        udt.value = Some(v.to_string());
-                    }
-                    tokenizer.next_token()?;
+            if let Token::LineValue(v) = tokenizer.current_token() {
+                if !v.is_empty() {
+                    udt.value = Some(UserDefinedValue::parse(v.to_string()));
                 }
-                Token::Pointer(p) => {
-                    udt.value = Some(p.to_string());
-                    tokenizer.next_token()?;
-                }
-                _ => {}
+
+                tokenizer.next_token()?;
             }
             out.push(udt);
 
@@ -126,7 +163,7 @@ impl Clone for UserDefinedTag {
 
 #[cfg(test)]
 mod tests {
-    use crate::Gedcom;
+    use crate::{types::custom::UserDefinedValue, Gedcom};
 
     #[test]
     fn test_parse_user_defined_record() {
@@ -155,18 +192,24 @@ mod tests {
         assert!(custom[0].value.is_none());
 
         assert_eq!(custom[1].tag, "DATE");
-        assert_eq!(custom[1].value.as_ref().unwrap(), "3 Nov 1947");
+        assert_eq!(
+            custom[1].value(),
+            Some(&UserDefinedValue::Text("3 Nov 1947".into()))
+        );
 
         assert_eq!(custom[2].tag, "PLAC");
         assert_eq!(
-            custom[2].value.as_ref().unwrap(),
-            "Rochester, New York, USA"
+            custom[2].value(),
+            Some(&UserDefinedValue::Text("Rochester, New York, USA".into()))
         );
 
         assert_eq!(custom[3].tag, "SOUR");
-        assert_eq!(custom[3].value.as_ref().unwrap(), "@S1207169483@");
+        assert_eq!(
+            custom[3].value(),
+            Some(&UserDefinedValue::Record("@S1207169483@".into()))
+        );
 
         assert_eq!(custom[4].tag, "PAGE");
-        assert_eq!(custom[4].value.as_ref().unwrap(), "New York State Archives; Albany, New York; Collection: New York, New York National Guard Service Cards, 1917-1954; Series: Xxxxx; Film Number: Xx");
+        assert_eq!(custom[4].value(), Some(&UserDefinedValue::Text("New York State Archives; Albany, New York; Collection: New York, New York National Guard Service Cards, 1917-1954; Series: Xxxxx; Film Number: Xx".into())));
     }
 }

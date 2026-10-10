@@ -641,6 +641,8 @@ impl FromIterator<GedcomRecord> for GedcomData {
 
 #[cfg(test)]
 mod tests {
+    use crate::types::custom::UserDefinedValue;
+
     use super::*;
     use std::io::BufReader;
 
@@ -839,7 +841,10 @@ mod tests {
         assert_eq!(records.len(), 2); // Header + Custom
         if let GedcomRecord::CustomData(c) = &records[1] {
             assert_eq!(c[0].tag, "_CUSTOM");
-            assert_eq!(c[0].value.as_deref(), Some("MyValue"));
+            assert_eq!(
+                c[0].value(),
+                Some(&UserDefinedValue::Text("MyValue".into()))
+            );
         } else {
             panic!("Expected CustomData");
         }

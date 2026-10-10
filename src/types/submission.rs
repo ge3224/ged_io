@@ -144,7 +144,7 @@ impl Parser for Submission {
 
 #[cfg(test)]
 mod tests {
-    use crate::Gedcom;
+    use crate::{types::custom::UserDefinedValue, Gedcom};
 
     #[test]
     fn test_parse_submission_record() {
@@ -200,8 +200,8 @@ mod tests {
                 .iter()
                 .next()
                 .unwrap()
-                .value
-                .as_deref(),
+                .value()
+                .map(UserDefinedValue::as_str),
             Some("Some custom data here")
         );
 
@@ -215,8 +215,8 @@ mod tests {
                 .iter()
                 .nth(1)
                 .unwrap()
-                .value
-                .as_deref(),
+                .value()
+                .map(UserDefinedValue::as_str),
             Some("Another piece of custom data"),
         );
     }

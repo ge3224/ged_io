@@ -4,11 +4,21 @@
 //! the substructures of that tag were then read as if they belonged to the
 //! enclosing structure.
 
-use ged_io::{arena::Arena, types::custom::UserDefinedTag, GedcomBuilder, GedcomWriter};
+use ged_io::{
+    arena::Arena,
+    types::custom::{UserDefinedTag, UserDefinedValue},
+    GedcomBuilder, GedcomWriter,
+};
 
 fn kept(tags: &Arena<UserDefinedTag>) -> Vec<(u8, &str, Option<&str>)> {
     tags.iter()
-        .map(|t| (t.level, t.tag.as_str(), t.value.as_deref()))
+        .map(|t| {
+            (
+                t.level,
+                t.tag.as_str(),
+                t.value().map(UserDefinedValue::as_str),
+            )
+        })
         .collect()
 }
 
