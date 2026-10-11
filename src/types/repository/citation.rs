@@ -5,8 +5,8 @@ use crate::{
     arena::Arena,
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
-    types::{custom::UserDefinedTag, note::Note, Xref},
-    util::is_real_reference,
+    types::{custom::UserDefinedTag, note::Note},
+    xref::Pointer,
     GedcomError,
 };
 
@@ -80,11 +80,11 @@ impl CallNumber {
 /// referenced repository and provides details about how to find it there.
 ///
 /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#SOURCE_REPOSITORY_CITATION>
-#[derive(Debug, Default, PartialEq)]
+#[derive(Debug, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Citation {
     /// Reference to the `Repository`
-    pub(crate) target: Xref,
+    pub(crate) target: Pointer,
 
     /// Call numbers of the source at this repository (tag: CALN), each with
     /// its own medium (tag: MEDI). GEDCOM 5.5.1 and 7.0 allow any number.
@@ -98,38 +98,32 @@ pub struct Citation {
 }
 
 impl Citation {
-    #[must_use]
-    fn with_xref(target: Xref) -> Self {
-        Self {
-            target,
-            ..Default::default()
-        }
-    }
-
     /// Creates a new `Citation` from a `Tokenizer`.
     ///
     /// # Errors
     ///
     /// This function will return an error if parsing fails.
     pub fn new(tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<Citation, GedcomError> {
-        let xref = tokenizer.take_line_value()?;
-        let mut rc = Citation::with_xref(xref);
+        let p = tokenizer.take_pointer()?;
+        let mut rc = Citation::for_repository(p);
         rc.parse(tokenizer, level)?;
         Ok(rc)
     }
 
     /// Returns the repository this citation points at.
     #[must_use]
-    pub fn target(&self) -> &Xref {
+    pub fn target(&self) -> &Pointer {
         &self.target
     }
 
-    /// Creates a citation with the given repository xref.
+    /// Creates a citation with the given repository pointer.
     #[must_use]
-    pub fn for_repository(xref: &str) -> Self {
+    pub fn for_repository(p: Pointer) -> Self {
         Self {
-            target: xref.to_string(),
-            ..Default::default()
+            target: p,
+            call_numbers: Arena::default(),
+            notes: Arena::default(),
+            user_defined_tags: Arena::default(),
         }
     }
 
@@ -180,10 +174,6 @@ impl Citation {
     }
 
     pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
-        if is_real_reference(&self.target) {
-            sink(&self.target);
-        }
-
         for u in &self.user_defined_tags {
             u.outbound_refs(sink);
         }
@@ -242,8 +232,8 @@ mod tests {
 
     #[test]
     fn test_citation_for_repository() {
-        let citation = Citation::for_repository("@R1@");
-        assert_eq!(citation.target, "@R1@");
+        let citation = Citation::for_repository(Pointer::detached("@R1@"));
+        assert_eq!(citation.target.as_str(), "@R1@");
         assert!(citation.call_number().is_none());
         assert!(citation.media_type().is_none());
         assert!(!citation.has_media_type());
@@ -251,7 +241,7 @@ mod tests {
 
     #[test]
     fn test_citation_set_call_number() {
-        let mut citation = Citation::for_repository("@R1@");
+        let mut citation = Citation::for_repository(Pointer::detached("@R1@"));
         citation.set_call_number("FHL Film 123456");
         assert!(citation.has_call_number());
         assert_eq!(citation.call_number(), Some("FHL Film 123456"));
@@ -259,7 +249,7 @@ mod tests {
 
     #[test]
     fn test_citation_set_media_type() {
-        let mut citation = Citation::for_repository("@R1@");
+        let mut citation = Citation::for_repository(Pointer::detached("@R1@"));
         citation.set_media_type("film");
         assert!(citation.has_media_type());
         assert_eq!(citation.media_type(), Some("film"));

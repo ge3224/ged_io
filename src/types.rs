@@ -2030,7 +2030,7 @@ impl GedcomData {
     /// # Errors
     ///
     /// Returns an error if the xref is already in use.
-    pub fn add_source(&mut self, source: Source) -> Result<Handle<Source>, GedcomError> {
+    pub fn add_source(&mut self, mut source: Source) -> Result<Handle<Source>, GedcomError> {
         let xref = source.xref.clone();
 
         if self.xrefs.handle(&source.xref).is_some() {
@@ -2039,6 +2039,8 @@ impl GedcomData {
                 record_type: Source::RECORD_TYPE.to_string(),
             });
         }
+
+        source.pointers_mut(&mut |p| self.xrefs.adopt(p));
 
         let handle = self.sources.insert(source);
 
@@ -2135,7 +2137,7 @@ impl GedcomData {
             });
         }
 
-        let Some(rec) = self.sources.remove(handle) else {
+        let Some(mut rec) = self.sources.remove(handle) else {
             unreachable!("handle was validated by get above")
         };
 
@@ -2144,6 +2146,8 @@ impl GedcomData {
         for x in &out {
             self.xrefs.release(x);
         }
+
+        rec.pointers_mut(&mut |p| *p = Pointer::detached(p.as_str()));
 
         self.xrefs.remove(&xref);
         Ok(Some(rec))
@@ -2934,7 +2938,6 @@ impl GedcomData {
         self.sources
             .for_each_mut(|s| removed += s.remove_repo_citation_to(&repo_xref));
 
-        self.xrefs.sub_uses(repo_xref.as_str(), removed);
         Ok(removed)
     }
 

@@ -536,6 +536,12 @@ fn pointer_field_count() {
             "@F1@",
             "@U1@",
         ),
+        (
+            "SOUR.REPO",
+            "0 @S1@ SOUR\n1 REPO @R1@\n0 @R1@ REPO\n1 NAME R\n",
+            "@S1@",
+            "@R1@",
+        ),
     ];
 
     for &(name, body, holder, target) in cases {
@@ -553,6 +559,8 @@ fn pointer_field_count() {
             Box::new(data.remove_individual(h).unwrap().unwrap())
         } else if let Some(h) = data.find_family_handle(holder) {
             Box::new(data.remove_family(h).unwrap().unwrap())
+        } else if let Some(h) = data.find_source_handle(holder) {
+            Box::new(data.remove_source(h).unwrap().unwrap())
         } else {
             panic!("{name}: no holder {holder}");
         };

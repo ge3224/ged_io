@@ -17,6 +17,7 @@ use crate::{
         source::data::Data,
         Xref,
     },
+    xref::Pointer,
     GedcomError,
 };
 
@@ -111,9 +112,13 @@ impl Source {
         self.repo_citations.insert(citation);
     }
 
+    pub(crate) fn pointers_mut(&mut self, f: &mut impl FnMut(&mut Pointer)) {
+        self.repo_citations.for_each_mut(|c| f(&mut c.target));
+    }
+
     pub(crate) fn remove_repo_citation_to(&mut self, xref: &str) -> usize {
         let before = self.repo_citations.len();
-        self.repo_citations.retain(|r| r.target != xref);
+        self.repo_citations.retain(|r| r.target.as_str() != xref);
         before - self.repo_citations.len()
     }
 

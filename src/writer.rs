@@ -1474,7 +1474,7 @@ impl GedcomWriter {
         level: u8,
         repo: &crate::types::repository::citation::Citation,
     ) -> Result<(), io::Error> {
-        self.write_line(writer, level, "REPO", Some(&repo.target))?;
+        self.write_line(writer, level, "REPO", Some(repo.target.as_str()))?;
 
         for note in &repo.notes {
             self.write_note(writer, level + 1, note)?;
