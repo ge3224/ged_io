@@ -40,7 +40,7 @@ fn test_round_trip_record_submitter_pointers() {
             .unwrap()
             .submitters
             .iter()
-            .map(String::as_str)
+            .map(Pointer::as_str)
             .collect::<Vec<_>>(),
         ["@U2@"]
     );

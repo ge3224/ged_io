@@ -16,7 +16,6 @@ use crate::{
         source::citation::{Citation, CitationSource},
         Xref,
     },
-    util::is_real_reference,
     xref::Pointer,
     GedcomError,
 };
@@ -92,7 +91,7 @@ pub struct Family {
     /// this family.
     pub external_ids: Arena<ExternalId>,
     /// Submitters who contributed this record (tag: SUBM, GEDCOM 5.5.1).
-    pub submitters: Arena<Xref>,
+    pub submitters: Arena<Pointer>,
 }
 
 impl Family {
@@ -202,6 +201,7 @@ impl Family {
         self.children.for_each_mut(|p| f(p));
         self.events.for_each_mut(|d| d.pointers_mut(f));
         self.family_events.for_each_mut(|d| d.pointers_mut(f));
+        self.submitters.for_each_mut(|p| f(p));
     }
 
     pub(crate) fn remove_citation_to(&mut self, xref: &str) -> usize {
@@ -266,12 +266,6 @@ impl Family {
 
         for o in &self.lds_ordinances {
             o.outbound_refs(sink);
-        }
-
-        for xref in &self.submitters {
-            if is_real_reference(xref) {
-                sink(xref);
-            }
         }
 
         for u in &self.user_defined_tags {
@@ -377,7 +371,7 @@ impl Parser for Family {
                     self.external_ids.insert(ExternalId { id, type_uri: None });
                 }
                 "SUBM" => {
-                    self.submitters.insert(tokenizer.take_line_value()?);
+                    self.submitters.insert(tokenizer.take_pointer()?);
                 }
                 _ => {
                     // Leave unknown tags to `parse_subset`, which keeps them with

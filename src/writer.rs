@@ -1034,7 +1034,7 @@ impl GedcomWriter {
         }
 
         for submitter in &family.submitters {
-            self.write_line(writer, 1, "SUBM", Some(submitter))?;
+            self.write_line(writer, 1, "SUBM", Some(submitter.as_str()))?;
         }
 
         for event in &family.events {
