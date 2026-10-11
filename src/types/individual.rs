@@ -332,6 +332,15 @@ impl Individual {
         !self.sources.is_empty()
     }
 
+    pub(crate) fn pointers_mut(&mut self, f: &mut impl FnMut(&mut Pointer)) {
+        self.aliases.for_each_mut(|p| f(p));
+        self.ancestor_interest.for_each_mut(|p| f(p));
+        self.descendant_interest.for_each_mut(|p| f(p));
+        self.submitters.for_each_mut(|p| f(p));
+        self.families.for_each_mut(|l| l.pointers_mut(f));
+        self.events.for_each_mut(|l| l.pointers_mut(f));
+    }
+
     pub(crate) fn remove_citation_to(&mut self, xref: &str) -> usize {
         let before = self.sources.len();
         self.sources
@@ -739,7 +748,7 @@ mod tests {
             .family_link
             .as_ref()
             .unwrap();
-        assert_eq!(famc.target, "@ADOPTIVE_PARENTS@");
+        assert_eq!(famc.target.as_str(), "@ADOPTIVE_PARENTS@");
         assert_eq!(famc.family_link_type.to_string(), "Child");
         assert_eq!(
             famc.pedigree_linkage_type.as_ref().unwrap().to_string(),

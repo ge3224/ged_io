@@ -624,7 +624,7 @@ impl GedcomBuilder {
                 if !xrefs.contains(family_link.target.as_str()) {
                     return Err(GedcomError::InvalidFormat(format!(
                         "Individual references non-existent family: {}",
-                        family_link.target
+                        family_link.target.as_str()
                     )));
                 }
             }

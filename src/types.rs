@@ -1114,14 +1114,7 @@ impl GedcomData {
             });
         }
 
-        individual.aliases.for_each_mut(|p| self.xrefs.adopt(p));
-        individual
-            .ancestor_interest
-            .for_each_mut(|p| self.xrefs.adopt(p));
-        individual
-            .descendant_interest
-            .for_each_mut(|p| self.xrefs.adopt(p));
-        individual.submitters.for_each_mut(|p| self.xrefs.adopt(p));
+        individual.pointers_mut(&mut |p| self.xrefs.adopt(p));
 
         let handle = self.individuals.insert(individual);
 
@@ -1249,10 +1242,7 @@ impl GedcomData {
             self.xrefs.release(x);
         }
 
-        rec.aliases = Arena::default();
-        rec.ancestor_interest = Arena::default();
-        rec.descendant_interest = Arena::default();
-        rec.submitters = Arena::default();
+        rec.pointers_mut(&mut |p| *p = Pointer::detached(p.as_str()));
 
         self.xrefs.remove(&xref);
         Ok(Some(rec))
@@ -1276,15 +1266,7 @@ impl GedcomData {
             });
         }
 
-        family.children.for_each_mut(|r| self.xrefs.adopt(r));
-
-        if let Some(p) = &mut family.individual1 {
-            self.xrefs.adopt(p);
-        }
-
-        if let Some(p) = &mut family.individual2 {
-            self.xrefs.adopt(p);
-        }
+        family.pointers_mut(&mut |p| self.xrefs.adopt(p));
 
         let handle = self.families.insert(family);
 
@@ -1363,7 +1345,6 @@ impl GedcomData {
     ///
     /// Removing a family also lets go of everything it pointed at, so that
     /// those records can be removed afterwards without unlinking them first.
-    /// The returned family has an empty `children` list.
     ///
     /// # Errors
     ///
@@ -1395,9 +1376,7 @@ impl GedcomData {
             self.xrefs.release(x);
         }
 
-        rec.individual1 = None;
-        rec.individual2 = None;
-        rec.children = Arena::default();
+        rec.pointers_mut(&mut |p| *p = Pointer::detached(p.as_str()));
 
         self.xrefs.remove(&xref);
         Ok(Some(rec))
@@ -1446,10 +1425,9 @@ impl GedcomData {
             unreachable!("xref map and arena are out of sync");
         };
 
-        let has_family_link = i
-            .families
-            .iter()
-            .any(|f| f.target == family_xref && f.family_link_type == FamilyLinkType::Spouse);
+        let has_family_link = i.families.iter().any(|f| {
+            f.target.as_str() == family_xref && f.family_link_type == FamilyLinkType::Spouse
+        });
 
         let is_spouse = f
             .individual1
@@ -1483,10 +1461,10 @@ impl GedcomData {
         }
 
         if !has_family_link {
-            self.xrefs.bump(&family_xref);
+            let p = self.xrefs.pointer(&family_xref);
 
             i.families.insert(FamilyLink {
-                target: family_xref,
+                target: p,
                 family_link_type: FamilyLinkType::Spouse,
                 pedigree_linkage_type: None,
                 child_linkage_status: None,
@@ -1540,10 +1518,9 @@ impl GedcomData {
             unreachable!("xref map and arena are out of sync");
         };
 
-        let has_family_link = i
-            .families
-            .iter()
-            .any(|f| f.target == family_xref && f.family_link_type == FamilyLinkType::Spouse);
+        let has_family_link = i.families.iter().any(|f| {
+            f.target.as_str() == family_xref && f.family_link_type == FamilyLinkType::Spouse
+        });
 
         let is_spouse = f
             .individual1
@@ -1563,9 +1540,8 @@ impl GedcomData {
 
         if has_family_link {
             i.families.retain(|f| {
-                !(f.target == family_xref && f.family_link_type == FamilyLinkType::Spouse)
+                !(f.target.as_str() == family_xref && f.family_link_type == FamilyLinkType::Spouse)
             });
-            self.xrefs.decrement(&family_xref);
         }
 
         if is_spouse {
@@ -1620,10 +1596,9 @@ impl GedcomData {
             unreachable!("xref map and arena are out of sync")
         };
 
-        let has_family_link = i
-            .families
-            .iter()
-            .any(|l| l.target == family_xref && l.family_link_type == FamilyLinkType::Child);
+        let has_family_link = i.families.iter().any(|l| {
+            l.target.as_str() == family_xref && l.family_link_type == FamilyLinkType::Child
+        });
 
         let is_child = f.children.iter().any(|c| c.as_str() == individual_xref);
 
@@ -1640,10 +1615,10 @@ impl GedcomData {
         }
 
         if !has_family_link {
-            self.xrefs.bump(&family_xref);
+            let p = self.xrefs.pointer(&family_xref);
 
             i.families.insert(FamilyLink {
-                target: family_xref,
+                target: p,
                 family_link_type: FamilyLinkType::Child,
                 pedigree_linkage_type: None,
                 child_linkage_status: None,
@@ -1696,10 +1671,9 @@ impl GedcomData {
             unreachable!("xref map and arena are out of sync")
         };
 
-        let has_family_link = i
-            .families
-            .iter()
-            .any(|f| f.target == family_xref && f.family_link_type == FamilyLinkType::Child);
+        let has_family_link = i.families.iter().any(|f| {
+            f.target.as_str() == family_xref && f.family_link_type == FamilyLinkType::Child
+        });
 
         let is_child = f.children.iter().any(|c| c.as_str() == individual_xref);
 
@@ -1713,9 +1687,8 @@ impl GedcomData {
 
         if has_family_link {
             i.families.retain(|f| {
-                !(f.target == family_xref && f.family_link_type == FamilyLinkType::Child)
+                !(f.target.as_str() == family_xref && f.family_link_type == FamilyLinkType::Child)
             });
-            self.xrefs.decrement(&family_xref);
         }
 
         if is_child {

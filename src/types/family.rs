@@ -190,6 +190,20 @@ impl Family {
         &self.events
     }
 
+    pub(crate) fn pointers_mut(&mut self, f: &mut impl FnMut(&mut Pointer)) {
+        if let Some(p) = &mut self.individual1 {
+            f(p);
+        }
+
+        if let Some(p) = &mut self.individual2 {
+            f(p);
+        }
+
+        self.children.for_each_mut(|p| f(p));
+        self.events.for_each_mut(|d| d.pointers_mut(f));
+        self.family_events.for_each_mut(|d| d.pointers_mut(f));
+    }
+
     pub(crate) fn remove_citation_to(&mut self, xref: &str) -> usize {
         let before = self.sources.len();
 

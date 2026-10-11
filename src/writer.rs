@@ -424,7 +424,7 @@ impl GedcomWriter {
 
         for family_link in &individual.families {
             let tag = family_link.family_link_type.to_tag();
-            self.write_line(writer, 1, tag, Some(&family_link.target))?;
+            self.write_line(writer, 1, tag, Some(family_link.target.as_str()))?;
             self.write_family_link_detail(writer, 2, family_link)?;
         }
 
@@ -688,7 +688,7 @@ impl GedcomWriter {
         // Adoptive/foster family link, e.g. `1 ADOP` / `2 FAMC @F1@` / `3 ADOP HUSB`.
         if let Some(ref family_link) = event.family_link {
             let tag = family_link.family_link_type.to_tag();
-            self.write_line(writer, level + 1, tag, Some(&family_link.target))?;
+            self.write_line(writer, level + 1, tag, Some(family_link.target.as_str()))?;
             self.write_family_link_detail(writer, level + 2, family_link)?;
         }
 

@@ -21,6 +21,7 @@ use crate::{
         restriction::Restriction,
         source::citation::{Citation, CitationSource},
     },
+    xref::Pointer,
     GedcomError,
 };
 
@@ -169,6 +170,12 @@ impl Detail {
 
     pub fn add_multimedia_record(&mut self, m: Link) {
         self.multimedia_links.insert(m);
+    }
+
+    pub(crate) fn pointers_mut(&mut self, f: &mut impl FnMut(&mut Pointer)) {
+        if let Some(l) = &mut self.family_link {
+            l.pointers_mut(f);
+        }
     }
 
     pub(crate) fn remove_citation_to(&mut self, xref: &str) -> usize {

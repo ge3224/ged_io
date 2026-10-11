@@ -15,9 +15,8 @@ use crate::{
             adopted::AdoptedByWhichParent, child_link::ChildLinkStatus, pedigree::Pedigree,
         },
         note::Note,
-        Xref,
     },
-    util::is_real_reference,
+    xref::Pointer,
     GedcomError,
 };
 
@@ -44,7 +43,7 @@ impl std::fmt::Display for FamilyLinkType {
 #[derive(Debug, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize))]
 pub struct FamilyLink {
-    pub(crate) target: Xref,
+    pub(crate) target: Pointer,
     pub family_link_type: FamilyLinkType,
     pub pedigree_linkage_type: Option<Pedigree>,
     pub child_linkage_status: Option<ChildLinkStatus>,
@@ -65,7 +64,8 @@ impl FamilyLink {
         level: u8,
         tag: &str,
     ) -> Result<FamilyLink, GedcomError> {
-        let xref = tokenizer.take_line_value()?;
+        let p = tokenizer.take_pointer()?;
+
         let link_type = match tag {
             "FAMC" => FamilyLinkType::Child,
             "FAMS" => FamilyLinkType::Spouse,
@@ -74,8 +74,9 @@ impl FamilyLink {
                 unreachable!()
             }
         };
+
         let mut family_link = FamilyLink {
-            target: xref,
+            target: p,
             family_link_type: link_type,
             pedigree_linkage_type: None,
             child_linkage_status: None,
@@ -89,7 +90,7 @@ impl FamilyLink {
 
     /// Returns the family this link points at.
     #[must_use]
-    pub fn target(&self) -> &Xref {
+    pub fn target(&self) -> &Pointer {
         &self.target
     }
 
@@ -164,16 +165,16 @@ impl FamilyLink {
         Ok(())
     }
 
+    pub(crate) fn pointers_mut(&mut self, f: &mut impl FnMut(&mut Pointer)) {
+        f(&mut self.target);
+    }
+
     #[must_use]
     pub fn child_linkage_status(&self) -> Option<&ChildLinkStatus> {
         self.child_linkage_status.as_ref()
     }
 
     pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
-        if is_real_reference(&self.target) {
-            sink(&self.target);
-        }
-
         for u in &self.user_defined_tags {
             u.outbound_refs(sink);
         }
