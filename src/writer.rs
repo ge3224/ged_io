@@ -444,7 +444,7 @@ impl GedcomWriter {
         }
 
         for alias in &individual.aliases {
-            self.write_line(writer, 1, "ALIA", Some(alias))?;
+            self.write_line(writer, 1, "ALIA", Some(alias.as_str()))?;
         }
 
         for ai in &individual.ancestor_interest {

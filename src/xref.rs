@@ -138,14 +138,20 @@ impl Xrefs {
         }
     }
 
-    pub(crate) fn mint(&mut self, x: &str) -> Pointer {
-        let node = self.map.entry(x.to_owned()).or_insert_with(|| XrefNode {
+    pub(crate) fn pointer(&mut self, xref: &str) -> Pointer {
+        if let Some(a) = self.map.get(xref).and_then(|n| n.anchor.as_ref()) {
+            return Pointer(Arc::clone(a));
+        }
+
+        let node = self.map.entry(xref.to_owned()).or_insert_with(|| XrefNode {
             handle: None,
             use_count: 0,
             anchor: None,
         });
 
-        Pointer(Arc::clone(node.anchor.get_or_insert_with(|| Arc::from(x))))
+        Pointer(Arc::clone(
+            node.anchor.get_or_insert_with(|| Arc::from(xref)),
+        ))
     }
 
     pub(crate) fn adopt(&mut self, r: &mut Pointer) {
@@ -159,7 +165,7 @@ impl Xrefs {
             }
         }
 
-        *r = self.mint(r.as_str());
+        *r = self.pointer(r.as_str());
     }
 }
 

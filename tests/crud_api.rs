@@ -1,5 +1,9 @@
 use ged_io::{types::GedcomData, Gedcom, GedcomBuilder, GedcomError, GedcomStreamParser};
 
+fn wrap(body: &str) -> String {
+    format!("0 HEAD\n1 GEDC\n2 VERS 5.5.1\n1 CHAR UTF-8\n{body}0 TRLR")
+}
+
 #[test]
 fn parse_unlink_remove_cycle() {
     let sample = "\
@@ -458,6 +462,47 @@ fn remove_repository_release() {
     assert!(data.remove_source(s1).unwrap().is_some());
 }
 
+#[test]
+fn pointer_field_count() {
+    let cases: &[(&str, &str, &str, &str)] = &[
+        (
+            "FAM.CHIL",
+            "0 @F1@ FAM\n1 CHIL @I1@\n0 @I1@ INDI\n",
+            "@F1@",
+            "@I1@",
+        ),
+        (
+            "INDI.ALIA",
+            "0 @I1@ INDI\n1 ALIA @I2@\n0 @I2@ INDI\n",
+            "@I1@",
+            "@I2@",
+        ),
+    ];
+
+    for &(name, body, holder, target) in cases {
+        let ged = wrap(body);
+
+        let stream_parser = GedcomStreamParser::new(ged.as_bytes()).unwrap();
+        let streamed = GedcomData::try_from_records(stream_parser).unwrap();
+
+        assert_eq!(streamed.reference_count(target), 1, "{name}: stream");
+
+        let mut data = Gedcom::new(ged.chars()).unwrap().parse_data().unwrap();
+        assert_eq!(data.reference_count(target), 1, "{name}: parse");
+
+        let held: Box<dyn std::any::Any> = if let Some(h) = data.find_individual_handle(holder) {
+            Box::new(data.remove_individual(h).unwrap().unwrap())
+        } else if let Some(h) = data.find_family_handle(holder) {
+            Box::new(data.remove_family(h).unwrap().unwrap())
+        } else {
+            panic!("{name}: no holder {holder}");
+        };
+
+        assert_eq!(data.reference_count(target), 0, "{name}: remove holder");
+        drop(held);
+    }
+}
+
 const ONE_WAY_CHILD: &str = "\
 0 HEAD\n\
 1 GEDC\n\
@@ -468,7 +513,7 @@ const ONE_WAY_CHILD: &str = "\
 0 TRLR";
 
 #[test]
-fn child_pointers_count_by_field_edits() {
+fn pointers_count_by_field_edits() {
     let mut data = Gedcom::new(ONE_WAY_CHILD.chars())
         .unwrap()
         .parse_data()
@@ -493,29 +538,6 @@ fn child_pointers_count_by_field_edits() {
     data.get_family_mut(f).unwrap().children.retain(|_| false);
     assert_eq!(data.reference_count("@I1@"), 0);
     assert!(data.remove_individual(i).unwrap().is_some());
-}
-
-#[test]
-fn remove_family_release_children() {
-    let mut data = Gedcom::new(ONE_WAY_CHILD.chars())
-        .unwrap()
-        .parse_data()
-        .unwrap();
-
-    let i = data.find_individual_handle("@I1@").unwrap();
-    let f = data.find_family_handle("@F1@").unwrap();
-
-    let fam = data.remove_family(f).unwrap().unwrap();
-    assert!(fam.children.is_empty());
-    assert_eq!(data.reference_count("@I1"), 0);
-    assert!(data.remove_individual(i).unwrap().is_some());
-}
-
-#[test]
-fn streamed_family_counts_children() {
-    let parser = GedcomStreamParser::new(ONE_WAY_CHILD.as_bytes()).unwrap();
-    let data = GedcomData::try_from_records(parser).unwrap();
-    assert_eq!(data.reference_count("@I1@"), 1);
 }
 
 #[test]

@@ -1092,7 +1092,7 @@ impl GedcomData {
     /// already in use by another individual in this dataset.
     pub fn add_individual(
         &mut self,
-        individual: Individual,
+        mut individual: Individual,
     ) -> Result<Handle<Individual>, GedcomError> {
         let xref = individual.xref.clone();
 
@@ -1103,6 +1103,7 @@ impl GedcomData {
             });
         }
 
+        individual.aliases.for_each_mut(|r| self.xrefs.adopt(r));
         let handle = self.individuals.insert(individual);
 
         self.xrefs.register(xref, AnyHandle::Individual(handle))?;
@@ -1218,15 +1219,18 @@ impl GedcomData {
             });
         }
 
-        let Some(rec) = self.individuals.remove(handle) else {
+        let Some(mut rec) = self.individuals.remove(handle) else {
             unreachable!("handle was validated by get above")
         };
 
         let mut out = Vec::new();
         rec.outbound_refs(&mut |x| out.push(x.to_owned()));
+
         for x in &out {
             self.xrefs.release(x);
         }
+
+        rec.aliases = Arena::default();
 
         self.xrefs.remove(&xref);
         Ok(Some(rec))
@@ -1592,7 +1596,7 @@ impl GedcomData {
         }
 
         if !is_child {
-            f.children.insert(self.xrefs.mint(&individual_xref));
+            f.children.insert(self.xrefs.pointer(&individual_xref));
         }
 
         if !has_family_link {
@@ -1716,7 +1720,7 @@ impl GedcomData {
             unreachable!("xref map and arena are out of sync")
         };
 
-        let is_linked = i.aliases.iter().any(|a| a == &alias_xref);
+        let is_linked = i.aliases.iter().any(|a| a.as_str() == alias_xref);
 
         if is_linked {
             return Err(GedcomError::AlreadyLinked {
@@ -1726,8 +1730,8 @@ impl GedcomData {
             });
         }
 
-        self.xrefs.bump(&alias_xref);
-        i.aliases.insert(alias_xref);
+        let p = self.xrefs.pointer(&alias_xref);
+        i.aliases.insert(p);
 
         Ok(())
     }
@@ -1766,7 +1770,7 @@ impl GedcomData {
             unreachable!("xref map and arena are out of sync")
         };
 
-        let is_linked = i.aliases.iter().any(|a| a == &alias_xref);
+        let is_linked = i.aliases.iter().any(|a| a.as_str() == alias_xref);
 
         if !is_linked {
             return Err(GedcomError::NotLinked {
@@ -1776,8 +1780,7 @@ impl GedcomData {
             });
         }
 
-        i.aliases.retain(|a| a != &alias_xref);
-        self.xrefs.decrement(&alias_xref);
+        i.aliases.retain(|a| a.as_str() != alias_xref);
 
         Ok(())
     }
@@ -2851,7 +2854,7 @@ impl GedcomData {
                 record_type: "Any".to_string(),
             });
         }
-        Ok(self.xrefs.mint(xref))
+        Ok(self.xrefs.pointer(xref))
     }
 
     /// Clears the way to delete a source by dropping every citation of it, in any

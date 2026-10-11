@@ -30,6 +30,7 @@ use crate::{
         Xref,
     },
     util::is_real_reference,
+    xref::Pointer,
     GedcomError,
 };
 
@@ -112,7 +113,7 @@ pub struct Individual {
     /// Pointers to other individual records that may be the same person.
     /// Used when combining records from different sources that may refer
     /// to the same individual.
-    pub aliases: Arena<Xref>,
+    pub aliases: Arena<Pointer>,
     /// Interest in ancestors (tag: ANCI).
     ///
     /// Indicates an interest in researching the ancestry of this individual.
@@ -403,12 +404,6 @@ impl Individual {
             a.outbound_refs(sink);
         }
 
-        for xref in &self.aliases {
-            if is_real_reference(xref) {
-                sink(xref);
-            }
-        }
-
         for xref in &self.ancestor_interest {
             if is_real_reference(xref) {
                 sink(xref);
@@ -561,7 +556,7 @@ impl Parser for Individual {
                 "AFN" => self.ancestral_file_number = Some(tokenizer.take_line_value()?),
                 // Alias pointer
                 "ALIA" => {
-                    self.aliases.insert(tokenizer.take_line_value()?);
+                    self.aliases.insert(tokenizer.take_pointer()?);
                 }
                 // Interest in ancestors
                 "ANCI" => {
