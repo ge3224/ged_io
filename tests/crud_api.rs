@@ -335,6 +335,11 @@ fn header_link_unlink_submitter_and_submission() {
         0 @N1@ SUBN\n\
         0 TRLR";
 
+    let stream_parser = GedcomStreamParser::new(sample.as_bytes()).unwrap();
+    let streamed = GedcomData::try_from_records(stream_parser).unwrap();
+    assert_eq!(streamed.reference_count("@U1@"), 1);
+    assert_eq!(streamed.reference_count("@N1@"), 1);
+
     let mut data = Gedcom::new(sample.chars()).unwrap().parse_data().unwrap();
     let subm = data.find_submitter_handle("@U1@").unwrap();
     let subn = data.find_submission_handle("@N1@").unwrap();

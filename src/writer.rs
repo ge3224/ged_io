@@ -289,7 +289,7 @@ impl GedcomWriter {
             }
 
             if let Some(ref subm) = header.submitter_tag {
-                self.write_line(writer, 1, "SUBM", Some(subm))?;
+                self.write_line(writer, 1, "SUBM", Some(subm.as_str()))?;
             }
 
             if let Some(ref file) = header.filename {

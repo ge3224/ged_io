@@ -153,7 +153,7 @@ impl GedcomData {
 
             if let Token::Tag(tag) = &tokenizer.current_token {
                 match tag.as_ref() {
-                    "HEAD" => self.header = Some(Header::new(tokenizer, level)?),
+                    "HEAD" => self.set_header(Header::new(tokenizer, level)?),
                     "FAM" => {
                         let xref = pointer.ok_or_else(|| GedcomError::MissingRequiredValue {
                             line: tokenizer.line as usize,
@@ -379,14 +379,13 @@ impl GedcomData {
 
         if let Some(x) = &h.submitter_tag {
             return Err(GedcomError::AlreadyLinked {
-                from_xref: x.clone(),
+                from_xref: x.as_str().to_owned(),
                 to_xref: xref,
                 link_type: Submitter::RECORD_TYPE.to_string(),
             });
         }
 
-        h.submitter_tag = Some(xref.clone());
-        self.xrefs.bump(&xref);
+        h.submitter_tag = Some(self.xrefs.pointer(&xref));
 
         Ok(())
     }
@@ -415,9 +414,9 @@ impl GedcomData {
             unreachable!("header is not optional")
         };
 
-        if h.submitter_tag.as_deref() != Some(xref.as_str()) {
+        if !h.submitter_tag.as_ref().is_some_and(|p| *p == *xref) {
             let from_xref = match &h.submitter_tag {
-                Some(x) => x.clone(),
+                Some(x) => x.as_str().to_owned(),
                 None => "None".to_string(),
             };
 
@@ -429,7 +428,6 @@ impl GedcomData {
         }
 
         h.submitter_tag = None;
-        self.xrefs.decrement(&xref);
 
         Ok(())
     }
@@ -998,14 +996,13 @@ impl GedcomData {
 
         if let Some(x) = &h.submission_tag {
             return Err(GedcomError::AlreadyLinked {
-                from_xref: x.clone(),
+                from_xref: x.as_str().to_owned(),
                 to_xref: xref,
                 link_type: Submission::RECORD_TYPE.to_string(),
             });
         }
 
-        h.submission_tag = Some(xref.clone());
-        self.xrefs.bump(&xref);
+        h.submission_tag = Some(self.xrefs.pointer(&xref));
 
         Ok(())
     }
@@ -1034,9 +1031,9 @@ impl GedcomData {
             unreachable!("header is not optional")
         };
 
-        if h.submission_tag.as_deref() != Some(xref.as_str()) {
+        if !h.submission_tag.as_ref().is_some_and(|p| *p == *xref) {
             let from_xref = match &h.submission_tag {
-                Some(x) => x.clone(),
+                Some(x) => x.as_str().to_owned(),
                 None => "None".to_string(),
             };
 
@@ -1048,9 +1045,13 @@ impl GedcomData {
         }
 
         h.submission_tag = None;
-        self.xrefs.decrement(&xref);
 
         Ok(())
+    }
+
+    pub(crate) fn set_header(&mut self, mut header: Header) {
+        header.pointers_mut(&mut |p| self.xrefs.adopt(p));
+        self.header = Some(header);
     }
 
     /// Removes a submission by `xref`. Returns `None` if not found.
@@ -3033,7 +3034,7 @@ impl GedcomData {
 
         for record in records {
             match record? {
-                GedcomRecord::Header(h) => data.header = Some(h),
+                GedcomRecord::Header(h) => data.set_header(h),
                 GedcomRecord::Individual(i) => {
                     data.add_individual(i)?;
                 }

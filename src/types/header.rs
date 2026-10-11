@@ -16,6 +16,7 @@ use crate::{
         },
         note::Note,
     },
+    xref::Pointer,
     GedcomError,
 };
 #[cfg(feature = "json")]
@@ -76,12 +77,12 @@ pub struct Header {
     ///
     /// A pointer to a submitter record.
     /// See <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#SUBM>.
-    pub(crate) submitter_tag: Option<String>,
+    pub(crate) submitter_tag: Option<Pointer>,
 
     /// tag: SUBN (GEDCOM 5.5.1 only)
     ///
     /// A pointer to a submission record. This was removed in GEDCOM 7.0.
-    pub(crate) submission_tag: Option<String>,
+    pub(crate) submission_tag: Option<Pointer>,
 
     /// tag: COPR
     ///
@@ -191,13 +192,23 @@ impl Header {
     /// The submitter record the header points at, if any.
     #[must_use]
     pub fn submitter_tag(&self) -> Option<&str> {
-        self.submitter_tag.as_deref()
+        self.submitter_tag.as_ref().map(Pointer::as_str)
     }
 
     /// The submission record the header points at, if any.
     #[must_use]
     pub fn submission_tag(&self) -> Option<&str> {
-        self.submission_tag.as_deref()
+        self.submission_tag.as_ref().map(Pointer::as_str)
+    }
+
+    pub(crate) fn pointers_mut(&mut self, f: &mut impl FnMut(&mut Pointer)) {
+        if let Some(p) = &mut self.submitter_tag {
+            f(p);
+        }
+
+        if let Some(p) = &mut self.submission_tag {
+            f(p);
+        }
     }
 
     pub(crate) fn remove_citation_to(&mut self, xref: &str) -> usize {
@@ -252,8 +263,8 @@ impl Parser for Header {
                 "SOUR" => self.source = Some(HeadSour::new(tokenizer, level + 1)?),
                 "DEST" => self.destination = Some(tokenizer.take_line_value()?),
                 "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
-                "SUBM" => self.submitter_tag = Some(tokenizer.take_line_value()?),
-                "SUBN" => self.submission_tag = Some(tokenizer.take_line_value()?),
+                "SUBM" => self.submitter_tag = Some(tokenizer.take_pointer()?),
+                "SUBN" => self.submission_tag = Some(tokenizer.take_pointer()?),
                 "FILE" => self.filename = Some(tokenizer.take_line_value()?),
                 "COPR" => self.copyright = Some(tokenizer.take_continued_text(level + 1)?),
                 "CHAR" => self.encoding = Some(Encoding::new(tokenizer, level + 1)?),
