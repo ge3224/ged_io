@@ -176,6 +176,8 @@ impl Detail {
         if let Some(l) = &mut self.family_link {
             l.pointers_mut(f);
         }
+
+        self.associations.for_each_mut(|a| a.pointers_mut(f));
     }
 
     pub(crate) fn remove_citation_to(&mut self, xref: &str) -> usize {

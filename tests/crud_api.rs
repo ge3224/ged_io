@@ -542,6 +542,24 @@ fn pointer_field_count() {
             "@S1@",
             "@R1@",
         ),
+        (
+            "INDI.ASSO",
+            "0 @I1@ INDI\n1 ASSO @I2@\n0 @I2@ INDI\n",
+            "@I1@",
+            "@I2@",
+        ),
+        (
+            "INDI.BIRT.ASSO",
+            "0 @I1@ INDI\n1 BIRT\n2 ASSO @I2@\n0 @I2@ INDI\n",
+            "@I1@",
+            "@I2@",
+        ),
+        (
+            "INDI.OCCU.ASSO",
+            "0 @I1@ INDI\n1 OCCU Clerk\n2 ASSO @I2@\n0 @I2@ INDI\n",
+            "@I1@",
+            "@I2@",
+        ),
     ];
 
     for &(name, body, holder, target) in cases {

@@ -817,9 +817,9 @@ impl GedcomData {
             unreachable!("xref map and arena are out of sync")
         };
 
-        self.xrefs.bump(&associate_xref);
-        i.associations
-            .insert(Association::with_target(associate_xref));
+        i.associations.insert(Association::with_target(
+            self.xrefs.pointer(&associate_xref),
+        ));
 
         Ok(())
     }
@@ -862,7 +862,7 @@ impl GedcomData {
             .associations
             .iter_handles()
             .find(
-                |(_, a)| matches!(&a.target, AssociationTarget::Record(x) if x == &associate_xref),
+                |(_, a)| matches!(&a.target, AssociationTarget::Record(x) if x.as_str() == associate_xref),
             )
             .map(|(h, _)| h)
         else {
@@ -874,7 +874,6 @@ impl GedcomData {
         };
 
         i.associations.remove(association_handle);
-        self.xrefs.decrement(&associate_xref);
 
         Ok(())
     }

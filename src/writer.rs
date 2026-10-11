@@ -788,7 +788,9 @@ impl GedcomWriter {
         association: &Association,
     ) -> Result<(), io::Error> {
         match &association.target {
-            AssociationTarget::Record(x) => self.write_line(writer, level, "ASSO", Some(x))?,
+            AssociationTarget::Record(x) => {
+                self.write_line(writer, level, "ASSO", Some(x.as_str()))?;
+            }
             AssociationTarget::Void => self.write_line(writer, level, "ASSO", Some("@VOID@"))?,
         }
 

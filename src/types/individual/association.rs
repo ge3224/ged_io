@@ -5,7 +5,8 @@ use crate::{
     arena::Arena,
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
-    types::{custom::UserDefinedTag, note::Note, source::citation::Citation, Xref},
+    types::{custom::UserDefinedTag, note::Note, source::citation::Citation},
+    xref::Pointer,
     GedcomError,
 };
 
@@ -46,11 +47,11 @@ impl Association {
     ///
     /// This function will return an error if parsing fails.
     pub fn new(tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<Association, GedcomError> {
-        let raw = tokenizer.take_line_value()?;
-        let target = if raw == "@VOID@" {
+        let p = tokenizer.take_pointer()?;
+        let target = if p.as_str() == "@VOID@" {
             AssociationTarget::Void
         } else {
-            AssociationTarget::Record(raw)
+            AssociationTarget::Record(p)
         };
         let mut association = Association {
             target,
@@ -73,7 +74,7 @@ impl Association {
         &self.target
     }
 
-    pub(crate) fn with_target(target: Xref) -> Self {
+    pub(crate) fn with_target(target: Pointer) -> Self {
         Association {
             target: AssociationTarget::Record(target),
             relationship: None,
@@ -87,11 +88,13 @@ impl Association {
         }
     }
 
-    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
-        if let AssociationTarget::Record(xref) = &self.target {
-            sink(xref);
+    pub(crate) fn pointers_mut(&mut self, f: &mut impl FnMut(&mut Pointer)) {
+        if let AssociationTarget::Record(p) = &mut self.target {
+            f(p);
         }
+    }
 
+    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
         for s in &self.sources {
             s.outbound_refs(sink);
         }
@@ -157,15 +160,15 @@ impl Parser for Association {
 #[derive(Debug, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize))]
 pub enum AssociationTarget {
-    /// Refernces an individual record
-    Record(Xref),
+    /// References an individual record
+    Record(Pointer),
     /// Placeholder for a person with no record
     Void,
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::{types::individual::association::AssociationTarget, Gedcom};
+    use crate::{types::individual::association::AssociationTarget, xref::Pointer, Gedcom};
 
     #[test]
     fn test_parse_association() {
@@ -186,7 +189,10 @@ mod tests {
         assert_eq!(individual.associations.len(), 1);
 
         let assoc = individual.associations.iter().next().unwrap();
-        assert_eq!(assoc.target, AssociationTarget::Record("@I2@".to_string()));
+        assert_eq!(
+            assoc.target,
+            AssociationTarget::Record(Pointer::detached("@I2@"))
+        );
         assert_eq!(assoc.relationship.clone().unwrap(), "FRIEND");
         assert_eq!(assoc.association_type.clone().unwrap(), "COWORKER");
     }

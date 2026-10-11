@@ -339,6 +339,8 @@ impl Individual {
         self.submitters.for_each_mut(|p| f(p));
         self.families.for_each_mut(|l| l.pointers_mut(f));
         self.events.for_each_mut(|l| l.pointers_mut(f));
+        self.associations.for_each_mut(|a| a.pointers_mut(f));
+        self.attributes.for_each_mut(|a| a.pointers_mut(f));
     }
 
     pub(crate) fn remove_citation_to(&mut self, xref: &str) -> usize {
