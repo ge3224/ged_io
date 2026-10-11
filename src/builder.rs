@@ -372,6 +372,7 @@ impl GedcomBuilder {
     /// - UTF-16 LE/BE (with BOM)
     /// - ISO-8859-1 (Latin-1)
     /// - ISO-8859-15 (Latin-9)
+    /// - ANSI (Windows-1252)
     /// - ASCII
     ///
     /// # Arguments

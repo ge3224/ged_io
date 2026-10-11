@@ -7,6 +7,7 @@
 //! - **UTF-16**: Sometimes used, especially with Windows applications (with BOM)
 //! - **ISO-8859-1** (Latin-1): Common in older European GEDCOM files
 //! - **ISO-8859-15** (Latin-9): Similar to Latin-1 but includes the Euro sign
+//! - **ANSI**: The Windows code page, decoded as Windows-1252 like ISO-8859-1
 //! - **ANSEL**: A legacy encoding used in older GEDCOM 5.x files (Z39.47)
 //! - **ASCII**: 7-bit ASCII, a subset of UTF-8
 //!
@@ -33,7 +34,8 @@ pub enum GedcomEncoding {
     Utf16Le,
     /// UTF-16 Big Endian (with BOM)
     Utf16Be,
-    /// ISO-8859-1 (Latin-1) encoding
+    /// ISO-8859-1 (Latin-1) encoding, decoded as its Windows-1252 superset;
+    /// also the encoding of a `CHAR ANSI` file that is not valid UTF-8
     Iso8859_1,
     /// ISO-8859-15 (Latin-9) encoding, includes Euro sign
     Iso8859_15,
@@ -99,7 +101,8 @@ pub fn detect_encoding(bytes: &[u8]) -> GedcomEncoding {
 /// Detects encoding by looking for the CHAR tag in the GEDCOM header.
 fn detect_encoding_from_char_tag(bytes: &[u8]) -> Option<GedcomEncoding> {
     // First, try to decode as UTF-8 to search for CHAR tag
-    let content = if let Ok(s) = std::str::from_utf8(bytes) {
+    let utf8 = std::str::from_utf8(bytes);
+    let content = if let Ok(s) = utf8 {
         s.to_string()
     } else {
         // Try decoding first 4KB with Windows-1252 (superset of ISO-8859-1)
@@ -115,6 +118,13 @@ fn detect_encoding_from_char_tag(bytes: &[u8]) -> Option<GedcomEncoding> {
             // Extract the encoding value
             let parts: Vec<&str> = trimmed.split_whitespace().collect();
             if parts.len() >= 3 && parts[1] == "CHAR" {
+                // `ANSI` is the Windows code page of the producing system,
+                // Windows-1252 for the Western European files that declare
+                // it, which `Iso8859_1` decodes. A file declaring it that is
+                // valid UTF-8 (pure ASCII included) is still read as UTF-8.
+                if parts[2] == "ANSI" && utf8.is_err() {
+                    return Some(GedcomEncoding::Iso8859_1);
+                }
                 return parse_encoding_value(parts[2]);
             }
         }
