@@ -518,7 +518,7 @@ impl<'a> Tokenizer<'a> {
                     }
                 },
                 Token::Level(_) => self.next_token()?,
-                Token::EOF => break,
+                Token::CustomTag(_) | Token::EOF => break,
                 _ => {
                     return Err(GedcomError::ParseError {
                         line: self.line,
@@ -991,7 +991,7 @@ impl<R: BufRead> TokenizerTrait for StreamTokenizer<R> {
                     }
                 },
                 Token::Level(_) => self.next_token()?,
-                Token::EOF => break,
+                Token::CustomTag(_) | Token::EOF => break,
                 _ => {
                     return Err(GedcomError::ParseError {
                         line: self.line,
