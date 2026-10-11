@@ -29,7 +29,6 @@ use crate::{
         source::citation::{Citation, CitationSource},
         Xref,
     },
-    util::is_real_reference,
     xref::Pointer,
     GedcomError,
 };
@@ -118,16 +117,16 @@ pub struct Individual {
     ///
     /// Indicates an interest in researching the ancestry of this individual.
     /// Points to a submitter record who has this interest.
-    pub ancestor_interest: Arena<Xref>,
+    pub ancestor_interest: Arena<Pointer>,
     /// Interest in descendants (tag: DESI).
     ///
     /// Indicates an interest in researching the descendants of this individual.
     /// Points to a submitter record who has this interest.
-    pub descendant_interest: Arena<Xref>,
+    pub descendant_interest: Arena<Pointer>,
     /// External identifiers maintained by external authorities that apply to
     /// this individual.
     pub external_ids: Arena<ExternalId>,
-    pub submitters: Arena<Xref>,
+    pub submitters: Arena<Pointer>,
 }
 
 impl Individual {
@@ -404,18 +403,6 @@ impl Individual {
             a.outbound_refs(sink);
         }
 
-        for xref in &self.ancestor_interest {
-            if is_real_reference(xref) {
-                sink(xref);
-            }
-        }
-
-        for xref in &self.descendant_interest {
-            if is_real_reference(xref) {
-                sink(xref);
-            }
-        }
-
         for n in &self.names {
             n.outbound_refs(sink);
         }
@@ -438,12 +425,6 @@ impl Individual {
 
         for ne in &self.non_events {
             ne.outbound_refs(sink);
-        }
-
-        for xref in &self.submitters {
-            if is_real_reference(xref) {
-                sink(xref);
-            }
         }
 
         for u in &self.user_defined_tags {
@@ -560,12 +541,11 @@ impl Parser for Individual {
                 }
                 // Interest in ancestors
                 "ANCI" => {
-                    self.ancestor_interest.insert(tokenizer.take_line_value()?);
+                    self.ancestor_interest.insert(tokenizer.take_pointer()?);
                 }
                 // Interest in descendants
                 "DESI" => {
-                    self.descendant_interest
-                        .insert(tokenizer.take_line_value()?);
+                    self.descendant_interest.insert(tokenizer.take_pointer()?);
                 }
                 // External identifier (GEDCOM 7.0)
                 "EXID" => {
@@ -573,7 +553,7 @@ impl Parser for Individual {
                     self.external_ids.insert(ExternalId { id, type_uri: None });
                 }
                 "SUBM" => {
-                    self.submitters.insert(tokenizer.take_line_value()?);
+                    self.submitters.insert(tokenizer.take_pointer()?);
                 }
                 _ => {
                     // Leave unknown tags to `parse_subset`, which keeps them with

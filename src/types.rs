@@ -512,7 +512,10 @@ impl GedcomData {
             unreachable!("xref map and arena are out of sync")
         };
 
-        let is_linked = i.ancestor_interest.iter().any(|s| s == &submitter_xref);
+        let is_linked = i
+            .ancestor_interest
+            .iter()
+            .any(|s| s.as_str() == submitter_xref);
 
         if is_linked {
             return Err(GedcomError::AlreadyLinked {
@@ -522,8 +525,8 @@ impl GedcomData {
             });
         }
 
-        self.xrefs.bump(&submitter_xref);
-        i.ancestor_interest.insert(submitter_xref);
+        let p = self.xrefs.pointer(&submitter_xref);
+        i.ancestor_interest.insert(p);
 
         Ok(())
     }
@@ -563,7 +566,10 @@ impl GedcomData {
             unreachable!("xref map and arena are out of sync")
         };
 
-        let is_linked = i.ancestor_interest.iter().any(|s| s == &submitter_xref);
+        let is_linked = i
+            .ancestor_interest
+            .iter()
+            .any(|s| s.as_str() == submitter_xref);
 
         if !is_linked {
             return Err(GedcomError::NotLinked {
@@ -573,8 +579,7 @@ impl GedcomData {
             });
         }
 
-        i.ancestor_interest.retain(|s| s != &submitter_xref);
-        self.xrefs.decrement(&submitter_xref);
+        i.ancestor_interest.retain(|s| s.as_str() != submitter_xref);
 
         Ok(())
     }
@@ -615,7 +620,10 @@ impl GedcomData {
             unreachable!("xref map and arena are out of sync");
         };
 
-        let is_linked = i.descendant_interest.iter().any(|s| s == &submitter_xref);
+        let is_linked = i
+            .descendant_interest
+            .iter()
+            .any(|s| s.as_str() == submitter_xref);
 
         if is_linked {
             return Err(GedcomError::AlreadyLinked {
@@ -625,8 +633,8 @@ impl GedcomData {
             });
         }
 
-        self.xrefs.bump(&submitter_xref);
-        i.descendant_interest.insert(submitter_xref);
+        let p = self.xrefs.pointer(&submitter_xref);
+        i.descendant_interest.insert(p);
 
         Ok(())
     }
@@ -665,7 +673,10 @@ impl GedcomData {
             unreachable!("xref map and arena are out of sync");
         };
 
-        let is_linked = i.descendant_interest.iter().any(|s| s == &submitter_xref);
+        let is_linked = i
+            .descendant_interest
+            .iter()
+            .any(|s| s.as_str() == submitter_xref);
 
         if !is_linked {
             return Err(GedcomError::NotLinked {
@@ -675,8 +686,8 @@ impl GedcomData {
             });
         }
 
-        i.descendant_interest.retain(|s| s != &submitter_xref);
-        self.xrefs.decrement(&submitter_xref);
+        i.descendant_interest
+            .retain(|s| s.as_str() != submitter_xref);
 
         Ok(())
     }
@@ -1103,7 +1114,15 @@ impl GedcomData {
             });
         }
 
-        individual.aliases.for_each_mut(|r| self.xrefs.adopt(r));
+        individual.aliases.for_each_mut(|p| self.xrefs.adopt(p));
+        individual
+            .ancestor_interest
+            .for_each_mut(|p| self.xrefs.adopt(p));
+        individual
+            .descendant_interest
+            .for_each_mut(|p| self.xrefs.adopt(p));
+        individual.submitters.for_each_mut(|p| self.xrefs.adopt(p));
+
         let handle = self.individuals.insert(individual);
 
         self.xrefs.register(xref, AnyHandle::Individual(handle))?;
@@ -1231,6 +1250,9 @@ impl GedcomData {
         }
 
         rec.aliases = Arena::default();
+        rec.ancestor_interest = Arena::default();
+        rec.descendant_interest = Arena::default();
+        rec.submitters = Arena::default();
 
         self.xrefs.remove(&xref);
         Ok(Some(rec))

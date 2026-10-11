@@ -429,7 +429,7 @@ impl GedcomWriter {
         }
 
         for submitter in &individual.submitters {
-            self.write_line(writer, 1, "SUBM", Some(submitter))?;
+            self.write_line(writer, 1, "SUBM", Some(submitter.as_str()))?;
         }
 
         for citation in &individual.sources {
@@ -448,11 +448,11 @@ impl GedcomWriter {
         }
 
         for ai in &individual.ancestor_interest {
-            self.write_line(writer, 1, "ANCI", Some(ai))?;
+            self.write_line(writer, 1, "ANCI", Some(ai.as_str()))?;
         }
 
         for di in &individual.descendant_interest {
-            self.write_line(writer, 1, "DESI", Some(di))?;
+            self.write_line(writer, 1, "DESI", Some(di.as_str()))?;
         }
 
         if let Some(ref afn) = individual.ancestral_file_number {
