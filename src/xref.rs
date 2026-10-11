@@ -21,11 +21,11 @@ use crate::{
 /// `CHIL @I1@` line). Get one from [`GedcomData::pointer`](crate::types::GedcomData::pointer).
 /// While any copy exists, the record it points to counts as referenced and can't be removed.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Ref(Arc<str>);
+pub struct Pointer(Arc<str>);
 
-impl Ref {
+impl Pointer {
     pub(crate) fn detached(x: &str) -> Self {
-        Ref(Arc::from(x))
+        Pointer(Arc::from(x))
     }
 
     /// Returns the xref this pointer points to (for example, `"@I1@"`).
@@ -35,14 +35,14 @@ impl Ref {
     }
 }
 
-impl PartialEq<str> for Ref {
+impl PartialEq<str> for Pointer {
     fn eq(&self, other: &str) -> bool {
         &*self.0 == other
     }
 }
 
 #[cfg(feature = "json")]
-impl Serialize for Ref {
+impl Serialize for Pointer {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -138,17 +138,17 @@ impl Xrefs {
         }
     }
 
-    pub(crate) fn mint(&mut self, x: &str) -> Ref {
+    pub(crate) fn mint(&mut self, x: &str) -> Pointer {
         let node = self.map.entry(x.to_owned()).or_insert_with(|| XrefNode {
             handle: None,
             use_count: 0,
             anchor: None,
         });
 
-        Ref(Arc::clone(node.anchor.get_or_insert_with(|| Arc::from(x))))
+        Pointer(Arc::clone(node.anchor.get_or_insert_with(|| Arc::from(x))))
     }
 
-    pub(crate) fn adopt(&mut self, r: &mut Ref) {
+    pub(crate) fn adopt(&mut self, r: &mut Pointer) {
         if !is_real_reference(r.as_str()) {
             return;
         }
@@ -166,7 +166,7 @@ impl Xrefs {
 #[derive(Debug)]
 pub(crate) struct XrefNode {
     pub(crate) handle: Option<AnyHandle>,
-    // TODO(ref-migration): remove once every pointer field is a Ref
+    // TODO(ref-migration): remove once every pointer field is a Pointer
     pub(crate) use_count: usize,
     pub(crate) anchor: Option<Arc<str>>,
 }

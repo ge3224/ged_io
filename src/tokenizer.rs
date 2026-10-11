@@ -7,7 +7,7 @@
 //! work with either implementation.
 
 use crate::util::{is_real_reference, unescape_at_signs};
-use crate::xref::Ref;
+use crate::xref::Pointer;
 use crate::GedcomError;
 use std::collections::HashMap;
 use std::io::BufRead;
@@ -450,7 +450,7 @@ impl<'a> Tokenizer<'a> {
         Ok(value)
     }
 
-    pub(crate) fn take_pointer(&mut self) -> Result<Ref, GedcomError> {
+    pub(crate) fn take_pointer(&mut self) -> Result<Pointer, GedcomError> {
         let v = self.take_line_value()?;
         if is_real_reference(&v) {
             if let Some(n) = self.pending_uses.get_mut(v.as_str()) {
@@ -460,7 +460,7 @@ impl<'a> Tokenizer<'a> {
                 }
             }
         }
-        Ok(Ref::detached(&v))
+        Ok(Pointer::detached(&v))
     }
 
     /// When the tokenizer sits on the level of a `CONC` or `CONT` line

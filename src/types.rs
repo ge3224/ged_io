@@ -55,7 +55,7 @@ use crate::{
         submission::Submission,
         submitter::Submitter,
     },
-    xref::{AnyHandle, Ref, Xref, Xrefs},
+    xref::{AnyHandle, Pointer, Xref, Xrefs},
     GedcomError, GedcomRecord,
 };
 
@@ -2844,7 +2844,7 @@ impl GedcomData {
     /// # Errors
     ///
     /// Returns [`GedcomError::XrefNotFound`] if no record has that `xref`.
-    pub fn pointer(&mut self, xref: &str) -> Result<Ref, GedcomError> {
+    pub fn pointer(&mut self, xref: &str) -> Result<Pointer, GedcomError> {
         if self.xrefs.handle(xref).is_none() {
             return Err(GedcomError::XrefNotFound {
                 xref: xref.to_owned(),

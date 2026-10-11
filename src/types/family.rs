@@ -17,7 +17,7 @@ use crate::{
         Xref,
     },
     util::is_real_reference,
-    xref::Ref,
+    xref::Pointer,
     GedcomError,
 };
 
@@ -42,7 +42,7 @@ pub struct Family {
     pub individual1: Option<Xref>, // mapped from HUSB
     pub individual2: Option<Xref>, // mapped from WIFE
     pub family_events: Arena<Detail>,
-    pub children: Arena<Ref>,
+    pub children: Arena<Pointer>,
     pub num_children: Option<String>,
     pub change_date: Option<ChangeDate>,
     pub events: Arena<Detail>,
@@ -175,7 +175,7 @@ impl Family {
         Ok(())
     }
 
-    pub(crate) fn add_child(&mut self, r: Ref) {
+    pub(crate) fn add_child(&mut self, r: Pointer) {
         self.children.insert(r);
     }
 
