@@ -711,7 +711,6 @@ Notes:
 
 - [API Documentation](https://docs.rs/ged_io) - Full API reference
 - [MIGRATION.md](MIGRATION.md) - GEDCOM 5.5.1 to 7.0 migration guide
-- [ROADMAP.md](ROADMAP.md) - Project roadmap and planned features
 - GEDCOM specifications (bundled in this repo):
   - [GEDCOM 7.0 Specification (PDF)](docs/FamilySearchGEDCOMv7.pdf)
   - [GEDCOM 5.5.1 Specification (PDF)](docs/ged551.pdf)
