@@ -1872,24 +1872,19 @@ impl GedcomData {
         Ok(())
     }
 
-    /// Adds a new record for a [`Repository`] to the genealogy data. If the repository has no
-    /// xref, one is auto-generated.
+    /// Adds a new record for a [`Repository`] to the genealogy data.
     ///
     /// # Errors
     ///
     /// Returns an error if the xref is already in use.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the internal record storage is in an inconsistent state.
     pub fn add_repository(
         &mut self,
         repository: Repository,
     ) -> Result<Handle<Repository>, GedcomError> {
         let xref = repository.xref.clone();
 
-        if self.xrefs.handle(&repository.xref).is_some() {
-            return Err(GedcomError::XrefNotFound {
+        if self.xrefs.handle(&xref).is_some() {
+            return Err(GedcomError::DuplicateXref {
                 xref,
                 record_type: Repository::RECORD_TYPE.to_string(),
             });
@@ -3123,6 +3118,39 @@ mod tests {
         let data = GedcomData::new(&mut tokenizer).unwrap();
 
         assert_eq!(data.total_records(), 2); // 1 individual + 1 shared note
+    }
+
+    #[test]
+    fn duplicate_xrefs_rejected() {
+        let wrap = |body: &str| -> String {
+            format!("0 HEAD\n1 GEDC\n2 VERS 5.5.1\n1 CHAR UTF-8\n{body}0 TRLR")
+        };
+
+        let cases: &[(&str, &str)] = &[
+            ("INDI", "0 @X1@ INDI\n0 @X1@ INDI\n"),
+            ("FAM", "0 @X1@ INDI\n0 @X1@ FAM\n"),
+            ("SOUR", "0 @X1@ INDI\n0 @X1@ SOUR\n"),
+            ("REPO", "0 @X1@ INDI\n0 @X1@ REPO\n"),
+            ("OBJE", "0 @X1@ INDI\n0 @X1@ OBJE\n"),
+            ("NOTE", "0 @X1@ INDI\n0 @X1@ NOTE Some text\n"),
+            ("SUBM", "0 @X1@ INDI\n0 @X1@ SUBM\n"),
+            ("SUBN", "0 @X1@ INDI\n0 @X1@ SUBN\n"),
+            ("_LOC", "0 @X1@ INDI\n0 @X1@ _LOC Sampletown\n"),
+        ];
+
+        let mut failures = Vec::new();
+
+        for (label, body) in cases {
+            let sample = wrap(body);
+            let mut doc = Gedcom::new(sample.chars()).unwrap();
+
+            match doc.parse_data() {
+                Err(GedcomError::DuplicateXref { ref xref, .. }) if xref == "@X1@" => {}
+                other => failures.push(format!("{label}: {other:?}")),
+            }
+        }
+
+        assert!(failures.is_empty(), "{failures:#?}")
     }
 
     #[test]
