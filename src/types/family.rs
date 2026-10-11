@@ -39,8 +39,8 @@ use serde::Serialize;
 #[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Family {
     pub xref: Xref,
-    pub individual1: Option<Xref>, // mapped from HUSB
-    pub individual2: Option<Xref>, // mapped from WIFE
+    pub individual1: Option<Pointer>, // mapped from HUSB
+    pub individual2: Option<Pointer>, // mapped from WIFE
     pub family_events: Arena<Detail>,
     pub children: Arena<Pointer>,
     pub num_children: Option<String>,
@@ -143,35 +143,25 @@ impl Family {
         Ok(fam)
     }
 
-    /// Sets the first individual (e.g., husband) of the family.
-    ///
-    /// # Errors
-    ///
-    /// Returns a `GedcomError::ParseError` if the individual already exists.
-    pub fn set_individual1(&mut self, xref: Xref, line: u32) -> Result<(), GedcomError> {
+    pub(crate) fn set_individual1(&mut self, p: Pointer, line: u32) -> Result<(), GedcomError> {
         if self.individual1.is_some() {
             return Err(GedcomError::ParseError {
                 line,
                 message: "First individual of family already exists.".to_string(),
             });
         }
-        self.individual1 = Some(xref);
+        self.individual1 = Some(p);
         Ok(())
     }
 
-    /// Sets the second individual (e.g., wife) of the family.
-    ///
-    /// # Errors
-    ///
-    /// Returns a `GedcomError::ParseError` if the individual already exists.
-    pub fn set_individual2(&mut self, xref: Xref, line: u32) -> Result<(), GedcomError> {
+    pub(crate) fn set_individual2(&mut self, p: Pointer, line: u32) -> Result<(), GedcomError> {
         if self.individual2.is_some() {
             return Err(GedcomError::ParseError {
                 line,
                 message: "Second individual of family already exists.".to_string(),
             });
         }
-        self.individual2 = Some(xref);
+        self.individual2 = Some(p);
         Ok(())
     }
 
@@ -240,18 +230,6 @@ impl Family {
     }
 
     pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
-        if let Some(xref) = &self.individual1 {
-            if is_real_reference(xref) {
-                sink(xref);
-            }
-        }
-
-        if let Some(xref) = &self.individual2 {
-            if is_real_reference(xref) {
-                sink(xref);
-            }
-        }
-
         for fe in &self.family_events {
             fe.outbound_refs(sink);
         }
@@ -347,8 +325,8 @@ impl Parser for Family {
                 | "MARS" | "RESI" | "EVEN" | "SEP" => {
                     self.add_event(Detail::new(tokenizer, level + 1, tag)?);
                 }
-                "HUSB" => self.set_individual1(tokenizer.take_line_value()?, tokenizer.line)?,
-                "WIFE" => self.set_individual2(tokenizer.take_line_value()?, tokenizer.line)?,
+                "HUSB" => self.set_individual1(tokenizer.take_pointer()?, tokenizer.line)?,
+                "WIFE" => self.set_individual2(tokenizer.take_pointer()?, tokenizer.line)?,
                 "CHIL" => self.add_child(tokenizer.take_pointer()?),
                 "NCHI" => self.num_children = Some(tokenizer.take_line_value()?),
                 "CHAN" => self.change_date = Some(ChangeDate::new(tokenizer, level + 1)?),

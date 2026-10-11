@@ -199,10 +199,12 @@ impl fmt::Display for Family {
         let mut members = Vec::new();
 
         if let Some(ref ind1) = self.individual1 {
-            members.push(format!("Partner 1: {ind1}"));
+            let ps = ind1.as_str();
+            members.push(format!("Partner 1: {ps}"));
         }
         if let Some(ref ind2) = self.individual2 {
-            members.push(format!("Partner 2: {ind2}"));
+            let ps = ind2.as_str();
+            members.push(format!("Partner 2: {ps}"));
         }
 
         if members.is_empty() {

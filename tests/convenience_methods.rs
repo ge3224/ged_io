@@ -1,6 +1,6 @@
 //! Tests for convenience methods on GEDCOM data structures (Issue #29)
 
-use ged_io::Gedcom;
+use ged_io::{xref::Pointer, Gedcom};
 
 // ============================================================================
 // GedcomData convenience method tests
@@ -46,7 +46,10 @@ fn test_find_family() {
 
     let found = data.find_family("@F1@");
     assert!(found.is_some());
-    assert_eq!(found.unwrap().individual1, Some("@I1@".to_string()));
+    assert_eq!(
+        found.unwrap().individual1.as_ref().map(Pointer::as_str),
+        Some("@I1@")
+    );
 
     let not_found = data.find_family("@F999@");
     assert!(not_found.is_none());

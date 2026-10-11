@@ -1278,6 +1278,14 @@ impl GedcomData {
 
         family.children.for_each_mut(|r| self.xrefs.adopt(r));
 
+        if let Some(p) = &mut family.individual1 {
+            self.xrefs.adopt(p);
+        }
+
+        if let Some(p) = &mut family.individual2 {
+            self.xrefs.adopt(p);
+        }
+
         let handle = self.families.insert(family);
 
         self.xrefs.register(xref, AnyHandle::Family(handle))?;
@@ -1387,7 +1395,8 @@ impl GedcomData {
             self.xrefs.release(x);
         }
 
-        // CHIL pointers release on drop, not via the walk above.
+        rec.individual1 = None;
+        rec.individual2 = None;
         rec.children = Arena::default();
 
         self.xrefs.remove(&xref);
@@ -1442,8 +1451,13 @@ impl GedcomData {
             .iter()
             .any(|f| f.target == family_xref && f.family_link_type == FamilyLinkType::Spouse);
 
-        let is_spouse = f.individual1.as_deref() == Some(&individual_xref)
-            || f.individual2.as_deref() == Some(&individual_xref);
+        let is_spouse = f
+            .individual1
+            .as_ref()
+            .is_some_and(|p| *p == *individual_xref)
+            || f.individual2
+                .as_ref()
+                .is_some_and(|p| *p == *individual_xref);
 
         let has_two_spouses = f.individual1.is_some() && f.individual2.is_some();
 
@@ -1460,12 +1474,11 @@ impl GedcomData {
         }
 
         if !is_spouse {
-            self.xrefs.bump(&individual_xref);
-
+            let p = self.xrefs.pointer(&individual_xref);
             if f.individual1.is_none() {
-                f.individual1 = Some(individual_xref);
+                f.individual1 = Some(p);
             } else {
-                f.individual2 = Some(individual_xref);
+                f.individual2 = Some(p);
             }
         }
 
@@ -1532,8 +1545,13 @@ impl GedcomData {
             .iter()
             .any(|f| f.target == family_xref && f.family_link_type == FamilyLinkType::Spouse);
 
-        let is_spouse = f.individual1.as_deref() == Some(&individual_xref)
-            || f.individual2.as_deref() == Some(&individual_xref);
+        let is_spouse = f
+            .individual1
+            .as_ref()
+            .is_some_and(|p| *p == *individual_xref)
+            || f.individual2
+                .as_ref()
+                .is_some_and(|p| *p == *individual_xref);
 
         if !has_family_link && !is_spouse {
             return Err(GedcomError::NotLinked {
@@ -1551,12 +1569,12 @@ impl GedcomData {
         }
 
         if is_spouse {
-            if f.individual1.as_deref() == Some(&individual_xref) {
+            let p = self.xrefs.pointer(&individual_xref);
+            if f.individual1 == Some(p) {
                 f.individual1 = None;
             } else {
                 f.individual2 = None;
             }
-            self.xrefs.decrement(&individual_xref);
         }
 
         Ok(())
@@ -2711,12 +2729,12 @@ impl GedcomData {
     pub fn get_parents(&self, family: &Family) -> Vec<&Individual> {
         let mut parents = Vec::new();
         if let Some(ref xref) = family.individual1 {
-            if let Some(ind) = self.find_individual(xref) {
+            if let Some(ind) = self.find_individual(xref.as_str()) {
                 parents.push(ind);
             }
         }
         if let Some(ref xref) = family.individual2 {
-            if let Some(ind) = self.find_individual(xref) {
+            if let Some(ind) = self.find_individual(xref.as_str()) {
                 parents.push(ind);
             }
         }
@@ -2734,7 +2752,7 @@ impl GedcomData {
             family
                 .individual2
                 .as_ref()
-                .and_then(|x| self.find_individual(x))
+                .and_then(|x| self.find_individual(x.as_str()))
         } else if family
             .individual2
             .as_ref()
@@ -2743,7 +2761,7 @@ impl GedcomData {
             family
                 .individual1
                 .as_ref()
-                .and_then(|x| self.find_individual(x))
+                .and_then(|x| self.find_individual(x.as_str()))
         } else {
             None
         }

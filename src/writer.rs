@@ -1022,11 +1022,11 @@ impl GedcomWriter {
         }
 
         if let Some(ref husb) = family.individual1 {
-            self.write_line(writer, 1, "HUSB", Some(husb))?;
+            self.write_line(writer, 1, "HUSB", Some(husb.as_str()))?;
         }
 
         if let Some(ref wife) = family.individual2 {
-            self.write_line(writer, 1, "WIFE", Some(wife))?;
+            self.write_line(writer, 1, "WIFE", Some(wife.as_str()))?;
         }
 
         for child in &family.children {

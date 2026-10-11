@@ -200,12 +200,12 @@ impl IndexedGedcomData {
     pub fn get_parents(&self, family: &Family) -> Vec<&Individual> {
         let mut parents = Vec::with_capacity(2);
         if let Some(ref xref) = family.individual1 {
-            if let Some(ind) = self.find_individual(xref) {
+            if let Some(ind) = self.find_individual(xref.as_str()) {
                 parents.push(ind);
             }
         }
         if let Some(ref xref) = family.individual2 {
-            if let Some(ind) = self.find_individual(xref) {
+            if let Some(ind) = self.find_individual(xref.as_str()) {
                 parents.push(ind);
             }
         }
@@ -223,7 +223,7 @@ impl IndexedGedcomData {
             family
                 .individual2
                 .as_ref()
-                .and_then(|x| self.find_individual(x))
+                .and_then(|x| self.find_individual(x.as_str()))
         } else if family
             .individual2
             .as_ref()
@@ -232,7 +232,7 @@ impl IndexedGedcomData {
             family
                 .individual1
                 .as_ref()
-                .and_then(|x| self.find_individual(x))
+                .and_then(|x| self.find_individual(x.as_str()))
         } else {
             None
         }
@@ -323,7 +323,7 @@ impl IndexStats {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::GedcomBuilder;
+    use crate::{xref::Pointer, GedcomBuilder};
 
     fn create_test_data() -> GedcomData {
         let source = "0 HEAD\n\
@@ -378,7 +378,10 @@ mod tests {
 
         let family = indexed.find_family("@F1@");
         assert!(family.is_some());
-        assert_eq!(family.unwrap().individual1, Some("@I1@".to_string()));
+        assert_eq!(
+            family.unwrap().individual1.as_ref().map(Pointer::as_str),
+            Some("@I1@")
+        );
     }
 
     #[test]

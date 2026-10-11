@@ -593,16 +593,18 @@ impl GedcomBuilder {
         // Validate family references
         for family in data.iter_families() {
             if let Some(ref husb) = family.individual1 {
-                if !xrefs.contains(husb.as_str()) {
+                let ps = husb.as_str();
+                if !xrefs.contains(ps) {
                     return Err(GedcomError::InvalidFormat(format!(
-                        "Family references non-existent individual: {husb}"
+                        "Family references non-existent individual: {ps}"
                     )));
                 }
             }
             if let Some(ref wife) = family.individual2 {
-                if !xrefs.contains(wife.as_str()) {
+                let ps = wife.as_str();
+                if !xrefs.contains(ps) {
                     return Err(GedcomError::InvalidFormat(format!(
-                        "Family references non-existent individual: {wife}"
+                        "Family references non-existent individual: {ps}"
                     )));
                 }
             }
