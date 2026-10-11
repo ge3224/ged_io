@@ -55,7 +55,7 @@ use crate::{
         submission::Submission,
         submitter::Submitter,
     },
-    xref::{AnyHandle, Xref, Xrefs},
+    xref::{AnyHandle, Ref, Xref, Xrefs},
     GedcomError, GedcomRecord,
 };
 
@@ -1240,7 +1240,7 @@ impl GedcomData {
     ///
     /// Returns an [`GedcomError::DuplicateXref`] if the family's [`Xref`] is
     /// already in use by another record in the dataset.
-    pub fn add_family(&mut self, family: Family) -> Result<Handle<Family>, GedcomError> {
+    pub fn add_family(&mut self, mut family: Family) -> Result<Handle<Family>, GedcomError> {
         let xref = family.xref.clone();
 
         if self.xrefs.handle(&xref).is_some() {
@@ -1249,6 +1249,8 @@ impl GedcomData {
                 record_type: Family::RECORD_TYPE.to_string(),
             });
         }
+
+        family.children.for_each_mut(|r| self.xrefs.adopt(r));
 
         let handle = self.families.insert(family);
 
@@ -1327,6 +1329,7 @@ impl GedcomData {
     ///
     /// Removing a family also lets go of everything it pointed at, so that
     /// those records can be removed afterwards without unlinking them first.
+    /// The returned family has an empty `children` list.
     ///
     /// # Errors
     ///
@@ -1348,7 +1351,7 @@ impl GedcomData {
             });
         }
 
-        let Some(rec) = self.families.remove(handle) else {
+        let Some(mut rec) = self.families.remove(handle) else {
             unreachable!("handle was validated by the get above")
         };
 
@@ -1357,6 +1360,9 @@ impl GedcomData {
         for x in &out {
             self.xrefs.release(x);
         }
+
+        // CHIL pointers release on drop, not via the walk above.
+        rec.children = Arena::default();
 
         self.xrefs.remove(&xref);
         Ok(Some(rec))
@@ -1575,7 +1581,7 @@ impl GedcomData {
             .iter()
             .any(|l| l.target == family_xref && l.family_link_type == FamilyLinkType::Child);
 
-        let is_child = f.children.iter().any(|c| c == &individual_xref);
+        let is_child = f.children.iter().any(|c| c.as_str() == individual_xref);
 
         if is_child && has_family_link {
             return Err(GedcomError::AlreadyLinked {
@@ -1586,8 +1592,7 @@ impl GedcomData {
         }
 
         if !is_child {
-            self.xrefs.bump(&individual_xref);
-            f.children.insert(individual_xref);
+            f.children.insert(self.xrefs.mint(&individual_xref));
         }
 
         if !has_family_link {
@@ -1652,7 +1657,7 @@ impl GedcomData {
             .iter()
             .any(|f| f.target == family_xref && f.family_link_type == FamilyLinkType::Child);
 
-        let is_child = f.children.iter().any(|c| c == &individual_xref);
+        let is_child = f.children.iter().any(|c| c.as_str() == individual_xref);
 
         if !has_family_link && !is_child {
             return Err(GedcomError::NotLinked {
@@ -1670,8 +1675,7 @@ impl GedcomData {
         }
 
         if is_child {
-            f.children.retain(|i| i != &individual_xref);
-            self.xrefs.decrement(&individual_xref);
+            f.children.retain(|c| c.as_str() != individual_xref);
         }
 
         Ok(())
@@ -2673,7 +2677,7 @@ impl GedcomData {
         family
             .children
             .iter()
-            .filter_map(|xref| self.find_individual(xref))
+            .filter_map(|xref| self.find_individual(xref.as_str()))
             .collect()
     }
 
@@ -2830,6 +2834,24 @@ impl GedcomData {
     #[must_use]
     pub fn reference_count(&self, xref: &str) -> usize {
         self.xrefs.use_count(xref)
+    }
+
+    /// Returns a pointer to a record, given its xref (for example, `"@I1@"`),
+    /// ready to store in a pointer field such as `family.children`. The
+    /// record counts as referenced for as long as the pointer exists, so it
+    /// can't be removed while a copy is still held.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`GedcomError::XrefNotFound`] if no record has that `xref`.
+    pub fn pointer(&mut self, xref: &str) -> Result<Ref, GedcomError> {
+        if self.xrefs.handle(xref).is_none() {
+            return Err(GedcomError::XrefNotFound {
+                xref: xref.to_owned(),
+                record_type: "Any".to_string(),
+            });
+        }
+        Ok(self.xrefs.mint(xref))
     }
 
     /// Clears the way to delete a source by dropping every citation of it, in any

@@ -191,7 +191,7 @@ impl IndexedGedcomData {
         family
             .children
             .iter()
-            .filter_map(|xref| self.find_individual(xref))
+            .filter_map(|xref| self.find_individual(xref.as_str()))
             .collect()
     }
 

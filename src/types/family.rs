@@ -17,6 +17,7 @@ use crate::{
         Xref,
     },
     util::is_real_reference,
+    xref::Ref,
     GedcomError,
 };
 
@@ -41,7 +42,7 @@ pub struct Family {
     pub individual1: Option<Xref>, // mapped from HUSB
     pub individual2: Option<Xref>, // mapped from WIFE
     pub family_events: Arena<Detail>,
-    pub children: Arena<Xref>,
+    pub children: Arena<Ref>,
     pub num_children: Option<String>,
     pub change_date: Option<ChangeDate>,
     pub events: Arena<Detail>,
@@ -174,8 +175,8 @@ impl Family {
         Ok(())
     }
 
-    pub fn add_child(&mut self, xref: Xref) {
-        self.children.insert(xref);
+    pub(crate) fn add_child(&mut self, r: Ref) {
+        self.children.insert(r);
     }
 
     pub fn add_event(&mut self, family_event: Detail) {
@@ -253,12 +254,6 @@ impl Family {
 
         for fe in &self.family_events {
             fe.outbound_refs(sink);
-        }
-
-        for xref in &self.children {
-            if is_real_reference(xref) {
-                sink(xref);
-            }
         }
 
         for e in &self.events {
@@ -354,7 +349,7 @@ impl Parser for Family {
                 }
                 "HUSB" => self.set_individual1(tokenizer.take_line_value()?, tokenizer.line)?,
                 "WIFE" => self.set_individual2(tokenizer.take_line_value()?, tokenizer.line)?,
-                "CHIL" => self.add_child(tokenizer.take_line_value()?),
+                "CHIL" => self.add_child(tokenizer.take_pointer()?),
                 "NCHI" => self.num_children = Some(tokenizer.take_line_value()?),
                 "CHAN" => self.change_date = Some(ChangeDate::new(tokenizer, level + 1)?),
                 "SOUR" => self.add_source(Citation::new(tokenizer, level + 1)?),

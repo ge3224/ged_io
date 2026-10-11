@@ -1,7 +1,10 @@
-//! todo
-//!
+//! Cross-references between records: the xref identifiers that name them
+//! (for example, `@I1@`) and the pointers that link one record to another.
 
-use std::collections::HashMap;
+use std::{collections::HashMap, sync::Arc};
+
+#[cfg(feature = "json")]
+use serde::Serialize;
 
 use crate::{
     arena::Handle,
@@ -10,8 +13,43 @@ use crate::{
         repository::Repository, shared_note::SharedNote, source::Source, submission::Submission,
         submitter::Submitter,
     },
+    util::is_real_reference,
     GedcomError,
 };
+
+/// A pointer from one record to another (for example, the `@I1@` in a family's
+/// `CHIL @I1@` line). Get one from [`GedcomData::pointer`](crate::types::GedcomData::pointer).
+/// While any copy exists, the record it points to counts as referenced and can't be removed.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Ref(Arc<str>);
+
+impl Ref {
+    pub(crate) fn detached(x: &str) -> Self {
+        Ref(Arc::from(x))
+    }
+
+    /// Returns the xref this pointer points to (for example, `"@I1@"`).
+    #[must_use]
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+impl PartialEq<str> for Ref {
+    fn eq(&self, other: &str) -> bool {
+        &*self.0 == other
+    }
+}
+
+#[cfg(feature = "json")]
+impl Serialize for Ref {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_str())
+    }
+}
 
 /// A GEDCOM cross-reference identifier — the `@`-delimited token (e.g.
 /// `@I1@`, `@F12@`) used in a GEDCOM file to link records to each other.
@@ -31,6 +69,7 @@ impl Xrefs {
         let node = self.map.entry(xref.clone()).or_insert_with(|| XrefNode {
             handle: None,
             use_count: 0,
+            anchor: None,
         });
 
         if node.handle.is_some() {
@@ -44,14 +83,14 @@ impl Xrefs {
         Ok(())
     }
 
-    /// Look up what a given xref points to, if anything.
     pub(crate) fn handle(&self, xref: &str) -> Option<AnyHandle> {
         self.map.get(xref).and_then(|n| n.handle)
     }
 
-    /// Look up how many times a given xref pointer is used.
     pub(crate) fn use_count(&self, xref: &str) -> usize {
-        self.map.get(xref).map_or(0, |n| n.use_count)
+        self.map.get(xref).map_or(0, |n| {
+            n.use_count + n.anchor.as_ref().map_or(0, |a| Arc::strong_count(a) - 1)
+        })
     }
 
     pub(crate) fn bump(&mut self, xref: &str) {
@@ -80,6 +119,7 @@ impl Xrefs {
             .or_insert_with(|| XrefNode {
                 handle: None,
                 use_count: 0,
+                anchor: None,
             })
             .use_count += uses;
     }
@@ -97,12 +137,38 @@ impl Xrefs {
             node.use_count = node.use_count.saturating_sub(1);
         }
     }
+
+    pub(crate) fn mint(&mut self, x: &str) -> Ref {
+        let node = self.map.entry(x.to_owned()).or_insert_with(|| XrefNode {
+            handle: None,
+            use_count: 0,
+            anchor: None,
+        });
+
+        Ref(Arc::clone(node.anchor.get_or_insert_with(|| Arc::from(x))))
+    }
+
+    pub(crate) fn adopt(&mut self, r: &mut Ref) {
+        if !is_real_reference(r.as_str()) {
+            return;
+        }
+
+        if let Some(a) = self.map.get(r.as_str()).and_then(|n| n.anchor.as_ref()) {
+            if Arc::ptr_eq(a, &r.0) {
+                return;
+            }
+        }
+
+        *r = self.mint(r.as_str());
+    }
 }
 
 #[derive(Debug)]
 pub(crate) struct XrefNode {
     pub(crate) handle: Option<AnyHandle>,
+    // TODO(ref-migration): remove once every pointer field is a Ref
     pub(crate) use_count: usize,
+    pub(crate) anchor: Option<Arc<str>>,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]

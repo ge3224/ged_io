@@ -1030,7 +1030,7 @@ impl GedcomWriter {
         }
 
         for child in &family.children {
-            self.write_line(writer, 1, "CHIL", Some(child))?;
+            self.write_line(writer, 1, "CHIL", Some(child.as_str()))?;
         }
 
         for submitter in &family.submitters {

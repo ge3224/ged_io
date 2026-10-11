@@ -1,4 +1,4 @@
-use ged_io::{Gedcom, GedcomBuilder, GedcomError};
+use ged_io::{types::GedcomData, Gedcom, GedcomBuilder, GedcomError, GedcomStreamParser};
 
 #[test]
 fn parse_unlink_remove_cycle() {
@@ -456,4 +456,77 @@ fn remove_repository_release() {
 
     let s1 = data.find_source_handle("@S1@").unwrap();
     assert!(data.remove_source(s1).unwrap().is_some());
+}
+
+const ONE_WAY_CHILD: &str = "\
+0 HEAD\n\
+1 GEDC\n\
+2 VERS 5.5.1\n\
+0 @I1@ INDI\n\
+0 @F1@ FAM\n\
+1 CHIL @I1@\n\
+0 TRLR";
+
+#[test]
+fn child_pointers_count_by_field_edits() {
+    let mut data = Gedcom::new(ONE_WAY_CHILD.chars())
+        .unwrap()
+        .parse_data()
+        .unwrap();
+
+    let i = data.find_individual_handle("@I1@").unwrap();
+    let f = data.find_family_handle("@F1@").unwrap();
+
+    assert_eq!(data.reference_count("@I1@"), 1);
+    assert!(matches!(
+        data.remove_individual(i).unwrap_err(),
+        GedcomError::StillReferenced { references: 1, .. }
+    ));
+
+    let r = data.pointer("@I1@").unwrap();
+    data.get_family_mut(f).unwrap().children.insert(r.clone());
+    assert_eq!(data.reference_count("@I1@"), 3);
+
+    drop(r);
+    assert_eq!(data.reference_count("@I1@"), 2);
+
+    data.get_family_mut(f).unwrap().children.retain(|_| false);
+    assert_eq!(data.reference_count("@I1@"), 0);
+    assert!(data.remove_individual(i).unwrap().is_some());
+}
+
+#[test]
+fn remove_family_release_children() {
+    let mut data = Gedcom::new(ONE_WAY_CHILD.chars())
+        .unwrap()
+        .parse_data()
+        .unwrap();
+
+    let i = data.find_individual_handle("@I1@").unwrap();
+    let f = data.find_family_handle("@F1@").unwrap();
+
+    let fam = data.remove_family(f).unwrap().unwrap();
+    assert!(fam.children.is_empty());
+    assert_eq!(data.reference_count("@I1"), 0);
+    assert!(data.remove_individual(i).unwrap().is_some());
+}
+
+#[test]
+fn streamed_family_counts_children() {
+    let parser = GedcomStreamParser::new(ONE_WAY_CHILD.as_bytes()).unwrap();
+    let data = GedcomData::try_from_records(parser).unwrap();
+    assert_eq!(data.reference_count("@I1@"), 1);
+}
+
+#[test]
+fn pointer_refuses_unknown_xref() {
+    let mut data = Gedcom::new(ONE_WAY_CHILD.chars())
+        .unwrap()
+        .parse_data()
+        .unwrap();
+
+    assert!(matches!(
+        data.pointer("@I99@").unwrap_err(),
+        GedcomError::XrefNotFound { .. }
+    ));
 }

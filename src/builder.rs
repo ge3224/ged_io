@@ -607,9 +607,10 @@ impl GedcomBuilder {
                 }
             }
             for child in &family.children {
-                if !xrefs.contains(child.as_str()) {
+                let c = child.as_str();
+                if !xrefs.contains(c) {
                     return Err(GedcomError::InvalidFormat(format!(
-                        "Family references non-existent child: {child}"
+                        "Family references non-existent child: {c}"
                     )));
                 }
             }
