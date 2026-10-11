@@ -275,6 +275,19 @@ impl<T> Arena<T> {
         })
     }
 
+    /// Calls `f` on every element in insertion order, allowing each to be
+    /// changed.
+    pub fn for_each_mut(&mut self, mut f: impl FnMut(&mut T)) {
+        let mut cur = self.head;
+        while let Some(i) = cur {
+            let Slot::Occupied { value, next, .. } = &mut self.slots[i as usize] else {
+                unreachable!("chain pointed at a vacant slot")
+            };
+            cur = *next;
+            f(value);
+        }
+    }
+
     /// Returns a reference to the first element in insertion order, or `None`
     /// if empty.
     #[must_use]

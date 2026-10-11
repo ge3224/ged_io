@@ -42,6 +42,15 @@ impl Address {
             u.outbound_refs(sink);
         }
     }
+
+    pub(crate) fn clear_user_defined_refs_to(&mut self, xref: &str) -> usize {
+        let mut cleared = 0;
+
+        self.user_defined_tags
+            .for_each_mut(|u| cleared += u.clear_user_defined_refs_to(xref));
+
+        cleared
+    }
 }
 
 impl Parser for Address {

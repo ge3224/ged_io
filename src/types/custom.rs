@@ -154,6 +154,18 @@ impl UserDefinedTag {
             sink(xref);
         }
     }
+
+    pub(crate) fn clear_user_defined_refs_to(&mut self, xref: &str) -> usize {
+        if matches!(
+            &self.value,
+            Some(UserDefinedValue::Record(x)) if x == xref)
+        {
+            self.value = None;
+            1
+        } else {
+            0
+        }
+    }
 }
 
 impl Clone for UserDefinedTag {

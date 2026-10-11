@@ -42,6 +42,17 @@ pub struct Schema {
     pub user_defined_tags: Arena<UserDefinedTag>,
 }
 
+impl Schema {
+    pub(crate) fn clear_user_defined_refs_to(&mut self, xref: &str) -> usize {
+        let mut cleared = 0;
+
+        self.user_defined_tags
+            .for_each_mut(|u| cleared += u.clear_user_defined_refs_to(xref));
+
+        cleared
+    }
+}
+
 /// A tag definition mapping an extension tag to a URI.
 ///
 /// A tag definition is a structure with tag `TAG`. Its payload is an extension tag,

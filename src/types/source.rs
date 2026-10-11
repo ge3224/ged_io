@@ -139,6 +139,21 @@ impl Source {
 
         self.data.outbound_refs(sink);
     }
+
+    pub(crate) fn clear_user_defined_refs_to(&mut self, xref: &str) -> usize {
+        let mut cleared = 0;
+
+        cleared += self.data.clear_user_defined_refs_to(xref);
+
+        self.multimedia_links
+            .for_each_mut(|ml| cleared += ml.clear_user_defined_refs_to(xref));
+        self.repo_citations
+            .for_each_mut(|r| cleared += r.clear_user_defined_refs_to(xref));
+        self.user_defined_tags
+            .for_each_mut(|u| cleared += u.clear_user_defined_refs_to(xref));
+
+        cleared
+    }
 }
 
 impl Parser for Source {

@@ -194,16 +194,8 @@ impl Detail {
 
         let mut removed = before - self.multimedia_links.len();
 
-        for h in self
-            .citations
-            .iter_handles()
-            .map(|(h, _)| h)
-            .collect::<Vec<_>>()
-        {
-            if let Some(c) = self.citations.get_mut(h) {
-                removed += c.remove_multimedia_link_to(xref);
-            }
-        }
+        self.citations
+            .for_each_mut(|c| removed += c.remove_multimedia_link_to(xref));
 
         removed += self
             .place
@@ -241,6 +233,33 @@ impl Detail {
         for u in &self.user_defined_tags {
             u.outbound_refs(sink);
         }
+    }
+
+    pub(crate) fn clear_user_defined_refs_to(&mut self, xref: &str) -> usize {
+        let mut cleared = 0;
+
+        if let Some(fl) = &mut self.family_link {
+            cleared += fl.clear_user_defined_refs_to(xref);
+        }
+
+        if let Some(p) = &mut self.place {
+            cleared += p.clear_user_defined_refs_to(xref);
+        }
+
+        if let Some(a) = &mut self.address {
+            cleared += a.clear_user_defined_refs_to(xref);
+        }
+
+        self.associations
+            .for_each_mut(|a| cleared += a.clear_user_defined_refs_to(xref));
+        self.citations
+            .for_each_mut(|c| cleared += c.clear_user_defined_refs_to(xref));
+        self.multimedia_links
+            .for_each_mut(|ml| cleared += ml.clear_user_defined_refs_to(xref));
+        self.user_defined_tags
+            .for_each_mut(|u| cleared += u.clear_user_defined_refs_to(xref));
+
+        cleared
     }
 }
 

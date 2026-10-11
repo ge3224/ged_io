@@ -213,6 +213,29 @@ impl AttributeDetail {
             u.outbound_refs(sink);
         }
     }
+
+    pub(crate) fn clear_user_defined_refs_to(&mut self, xref: &str) -> usize {
+        let mut cleared = 0;
+
+        if let Some(p) = &mut self.place {
+            cleared += p.clear_user_defined_refs_to(xref);
+        }
+
+        if let Some(a) = &mut self.address {
+            cleared += a.clear_user_defined_refs_to(xref);
+        }
+
+        self.associations
+            .for_each_mut(|a| cleared += a.clear_user_defined_refs_to(xref));
+        self.sources
+            .for_each_mut(|s| cleared += s.clear_user_defined_refs_to(xref));
+        self.multimedia_links
+            .for_each_mut(|ml| cleared += ml.clear_user_defined_refs_to(xref));
+        self.user_defined_tags
+            .for_each_mut(|u| cleared += u.clear_user_defined_refs_to(xref));
+
+        cleared
+    }
 }
 
 impl Parser for AttributeDetail {

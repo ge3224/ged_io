@@ -2862,49 +2862,14 @@ impl GedcomData {
             .as_mut()
             .map_or(0, |h| h.remove_citation_to(target));
 
-        for h in self
-            .multimedia
-            .iter_handles()
-            .map(|(h, _)| h)
-            .collect::<Vec<_>>()
-        {
-            if let Some(m) = self.multimedia.get_mut(h) {
-                removed += m.remove_citation_to(target);
-            }
-        }
-
-        for h in self
-            .individuals
-            .iter_handles()
-            .map(|(h, _)| h)
-            .collect::<Vec<_>>()
-        {
-            if let Some(i) = self.individuals.get_mut(h) {
-                removed += i.remove_citation_to(target);
-            }
-        }
-
-        for h in self
-            .families
-            .iter_handles()
-            .map(|(h, _)| h)
-            .collect::<Vec<_>>()
-        {
-            if let Some(f) = self.families.get_mut(h) {
-                removed += f.remove_citation_to(target);
-            }
-        }
-
-        for h in self
-            .shared_notes
-            .iter_handles()
-            .map(|(h, _)| h)
-            .collect::<Vec<_>>()
-        {
-            if let Some(n) = self.shared_notes.get_mut(h) {
-                removed += n.remove_citation_to(target);
-            }
-        }
+        self.families
+            .for_each_mut(|f| removed += f.remove_citation_to(target));
+        self.individuals
+            .for_each_mut(|i| removed += i.remove_citation_to(target));
+        self.multimedia
+            .for_each_mut(|m| removed += m.remove_citation_to(target));
+        self.shared_notes
+            .for_each_mut(|sn| removed += sn.remove_citation_to(target));
 
         self.xrefs.sub_uses(target, removed);
 
@@ -2931,24 +2896,16 @@ impl GedcomData {
         };
 
         let mut removed = 0;
-        for h in self
-            .sources
-            .iter_handles()
-            .map(|(h, _)| h)
-            .collect::<Vec<_>>()
-        {
-            if let Some(s) = self.sources.get_mut(h) {
-                removed += s.remove_repo_citation_to(repo_xref.as_str());
-            }
-        }
+
+        self.sources
+            .for_each_mut(|s| removed += s.remove_repo_citation_to(&repo_xref));
 
         self.xrefs.sub_uses(repo_xref.as_str(), removed);
         Ok(removed)
     }
 
-    /// Clears the way to delete a piece of multimedia by dropping every link to
-    /// it. Returns how many links were dropped Returns how many links were
-    /// dropped.
+    /// Clears the way to delete some multimedia by dropping every link to
+    /// it. Returns how many links were dropped.
     ///
     /// # Errors
     ///
@@ -2973,75 +2930,59 @@ impl GedcomData {
             .as_mut()
             .map_or(0, |h| h.remove_multimedia_link_to(target));
 
-        for h in self
-            .multimedia
-            .iter_handles()
-            .map(|(h, _)| h)
-            .collect::<Vec<_>>()
-        {
-            if let Some(m) = self.multimedia.get_mut(h) {
-                removed += m.remove_multimedia_link_to(target);
-            }
-        }
-
-        for h in self
-            .individuals
-            .iter_handles()
-            .map(|(h, _)| h)
-            .collect::<Vec<_>>()
-        {
-            if let Some(i) = self.individuals.get_mut(h) {
-                removed += i.remove_multimedia_link_to(target);
-            }
-        }
-
-        for h in self
-            .families
-            .iter_handles()
-            .map(|(h, _)| h)
-            .collect::<Vec<_>>()
-        {
-            if let Some(f) = self.families.get_mut(h) {
-                removed += f.remove_multimedia_link_to(target);
-            }
-        }
-
-        for h in self
-            .sources
-            .iter_handles()
-            .map(|(h, _)| h)
-            .collect::<Vec<_>>()
-        {
-            if let Some(s) = self.sources.get_mut(h) {
-                removed += s.remove_multimedia_link_to(target);
-            }
-        }
-
-        for h in self
-            .submitters
-            .iter_handles()
-            .map(|(h, _)| h)
-            .collect::<Vec<_>>()
-        {
-            if let Some(s) = self.submitters.get_mut(h) {
-                removed += s.remove_multimedia_link_to(target);
-            }
-        }
-
-        for h in self
-            .shared_notes
-            .iter_handles()
-            .map(|(h, _)| h)
-            .collect::<Vec<_>>()
-        {
-            if let Some(n) = self.shared_notes.get_mut(h) {
-                removed += n.remove_multimedia_link_to(target);
-            }
-        }
+        self.families
+            .for_each_mut(|f| removed += f.remove_multimedia_link_to(target));
+        self.individuals
+            .for_each_mut(|i| removed += i.remove_multimedia_link_to(target));
+        self.multimedia
+            .for_each_mut(|ml| removed += ml.remove_multimedia_link_to(target));
+        self.sources
+            .for_each_mut(|s| removed += s.remove_multimedia_link_to(target));
+        self.submitters
+            .for_each_mut(|s| removed += s.remove_multimedia_link_to(target));
+        self.shared_notes
+            .for_each_mut(|sn| removed += sn.remove_multimedia_link_to(target));
 
         self.xrefs.sub_uses(target, removed);
 
         Ok(removed)
+    }
+
+    /// Clears every user-defined tag value that points at `xref`, so the
+    /// record it names can be deleted (for example, a `1 _FOO @S1@` under an
+    /// individual stops pinning `@S1@`). The tags themselves stay; only their
+    /// values are emptied. Returns how many values were cleared.
+    pub fn clear_all_user_defined_refs_to(&mut self, xref: impl Into<Xref>) -> usize {
+        let xref = xref.into();
+        let mut cleared = self
+            .header
+            .as_mut()
+            .map_or(0, |h| h.clear_user_defined_refs_to(&xref));
+
+        self.families
+            .for_each_mut(|f| cleared += f.clear_user_defined_refs_to(&xref));
+        self.individuals
+            .for_each_mut(|i| cleared += i.clear_user_defined_refs_to(&xref));
+        self.repositories
+            .for_each_mut(|r| cleared += r.clear_user_defined_refs_to(&xref));
+        self.submitters
+            .for_each_mut(|s| cleared += s.clear_user_defined_refs_to(&xref));
+        self.submissions
+            .for_each_mut(|s| cleared += s.clear_user_defined_refs_to(&xref));
+        self.multimedia
+            .for_each_mut(|l| cleared += l.clear_user_defined_refs_to(&xref));
+        self.sources
+            .for_each_mut(|s| cleared += s.clear_user_defined_refs_to(&xref));
+        self.shared_notes
+            .for_each_mut(|s| cleared += s.clear_user_defined_refs_to(&xref));
+        self.user_defined_tags
+            .for_each_mut(|u| cleared += u.clear_user_defined_refs_to(&xref));
+
+        if cleared > 0 {
+            self.xrefs.sub_uses(&xref, cleared);
+        }
+
+        cleared
     }
 }
 

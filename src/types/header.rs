@@ -211,6 +211,31 @@ impl Header {
             .as_mut()
             .map_or(0, |e| e.remove_multimedia_link_to(xref))
     }
+
+    pub(crate) fn clear_user_defined_refs_to(&mut self, xref: &str) -> usize {
+        let mut cleared = self
+            .encoding
+            .as_mut()
+            .map_or(0, |e| e.clear_user_defined_refs_to(xref));
+
+        if let Some(s) = &mut self.schema {
+            cleared += s.clear_user_defined_refs_to(xref);
+        }
+
+        if let Some(a) = self
+            .source
+            .as_mut()
+            .and_then(|s| s.corporation.as_mut())
+            .and_then(|c| c.address.as_mut())
+        {
+            cleared += a.clear_user_defined_refs_to(xref);
+        }
+
+        self.user_defined_tags
+            .for_each_mut(|u| cleared += u.clear_user_defined_refs_to(xref));
+
+        cleared
+    }
 }
 
 impl Parser for Header {

@@ -211,6 +211,59 @@ fn multimedia_link_release() {
 }
 
 #[test]
+fn clear_user_defined_refs_to_released() {
+    let wrap = |body: &str| -> String {
+        format!("0 HEAD\n1 GEDC\n2 VERS 5.5.1\n1 CHAR UTF-8\n{body}0 TRLR")
+    };
+
+    let cases: &[(&str, &str)] = &[
+        ("header", "1 _FOO @S1@\n0 @S1@ SOUR\n"),
+        ("indi own", "0 @I1@ INDI\n1 _FOO @S1@\n0 @S1@ SOUR\n"),
+        (
+            "indi unknown tag",
+            "0 @I1@ INDI\n1 MILI\n2 SOUR @S1@\n0 @S1@ SOUR\n",
+        ),
+        (
+            "indi event",
+            "0 @I1@ INDI\n1 BIRT\n2 _FOO @S1@\n0 @S1@ SOUR\n",
+        ),
+        (
+            "indi event citation",
+            "0 @I1@ INDI\n1 BIRT\n2 SOUR @S2@\n3 _FOO @S1@\n0 @S1@ SOUR\n\
+             0 @S2@ SOUR\n",
+        ),
+        (
+            "indi attribute",
+            "0 @I1@ INDI\n1 OCCU Farmer\n2 _FOO @S1@\n0 @S1@ SOUR\n",
+        ),
+        ("fam own", "0 @F1@ FAM\n1 _FOO @S1@\n0 @S1@ SOUR\n"),
+        (
+            "repo address",
+            "0 @R1@ REPO\n1 ADDR x\n2 _FOO @S1@\n0 @S1@ SOUR\n",
+        ),
+        (
+            "extension record",
+            "0 @L1@ _LOC\n1 _PTR @S1@\n0 @S1@ SOUR\n",
+        ),
+    ];
+
+    let mut failures = Vec::new();
+    for (label, body) in cases {
+        let mut data = GedcomBuilder::new().build_from_str(&wrap(body)).unwrap();
+        let before = data.reference_count("@S1@");
+        let cleared = data.clear_all_user_defined_refs_to("@S1@");
+        let after = data.reference_count("@S1@");
+        if (before, cleared, after) != (1, 1, 0) {
+            failures.push(format!(
+                "{label}: before={before} cleared={cleared} after={after}"
+            ));
+        }
+    }
+
+    assert!(failures.is_empty(), "{failures:#?}");
+}
+
+#[test]
 fn multimedia_link_release_skips_void_and_inline() {
     let ged = "0 HEAD\n1 GEDC\n2 VERS 5.5.1\n1 CHAR UTF-8\n\
                0 @I1@ INDI\n\

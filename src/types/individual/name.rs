@@ -316,16 +316,8 @@ impl Name {
     pub(crate) fn remove_multimedia_link_to(&mut self, xref: &str) -> usize {
         let mut removed = 0;
 
-        for h in self
-            .sources
-            .iter_handles()
-            .map(|(h, _)| h)
-            .collect::<Vec<_>>()
-        {
-            if let Some(s) = self.sources.get_mut(h) {
-                removed += s.remove_multimedia_link_to(xref);
-            }
-        }
+        self.sources
+            .for_each_mut(|s| removed += s.remove_multimedia_link_to(xref));
 
         removed
     }
@@ -338,6 +330,17 @@ impl Name {
         for u in &self.user_defined_tags {
             u.outbound_refs(sink);
         }
+    }
+
+    pub(crate) fn clear_user_defined_refs_to(&mut self, xref: &str) -> usize {
+        let mut cleared = 0;
+
+        self.sources
+            .for_each_mut(|s| cleared += s.clear_user_defined_refs_to(xref));
+        self.user_defined_tags
+            .for_each_mut(|u| cleared += u.clear_user_defined_refs_to(xref));
+
+        cleared
     }
 }
 

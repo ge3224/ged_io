@@ -339,64 +339,20 @@ impl Individual {
 
         let mut removed = before - self.sources.len();
 
-        for h in self
-            .names
-            .iter_handles()
-            .map(|(h, _)| h)
-            .collect::<Vec<_>>()
-        {
-            if let Some(n) = self.names.get_mut(h) {
-                removed += n.remove_citation_to(xref);
-            }
-        }
-
-        for h in self
-            .attributes
-            .iter_handles()
-            .map(|(h, _)| h)
-            .collect::<Vec<_>>()
-        {
-            if let Some(a) = self.attributes.get_mut(h) {
-                removed += a.remove_citation_to(xref);
-            }
-        }
-
-        for h in self
-            .events
-            .iter_handles()
-            .map(|(h, _)| h)
-            .collect::<Vec<_>>()
-        {
-            if let Some(e) = self.events.get_mut(h) {
-                removed += e.remove_citation_to(xref);
-            }
-        }
-
-        for h in self
-            .lds_ordinances
-            .iter_handles()
-            .map(|(h, _)| h)
-            .collect::<Vec<_>>()
-        {
-            if let Some(o) = self.lds_ordinances.get_mut(h) {
-                removed += o.remove_citation_to(xref);
-            }
-        }
-
-        for h in self
-            .non_events
-            .iter_handles()
-            .map(|(h, _)| h)
-            .collect::<Vec<_>>()
-        {
-            if let Some(ne) = self.non_events.get_mut(h) {
-                removed += ne.remove_citation_to(xref);
-            }
-        }
-
         if let Some(g) = &mut self.sex {
             removed += g.remove_citation_to(xref);
         }
+
+        self.attributes
+            .for_each_mut(|a| removed += a.remove_citation_to(xref));
+        self.events
+            .for_each_mut(|e| removed += e.remove_citation_to(xref));
+        self.lds_ordinances
+            .for_each_mut(|o| removed += o.remove_citation_to(xref));
+        self.names
+            .for_each_mut(|n| removed += n.remove_citation_to(xref));
+        self.non_events
+            .for_each_mut(|ne| removed += ne.remove_citation_to(xref));
 
         removed
     }
@@ -414,71 +370,18 @@ impl Individual {
             .as_mut()
             .map_or(0, |g| g.remove_multimedia_link_to(xref));
 
-        for h in self
-            .sources
-            .iter_handles()
-            .map(|(h, _)| h)
-            .collect::<Vec<_>>()
-        {
-            if let Some(s) = self.sources.get_mut(h) {
-                removed += s.remove_multimedia_link_to(xref);
-            }
-        }
-
-        for h in self
-            .names
-            .iter_handles()
-            .map(|(h, _)| h)
-            .collect::<Vec<_>>()
-        {
-            if let Some(n) = self.names.get_mut(h) {
-                removed += n.remove_multimedia_link_to(xref);
-            }
-        }
-
-        for h in self
-            .attributes
-            .iter_handles()
-            .map(|(h, _)| h)
-            .collect::<Vec<_>>()
-        {
-            if let Some(a) = self.attributes.get_mut(h) {
-                removed += a.remove_multimedia_link_to(xref);
-            }
-        }
-
-        for h in self
-            .events
-            .iter_handles()
-            .map(|(h, _)| h)
-            .collect::<Vec<_>>()
-        {
-            if let Some(e) = self.events.get_mut(h) {
-                removed += e.remove_multimedia_link_to(xref);
-            }
-        }
-
-        for h in self
-            .lds_ordinances
-            .iter_handles()
-            .map(|(h, _)| h)
-            .collect::<Vec<_>>()
-        {
-            if let Some(o) = self.lds_ordinances.get_mut(h) {
-                removed += o.remove_multimedia_link_to(xref);
-            }
-        }
-
-        for h in self
-            .non_events
-            .iter_handles()
-            .map(|(h, _)| h)
-            .collect::<Vec<_>>()
-        {
-            if let Some(ne) = self.non_events.get_mut(h) {
-                removed += ne.remove_multimedia_link_to(xref);
-            }
-        }
+        self.attributes
+            .for_each_mut(|a| removed += a.remove_multimedia_link_to(xref));
+        self.events
+            .for_each_mut(|e| removed += e.remove_multimedia_link_to(xref));
+        self.lds_ordinances
+            .for_each_mut(|o| removed += o.remove_multimedia_link_to(xref));
+        self.names
+            .for_each_mut(|n| removed += n.remove_multimedia_link_to(xref));
+        self.non_events
+            .for_each_mut(|ne| removed += ne.remove_multimedia_link_to(xref));
+        self.sources
+            .for_each_mut(|s| removed += s.remove_multimedia_link_to(xref));
 
         removed
     }
@@ -551,6 +454,37 @@ impl Individual {
         for u in &self.user_defined_tags {
             u.outbound_refs(sink);
         }
+    }
+
+    pub(crate) fn clear_user_defined_refs_to(&mut self, xref: &str) -> usize {
+        let mut cleared = 0;
+
+        if let Some(g) = &mut self.sex {
+            cleared += g.clear_user_defined_refs_to(xref);
+        }
+
+        self.associations
+            .for_each_mut(|a| cleared += a.clear_user_defined_refs_to(xref));
+        self.attributes
+            .for_each_mut(|a| cleared += a.clear_user_defined_refs_to(xref));
+        self.events
+            .for_each_mut(|e| cleared += e.clear_user_defined_refs_to(xref));
+        self.families
+            .for_each_mut(|f| cleared += f.clear_user_defined_refs_to(xref));
+        self.lds_ordinances
+            .for_each_mut(|o| cleared += o.clear_user_defined_refs_to(xref));
+        self.multimedia_links
+            .for_each_mut(|ml| cleared += ml.clear_user_defined_refs_to(xref));
+        self.names
+            .for_each_mut(|n| cleared += n.clear_user_defined_refs_to(xref));
+        self.non_events
+            .for_each_mut(|ne| cleared += ne.clear_user_defined_refs_to(xref));
+        self.sources
+            .for_each_mut(|s| cleared += s.clear_user_defined_refs_to(xref));
+        self.user_defined_tags
+            .for_each_mut(|udt| cleared += udt.clear_user_defined_refs_to(xref));
+
+        cleared
     }
 }
 

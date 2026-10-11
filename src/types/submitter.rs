@@ -134,6 +134,21 @@ impl Submitter {
             u.outbound_refs(sink);
         }
     }
+
+    pub(crate) fn clear_user_defined_refs_to(&mut self, xref: &str) -> usize {
+        let mut cleared = 0;
+
+        if let Some(a) = &mut self.address {
+            cleared += a.clear_user_defined_refs_to(xref);
+        }
+
+        self.multimedia_links
+            .for_each_mut(|ml| cleared += ml.clear_user_defined_refs_to(xref));
+        self.user_defined_tags
+            .for_each_mut(|u| cleared += u.clear_user_defined_refs_to(xref));
+
+        cleared
+    }
 }
 
 impl Parser for Submitter {

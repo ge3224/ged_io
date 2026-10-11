@@ -28,12 +28,6 @@ impl Data {
         self.events.insert(event);
     }
 
-    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
-        for e in &self.events {
-            e.outbound_refs(sink);
-        }
-    }
-
     /// The events recorded (tag: EVEN under DATA). Each one is an
     /// `Event::SourceData` holding the recorded event types, with the period
     /// (`DATE`) and jurisdiction (`PLAC`) covered by the source.
@@ -60,6 +54,21 @@ impl Data {
         event.with_source_data(events_recorded);
         self.add_event(event);
         Ok(())
+    }
+
+    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
+        for e in &self.events {
+            e.outbound_refs(sink);
+        }
+    }
+
+    pub(crate) fn clear_user_defined_refs_to(&mut self, xref: &str) -> usize {
+        let mut cleared = 0;
+
+        self.events
+            .for_each_mut(|e| cleared += e.clear_user_defined_refs_to(xref));
+
+        cleared
     }
 }
 

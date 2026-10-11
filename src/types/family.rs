@@ -207,49 +207,14 @@ impl Family {
 
         let mut removed = before - self.sources.len();
 
-        for h in self
-            .family_events
-            .iter_handles()
-            .map(|(h, _)| h)
-            .collect::<Vec<_>>()
-        {
-            if let Some(fe) = self.family_events.get_mut(h) {
-                removed += fe.remove_citation_to(xref);
-            }
-        }
-
-        for h in self
-            .events
-            .iter_handles()
-            .map(|(h, _)| h)
-            .collect::<Vec<_>>()
-        {
-            if let Some(e) = self.events.get_mut(h) {
-                removed += e.remove_citation_to(xref);
-            }
-        }
-
-        for h in self
-            .non_events
-            .iter_handles()
-            .map(|(h, _)| h)
-            .collect::<Vec<_>>()
-        {
-            if let Some(ne) = self.non_events.get_mut(h) {
-                removed += ne.remove_citation_to(xref);
-            }
-        }
-
-        for h in self
-            .lds_ordinances
-            .iter_handles()
-            .map(|(h, _)| h)
-            .collect::<Vec<_>>()
-        {
-            if let Some(o) = self.lds_ordinances.get_mut(h) {
-                removed += o.remove_citation_to(xref);
-            }
-        }
+        self.family_events
+            .for_each_mut(|fe| removed += fe.remove_citation_to(xref));
+        self.events
+            .for_each_mut(|e| removed += e.remove_citation_to(xref));
+        self.lds_ordinances
+            .for_each_mut(|o| removed += o.remove_citation_to(xref));
+        self.non_events
+            .for_each_mut(|ne| removed += ne.remove_citation_to(xref));
 
         removed
     }
@@ -261,60 +226,14 @@ impl Family {
 
         let mut removed = before - self.multimedia_links.len();
 
-        for h in self
-            .sources
-            .iter_handles()
-            .map(|(h, _)| h)
-            .collect::<Vec<_>>()
-        {
-            if let Some(c) = self.sources.get_mut(h) {
-                removed += c.remove_multimedia_link_to(xref);
-            }
-        }
-
-        for h in self
-            .family_events
-            .iter_handles()
-            .map(|(h, _)| h)
-            .collect::<Vec<_>>()
-        {
-            if let Some(e) = self.family_events.get_mut(h) {
-                removed += e.remove_multimedia_link_to(xref);
-            }
-        }
-
-        for h in self
-            .events
-            .iter_handles()
-            .map(|(h, _)| h)
-            .collect::<Vec<_>>()
-        {
-            if let Some(e) = self.events.get_mut(h) {
-                removed += e.remove_multimedia_link_to(xref);
-            }
-        }
-
-        for h in self
-            .non_events
-            .iter_handles()
-            .map(|(h, _)| h)
-            .collect::<Vec<_>>()
-        {
-            if let Some(ne) = self.non_events.get_mut(h) {
-                removed += ne.remove_multimedia_link_to(xref);
-            }
-        }
-
-        for h in self
-            .lds_ordinances
-            .iter_handles()
-            .map(|(h, _)| h)
-            .collect::<Vec<_>>()
-        {
-            if let Some(o) = self.lds_ordinances.get_mut(h) {
-                removed += o.remove_multimedia_link_to(xref);
-            }
-        }
+        self.family_events
+            .for_each_mut(|fe| removed += fe.remove_multimedia_link_to(xref));
+        self.events
+            .for_each_mut(|e| removed += e.remove_multimedia_link_to(xref));
+        self.lds_ordinances
+            .for_each_mut(|o| removed += o.remove_multimedia_link_to(xref));
+        self.non_events
+            .for_each_mut(|ne| removed += ne.remove_multimedia_link_to(xref));
 
         removed
     }
@@ -371,6 +290,27 @@ impl Family {
         for u in &self.user_defined_tags {
             u.outbound_refs(sink);
         }
+    }
+
+    pub(crate) fn clear_user_defined_refs_to(&mut self, xref: &str) -> usize {
+        let mut cleared = 0;
+
+        self.family_events
+            .for_each_mut(|fe| cleared += fe.clear_user_defined_refs_to(xref));
+        self.events
+            .for_each_mut(|e| cleared += e.clear_user_defined_refs_to(xref));
+        self.lds_ordinances
+            .for_each_mut(|o| cleared += o.clear_user_defined_refs_to(xref));
+        self.non_events
+            .for_each_mut(|ne| cleared += ne.clear_user_defined_refs_to(xref));
+        self.sources
+            .for_each_mut(|s| cleared += s.clear_user_defined_refs_to(xref));
+        self.multimedia_links
+            .for_each_mut(|ml| cleared += ml.clear_user_defined_refs_to(xref));
+        self.user_defined_tags
+            .for_each_mut(|udt| cleared += udt.clear_user_defined_refs_to(xref));
+
+        cleared
     }
 }
 

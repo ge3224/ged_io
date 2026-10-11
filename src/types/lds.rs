@@ -344,20 +344,12 @@ impl LdsOrdinance {
     pub(crate) fn remove_multimedia_link_to(&mut self, xref: &str) -> usize {
         let mut removed = 0;
 
-        for h in self
-            .source_citations
-            .iter_handles()
-            .map(|(h, _)| h)
-            .collect::<Vec<_>>()
-        {
-            if let Some(s) = self.source_citations.get_mut(h) {
-                removed += s.remove_multimedia_link_to(xref);
-            }
-        }
-
         if let Some(p) = &mut self.place {
             removed += p.remove_multimedia_link_to(xref);
         }
+
+        self.source_citations
+            .for_each_mut(|sc| removed += sc.remove_multimedia_link_to(xref));
 
         removed
     }
@@ -370,6 +362,19 @@ impl LdsOrdinance {
         if let Some(p) = &self.place {
             p.outbound_refs(sink);
         }
+    }
+
+    pub(crate) fn clear_user_defined_refs_to(&mut self, xref: &str) -> usize {
+        let mut cleared = 0;
+
+        if let Some(p) = &mut self.place {
+            cleared += p.clear_user_defined_refs_to(xref);
+        }
+
+        self.source_citations
+            .for_each_mut(|sc| cleared += sc.clear_user_defined_refs_to(xref));
+
+        cleared
     }
 }
 
