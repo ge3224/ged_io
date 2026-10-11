@@ -46,7 +46,7 @@ use crate::{
     types::{
         custom::UserDefinedTag, family::Family, header::Header, individual::Individual,
         multimedia::Multimedia, repository::Repository, shared_note::SharedNote, source::Source,
-        submission::Submission, submitter::Submitter, GedcomData,
+        submission::Submission, submitter::Submitter,
     },
     GedcomError,
 };
@@ -97,7 +97,7 @@ pub enum GedcomRecord {
     /// A shared note record (GEDCOM 7.0 only).
     SharedNote(SharedNote),
     /// A custom/user-defined record.
-    CustomData(Vec<UserDefinedTag>),
+    UserDefinedTags(Vec<UserDefinedTag>),
 }
 
 impl GedcomRecord {
@@ -278,10 +278,8 @@ impl GedcomRecord {
 /// let file = File::open("family.ged").unwrap();
 /// let reader = BufReader::new(file);
 ///
-/// let data: GedcomData = GedcomStreamParser::new(reader)
-///     .unwrap()
-///     .collect::<Result<GedcomData, _>>()
-///     .unwrap();
+/// let parser = GedcomStreamParser::new(reader).unwrap();
+/// let data = GedcomData::try_from_records(parser).unwrap();
 /// ```
 pub struct GedcomStreamParser<R: BufRead> {
     reader: R,
@@ -554,7 +552,7 @@ impl<R: BufRead> GedcomStreamParser<R> {
             if let Some(first) = udts.first_mut() {
                 first.xref = pointer;
             }
-            Ok(GedcomRecord::CustomData(udts))
+            Ok(GedcomRecord::UserDefinedTags(udts))
         } else if tokenizer.current_token == Token::EOF {
             Err(GedcomError::ParseError {
                 line: self.line_number,
@@ -597,51 +595,9 @@ impl<R: BufRead> Iterator for GedcomStreamParser<R> {
     }
 }
 
-/// Allows collecting stream records into a `GedcomData` structure.
-impl FromIterator<GedcomRecord> for GedcomData {
-    fn from_iter<I: IntoIterator<Item = GedcomRecord>>(iter: I) -> Self {
-        let mut data = GedcomData::default();
-        for record in iter {
-            match record {
-                GedcomRecord::Header(h) => data.header = Some(h),
-                GedcomRecord::Individual(i) => {
-                    let _ = data.add_individual(i);
-                }
-                GedcomRecord::Family(f) => {
-                    let _ = data.add_family(f);
-                }
-                GedcomRecord::Source(s) => {
-                    let _ = data.add_source(s);
-                }
-                GedcomRecord::Repository(r) => {
-                    let _ = data.add_repository(r);
-                }
-                GedcomRecord::Submitter(s) => {
-                    let _ = data.add_submitter(s);
-                }
-                GedcomRecord::Submission(s) => {
-                    let _ = data.add_submission(s);
-                }
-                GedcomRecord::Multimedia(m) => {
-                    let _ = data.add_multimedia(m);
-                }
-                GedcomRecord::SharedNote(n) => {
-                    let _ = data.add_shared_note(n);
-                }
-                GedcomRecord::CustomData(c) => {
-                    for udt in c {
-                        let _ = data.add_user_defined_tags(udt);
-                    }
-                }
-            }
-        }
-        data
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use crate::types::custom::UserDefinedValue;
+    use crate::types::{custom::UserDefinedValue, GedcomData};
 
     use super::*;
     use std::io::BufReader;
@@ -701,10 +657,8 @@ mod tests {
             0 @F1@ FAM\n\
             0 TRLR";
         let reader = BufReader::new(gedcom.as_bytes());
-        let data: GedcomData = GedcomStreamParser::new(reader)
-            .unwrap()
-            .collect::<Result<GedcomData, _>>()
-            .unwrap();
+        let parser = GedcomStreamParser::new(reader).unwrap();
+        let data = GedcomData::try_from_records(parser).unwrap();
 
         assert!(data.header.is_some());
         assert_eq!(data.individuals.len(), 1);
@@ -839,7 +793,7 @@ mod tests {
         let records: Vec<_> = parser.collect::<Result<Vec<_>, _>>().unwrap();
 
         assert_eq!(records.len(), 2); // Header + Custom
-        if let GedcomRecord::CustomData(c) = &records[1] {
+        if let GedcomRecord::UserDefinedTags(c) = &records[1] {
             assert_eq!(c[0].tag, "_CUSTOM");
             assert_eq!(
                 c[0].value(),
@@ -847,6 +801,31 @@ mod tests {
             );
         } else {
             panic!("Expected CustomData");
+        }
+    }
+
+    #[test]
+    fn duplicate_xrefs_rejected() {
+        let cases = [
+            "0 @X1@ INDI\n0 @X1@ INDI\n",
+            "0 @X1@ INDI\n0 @X1@ FAM\n",
+            "0 @X1@ INDI\n0 @X1@ REPO\n",
+            "0 @X1@ INDI\n0 @X1@ SOUR\n",
+            "0 @X1@ INDI\n0 @X1@ OBJE\n",
+            "0 @X1@ INDI\n0 @X1@ NOTE Some text\n",
+            "0 @X1@ INDI\n0 @X1@ SUBM\n",
+            "0 @X1@ INDI\n0 @X1@ SUBN\n",
+            "0 @X1@ INDI\n0 @X1@ _LOC Sampletown\n",
+        ];
+
+        let mut failures = Vec::new();
+        for body in cases {
+            let sample = format!("0 HEAD\n1 GEDC\n2 VERS 5.5.1\n1 CHAR UTF-8\n{body}0TRLR");
+            let parser = GedcomStreamParser::new(BufReader::new(sample.as_bytes())).unwrap();
+            match GedcomData::try_from_records(parser) {
+                Err(GedcomError::DuplicateXref { ref xref, .. }) if xref == "@X1@" => {}
+                other => failures.push(format!("{body:?}: {:?}", other.map(|_| ()))),
+            }
         }
     }
 }

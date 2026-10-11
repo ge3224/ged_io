@@ -233,10 +233,7 @@ for result in parser {
 let file = File::open("huge_family.ged")?;
 let reader = BufReader::new(file);
 let parser = GedcomStreamParser::new(reader)?;
-let data: GedcomData = parser
-    .collect::<Result<Vec<_>, _>>()?
-    .into_iter()
-    .collect();
+let data = GedcomData::try_from_records(parser)?;
 ```
 
 Note: The streaming parser requires UTF-8 input. For files with other encodings,

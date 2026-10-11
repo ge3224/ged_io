@@ -56,7 +56,7 @@ use crate::{
         submitter::Submitter,
     },
     xref::{AnyHandle, Xref, Xrefs},
-    GedcomError,
+    GedcomError, GedcomRecord,
 };
 
 /// The main data structure for parsed GEDCOM data.
@@ -2978,6 +2978,57 @@ impl GedcomData {
         }
 
         cleared
+    }
+
+    /// Builds a `GedcomData` from streamed records, such as those yielded by
+    /// [`GedcomStreamParser`](crate::stream::GedcomStreamParser).
+    ///
+    /// # Errors
+    ///
+    /// Returns the first error a record carries (for example, a syntax error
+    /// from the parser), or [`GedcomError::DuplicateXref`] if two records share
+    /// an xref.
+    pub fn try_from_records(
+        records: impl IntoIterator<Item = Result<GedcomRecord, GedcomError>>,
+    ) -> Result<Self, GedcomError> {
+        let mut data = GedcomData::default();
+
+        for record in records {
+            match record? {
+                GedcomRecord::Header(h) => data.header = Some(h),
+                GedcomRecord::Individual(i) => {
+                    data.add_individual(i)?;
+                }
+                GedcomRecord::Family(f) => {
+                    data.add_family(f)?;
+                }
+                GedcomRecord::Submitter(s) => {
+                    data.add_submitter(s)?;
+                }
+                GedcomRecord::Submission(s) => {
+                    data.add_submission(s)?;
+                }
+                GedcomRecord::Source(s) => {
+                    data.add_source(s)?;
+                }
+                GedcomRecord::Repository(r) => {
+                    data.add_repository(r)?;
+                }
+                GedcomRecord::SharedNote(s) => {
+                    data.add_shared_note(s)?;
+                }
+                GedcomRecord::Multimedia(m) => {
+                    data.add_multimedia(m)?;
+                }
+                GedcomRecord::UserDefinedTags(udt) => {
+                    for u in udt {
+                        data.add_user_defined_tags(u)?;
+                    }
+                }
+            }
+        }
+
+        Ok(data)
     }
 }
 

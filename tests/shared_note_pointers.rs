@@ -80,10 +80,8 @@ fn test_stream_parser_gedcom_5_note_record() {
         0 @N1@ NOTE Shared text\n\
         0 TRLR";
     let reader = BufReader::new(gedcom.as_bytes());
-    let data: GedcomData = GedcomStreamParser::new(reader)
-        .unwrap()
-        .collect::<Result<GedcomData, _>>()
-        .unwrap();
+    let parser = GedcomStreamParser::new(reader).unwrap();
+    let data = GedcomData::try_from_records(parser).unwrap();
     let note = &data.iter_families().next().unwrap().notes.first().unwrap();
     assert_eq!(data.resolve_note(note), Some("Shared text"));
 }

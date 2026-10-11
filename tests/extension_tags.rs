@@ -129,10 +129,8 @@ fn test_stream_parser_extension_record_with_xref() {
         1 NAME Sampletown\n\
         0 TRLR";
     let reader = BufReader::new(gedcom.as_bytes());
-    let data: GedcomData = GedcomStreamParser::new(reader)
-        .unwrap()
-        .collect::<Result<GedcomData, _>>()
-        .unwrap();
+    let parser = GedcomStreamParser::new(reader).unwrap();
+    let data = GedcomData::try_from_records(parser).unwrap();
 
     let record = &data.iter_user_defined_tags().next().unwrap();
     assert_eq!(record.tag, "_LOC");
