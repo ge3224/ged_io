@@ -177,7 +177,12 @@ impl Detail {
             l.pointers_mut(f);
         }
 
+        if let Some(p) = &mut self.place {
+            p.pointers_mut(f);
+        }
+
         self.associations.for_each_mut(|a| a.pointers_mut(f));
+        self.citations.for_each_mut(|c| c.pointers_mut(f));
     }
 
     pub(crate) fn remove_citation_to(&mut self, xref: &str) -> usize {

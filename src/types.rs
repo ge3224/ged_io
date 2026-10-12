@@ -724,8 +724,8 @@ impl GedcomData {
             unreachable!("xref map and arena are out of sync");
         };
 
-        self.xrefs.bump(&source_xref);
-        i.sources.insert(Citation::with_source(source_xref));
+        i.sources
+            .insert(Citation::with_source(self.xrefs.pointer(&source_xref)));
 
         Ok(())
     }
@@ -767,7 +767,7 @@ impl GedcomData {
         let Some(source_handle) = i
             .sources
             .iter_handles()
-            .find(|(_, c)| matches!(&c.target, CitationSource::Record(x) if x == &source_xref))
+            .find(|(_, c)| matches!(&c.target, CitationSource::Record(x) if x.as_str() == source_xref))
             .map(|(h, _)| h)
         else {
             return Err(GedcomError::NotLinked {
@@ -778,7 +778,6 @@ impl GedcomData {
         };
 
         i.sources.remove(source_handle);
-        self.xrefs.decrement(&source_xref);
 
         Ok(())
     }
@@ -2164,7 +2163,7 @@ impl GedcomData {
     /// Panics if the internal record storage is in an inconsistent state.
     pub fn add_multimedia(
         &mut self,
-        multimedia: Multimedia,
+        mut multimedia: Multimedia,
     ) -> Result<Handle<Multimedia>, GedcomError> {
         let xref = multimedia.xref.clone();
 
@@ -2174,6 +2173,8 @@ impl GedcomData {
                 record_type: Multimedia::RECORD_TYPE.to_string(),
             });
         }
+
+        multimedia.pointers_mut(&mut |p| self.xrefs.adopt(p));
 
         let handle = self.multimedia.insert(multimedia);
 
@@ -2275,7 +2276,7 @@ impl GedcomData {
             });
         }
 
-        let Some(rec) = self.multimedia.remove(handle) else {
+        let Some(mut rec) = self.multimedia.remove(handle) else {
             unreachable!("handle was validated by get above")
         };
 
@@ -2284,6 +2285,8 @@ impl GedcomData {
         for x in &out {
             self.xrefs.release(x);
         }
+
+        rec.pointers_mut(&mut |p| *p = Pointer::detached(p.as_str()));
 
         self.xrefs.remove(&xref);
         Ok(Some(rec))
@@ -2299,7 +2302,10 @@ impl GedcomData {
     /// # Panics
     ///
     /// Panics if the internal record storage is in an inconsistent state.
-    pub fn add_shared_note(&mut self, note: SharedNote) -> Result<Handle<SharedNote>, GedcomError> {
+    pub fn add_shared_note(
+        &mut self,
+        mut note: SharedNote,
+    ) -> Result<Handle<SharedNote>, GedcomError> {
         let xref = note.xref.clone();
 
         if self.xrefs.handle(&xref).is_some() {
@@ -2308,6 +2314,8 @@ impl GedcomData {
                 record_type: SharedNote::RECORD_TYPE.to_string(),
             });
         }
+
+        note.pointers_mut(&mut |p| self.xrefs.adopt(p));
 
         let handle = self.shared_notes.insert(note);
 
@@ -2408,7 +2416,7 @@ impl GedcomData {
             });
         }
 
-        let Some(rec) = self.shared_notes.remove(handle) else {
+        let Some(mut rec) = self.shared_notes.remove(handle) else {
             unreachable!("handle was validated by get above")
         };
 
@@ -2417,6 +2425,8 @@ impl GedcomData {
         for x in &out {
             self.xrefs.release(x);
         }
+
+        rec.pointers_mut(&mut |p| *p = Pointer::detached(p.as_str()));
 
         self.xrefs.remove(&xref);
         Ok(Some(rec))
@@ -2907,8 +2917,6 @@ impl GedcomData {
             .for_each_mut(|m| removed += m.remove_citation_to(target));
         self.shared_notes
             .for_each_mut(|sn| removed += sn.remove_citation_to(target));
-
-        self.xrefs.sub_uses(target, removed);
 
         Ok(removed)
     }

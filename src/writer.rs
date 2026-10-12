@@ -1623,7 +1623,9 @@ impl GedcomWriter {
         citation: &Citation,
     ) -> Result<(), io::Error> {
         match &citation.target {
-            CitationSource::Record(x) => self.write_line(writer, level, "SOUR", Some(x))?,
+            CitationSource::Record(x) => {
+                self.write_line(writer, level, "SOUR", Some(x.as_str()))?;
+            }
             CitationSource::Void => self.write_line(writer, level, "SOUR", Some("@VOID@"))?,
             CitationSource::Description(s) => self.write_long_text(writer, level, "SOUR", s)?,
         }

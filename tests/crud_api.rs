@@ -560,6 +560,78 @@ fn pointer_field_count() {
             "@I1@",
             "@I2@",
         ),
+        (
+            "INDI.SOUR",
+            "0 @I1@ INDI\n1 SOUR @S1@\n0 @S1@ SOUR\n",
+            "@I1@",
+            "@S1@",
+        ),
+        (
+            "INDI.BIRT.SOUR",
+            "0 @I1@ INDI\n1 BIRT\n2 SOUR @S1@\n0 @S1@ SOUR\n",
+            "@I1@",
+            "@S1@",
+        ),
+        (
+            "INDI.BIRT.PLAC.SOUR",
+            "0 @I1@ INDI\n1 BIRT\n2 PLAC X\n3 SOUR @S1@\n0 @S1@ SOUR\n",
+            "@I1@",
+            "@S1@",
+        ),
+        (
+            "INDI.OCCU.SOUR",
+            "0 @I1@ INDI\n1 OCCU X\n2 SOUR @S1@\n0 @S1@ SOUR\n",
+            "@I1@",
+            "@S1@",
+        ),
+        (
+            "INDI.NAME.SOUR",
+            "0 @I1@ INDI\n1 NAME A /B/\n2 SOUR @S1@\n0 @S1@ SOUR\n",
+            "@I1@",
+            "@S1@",
+        ),
+        (
+            "INDI.SEX.SOUR",
+            "0 @I1@ INDI\n1 SEX M\n2 SOUR @S1@\n0 @S1@ SOUR\n",
+            "@I1@",
+            "@S1@",
+        ),
+        (
+            "INDI.BAPL.SOUR",
+            "0 @I1@ INDI\n1 BAPL\n2 SOUR @S1@\n0 @S1@ SOUR\n",
+            "@I1@",
+            "@S1@",
+        ),
+        (
+            "INDI.NO.SOUR",
+            "0 @I1@ INDI\n1 NO BIRT\n2 SOUR @S1@\n0 @S1@ SOUR\n",
+            "@I1@",
+            "@S1@",
+        ),
+        (
+            "INDI.ASSO.SOUR",
+            "0 @I1@ INDI\n1 ASSO @I2@\n2 SOUR @S1@\n0 @I2@ INDI\n0 @S1@ SOUR\n",
+            "@I1@",
+            "@S1@",
+        ),
+        (
+            "FAM.SOUR",
+            "0 @F1@ FAM\n1 SOUR @S1@\n0 @S1@ SOUR\n",
+            "@F1@",
+            "@S1@",
+        ),
+        (
+            "OBJE.SOUR",
+            "0 @M1@ OBJE\n1 FILE x.jpg\n1 SOUR @S1@\n0 @S1@ SOUR\n",
+            "@M1@",
+            "@S1@",
+        ),
+        (
+            "SNOTE.SOUR",
+            "0 @N1@ SNOTE text\n1 SOUR @S1@\n0 @S1@ SOUR\n",
+            "@N1@",
+            "@S1@",
+        ),
     ];
 
     for &(name, body, holder, target) in cases {
@@ -579,6 +651,10 @@ fn pointer_field_count() {
             Box::new(data.remove_family(h).unwrap().unwrap())
         } else if let Some(h) = data.find_source_handle(holder) {
             Box::new(data.remove_source(h).unwrap().unwrap())
+        } else if let Some(h) = data.find_multimedia_handle(holder) {
+            Box::new(data.remove_multimedia(h).unwrap().unwrap())
+        } else if let Some(h) = data.find_shared_note_handle(holder) {
+            Box::new(data.remove_shared_note(h).unwrap().unwrap())
         } else {
             panic!("{name}: no holder {holder}");
         };

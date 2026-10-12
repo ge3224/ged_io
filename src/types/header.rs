@@ -206,6 +206,10 @@ impl Header {
             f(p);
         }
 
+        if let Some(e) = &mut self.encoding {
+            e.pointers_mut(f);
+        }
+
         if let Some(p) = &mut self.submission_tag {
             f(p);
         }

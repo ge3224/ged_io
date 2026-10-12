@@ -12,9 +12,9 @@ use crate::{
         multimedia::link::{Link, LinkTarget},
         note::Note,
         source::{citation::data::SourceCitationData, quay::CertaintyAssessment, text::Text},
-        Xref,
     },
     util::is_pointer_use,
+    xref::Pointer,
     GedcomError,
 };
 
@@ -36,7 +36,7 @@ use crate::{
 #[cfg_attr(feature = "json", derive(Serialize))]
 pub enum CitationSource {
     /// A reference to a source record elsewhere in the dataset.
-    Record(Xref),
+    Record(Pointer),
     /// A reserved placeholder, used when no source record applies.
     Void,
     /// A source description carried inline, with no record to reference.
@@ -44,28 +44,11 @@ pub enum CitationSource {
 }
 
 impl CitationSource {
-    /// Classifies a raw `SOUR` line value as an xref pointer or a free-text description.
-    ///
-    /// A value is treated as a pointer only if it is wrapped in a single pair
-    /// of `@` characters with no embedded whitespace or extra `@`, matching
-    /// the GEDCOM `POINTER` grammar (e.g. `@S1@`). Anything else, including
-    /// GEDCOM 7's `@VOID@`-adjacent free text or a URL, is a description.
-    #[must_use]
-    pub fn parse(value: String) -> Self {
-        if value == "@VOID@" {
-            CitationSource::Void
-        } else if is_pointer_use(&value) {
-            CitationSource::Record(value)
-        } else {
-            CitationSource::Description(value)
-        }
-    }
-
     /// Returns the xref if this citation points to a structured `Source` record.
     #[must_use]
     pub fn as_xref(&self) -> Option<&str> {
         match self {
-            CitationSource::Record(xref) => Some(xref),
+            CitationSource::Record(p) => Some(p.as_str()),
             CitationSource::Void | CitationSource::Description(_) => None,
         }
     }
@@ -120,8 +103,8 @@ impl Citation {
         let raw = tokenizer.take_continued_text(level)?;
         let source = if raw == "@VOID@" {
             CitationSource::Void
-        } else if is_pointer_use(&raw) {
-            CitationSource::Record(raw)
+        } else if is_pointer_use(raw.as_str()) {
+            CitationSource::Record(tokenizer.claim_pointer(&raw))
         } else {
             CitationSource::Description(raw)
         };
@@ -151,9 +134,9 @@ impl Citation {
         &self.target
     }
 
-    pub(crate) fn with_source(xref: Xref) -> Self {
+    pub(crate) fn with_source(p: Pointer) -> Self {
         Citation {
-            target: CitationSource::Record(xref),
+            target: CitationSource::Record(p),
             page: None,
             data: None,
             notes: Arena::default(),
@@ -171,6 +154,12 @@ impl Citation {
         self.multimedia_links.insert(m);
     }
 
+    pub(crate) fn pointers_mut(&mut self, f: &mut impl FnMut(&mut Pointer)) {
+        if let CitationSource::Record(p) = &mut self.target {
+            f(p);
+        }
+    }
+
     pub(crate) fn remove_multimedia_link_to(&mut self, xref: &str) -> usize {
         let before = self.multimedia_links.len();
 
@@ -181,10 +170,6 @@ impl Citation {
     }
 
     pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
-        if let CitationSource::Record(xref) = &self.target {
-            sink(xref);
-        }
-
         for link in &self.multimedia_links {
             link.outbound_refs(sink);
         }

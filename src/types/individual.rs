@@ -333,14 +333,22 @@ impl Individual {
     }
 
     pub(crate) fn pointers_mut(&mut self, f: &mut impl FnMut(&mut Pointer)) {
+        if let Some(g) = &mut self.sex {
+            g.pointers_mut(f);
+        }
+
         self.aliases.for_each_mut(|p| f(p));
         self.ancestor_interest.for_each_mut(|p| f(p));
-        self.descendant_interest.for_each_mut(|p| f(p));
-        self.submitters.for_each_mut(|p| f(p));
-        self.families.for_each_mut(|l| l.pointers_mut(f));
-        self.events.for_each_mut(|l| l.pointers_mut(f));
         self.associations.for_each_mut(|a| a.pointers_mut(f));
         self.attributes.for_each_mut(|a| a.pointers_mut(f));
+        self.descendant_interest.for_each_mut(|p| f(p));
+        self.events.for_each_mut(|l| l.pointers_mut(f));
+        self.families.for_each_mut(|l| l.pointers_mut(f));
+        self.lds_ordinances.for_each_mut(|o| o.pointers_mut(f));
+        self.names.for_each_mut(|n| n.pointers_mut(f));
+        self.non_events.for_each_mut(|n| n.pointers_mut(f));
+        self.sources.for_each_mut(|s| s.pointers_mut(f));
+        self.submitters.for_each_mut(|p| f(p));
     }
 
     pub(crate) fn remove_citation_to(&mut self, xref: &str) -> usize {

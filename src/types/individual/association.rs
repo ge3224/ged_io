@@ -92,6 +92,8 @@ impl Association {
         if let AssociationTarget::Record(p) = &mut self.target {
             f(p);
         }
+
+        self.sources.for_each_mut(|s| s.pointers_mut(f));
     }
 
     pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {

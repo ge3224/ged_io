@@ -21,6 +21,7 @@ use crate::{
         note::Note,
         source::citation::{Citation, CitationSource},
     },
+    xref::Pointer,
     GedcomError,
 };
 
@@ -79,6 +80,10 @@ pub struct Place {
 }
 
 impl Place {
+    pub(crate) fn pointers_mut(&mut self, f: &mut impl FnMut(&mut Pointer)) {
+        self.citations.for_each_mut(|p| p.pointers_mut(f));
+    }
+
     pub(crate) fn remove_citation_to(&mut self, xref: &str) -> usize {
         let before = self.citations.len();
         self.citations

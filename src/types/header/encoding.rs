@@ -2,6 +2,7 @@ use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::source::citation::{Citation, CitationSource},
+    xref::Pointer,
     GedcomError,
 };
 #[cfg(feature = "json")]
@@ -30,6 +31,12 @@ impl Encoding {
         let mut chars = Encoding::default();
         chars.parse(tokenizer, level)?;
         Ok(chars)
+    }
+
+    pub(crate) fn pointers_mut(&mut self, f: &mut impl FnMut(&mut Pointer)) {
+        if let Some(p) = &mut self.source {
+            p.pointers_mut(f);
+        }
     }
 
     pub(crate) fn remove_citation_to(&mut self, xref: &str) -> usize {

@@ -15,6 +15,7 @@ use crate::{
         source::citation::{Citation, CitationSource},
         Xref,
     },
+    xref::Pointer,
     GedcomError,
 };
 
@@ -83,6 +84,12 @@ impl Multimedia {
     #[must_use]
     pub fn source_citation(&self) -> Option<&Citation> {
         self.source_citation.as_ref()
+    }
+
+    pub(crate) fn pointers_mut(&mut self, f: &mut impl FnMut(&mut Pointer)) {
+        if let Some(c) = &mut self.source_citation {
+            c.pointers_mut(f);
+        }
     }
 
     pub(crate) fn remove_citation_to(&mut self, xref: &str) -> usize {

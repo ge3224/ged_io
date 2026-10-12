@@ -9,6 +9,7 @@ use crate::{
         custom::UserDefinedTag,
         source::citation::{Citation, CitationSource},
     },
+    xref::Pointer,
     GedcomError,
 };
 
@@ -75,6 +76,10 @@ impl Gender {
     #[must_use]
     pub fn is_male(&self) -> bool {
         matches!(self.value, GenderType::Male)
+    }
+
+    pub(crate) fn pointers_mut(&mut self, f: &mut impl FnMut(&mut Pointer)) {
+        self.sources.for_each_mut(|p| p.pointers_mut(f));
     }
 
     pub(crate) fn remove_citation_to(&mut self, xref: &str) -> usize {

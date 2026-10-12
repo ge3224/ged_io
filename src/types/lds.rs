@@ -28,6 +28,7 @@ use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{date::Date, note::Note, place::Place, source::citation::Citation, CitationSource},
+    xref::Pointer,
     GedcomError,
 };
 
@@ -323,6 +324,14 @@ impl LdsOrdinance {
         self.ordinance_type
             .as_ref()
             .is_some_and(LdsOrdinanceType::is_gedcom_7_only)
+    }
+
+    pub(crate) fn pointers_mut(&mut self, f: &mut impl FnMut(&mut Pointer)) {
+        if let Some(p) = &mut self.place {
+            p.pointers_mut(f);
+        }
+
+        self.source_citations.for_each_mut(|p| p.pointers_mut(f));
     }
 
     pub(crate) fn remove_citation_to(&mut self, xref: &str) -> usize {

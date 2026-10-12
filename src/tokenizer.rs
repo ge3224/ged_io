@@ -450,17 +450,21 @@ impl<'a> Tokenizer<'a> {
         Ok(value)
     }
 
-    pub(crate) fn take_pointer(&mut self) -> Result<Pointer, GedcomError> {
-        let v = self.take_line_value()?;
-        if is_real_reference(&v) {
-            if let Some(n) = self.pending_uses.get_mut(v.as_str()) {
+    pub(crate) fn claim_pointer(&mut self, v: &str) -> Pointer {
+        if is_real_reference(v) {
+            if let Some(n) = self.pending_uses.get_mut(v) {
                 *n -= 1;
                 if *n == 0 {
-                    self.pending_uses.remove(v.as_str());
+                    self.pending_uses.remove(v);
                 }
             }
         }
-        Ok(Pointer::detached(&v))
+        Pointer::detached(v)
+    }
+
+    pub(crate) fn take_pointer(&mut self) -> Result<Pointer, GedcomError> {
+        let v = self.take_line_value()?;
+        Ok(self.claim_pointer(&v))
     }
 
     /// When the tokenizer sits on the level of a `CONC` or `CONT` line

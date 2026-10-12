@@ -201,6 +201,9 @@ impl Family {
         self.children.for_each_mut(|p| f(p));
         self.events.for_each_mut(|d| d.pointers_mut(f));
         self.family_events.for_each_mut(|d| d.pointers_mut(f));
+        self.lds_ordinances.for_each_mut(|o| o.pointers_mut(f));
+        self.non_events.for_each_mut(|n| n.pointers_mut(f));
+        self.sources.for_each_mut(|s| s.pointers_mut(f));
         self.submitters.for_each_mut(|p| f(p));
     }
 

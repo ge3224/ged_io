@@ -26,6 +26,7 @@ use crate::{
         source::citation::{Citation, CitationSource},
         Xref,
     },
+    xref::Pointer,
     GedcomError,
 };
 
@@ -191,6 +192,10 @@ impl SharedNote {
         result = result.replace("&amp;", "&");
 
         result.trim().to_string()
+    }
+
+    pub(crate) fn pointers_mut(&mut self, f: &mut impl FnMut(&mut Pointer)) {
+        self.source_citations.for_each_mut(|p| p.pointers_mut(f));
     }
 
     pub(crate) fn remove_citation_to(&mut self, xref: &str) -> usize {
