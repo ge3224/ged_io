@@ -493,9 +493,10 @@ fn test_round_trip_inline_multimedia_pointer() {
         .first()
         .unwrap();
 
-    assert_eq!(
+    assert!(
+        matches!(
         media.target(),
-        &LinkTarget::Record("@M1@".to_string()),
+        LinkTarget::Record(p) if p.as_str() == "@M1@"),
         "pointer dropped by parser"
     );
 

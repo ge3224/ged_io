@@ -10,6 +10,7 @@ use crate::{
         note::Note,
         Xref,
     },
+    xref::Pointer,
     GedcomError,
 };
 
@@ -110,6 +111,10 @@ impl Submitter {
     /// Adds a `Multimedia` to the tree
     pub fn add_multimedia(&mut self, multimedia: Link) {
         self.multimedia_links.insert(multimedia);
+    }
+
+    pub(crate) fn pointers_mut(&mut self, f: &mut impl FnMut(&mut Pointer)) {
+        self.multimedia_links.for_each_mut(|l| l.pointers_mut(f));
     }
 
     pub(crate) fn remove_multimedia_link_to(&mut self, xref: &str) -> usize {

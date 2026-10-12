@@ -33,17 +33,15 @@ fn test_round_trip_submitter_record() {
 0 TRLR"#;
 
     let data1 = GedcomBuilder::new().build_from_str(original).unwrap();
-    assert_eq!(
-        data1
-            .iter_submitters()
-            .next()
-            .unwrap()
-            .multimedia_links
-            .first()
-            .unwrap()
-            .target(),
-        &LinkTarget::Record("@M1@".to_string())
-    );
+    let link = data1
+        .iter_submitters()
+        .next()
+        .unwrap()
+        .multimedia_links
+        .first()
+        .unwrap();
+
+    assert!(matches!(link.target(), LinkTarget::Record(p) if p.as_str() == "@M1@"));
 
     let written = GedcomWriter::new().write_to_string(&data1).unwrap();
     for expected in [

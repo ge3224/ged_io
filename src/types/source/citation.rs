@@ -158,6 +158,8 @@ impl Citation {
         if let CitationSource::Record(p) = &mut self.target {
             f(p);
         }
+
+        self.multimedia_links.for_each_mut(|l| l.pointers_mut(f));
     }
 
     pub(crate) fn remove_multimedia_link_to(&mut self, xref: &str) -> usize {

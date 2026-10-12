@@ -1529,7 +1529,9 @@ impl GedcomWriter {
         media: &Link,
     ) -> Result<(), io::Error> {
         match media.target {
-            LinkTarget::Record(ref x) => self.write_line(writer, level, "OBJE", Some(x))?,
+            LinkTarget::Record(ref x) => {
+                self.write_line(writer, level, "OBJE", Some(x.as_str()))?;
+            }
             LinkTarget::Void => self.write_line(writer, level, "OBJE", Some("@VOID@"))?,
             LinkTarget::Inline => {
                 self.write_line(writer, level, "OBJE", None)?;

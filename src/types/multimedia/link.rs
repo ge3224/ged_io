@@ -8,9 +8,9 @@ use crate::{
     types::{
         custom::UserDefinedTag,
         multimedia::{Format, Reference},
-        Xref,
     },
     util::is_pointer_use,
+    xref::Pointer,
     GedcomError,
 };
 
@@ -45,7 +45,7 @@ impl Link {
         let link = if raw == "@VOID@" {
             LinkTarget::Void
         } else if is_pointer_use(&raw) {
-            LinkTarget::Record(raw)
+            LinkTarget::Record(tokenizer.claim_pointer(&raw))
         } else {
             LinkTarget::Inline
         };
@@ -68,9 +68,9 @@ impl Link {
         &self.target
     }
 
-    pub(crate) fn with_record(xref: Xref) -> Self {
+    pub(crate) fn with_record(p: Pointer) -> Self {
         Link {
-            target: LinkTarget::Record(xref),
+            target: LinkTarget::Record(p),
             file: None,
             form: None,
             title: None,
@@ -78,11 +78,13 @@ impl Link {
         }
     }
 
-    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
-        if let LinkTarget::Record(xref) = &self.target {
-            sink(xref);
+    pub(crate) fn pointers_mut(&mut self, f: &mut impl FnMut(&mut Pointer)) {
+        if let LinkTarget::Record(p) = &mut self.target {
+            f(p);
         }
+    }
 
+    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
         for u in &self.user_defined_tags {
             u.outbound_refs(sink);
         }
@@ -126,7 +128,7 @@ impl Parser for Link {
 #[cfg_attr(feature = "json", derive(Serialize))]
 pub enum LinkTarget {
     /// References a multimedia record
-    Record(Xref),
+    Record(Pointer),
     /// Structured media embedded inline
     Inline,
     /// Placeholder for media with no record

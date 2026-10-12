@@ -183,6 +183,7 @@ impl Detail {
 
         self.associations.for_each_mut(|a| a.pointers_mut(f));
         self.citations.for_each_mut(|c| c.pointers_mut(f));
+        self.multimedia_links.for_each_mut(|l| l.pointers_mut(f));
     }
 
     pub(crate) fn remove_citation_to(&mut self, xref: &str) -> usize {

@@ -632,6 +632,48 @@ fn pointer_field_count() {
             "@N1@",
             "@S1@",
         ),
+        (
+            "INDI.OBJE",
+            "0 @I1@ INDI\n1 OBJE @M1@\n0 @M1@ OBJE\n1 FILE x\n",
+            "@I1@",
+            "@M1@",
+        ),
+        (
+            "INDI.BIRT.OBJE",
+            "0 @I1@ INDI\n1 BIRT\n2 OBJE @M1@\n0 @M1@ OBJE\n1 FILE x\n",
+            "@I1@",
+            "@M1@",
+        ),
+        (
+            "INDI.OCCU.OBJE",
+            "0 @I1@ INDI\n1 OCCU x\n2 OBJE @M1@\n0 @M1@ OBJE\n1 FILE x\n",
+            "@I1@",
+            "@M1@",
+        ),
+        (
+            "INDI.SOUR.OBJE",
+            "0 @I1@ INDI\n1 SOUR @S1@\n2 OBJE @M1@\n0 @S1@ SOUR\n0 @M1@ OBJE\n1 FILE x\n",
+            "@I1@",
+            "@M1@",
+        ),
+        (
+            "FAM.OBJE",
+            "0 @F1@ FAM\n1 OBJE @M1@\n0 @M1@ OBJE\n1 FILE x\n",
+            "@F1@",
+            "@M1@",
+        ),
+        (
+            "SOUR.OBJE",
+            "0 @S1@ SOUR\n1 OBJE @M1@\n0 @M1@ OBJE\n1 FILE x\n",
+            "@S1@",
+            "@M1@",
+        ),
+        (
+            "SUBM.OBJE",
+            "0 @U1@ SUBM\n1 NAME S\n1 OBJE @M1@\n0 @M1@ OBJE\n1 FILE x\n",
+            "@U1@",
+            "@M1@",
+        ),
     ];
 
     for &(name, body, holder, target) in cases {
@@ -655,6 +697,8 @@ fn pointer_field_count() {
             Box::new(data.remove_multimedia(h).unwrap().unwrap())
         } else if let Some(h) = data.find_shared_note_handle(holder) {
             Box::new(data.remove_shared_note(h).unwrap().unwrap())
+        } else if let Some(h) = data.find_submitter_handle(holder) {
+            Box::new(data.remove_submitter(h).unwrap().unwrap())
         } else {
             panic!("{name}: no holder {holder}");
         };

@@ -269,7 +269,7 @@ impl GedcomData {
     /// Returns [`GedcomError::DuplicateXref`] if the xref is already in use.
     pub fn add_submitter(
         &mut self,
-        submitter: Submitter,
+        mut submitter: Submitter,
     ) -> Result<Handle<Submitter>, GedcomError> {
         let xref = submitter.xref.clone();
 
@@ -279,6 +279,8 @@ impl GedcomData {
                 record_type: Submitter::RECORD_TYPE.to_string(),
             });
         }
+
+        submitter.pointers_mut(&mut |p| self.xrefs.adopt(p));
 
         let handle = self.submitters.insert(submitter);
 
@@ -460,7 +462,7 @@ impl GedcomData {
             });
         }
 
-        let Some(rec) = self.submitters.remove(handle) else {
+        let Some(mut rec) = self.submitters.remove(handle) else {
             unreachable!("handle was validated by get above")
         };
 
@@ -469,6 +471,8 @@ impl GedcomData {
         for x in &out {
             self.xrefs.release(x);
         }
+
+        rec.pointers_mut(&mut |p| *p = Pointer::detached(p.as_str()));
 
         self.xrefs.remove(&xref);
         Ok(Some(rec))
@@ -1831,9 +1835,8 @@ impl GedcomData {
             unreachable!("xref map and arena are out of sync")
         };
 
-        self.xrefs.bump(&multimedia_xref);
         i.multimedia_links
-            .insert(Link::with_record(multimedia_xref));
+            .insert(Link::with_record(self.xrefs.pointer(&multimedia_xref)));
 
         Ok(())
     }
@@ -1875,7 +1878,9 @@ impl GedcomData {
         let Some(multimedia_handle) = i
             .multimedia_links
             .iter_handles()
-            .find(|(_, l)| matches!(&l.target, LinkTarget::Record(x) if x == &multimedia_xref))
+            .find(
+                |(_, l)| matches!(&l.target, LinkTarget::Record(x) if x.as_str() == multimedia_xref),
+            )
             .map(|(h, _)| h)
         else {
             return Err(GedcomError::NotLinked {
@@ -1886,7 +1891,6 @@ impl GedcomData {
         };
 
         i.multimedia_links.remove(multimedia_handle);
-        self.xrefs.decrement(&multimedia_xref);
 
         Ok(())
     }
@@ -2986,8 +2990,6 @@ impl GedcomData {
             .for_each_mut(|s| removed += s.remove_multimedia_link_to(target));
         self.shared_notes
             .for_each_mut(|sn| removed += sn.remove_multimedia_link_to(target));
-
-        self.xrefs.sub_uses(target, removed);
 
         Ok(removed)
     }

@@ -114,6 +114,7 @@ impl Source {
 
     pub(crate) fn pointers_mut(&mut self, f: &mut impl FnMut(&mut Pointer)) {
         self.repo_citations.for_each_mut(|c| f(&mut c.target));
+        self.multimedia_links.for_each_mut(|l| l.pointers_mut(f));
     }
 
     pub(crate) fn remove_repo_citation_to(&mut self, xref: &str) -> usize {

@@ -93,22 +93,6 @@ impl Xrefs {
         })
     }
 
-    pub(crate) fn bump(&mut self, xref: &str) {
-        let Some(node) = self.map.get_mut(xref) else {
-            unreachable!("xref map and arena out of sync")
-        };
-
-        node.use_count += 1;
-    }
-
-    pub(crate) fn decrement(&mut self, xref: &str) {
-        let Some(node) = self.map.get_mut(xref) else {
-            unreachable!("xref map and arena out of sync")
-        };
-
-        node.use_count = node.use_count.saturating_sub(1);
-    }
-
     pub(crate) fn remove(&mut self, xref: &str) {
         self.map.remove(xref);
     }

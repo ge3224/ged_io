@@ -345,6 +345,7 @@ impl Individual {
         self.events.for_each_mut(|l| l.pointers_mut(f));
         self.families.for_each_mut(|l| l.pointers_mut(f));
         self.lds_ordinances.for_each_mut(|o| o.pointers_mut(f));
+        self.multimedia_links.for_each_mut(|l| l.pointers_mut(f));
         self.names.for_each_mut(|n| n.pointers_mut(f));
         self.non_events.for_each_mut(|n| n.pointers_mut(f));
         self.sources.for_each_mut(|s| s.pointers_mut(f));
