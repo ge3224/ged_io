@@ -466,12 +466,6 @@ impl GedcomData {
             unreachable!("handle was validated by get above")
         };
 
-        let mut out = Vec::new();
-        rec.outbound_refs(&mut |x| out.push(x.to_owned()));
-        for x in &out {
-            self.xrefs.release(x);
-        }
-
         rec.pointers_mut(&mut |p| *p = Pointer::detached(p.as_str()));
 
         self.xrefs.remove(&xref);
@@ -888,7 +882,7 @@ impl GedcomData {
     /// Returns an error if the xref is already in use.
     pub fn add_submission(
         &mut self,
-        submission: Submission,
+        mut submission: Submission,
     ) -> Result<Handle<Submission>, GedcomError> {
         let xref = submission.xref.clone();
 
@@ -898,6 +892,8 @@ impl GedcomData {
                 record_type: Submission::RECORD_TYPE.to_string(),
             });
         }
+
+        submission.pointers_mut(&mut |p| self.xrefs.adopt(p));
 
         let handle = self.submissions.insert(submission);
 
@@ -1082,7 +1078,7 @@ impl GedcomData {
             });
         }
 
-        let Some(rec) = self.submissions.remove(handle) else {
+        let Some(mut rec) = self.submissions.remove(handle) else {
             unreachable!("handle was validated by get above")
         };
 
@@ -1091,6 +1087,7 @@ impl GedcomData {
         for x in &out {
             self.xrefs.release(x);
         }
+        rec.pointers_mut(&mut |p| *p = Pointer::detached(p.as_str()));
 
         self.xrefs.remove(&xref);
         Ok(Some(rec))
@@ -1238,13 +1235,6 @@ impl GedcomData {
             unreachable!("handle was validated by get above")
         };
 
-        let mut out = Vec::new();
-        rec.outbound_refs(&mut |x| out.push(x.to_owned()));
-
-        for x in &out {
-            self.xrefs.release(x);
-        }
-
         rec.pointers_mut(&mut |p| *p = Pointer::detached(p.as_str()));
 
         self.xrefs.remove(&xref);
@@ -1372,12 +1362,6 @@ impl GedcomData {
         let Some(mut rec) = self.families.remove(handle) else {
             unreachable!("handle was validated by the get above")
         };
-
-        let mut out = Vec::new();
-        rec.outbound_refs(&mut |x| out.push(x.to_owned()));
-        for x in &out {
-            self.xrefs.release(x);
-        }
 
         rec.pointers_mut(&mut |p| *p = Pointer::detached(p.as_str()));
 
@@ -1902,7 +1886,7 @@ impl GedcomData {
     /// Returns an error if the xref is already in use.
     pub fn add_repository(
         &mut self,
-        repository: Repository,
+        mut repository: Repository,
     ) -> Result<Handle<Repository>, GedcomError> {
         let xref = repository.xref.clone();
 
@@ -1912,6 +1896,8 @@ impl GedcomData {
                 record_type: Repository::RECORD_TYPE.to_string(),
             });
         }
+
+        repository.pointers_mut(&mut |p| self.xrefs.adopt(p));
 
         let handle = self.repositories.insert(repository);
 
@@ -2011,15 +1997,11 @@ impl GedcomData {
             });
         }
 
-        let Some(rep) = self.repositories.remove(handle) else {
+        let Some(mut rep) = self.repositories.remove(handle) else {
             unreachable!("handle was validated by get above")
         };
 
-        let mut out = Vec::new();
-        rep.outbound_refs(&mut |x| out.push(x.to_owned()));
-        for x in &out {
-            self.xrefs.release(x);
-        }
+        rep.pointers_mut(&mut |p| *p = Pointer::detached(p.as_str()));
 
         self.xrefs.remove(&xref);
 
@@ -2142,12 +2124,6 @@ impl GedcomData {
         let Some(mut rec) = self.sources.remove(handle) else {
             unreachable!("handle was validated by get above")
         };
-
-        let mut out = Vec::new();
-        rec.outbound_refs(&mut |x| out.push(x.to_owned()));
-        for x in &out {
-            self.xrefs.release(x);
-        }
 
         rec.pointers_mut(&mut |p| *p = Pointer::detached(p.as_str()));
 
@@ -2284,12 +2260,6 @@ impl GedcomData {
             unreachable!("handle was validated by get above")
         };
 
-        let mut out = Vec::new();
-        rec.outbound_refs(&mut |x| out.push(x.to_owned()));
-        for x in &out {
-            self.xrefs.release(x);
-        }
-
         rec.pointers_mut(&mut |p| *p = Pointer::detached(p.as_str()));
 
         self.xrefs.remove(&xref);
@@ -2424,12 +2394,6 @@ impl GedcomData {
             unreachable!("handle was validated by get above")
         };
 
-        let mut out = Vec::new();
-        rec.outbound_refs(&mut |x| out.push(x.to_owned()));
-        for x in &out {
-            self.xrefs.release(x);
-        }
-
         rec.pointers_mut(&mut |p| *p = Pointer::detached(p.as_str()));
 
         self.xrefs.remove(&xref);
@@ -2444,7 +2408,7 @@ impl GedcomData {
     /// example, a `0 @I1@ _LOC` record in a file that also has `0 @I1@ INDI`).
     pub fn add_user_defined_tags(
         &mut self,
-        user_defined_tag: UserDefinedTag,
+        mut user_defined_tag: UserDefinedTag,
     ) -> Result<Handle<UserDefinedTag>, GedcomError> {
         let xref = user_defined_tag.xref.clone();
 
@@ -2456,6 +2420,8 @@ impl GedcomData {
                 });
             }
         }
+
+        user_defined_tag.pointers_mut(&mut |p| self.xrefs.adopt(p));
 
         let handle = self.user_defined_tags.insert(user_defined_tag);
 
@@ -2523,7 +2489,13 @@ impl GedcomData {
             self.xrefs.remove(xref);
         }
 
-        Ok(self.user_defined_tags.remove(handle))
+        let Some(mut rec) = self.user_defined_tags.remove(handle) else {
+            unreachable!("handle was validated by get above")
+        };
+
+        rec.pointers_mut(&mut |p| *p = Pointer::detached(p.as_str()));
+
+        Ok(Some(rec))
     }
 
     /// Prints a summary of record counts to stdout.
@@ -3023,10 +2995,6 @@ impl GedcomData {
             .for_each_mut(|s| cleared += s.clear_user_defined_refs_to(&xref));
         self.user_defined_tags
             .for_each_mut(|u| cleared += u.clear_user_defined_refs_to(&xref));
-
-        if cleared > 0 {
-            self.xrefs.sub_uses(&xref, cleared);
-        }
 
         cleared
     }

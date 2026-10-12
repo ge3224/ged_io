@@ -309,6 +309,7 @@ impl Name {
 
     pub(crate) fn pointers_mut(&mut self, f: &mut impl FnMut(&mut Pointer)) {
         self.sources.for_each_mut(|p| p.pointers_mut(f));
+        self.user_defined_tags.for_each_mut(|u| u.pointers_mut(f));
     }
 
     pub(crate) fn remove_citation_to(&mut self, xref: &str) -> usize {
@@ -325,16 +326,6 @@ impl Name {
             .for_each_mut(|s| removed += s.remove_multimedia_link_to(xref));
 
         removed
-    }
-
-    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
-        for s in &self.sources {
-            s.outbound_refs(sink);
-        }
-
-        for u in &self.user_defined_tags {
-            u.outbound_refs(sink);
-        }
     }
 
     pub(crate) fn clear_user_defined_refs_to(&mut self, xref: &str) -> usize {

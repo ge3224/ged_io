@@ -350,6 +350,7 @@ impl Individual {
         self.non_events.for_each_mut(|n| n.pointers_mut(f));
         self.sources.for_each_mut(|s| s.pointers_mut(f));
         self.submitters.for_each_mut(|p| f(p));
+        self.user_defined_tags.for_each_mut(|u| u.pointers_mut(f));
     }
 
     pub(crate) fn remove_citation_to(&mut self, xref: &str) -> usize {
@@ -404,52 +405,6 @@ impl Individual {
             .for_each_mut(|s| removed += s.remove_multimedia_link_to(xref));
 
         removed
-    }
-
-    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
-        for f in &self.families {
-            f.outbound_refs(sink);
-        }
-
-        for s in &self.sources {
-            s.outbound_refs(sink);
-        }
-
-        for m in &self.multimedia_links {
-            m.outbound_refs(sink);
-        }
-
-        for a in &self.associations {
-            a.outbound_refs(sink);
-        }
-
-        for n in &self.names {
-            n.outbound_refs(sink);
-        }
-
-        if let Some(g) = &self.sex {
-            g.outbound_refs(sink);
-        }
-
-        for a in &self.attributes {
-            a.outbound_refs(sink);
-        }
-
-        for e in &self.events {
-            e.outbound_refs(sink);
-        }
-
-        for o in &self.lds_ordinances {
-            o.outbound_refs(sink);
-        }
-
-        for ne in &self.non_events {
-            ne.outbound_refs(sink);
-        }
-
-        for u in &self.user_defined_tags {
-            u.outbound_refs(sink);
-        }
     }
 
     pub(crate) fn clear_user_defined_refs_to(&mut self, xref: &str) -> usize {

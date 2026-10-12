@@ -7,6 +7,7 @@ use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{corporation::Corporation, header::source::data::HeadSourData},
+    xref::Pointer,
     GedcomError,
 };
 
@@ -38,6 +39,12 @@ impl HeadSour {
         let mut head_sour = HeadSour::default();
         head_sour.parse(tokenizer, level)?;
         Ok(head_sour)
+    }
+
+    pub(crate) fn pointers_mut(&mut self, f: &mut impl FnMut(&mut Pointer)) {
+        if let Some(c) = &mut self.corporation {
+            c.pointers_mut(f);
+        }
     }
 }
 

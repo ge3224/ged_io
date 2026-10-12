@@ -2,6 +2,7 @@ use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::address::Address,
+    xref::Pointer,
     GedcomError,
 };
 #[cfg(feature = "json")]
@@ -36,6 +37,12 @@ impl Corporation {
         let mut corp = Corporation::default();
         corp.parse(tokenizer, level)?;
         Ok(corp)
+    }
+
+    pub(crate) fn pointers_mut(&mut self, f: &mut impl FnMut(&mut Pointer)) {
+        if let Some(a) = &mut self.address {
+            a.pointers_mut(f);
+        }
     }
 }
 

@@ -94,16 +94,7 @@ impl Association {
         }
 
         self.sources.for_each_mut(|s| s.pointers_mut(f));
-    }
-
-    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
-        for s in &self.sources {
-            s.outbound_refs(sink);
-        }
-
-        for u in &self.user_defined_tags {
-            u.outbound_refs(sink);
-        }
+        self.user_defined_tags.for_each_mut(|u| u.pointers_mut(f));
     }
 
     pub(crate) fn clear_user_defined_refs_to(&mut self, xref: &str) -> usize {

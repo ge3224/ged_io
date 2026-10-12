@@ -4,6 +4,7 @@ use crate::{
     tokenizer::Tokenizer,
     types::{custom::UserDefinedTag, date::change_date::ChangeDate, note::Note, Xref},
     util::is_real_reference,
+    xref::Pointer,
     GedcomError,
 };
 
@@ -102,15 +103,16 @@ impl Submission {
         Ok(subn)
     }
 
+    pub(crate) fn pointers_mut(&mut self, f: &mut impl FnMut(&mut Pointer)) {
+        self.user_defined_tags.for_each_mut(|u| u.pointers_mut(f));
+        self.user_defined_tags.for_each_mut(|u| u.pointers_mut(f));
+    }
+
     pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
         if let Some(xref) = &self.submitter_ref {
             if is_real_reference(xref) {
                 sink(xref);
             }
-        }
-
-        for u in &self.user_defined_tags {
-            u.outbound_refs(sink);
         }
     }
 

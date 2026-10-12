@@ -181,9 +181,14 @@ impl Detail {
             p.pointers_mut(f);
         }
 
+        if let Some(a) = &mut self.address {
+            a.pointers_mut(f);
+        }
+
         self.associations.for_each_mut(|a| a.pointers_mut(f));
         self.citations.for_each_mut(|c| c.pointers_mut(f));
         self.multimedia_links.for_each_mut(|l| l.pointers_mut(f));
+        self.user_defined_tags.for_each_mut(|u| u.pointers_mut(f));
     }
 
     pub(crate) fn remove_citation_to(&mut self, xref: &str) -> usize {
@@ -218,36 +223,6 @@ impl Detail {
             .map_or(0, |p| p.remove_multimedia_link_to(xref));
 
         removed
-    }
-
-    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
-        for a in &self.associations {
-            a.outbound_refs(sink);
-        }
-
-        for c in &self.citations {
-            c.outbound_refs(sink);
-        }
-
-        for l in &self.multimedia_links {
-            l.outbound_refs(sink);
-        }
-
-        if let Some(fl) = &self.family_link {
-            fl.outbound_refs(sink);
-        }
-
-        if let Some(p) = &self.place {
-            p.outbound_refs(sink);
-        }
-
-        if let Some(a) = &self.address {
-            a.outbound_refs(sink);
-        }
-
-        for u in &self.user_defined_tags {
-            u.outbound_refs(sink);
-        }
     }
 
     pub(crate) fn clear_user_defined_refs_to(&mut self, xref: &str) -> usize {

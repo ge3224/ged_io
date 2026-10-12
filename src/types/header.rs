@@ -202,6 +202,10 @@ impl Header {
     }
 
     pub(crate) fn pointers_mut(&mut self, f: &mut impl FnMut(&mut Pointer)) {
+        if let Some(s) = &mut self.source {
+            s.pointers_mut(f);
+        }
+
         if let Some(p) = &mut self.submitter_tag {
             f(p);
         }
@@ -213,6 +217,12 @@ impl Header {
         if let Some(p) = &mut self.submission_tag {
             f(p);
         }
+
+        if let Some(s) = &mut self.schema {
+            s.pointers_mut(f);
+        }
+
+        self.user_defined_tags.for_each_mut(|u| u.pointers_mut(f));
     }
 
     pub(crate) fn remove_citation_to(&mut self, xref: &str) -> usize {

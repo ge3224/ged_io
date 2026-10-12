@@ -113,8 +113,9 @@ impl Source {
     }
 
     pub(crate) fn pointers_mut(&mut self, f: &mut impl FnMut(&mut Pointer)) {
-        self.repo_citations.for_each_mut(|c| f(&mut c.target));
+        self.repo_citations.for_each_mut(|c| c.pointers_mut(f));
         self.multimedia_links.for_each_mut(|l| l.pointers_mut(f));
+        self.user_defined_tags.for_each_mut(|u| u.pointers_mut(f));
     }
 
     pub(crate) fn remove_repo_citation_to(&mut self, xref: &str) -> usize {
@@ -128,22 +129,6 @@ impl Source {
         self.multimedia_links
             .retain(|l| !matches!(&l.target, LinkTarget::Record(x) if x == xref));
         before - self.multimedia_links.len()
-    }
-
-    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
-        for l in &self.multimedia_links {
-            l.outbound_refs(sink);
-        }
-
-        for c in &self.repo_citations {
-            c.outbound_refs(sink);
-        }
-
-        for u in &self.user_defined_tags {
-            u.outbound_refs(sink);
-        }
-
-        self.data.outbound_refs(sink);
     }
 
     pub(crate) fn clear_user_defined_refs_to(&mut self, xref: &str) -> usize {

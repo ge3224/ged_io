@@ -196,6 +196,7 @@ impl SharedNote {
 
     pub(crate) fn pointers_mut(&mut self, f: &mut impl FnMut(&mut Pointer)) {
         self.source_citations.for_each_mut(|p| p.pointers_mut(f));
+        self.user_defined_tags.for_each_mut(|u| u.pointers_mut(f));
     }
 
     pub(crate) fn remove_citation_to(&mut self, xref: &str) -> usize {
@@ -214,16 +215,6 @@ impl SharedNote {
             .for_each_mut(|sc| removed += sc.remove_multimedia_link_to(xref));
 
         removed
-    }
-
-    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
-        for source in &self.source_citations {
-            source.outbound_refs(sink);
-        }
-
-        for u in &self.user_defined_tags {
-            u.outbound_refs(sink);
-        }
     }
 
     pub(crate) fn clear_user_defined_refs_to(&mut self, xref: &str) -> usize {

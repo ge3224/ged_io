@@ -90,6 +90,8 @@ impl Multimedia {
         if let Some(c) = &mut self.source_citation {
             c.pointers_mut(f);
         }
+
+        self.user_defined_tags.for_each_mut(|u| u.pointers_mut(f));
     }
 
     pub(crate) fn remove_citation_to(&mut self, xref: &str) -> usize {
@@ -109,16 +111,6 @@ impl Multimedia {
         self.source_citation
             .as_mut()
             .map_or(0, |c| c.remove_multimedia_link_to(xref))
-    }
-
-    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
-        if let Some(c) = &self.source_citation {
-            c.outbound_refs(sink);
-        }
-
-        for u in &self.user_defined_tags {
-            u.outbound_refs(sink);
-        }
     }
 
     pub(crate) fn clear_user_defined_refs_to(&mut self, xref: &str) -> usize {

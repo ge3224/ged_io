@@ -674,6 +674,54 @@ fn pointer_field_count() {
             "@U1@",
             "@M1@",
         ),
+        (
+            "INDI._FOO",
+            "0 @I1@ INDI\n1 _FOO @I2@\n0 @I2@ INDI\n",
+            "@I1@",
+            "@I2@",
+        ),
+        (
+            "INDI.BIRT._FOO",
+            "0 @I1@ INDI\n1 BIRT\n2 _FOO @I2@\n0 @I2@ INDI\n",
+            "@I1@",
+            "@I2@",
+        ),
+        (
+            "INDI.BIRT.ADDR._FOO",
+            "0 @I1@ INDI\n1 BIRT\n2 ADDR x\n3 _FOO @I2@\n0 @I2@ INDI\n",
+            "@I1@",
+            "@I2@",
+        ),
+        (
+            "INDI.SOUR.DATA._FOO",
+            "0 @I1@ INDI\n1 SOUR @S1@\n2 DATA\n3 _FOO @I2@\n0 @S1@ SOUR\n0 @I2@ INDI\n",
+            "@I1@",
+            "@I2@",
+        ),
+        (
+            "SOUR.REPO._FOO",
+            "0 @S1@ SOUR\n1 REPO @R1@\n2 _FOO @I1@\n0 @R1@ REPO\n1 NAME R\n0 @I1@ INDI\n",
+            "@S1@",
+            "@I1@",
+        ),
+        (
+            "SUBM.ADDR._FOO",
+            "0 @U1@ SUBM\n1 NAME S\n1 ADDR x\n2 _FOO @I1@\n0 @I1@ INDI\n",
+            "@U1@",
+            "@I1@",
+        ),
+        (
+            "REPO._FOO",
+            "0 @R1@ REPO\n1 NAME R\n1 _FOO @I1@\n0 @I1@ INDI\n",
+            "@R1@",
+            "@I1@",
+        ),
+        (
+            "SUBN._FOO",
+            "0 @N1@ SUBN\n1 _FOO @I1@\n0 @I1@ INDI\n",
+            "@N1@",
+            "@I1@",
+        ),
     ];
 
     for &(name, body, holder, target) in cases {
@@ -699,6 +747,10 @@ fn pointer_field_count() {
             Box::new(data.remove_shared_note(h).unwrap().unwrap())
         } else if let Some(h) = data.find_submitter_handle(holder) {
             Box::new(data.remove_submitter(h).unwrap().unwrap())
+        } else if let Some(h) = data.find_submission_handle(holder) {
+            Box::new(data.remove_submission(h).unwrap().unwrap())
+        } else if let Some(h) = data.find_repository_handle(holder) {
+            Box::new(data.remove_repository(h).unwrap().unwrap())
         } else {
             panic!("{name}: no holder {holder}");
         };

@@ -167,17 +167,12 @@ impl FamilyLink {
 
     pub(crate) fn pointers_mut(&mut self, f: &mut impl FnMut(&mut Pointer)) {
         f(&mut self.target);
+        self.user_defined_tags.for_each_mut(|u| u.pointers_mut(f));
     }
 
     #[must_use]
     pub fn child_linkage_status(&self) -> Option<&ChildLinkStatus> {
         self.child_linkage_status.as_ref()
-    }
-
-    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
-        for u in &self.user_defined_tags {
-            u.outbound_refs(sink);
-        }
     }
 
     pub(crate) fn clear_user_defined_refs_to(&mut self, xref: &str) -> usize {

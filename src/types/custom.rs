@@ -1,7 +1,7 @@
 use crate::{
-    tokenizer::{Token, TokenizerTrait},
+    tokenizer::{Token, Tokenizer, TokenizerTrait},
     util::is_pointer_use,
-    xref::Xref,
+    xref::{Pointer, Xref},
     GedcomError,
 };
 #[cfg(feature = "json")]
@@ -13,7 +13,7 @@ use serde::Serialize;
 #[cfg_attr(feature = "json", derive(Serialize))]
 pub enum UserDefinedValue {
     /// A reference to a record elsewhere in the dataset.
-    Record(Xref),
+    Record(Pointer),
     /// A reserved placeholder, used when no record applies.
     Void,
     /// Any other line value carried verbatim.
@@ -21,24 +21,12 @@ pub enum UserDefinedValue {
 }
 
 impl UserDefinedValue {
-    /// Classifies a raw line value as a pointer, `@VOID@`, or text.
-    #[must_use]
-    pub fn parse(value: String) -> Self {
-        if value == "@VOID@" {
-            UserDefinedValue::Void
-        } else if is_pointer_use(&value) {
-            UserDefinedValue::Record(value)
-        } else {
-            UserDefinedValue::Text(value)
-        }
-    }
-
     /// Returns the value as it appears on the line (e.g. `@S1@`, `@VOID@`,
     /// `foo`).
     #[must_use]
     pub fn as_str(&self) -> &str {
         match self {
-            UserDefinedValue::Record(xref) => xref,
+            UserDefinedValue::Record(p) => p.as_str(),
             UserDefinedValue::Void => "@VOID@",
             UserDefinedValue::Text(text) => text,
         }
@@ -91,8 +79,8 @@ impl UserDefinedTag {
     ///
     /// Returns [`GedcomError::ParseError`] if an unexpected token is encountered
     /// while parsing the subtree.
-    pub fn drain_subtree<T: TokenizerTrait>(
-        tokenizer: &mut T,
+    pub fn drain_subtree(
+        tokenizer: &mut Tokenizer<'_>,
         entry_level: u8,
         entry_tag: &str,
     ) -> Result<Vec<UserDefinedTag>, GedcomError> {
@@ -104,8 +92,16 @@ impl UserDefinedTag {
         loop {
             let mut udt = UserDefinedTag::new(cur_tag.clone(), cur_level);
             if let Token::LineValue(v) = tokenizer.current_token() {
+                let v = v.to_string();
+
                 if !v.is_empty() {
-                    udt.value = Some(UserDefinedValue::parse(v.to_string()));
+                    udt.value = Some(if v == "@VOID@" {
+                        UserDefinedValue::Void
+                    } else if is_pointer_use(&v) {
+                        UserDefinedValue::Record(tokenizer.claim_pointer(&v))
+                    } else {
+                        UserDefinedValue::Text(v)
+                    });
                 }
 
                 tokenizer.next_token()?;
@@ -149,9 +145,9 @@ impl UserDefinedTag {
         Ok(out)
     }
 
-    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
-        if let Some(UserDefinedValue::Record(xref)) = &self.value {
-            sink(xref);
+    pub(crate) fn pointers_mut(&mut self, f: &mut impl FnMut(&mut Pointer)) {
+        if let Some(UserDefinedValue::Record(p)) = &mut self.value {
+            f(p);
         }
     }
 
@@ -181,7 +177,7 @@ impl Clone for UserDefinedTag {
 
 #[cfg(test)]
 mod tests {
-    use crate::{types::custom::UserDefinedValue, Gedcom};
+    use crate::{types::custom::UserDefinedValue, xref::Pointer, Gedcom};
 
     #[test]
     fn test_parse_user_defined_record() {
@@ -224,7 +220,9 @@ mod tests {
         assert_eq!(custom[3].tag, "SOUR");
         assert_eq!(
             custom[3].value(),
-            Some(&UserDefinedValue::Record("@S1207169483@".into()))
+            Some(&UserDefinedValue::Record(Pointer::detached(
+                "@S1207169483@"
+            )))
         );
 
         assert_eq!(custom[4].tag, "PAGE");

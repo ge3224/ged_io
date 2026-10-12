@@ -385,12 +385,6 @@ impl NonEvent {
         removed
     }
 
-    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
-        for source in &self.source_citations {
-            source.outbound_refs(sink);
-        }
-    }
-
     pub(crate) fn clear_user_defined_refs_to(&mut self, xref: &str) -> usize {
         let mut cleared = 0;
 
