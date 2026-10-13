@@ -108,12 +108,6 @@ impl Xrefs {
             .use_count += uses;
     }
 
-    pub(crate) fn release(&mut self, xref: &str) {
-        if let Some(node) = self.map.get_mut(xref) {
-            node.use_count = node.use_count.saturating_sub(1);
-        }
-    }
-
     pub(crate) fn pointer(&mut self, xref: &str) -> Pointer {
         if let Some(a) = self.map.get(xref).and_then(|n| n.anchor.as_ref()) {
             return Pointer(Arc::clone(a));

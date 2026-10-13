@@ -1082,11 +1082,6 @@ impl GedcomData {
             unreachable!("handle was validated by get above")
         };
 
-        let mut out = Vec::new();
-        rec.outbound_refs(&mut |x| out.push(x.to_owned()));
-        for x in &out {
-            self.xrefs.release(x);
-        }
         rec.pointers_mut(&mut |p| *p = Pointer::detached(p.as_str()));
 
         self.xrefs.remove(&xref);

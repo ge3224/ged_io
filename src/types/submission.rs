@@ -3,7 +3,6 @@ use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{custom::UserDefinedTag, date::change_date::ChangeDate, note::Note, Xref},
-    util::is_real_reference,
     xref::Pointer,
     GedcomError,
 };
@@ -44,7 +43,7 @@ pub struct Submission {
     /// Reference to who is submitting this data (optional)
     /// Points to a submitter record that contains contact information
     /// Tag: `SUBM`
-    pub submitter_ref: Option<String>,
+    pub submitter_ref: Option<Pointer>,
     /// Number of generations of ancestors to include
     /// Controls the scope of ancestral data in the submission
     /// Tag: `ANCE`
@@ -104,16 +103,11 @@ impl Submission {
     }
 
     pub(crate) fn pointers_mut(&mut self, f: &mut impl FnMut(&mut Pointer)) {
-        self.user_defined_tags.for_each_mut(|u| u.pointers_mut(f));
-        self.user_defined_tags.for_each_mut(|u| u.pointers_mut(f));
-    }
-
-    pub(crate) fn outbound_refs(&self, sink: &mut impl FnMut(&str)) {
-        if let Some(xref) = &self.submitter_ref {
-            if is_real_reference(xref) {
-                sink(xref);
-            }
+        if let Some(s) = &mut self.submitter_ref {
+            f(s);
         }
+
+        self.user_defined_tags.for_each_mut(|u| u.pointers_mut(f));
     }
 
     pub(crate) fn clear_user_defined_refs_to(&mut self, xref: &str) -> usize {
@@ -139,7 +133,7 @@ impl Parser for Submission {
                 "NOTE" => self.notes.push(Note::new(tokenizer, level + 1)?),
                 "ORDI" => self.ordinance_process_flag = Some(tokenizer.take_line_value()?),
                 "RIN" => self.automated_record_id = Some(tokenizer.take_line_value()?),
-                "SUBM" => self.submitter_ref = Some(tokenizer.take_line_value()?),
+                "SUBM" => self.submitter_ref = Some(tokenizer.take_pointer()?),
                 "TEMP" => self.temple_code = Some(tokenizer.take_line_value()?),
                 _ => {
                     // Leave unknown tags to `parse_subset`, which keeps them with
@@ -159,7 +153,7 @@ impl Parser for Submission {
 
 #[cfg(test)]
 mod tests {
-    use crate::{types::custom::UserDefinedValue, Gedcom};
+    use crate::{types::custom::UserDefinedValue, xref::Pointer, Gedcom};
 
     #[test]
     fn test_parse_submission_record() {
@@ -189,7 +183,10 @@ mod tests {
 
         let submission = gedcom_data.find_submission("@SUBMISSION@").unwrap();
 
-        assert_eq!(submission.submitter_ref.as_deref(), Some("@SUBMITTER@"));
+        assert_eq!(
+            submission.submitter_ref.as_ref().map(Pointer::as_str),
+            Some("@SUBMITTER@")
+        );
         assert_eq!(
             submission.family_file_name.as_deref(),
             Some("NameOfFamilyFile")

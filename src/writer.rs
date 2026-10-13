@@ -1389,7 +1389,7 @@ impl GedcomWriter {
         self.write_line_with_xref(writer, 0, Some(submission.xref.as_str()), "SUBN", None)?;
 
         if let Some(ref subm) = submission.submitter_ref {
-            self.write_value_or_wrap(writer, 1, "SUBM", Some(subm))?;
+            self.write_value_or_wrap(writer, 1, "SUBM", Some(subm.as_str()))?;
         }
 
         if let Some(ref file) = submission.family_file_name {
