@@ -256,9 +256,6 @@ impl GedcomData {
     pub fn new(tokenizer: &mut Tokenizer<'_>) -> Result<GedcomData, GedcomError> {
         let mut data = GedcomData::default();
         data.parse_document(tokenizer)?;
-        for (key, n) in tokenizer.pending_uses.drain() {
-            data.xrefs.add_uses(&key, n);
-        }
         Ok(data)
     }
 

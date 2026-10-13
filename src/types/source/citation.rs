@@ -104,7 +104,7 @@ impl Citation {
         let source = if raw == "@VOID@" {
             CitationSource::Void
         } else if is_pointer_use(raw.as_str()) {
-            CitationSource::Record(tokenizer.claim_pointer(&raw))
+            CitationSource::Record(Pointer::detached(&raw))
         } else {
             CitationSource::Description(raw)
         };

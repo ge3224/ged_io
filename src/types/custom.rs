@@ -98,7 +98,7 @@ impl UserDefinedTag {
                     udt.value = Some(if v == "@VOID@" {
                         UserDefinedValue::Void
                     } else if is_pointer_use(&v) {
-                        UserDefinedValue::Record(tokenizer.claim_pointer(&v))
+                        UserDefinedValue::Record(Pointer::detached(&v))
                     } else {
                         UserDefinedValue::Text(v)
                     });

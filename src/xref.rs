@@ -68,7 +68,6 @@ impl Xrefs {
     pub(crate) fn register(&mut self, xref: Xref, handle: AnyHandle) -> Result<(), GedcomError> {
         let node = self.map.entry(xref.clone()).or_insert_with(|| XrefNode {
             handle: None,
-            use_count: 0,
             anchor: None,
         });
 
@@ -88,24 +87,14 @@ impl Xrefs {
     }
 
     pub(crate) fn use_count(&self, xref: &str) -> usize {
-        self.map.get(xref).map_or(0, |n| {
-            n.use_count + n.anchor.as_ref().map_or(0, |a| Arc::strong_count(a) - 1)
-        })
+        self.map
+            .get(xref)
+            .and_then(|n| n.anchor.as_ref())
+            .map_or(0, |a| Arc::strong_count(a) - 1)
     }
 
     pub(crate) fn remove(&mut self, xref: &str) {
         self.map.remove(xref);
-    }
-
-    pub(crate) fn add_uses(&mut self, xref: &str, uses: usize) {
-        self.map
-            .entry(xref.to_owned())
-            .or_insert_with(|| XrefNode {
-                handle: None,
-                use_count: 0,
-                anchor: None,
-            })
-            .use_count += uses;
     }
 
     pub(crate) fn pointer(&mut self, xref: &str) -> Pointer {
@@ -115,7 +104,6 @@ impl Xrefs {
 
         let node = self.map.entry(xref.to_owned()).or_insert_with(|| XrefNode {
             handle: None,
-            use_count: 0,
             anchor: None,
         });
 
@@ -142,8 +130,6 @@ impl Xrefs {
 #[derive(Debug)]
 pub(crate) struct XrefNode {
     pub(crate) handle: Option<AnyHandle>,
-    // TODO(ref-migration): remove once every pointer field is a Pointer
-    pub(crate) use_count: usize,
     pub(crate) anchor: Option<Arc<str>>,
 }
 

@@ -87,7 +87,7 @@ impl Note {
         let content = if raw == "@VOID@" {
             NoteContent::Void
         } else if is_pointer_use(raw.as_str()) {
-            NoteContent::Record(tokenizer.claim_pointer(&raw))
+            NoteContent::Record(Pointer::detached(&raw))
         } else {
             NoteContent::Text(raw)
         };

@@ -45,7 +45,7 @@ impl Link {
         let link = if raw == "@VOID@" {
             LinkTarget::Void
         } else if is_pointer_use(&raw) {
-            LinkTarget::Record(tokenizer.claim_pointer(&raw))
+            LinkTarget::Record(Pointer::detached(&raw))
         } else {
             LinkTarget::Inline
         };

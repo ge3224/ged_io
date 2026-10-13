@@ -6,10 +6,9 @@
 //! Both tokenizers implement the [`TokenizerTrait`] trait, allowing parsers to
 //! work with either implementation.
 
-use crate::util::{is_real_reference, unescape_at_signs};
+use crate::util::unescape_at_signs;
 use crate::xref::Pointer;
 use crate::GedcomError;
-use std::collections::HashMap;
 use std::io::BufRead;
 use std::str::Chars;
 
@@ -175,7 +174,6 @@ pub struct Tokenizer<'a> {
     chars: Chars<'a>,
     /// The current line number of the file we are parsing
     pub line: u32,
-    pub(crate) pending_uses: HashMap<Box<str>, usize>,
     /// The level number of the line being tokenized
     line_level: u8,
 }
@@ -189,7 +187,6 @@ impl<'a> Tokenizer<'a> {
             current_token: Token::None,
             chars,
             line: 0,
-            pending_uses: HashMap::default(),
             line_level: 0,
         }
     }
@@ -299,9 +296,6 @@ impl<'a> Tokenizer<'a> {
                     Token::LineValue("".into())
                 } else {
                     let v = self.extract_value_with_capacity(VALUE_CAPACITY);
-                    if is_real_reference(&v) {
-                        *self.pending_uses.entry(v.clone()).or_insert(0) += 1;
-                    }
                     Token::LineValue(unescape_leading_at(v))
                 }
             }
@@ -450,21 +444,9 @@ impl<'a> Tokenizer<'a> {
         Ok(value)
     }
 
-    pub(crate) fn claim_pointer(&mut self, v: &str) -> Pointer {
-        if is_real_reference(v) {
-            if let Some(n) = self.pending_uses.get_mut(v) {
-                *n -= 1;
-                if *n == 0 {
-                    self.pending_uses.remove(v);
-                }
-            }
-        }
-        Pointer::detached(v)
-    }
-
     pub(crate) fn take_pointer(&mut self) -> Result<Pointer, GedcomError> {
         let v = self.take_line_value()?;
-        Ok(self.claim_pointer(&v))
+        Ok(Pointer::detached(&v))
     }
 
     /// When the tokenizer sits on the level of a `CONC` or `CONT` line
