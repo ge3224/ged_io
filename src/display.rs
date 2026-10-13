@@ -10,7 +10,7 @@ use crate::types::{
     header::Header,
     individual::{name::Name, Individual},
     multimedia::Multimedia,
-    note::Note,
+    note::{Note, NoteContent},
     repository::Repository,
     source::Source,
     submission::Submission,
@@ -356,16 +356,19 @@ impl fmt::Display for Submission {
 
 impl fmt::Display for Note {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        if let Some(ref value) = self.value {
-            // Truncate long notes for display
-            const MAX_LEN: usize = 100;
-            if value.len() > MAX_LEN {
-                write!(f, "{}...", &value[..MAX_LEN])?;
-            } else {
-                write!(f, "{value}")?;
+        match &self.value {
+            NoteContent::Text(value) if value.is_empty() => write!(f, "(Empty Note)")?,
+            NoteContent::Text(value) => {
+                // Truncate long notes for display
+                const MAX_LEN: usize = 100;
+                if value.len() > MAX_LEN {
+                    write!(f, "{}...", &value[..MAX_LEN])?;
+                } else {
+                    write!(f, "{value}")?;
+                }
             }
-        } else {
-            write!(f, "(Empty Note)")?;
+            NoteContent::Record(p) => write!(f, "{}", p.as_str())?,
+            NoteContent::Void => write!(f, "@VOID@")?,
         }
 
         Ok(())
@@ -596,7 +599,7 @@ mod tests {
     fn test_note_display_truncation() {
         let long_note = "A".repeat(200);
         let note = Note {
-            value: Some(long_note),
+            value: NoteContent::Text(long_note),
             mime: None,
             translation: None,
             citation: None,

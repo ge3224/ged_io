@@ -82,6 +82,7 @@ pub struct Place {
 impl Place {
     pub(crate) fn pointers_mut(&mut self, f: &mut impl FnMut(&mut Pointer)) {
         self.citations.for_each_mut(|p| p.pointers_mut(f));
+        self.notes.for_each_mut(|n| n.pointers_mut(f));
         self.user_defined_tags.for_each_mut(|u| u.pointers_mut(f));
     }
 

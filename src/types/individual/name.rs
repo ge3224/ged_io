@@ -201,7 +201,7 @@ pub struct Name {
     pub surname_prefix: Option<String>,
 
     /// Notes about the name (tag: NOTE).
-    pub notes: Vec<Note>,
+    pub notes: Arena<Note>,
 
     /// Name suffix (e.g., "Jr.", "III") (tag: NSFX).
     pub suffix: Option<String>,
@@ -308,6 +308,7 @@ impl Name {
     }
 
     pub(crate) fn pointers_mut(&mut self, f: &mut impl FnMut(&mut Pointer)) {
+        self.notes.for_each_mut(|n| n.pointers_mut(f));
         self.sources.for_each_mut(|p| p.pointers_mut(f));
         self.user_defined_tags.for_each_mut(|u| u.pointers_mut(f));
     }
@@ -353,7 +354,9 @@ impl Parser for Name {
                 "SURN" => self.surname = Some(tokenizer.take_line_value()?),
                 "NICK" => self.nickname = Some(tokenizer.take_line_value()?),
                 "SOUR" => self.add_source_citation(Citation::new(tokenizer, level + 1)?),
-                "NOTE" => self.notes.push(Note::new(tokenizer, level + 1)?),
+                "NOTE" => {
+                    self.notes.insert(Note::new(tokenizer, level + 1)?);
+                }
                 "TYPE" => {
                     let type_value = tokenizer.take_line_value()?;
                     self.name_type = Some(NameType::parse(&type_value));

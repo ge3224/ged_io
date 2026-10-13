@@ -337,6 +337,10 @@ impl Individual {
             g.pointers_mut(f);
         }
 
+        if let Some(d) = &mut self.change_date {
+            d.pointers_mut(f);
+        }
+
         self.aliases.for_each_mut(|p| f(p));
         self.ancestor_interest.for_each_mut(|p| f(p));
         self.associations.for_each_mut(|a| a.pointers_mut(f));
@@ -348,6 +352,7 @@ impl Individual {
         self.multimedia_links.for_each_mut(|l| l.pointers_mut(f));
         self.names.for_each_mut(|n| n.pointers_mut(f));
         self.non_events.for_each_mut(|n| n.pointers_mut(f));
+        self.notes.for_each_mut(|n| n.pointers_mut(f));
         self.sources.for_each_mut(|s| s.pointers_mut(f));
         self.submitters.for_each_mut(|p| f(p));
         self.user_defined_tags.for_each_mut(|u| u.pointers_mut(f));
@@ -605,7 +610,10 @@ impl BlockingReference for IndividualReference {}
 #[cfg(test)]
 mod tests {
     use super::Individual;
-    use crate::{types::source::citation::CitationSource, Gedcom};
+    use crate::{
+        types::{note::NoteContent, source::citation::CitationSource},
+        Gedcom,
+    };
 
     #[test]
     fn test_new_assigns_unique_id() {
@@ -833,8 +841,10 @@ mod tests {
             "Direct"
         );
         assert_eq!(
-            a_sour.notes.first().unwrap().value.as_ref().unwrap(),
-            "A note\nNote continued here. The word TEST should not be broken!"
+            a_sour.notes.first().unwrap().value,
+            NoteContent::Text(
+                "A note\nNote continued here. The word TEST should not be broken!".into()
+            )
         );
     }
 

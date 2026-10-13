@@ -163,6 +163,7 @@ impl Citation {
             d.pointers_mut(f);
         }
 
+        self.notes.for_each_mut(|n| n.pointers_mut(f));
         self.multimedia_links.for_each_mut(|l| l.pointers_mut(f));
         self.user_defined_tags.for_each_mut(|u| u.pointers_mut(f));
     }

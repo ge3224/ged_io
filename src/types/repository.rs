@@ -168,6 +168,11 @@ impl Repository {
             a.pointers_mut(f);
         }
 
+        if let Some(d) = &mut self.change_date {
+            d.pointers_mut(f);
+        }
+
+        self.notes.for_each_mut(|n| n.pointers_mut(f));
         self.user_defined_tags.for_each_mut(|u| u.pointers_mut(f));
     }
 
@@ -245,7 +250,7 @@ impl Parser for Repository {
 
 #[cfg(test)]
 mod tests {
-    use crate::Gedcom;
+    use crate::{types::note::NoteContent, Gedcom};
 
     #[test]
     fn test_parse_repository_with_contact_info() {
@@ -303,15 +308,10 @@ mod tests {
 
         let repo = data.find_repository("@R1@").unwrap();
         assert_eq!(repo.notes.len(), 1);
-        assert!(repo
-            .notes
-            .iter()
-            .next()
-            .unwrap()
-            .value
-            .as_ref()
-            .unwrap()
-            .contains("largest genealogical"));
+        assert!(matches!(
+            &repo.notes.first().unwrap().value,
+            NoteContent::Text(t) if t.contains("largest genealogical")
+        ));
         assert_eq!(repo.uid.as_ref().unwrap(), "http://example.org/repo/fhl");
     }
 

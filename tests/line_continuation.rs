@@ -17,8 +17,8 @@ fn test_parse_keeps_spaces_after_conc_and_cont_delimiter() {
             .notes
             .first()
             .unwrap()
-            .value
-            .as_deref(),
+            .value()
+            .as_text(),
         Some("first second\n   indented line")
     );
 }
@@ -55,8 +55,8 @@ fn test_round_trip_long_text_keeps_spaces_at_conc_splits() {
                 .notes
                 .first()
                 .unwrap()
-                .value
-                .as_deref(),
+                .value()
+                .as_text(),
             Some(text.as_str()),
             "word length {word_len}"
         );
@@ -79,7 +79,7 @@ fn test_stream_parser_keeps_spaces_after_conc_delimiter() {
     let family = records[1].as_family().unwrap();
 
     assert_eq!(
-        family.notes.first().unwrap().value.as_deref(),
+        family.notes.first().unwrap().value().as_text(),
         Some("first second")
     );
 }

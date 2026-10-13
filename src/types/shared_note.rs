@@ -195,6 +195,14 @@ impl SharedNote {
     }
 
     pub(crate) fn pointers_mut(&mut self, f: &mut impl FnMut(&mut Pointer)) {
+        if let Some(d) = &mut self.change_date {
+            d.pointers_mut(f);
+        }
+
+        if let Some(d) = &mut self.creation_date {
+            d.pointers_mut(f);
+        }
+
         self.source_citations.for_each_mut(|p| p.pointers_mut(f));
         self.user_defined_tags.for_each_mut(|u| u.pointers_mut(f));
     }

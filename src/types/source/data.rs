@@ -6,6 +6,7 @@ use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{event::detail::Detail, note::Note},
+    xref::Pointer,
     GedcomError,
 };
 
@@ -54,6 +55,10 @@ impl Data {
         event.with_source_data(events_recorded);
         self.add_event(event);
         Ok(())
+    }
+
+    pub(crate) fn pointers_mut(&mut self, f: &mut impl FnMut(&mut Pointer)) {
+        self.notes.for_each_mut(|n| n.pointers_mut(f));
     }
 
     pub(crate) fn clear_user_defined_refs_to(&mut self, xref: &str) -> usize {

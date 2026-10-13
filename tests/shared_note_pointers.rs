@@ -36,7 +36,7 @@ fn test_shared_note_pointers() {
             &data.iter_families().next().unwrap().notes.first().unwrap(),
             &data.iter_sources().next().unwrap().notes.first().unwrap(),
         ] {
-            assert_eq!(note.shared_note_xref(), Some("@N1@"));
+            assert_eq!(note.value().as_xref(), Some("@N1@"));
             assert_eq!(data.resolve_note(note), Some("Shared text"));
         }
 
@@ -62,7 +62,7 @@ fn test_inline_note_is_not_a_pointer() {
         "0 HEAD\n1 GEDC\n2 VERS 5.5.1\n0 @F1@ FAM\n1 NOTE Married at @Sampletown@ farm\n0 TRLR";
     let data = GedcomBuilder::new().build_from_str(source).unwrap();
     let note = &data.iter_families().next().unwrap().notes.first().unwrap();
-    assert_eq!(note.shared_note_xref(), None);
+    assert_eq!(note.value().as_xref(), None);
     assert_eq!(
         data.resolve_note(note),
         Some("Married at @Sampletown@ farm")

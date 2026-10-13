@@ -20,6 +20,7 @@
 //! ```
 
 use crate::types::custom::UserDefinedValue;
+use crate::types::note::NoteContent;
 use crate::util::{escape_at_signs, is_pointer_use};
 use crate::{
     arena::Arena,
@@ -1966,19 +1967,18 @@ impl GedcomWriter {
         level: u8,
         note: &Note,
     ) -> Result<(), io::Error> {
-        if let Some(xref) = note.shared_note_xref() {
+        let v5 = self.config.gedcom_version.starts_with('5');
+        match note.value() {
             // A pointer to a shared note record: `NOTE @N1@` in 5.5.1,
             // `SNOTE @N1@` in 7.0, where a NOTE payload is always text.
-            let tag = if self.config.gedcom_version.starts_with('5') {
-                "NOTE"
-            } else {
-                "SNOTE"
-            };
-            self.write_line(writer, level, tag, Some(xref))?;
-        } else if let Some(ref value) = note.value {
-            self.write_long_text(writer, level, "NOTE", value)?;
-        } else {
-            self.write_line(writer, level, "NOTE", None)?;
+            NoteContent::Record(p) => {
+                let tag = if v5 { "NOTE" } else { "SNOTE" };
+                self.write_line(writer, level, tag, Some(p.as_str()))?;
+            }
+            // 5.5.1 has no void pointer; an empty note is the closest it can say.
+            NoteContent::Void if v5 => self.write_line(writer, level, "NOTE", None)?,
+            NoteContent::Void => self.write_line(writer, level, "SNOTE", Some("@VOID@"))?,
+            NoteContent::Text(t) => self.write_long_text(writer, level, "NOTE", t)?,
         }
 
         Ok(())

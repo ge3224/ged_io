@@ -45,7 +45,7 @@ use crate::{
             link::{Link, LinkTarget},
             Multimedia,
         },
-        note::Note,
+        note::{Note, NoteContent},
         repository::Repository,
         shared_note::SharedNote,
         source::{
@@ -2634,9 +2634,10 @@ impl GedcomData {
     /// note record it points to. `None` when the pointed-to record does not exist.
     #[must_use]
     pub fn resolve_note<'a>(&'a self, note: &'a Note) -> Option<&'a str> {
-        match note.shared_note_xref() {
-            Some(xref) => self.find_shared_note(xref).map(|n| n.text.as_str()),
-            None => note.value.as_deref(),
+        match &note.value {
+            NoteContent::Record(p) => self.find_shared_note(p.as_str()).map(|n| n.text.as_str()),
+            NoteContent::Text(text) => Some(text),
+            NoteContent::Void => None,
         }
     }
 
@@ -3564,7 +3565,7 @@ mod tests {
         let source = "0 HEAD\n1 GEDC\n2 VERS 7.0\n0 @F1@ FAM\n1 SNOTE @N1@\n0 @N1@ SNOTE Shared text\n0 TRLR";
         let data = GedcomBuilder::new().build_from_str(source).unwrap();
         let note = &data.iter_families().next().unwrap().notes.first().unwrap();
-        assert_eq!(note.shared_note_xref(), Some("@N1@"));
+        assert_eq!(note.value().as_xref(), Some("@N1@"));
         assert_eq!(data.resolve_note(note), Some("Shared text"));
     }
 }

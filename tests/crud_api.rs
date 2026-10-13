@@ -728,6 +728,42 @@ fn pointer_field_count() {
             "@N1@",
             "@U1@",
         ),
+        (
+            "INDI.NOTE",
+            "0 @I1@ INDI\n1 NOTE @N1@\n0 @N1@ NOTE Hello\n",
+            "@I1@",
+            "@N1@",
+        ),
+        (
+            "INDI.BIRT.NOTE",
+            "0 @I1@ INDI\n1 BIRT\n2 NOTE @N1@\n0 @N1@ NOTE Hello\n",
+            "@I1@",
+            "@N1@",
+        ),
+        (
+            "INDI.SNOTE",
+            "0 @I1@ INDI\n1 SNOTE @N1@\n0 @N1@ NOTE Hello\n",
+            "@I1@",
+            "@N1@",
+        ),
+        (
+            "INDI.CHAN.NOTE",
+            "0 @I1@ INDI\n1 CHAN\n2 DATE 1 JAN 2000\n2 NOTE @N1@\n0 @N1@ NOTE Hello\n",
+            "@I1@",
+            "@N1@",
+        ),
+        (
+            "SOUR.DATA.NOTE",
+            "0 @S1@ SOUR\n1 DATA\n2 NOTE @N1@\n0 @N1@ NOTE Hello\n",
+            "@S1@",
+            "@N1@",
+        ),
+        (
+            "NOTE.CHAN.NOTE",
+            "0 @N2@ NOTE Other\n1 CHAN\n2 DATE 1 JAN 2000\n2 NOTE @N1@\n0 @N1@ NOTE Hello\n",
+            "@N2@",
+            "@N1@",
+        ),
     ];
 
     for &(name, body, holder, target) in cases {

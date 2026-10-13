@@ -331,6 +331,7 @@ impl LdsOrdinance {
             p.pointers_mut(f);
         }
 
+        self.notes.for_each_mut(|n| n.pointers_mut(f));
         self.source_citations.for_each_mut(|p| p.pointers_mut(f));
     }
 

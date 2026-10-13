@@ -316,7 +316,7 @@ pub struct NonEvent {
     pub date: Option<Date>,
 
     /// Notes providing additional context about the non-event (tag: NOTE).
-    pub notes: Vec<Note>,
+    pub notes: Arena<Note>,
 
     /// Source citations supporting the claim that the event did not occur.
     pub source_citations: Arena<Citation>,
@@ -364,6 +364,7 @@ impl NonEvent {
     }
 
     pub(crate) fn pointers_mut(&mut self, f: &mut impl FnMut(&mut Pointer)) {
+        self.notes.for_each_mut(|n| n.pointers_mut(f));
         self.source_citations.for_each_mut(|p| p.pointers_mut(f));
     }
 
@@ -403,7 +404,9 @@ impl Parser for NonEvent {
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             match tag {
                 "DATE" => self.date = Some(Date::new(tokenizer, level + 1)?),
-                "NOTE" => self.notes.push(Note::new(tokenizer, level + 1)?),
+                "NOTE" => {
+                    self.notes.insert(Note::new(tokenizer, level + 1)?);
+                }
                 "SOUR" => {
                     self.source_citations
                         .insert(Citation::new(tokenizer, level + 1)?);

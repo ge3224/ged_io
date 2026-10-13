@@ -63,7 +63,7 @@ pub struct Submission {
     /// Collection of note structures providing additional information
     /// Can contain multiple notes with various details about the submission
     /// Tag: `NOTE`
-    pub notes: Vec<Note>,
+    pub notes: Arena<Note>,
     /// When this submission record was last changed (optional) Helps track the history of
     /// modifications to your submission
     /// Tag: `CHAN`
@@ -107,6 +107,11 @@ impl Submission {
             f(s);
         }
 
+        if let Some(d) = &mut self.change_date {
+            d.pointers_mut(f);
+        }
+
+        self.notes.for_each_mut(|n| n.pointers_mut(f));
         self.user_defined_tags.for_each_mut(|u| u.pointers_mut(f));
     }
 
@@ -130,7 +135,9 @@ impl Parser for Submission {
                 "CHAN" => self.change_date = Some(ChangeDate::new(tokenizer, level + 1)?),
                 "DESC" => self.descendant_generations = Some(tokenizer.take_line_value()?),
                 "FAMF" => self.family_file_name = Some(tokenizer.take_line_value()?),
-                "NOTE" => self.notes.push(Note::new(tokenizer, level + 1)?),
+                "NOTE" => {
+                    self.notes.insert(Note::new(tokenizer, level + 1)?);
+                }
                 "ORDI" => self.ordinance_process_flag = Some(tokenizer.take_line_value()?),
                 "RIN" => self.automated_record_id = Some(tokenizer.take_line_value()?),
                 "SUBM" => self.submitter_ref = Some(tokenizer.take_pointer()?),

@@ -330,7 +330,7 @@ impl Parser for Date {
 
 #[cfg(test)]
 mod tests {
-    use crate::Gedcom;
+    use crate::{types::note::NoteContent, Gedcom};
 
     #[test]
     fn test_parse_date_with_phrase() {
@@ -440,7 +440,7 @@ mod tests {
         assert_eq!(date.time.as_ref().unwrap(), "12:34:56.789");
 
         let chan_note = &chan.notes.first().unwrap();
-        assert_eq!(chan_note.value.as_ref().unwrap(), "A note");
+        assert_eq!(chan_note.value, NoteContent::Text("A note".into()));
     }
 
     #[test]

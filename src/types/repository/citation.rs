@@ -175,6 +175,8 @@ impl Citation {
 
     pub(crate) fn pointers_mut(&mut self, f: &mut impl FnMut(&mut Pointer)) {
         f(&mut self.target);
+
+        self.notes.for_each_mut(|n| n.pointers_mut(f));
         self.user_defined_tags.for_each_mut(|u| u.pointers_mut(f));
     }
 

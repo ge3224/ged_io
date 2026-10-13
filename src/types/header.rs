@@ -222,6 +222,10 @@ impl Header {
             s.pointers_mut(f);
         }
 
+        if let Some(n) = &mut self.note {
+            n.pointers_mut(f);
+        }
+
         self.user_defined_tags.for_each_mut(|u| u.pointers_mut(f));
     }
 

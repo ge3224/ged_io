@@ -40,7 +40,7 @@ pub struct Source {
     pub author: Option<String>,
     pub publication_facts: Option<String>,
     pub citation_from_source: Option<String>,
-    pub change_date: Option<Box<ChangeDate>>,
+    pub change_date: Option<ChangeDate>,
     pub multimedia_links: Arena<Link>,
     pub notes: Arena<Note>,
     pub repo_citations: Arena<Citation>,
@@ -113,8 +113,14 @@ impl Source {
     }
 
     pub(crate) fn pointers_mut(&mut self, f: &mut impl FnMut(&mut Pointer)) {
-        self.repo_citations.for_each_mut(|c| c.pointers_mut(f));
+        if let Some(d) = &mut self.change_date {
+            d.pointers_mut(f);
+        }
+
+        self.data.pointers_mut(f);
         self.multimedia_links.for_each_mut(|l| l.pointers_mut(f));
+        self.notes.for_each_mut(|n| n.pointers_mut(f));
+        self.repo_citations.for_each_mut(|c| c.pointers_mut(f));
         self.user_defined_tags.for_each_mut(|u| u.pointers_mut(f));
     }
 
@@ -159,7 +165,7 @@ impl Parser for Source {
                 "EVEN" => self.data.parse_event(tokenizer, level + 1)?,
                 "AGNC" => self.data.agency = Some(tokenizer.take_line_value()?),
                 "ABBR" => self.abbreviation = Some(tokenizer.take_continued_text(level + 1)?),
-                "CHAN" => self.change_date = Some(Box::new(ChangeDate::new(tokenizer, level + 1)?)),
+                "CHAN" => self.change_date = Some(ChangeDate::new(tokenizer, level + 1)?),
                 "TITL" => self.title = Some(tokenizer.take_continued_text(level + 1)?),
                 "AUTH" => self.author = Some(tokenizer.take_continued_text(level + 1)?),
                 "PUBL" => self.publication_facts = Some(tokenizer.take_continued_text(level + 1)?),

@@ -3,8 +3,37 @@ use crate::{
     tokenizer::Tokenizer,
     types::{source::Source, translation::Translation},
     util::is_pointer_use,
+    xref::Pointer,
     GedcomError,
 };
+
+#[derive(Debug, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize))]
+pub enum NoteContent {
+    Record(Pointer),
+    Void,
+    Text(String),
+}
+
+impl NoteContent {
+    /// Returns the xref if this note points to a shared note record.
+    #[must_use]
+    pub fn as_xref(&self) -> Option<&str> {
+        match self {
+            NoteContent::Record(p) => Some(p.as_str()),
+            NoteContent::Text(_) | NoteContent::Void => None,
+        }
+    }
+
+    /// Returns the text, if this note carries its own.
+    #[must_use]
+    pub fn as_text(&self) -> Option<&str> {
+        match self {
+            NoteContent::Text(t) => Some(t),
+            NoteContent::Record(_) | NoteContent::Void => None,
+        }
+    }
+}
 
 #[cfg(feature = "json")]
 use serde::Serialize;
@@ -26,10 +55,10 @@ use serde::Serialize;
 /// Conforms to the GEDCOM `NOTE_STRUCTURE` specification.
 /// See: <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#NOTE>
 /// See: <https://gedcom.io/specifications/FamilySearchGEDCOMv7.html#NOTE_STRUCTURE>
-#[derive(Debug, Default, PartialEq)]
+#[derive(Debug, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Note {
-    pub value: Option<String>,
+    pub(crate) value: NoteContent,
     /// tag: MIME, indicates the media type of the payload of the superstructure, as defined by BCP
     /// 13. As of version 7.0, only 2 media types are supported by this structure: text/plain and
     /// text/html
@@ -54,30 +83,48 @@ impl Note {
     ///
     /// This function will return an error if parsing fails.
     pub fn new(tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<Note, GedcomError> {
-        let mut note = Note::default();
+        let raw = tokenizer.take_continued_text(level)?;
+        let content = if raw == "@VOID@" {
+            NoteContent::Void
+        } else if is_pointer_use(raw.as_str()) {
+            NoteContent::Record(tokenizer.claim_pointer(&raw))
+        } else {
+            NoteContent::Text(raw)
+        };
+
+        let mut note = Note {
+            value: content,
+            mime: None,
+            translation: None,
+            citation: None,
+            language: None,
+        };
+
         note.parse(tokenizer, level)?;
         Ok(note)
     }
 
-    /// The xref of the shared note record this note points to, as in
-    /// `NOTE @N1@` (GEDCOM 5.5.1) or `SNOTE @N1@` (GEDCOM 7.0), or `None`
-    /// for a note that carries its own text.
-    ///
-    /// Use [`crate::types::GedcomData::resolve_note`] to get the text either
-    /// way.
+    /// The note's payload: its own text, a pointer to a shared note record, or
+    /// `@VOID@`.
     #[must_use]
-    pub fn shared_note_xref(&self) -> Option<&str> {
-        self.value
-            .as_deref()
-            .map(str::trim)
-            .filter(|value| is_pointer_use(value))
+    pub fn value(&self) -> &NoteContent {
+        &self.value
+    }
+
+    pub(crate) fn pointers_mut(&mut self, f: &mut impl FnMut(&mut Pointer)) {
+        if let NoteContent::Record(p) = &mut self.value {
+            f(p);
+        }
+
+        if let Some(c) = &mut self.citation {
+            c.pointers_mut(f);
+        }
     }
 }
 
 impl Parser for Note {
     /// parse handles the NOTE tag
     fn parse(&mut self, tokenizer: &mut Tokenizer<'_>, level: u8) -> Result<(), GedcomError> {
-        self.value = Some(tokenizer.take_continued_text(level)?);
         let handle_subset = |tag: &str, tokenizer: &mut Tokenizer<'_>| -> Result<(), GedcomError> {
             match tag {
                 "MIME" => self.mime = Some(tokenizer.take_line_value()?),
@@ -99,7 +146,7 @@ impl Parser for Note {
 
 #[cfg(test)]
 mod tests {
-    use crate::Gedcom;
+    use crate::{types::note::NoteContent, Gedcom};
 
     #[test]
     fn test_parse_note_struct() {
@@ -131,6 +178,9 @@ mod tests {
         let data = doc.parse_data().unwrap();
 
         let note = data.header.unwrap().note.unwrap();
-        assert_eq!(note.value.unwrap().chars().count(), 1441);
+        let NoteContent::Text(text) = note.value else {
+            panic!("expected a text note");
+        };
+        assert_eq!(text.chars().count(), 1441);
     }
 }

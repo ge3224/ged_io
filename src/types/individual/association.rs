@@ -93,6 +93,7 @@ impl Association {
             f(p);
         }
 
+        self.notes.for_each_mut(|n| n.pointers_mut(f));
         self.sources.for_each_mut(|s| s.pointers_mut(f));
         self.user_defined_tags.for_each_mut(|u| u.pointers_mut(f));
     }

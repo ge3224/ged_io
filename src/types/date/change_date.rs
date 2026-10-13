@@ -6,6 +6,7 @@ use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{date::Date, note::Note},
+    xref::Pointer,
     GedcomError,
 };
 
@@ -42,6 +43,10 @@ impl ChangeDate {
         let mut date = ChangeDate::default();
         date.parse(tokenizer, level)?;
         Ok(date)
+    }
+
+    pub(crate) fn pointers_mut(&mut self, f: &mut impl FnMut(&mut Pointer)) {
+        self.notes.for_each_mut(|n| n.pointers_mut(f));
     }
 }
 

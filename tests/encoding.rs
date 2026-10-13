@@ -7,6 +7,7 @@
 //! - ISO-8859-15 (Latin-9)
 
 use ged_io::encoding::{decode_gedcom_bytes, encode_to_bytes, GedcomEncoding};
+use ged_io::types::note::NoteContent;
 use ged_io::GedcomBuilder;
 
 /// Helper to create a minimal GEDCOM string with a name containing special characters.
@@ -217,7 +218,7 @@ fn test_parse_iso8859_15_euro_sign() {
 
     assert_eq!(data.count_individual(), 1);
     let note = data.find_individual("@I1@").unwrap().notes.first().unwrap();
-    assert!(note.value.as_ref().unwrap().contains("100€"));
+    assert!(matches!(note.value(), NoteContent::Text(t) if t.contains("100€")));
 }
 
 #[test]
@@ -255,7 +256,7 @@ fn test_parse_iso8859_15_with_latin9_tag() {
 
     assert_eq!(data.count_individual(), 1);
     let note = data.find_individual("@I1@").unwrap().notes.first().unwrap();
-    assert!(note.value.as_ref().unwrap().contains("50€"));
+    assert!(matches!(note.value(), NoteContent::Text(t) if t.contains("50€")));
 }
 
 // ============================================================================

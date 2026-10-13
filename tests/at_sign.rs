@@ -29,8 +29,8 @@ fn test_leading_at_sign_round_trip() {
             .notes
             .first()
             .unwrap()
-            .value
-            .as_deref(),
+            .value()
+            .as_text(),
         Some("@home in the village\n@noon every day")
     );
 

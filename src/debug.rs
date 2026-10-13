@@ -16,7 +16,7 @@ use crate::types::{
     header::Header,
     individual::{name::Name, Individual},
     multimedia::Multimedia,
-    note::Note,
+    note::{Note, NoteContent},
     repository::Repository,
     source::Source,
     submission::Submission,
@@ -344,13 +344,21 @@ impl fmt::Debug for NoteDebug<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let mut debug = f.debug_struct("Note");
 
-        if let Some(ref value) = self.0.value {
-            // Truncate long notes in debug output
-            const MAX_LEN: usize = 50;
-            if value.len() > MAX_LEN {
-                debug.field("value", &format!("{}...", &value[..MAX_LEN]));
-            } else {
-                debug.field("value", value);
+        match &self.0.value {
+            NoteContent::Text(value) => {
+                // Truncate long notes in debug output
+                const MAX_LEN: usize = 50;
+                if value.len() > MAX_LEN {
+                    debug.field("value", &format!("{}...", &value[..MAX_LEN]));
+                } else {
+                    debug.field("value", value);
+                }
+            }
+            NoteContent::Record(p) => {
+                debug.field("value", &p.as_str());
+            }
+            NoteContent::Void => {
+                debug.field("value", &"@VOID@");
             }
         }
 
@@ -561,7 +569,7 @@ mod tests {
     fn test_note_truncation_in_debug() {
         let long_content = "A".repeat(100);
         let note = Note {
-            value: Some(long_content),
+            value: NoteContent::Text(long_content),
             mime: None,
             translation: None,
             citation: None,
@@ -582,7 +590,7 @@ mod tests {
             surname: Some("Doe".to_string()),
             prefix: None,
             surname_prefix: None,
-            notes: Vec::new(),
+            notes: Arena::default(),
             suffix: Some("Jr.".to_string()),
             nickname: None,
             sources: Arena::default(),
