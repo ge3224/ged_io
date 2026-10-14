@@ -4,12 +4,12 @@ pub mod place;
 pub mod schema;
 pub mod source;
 
-use super::UserDefinedTag;
 use crate::{
     arena::Arena,
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{
+        custom::UserDefinedTag,
         date::Date,
         header::{
             encoding::Encoding, meta::HeadMeta, place::HeadPlac, schema::Schema, source::HeadSour,

@@ -51,19 +51,24 @@ fn test_round_trip_extension_tags() {
 0 TRLR"#;
 
     let data1 = GedcomBuilder::new().build_from_str(original).unwrap();
-    let tags: Vec<_> = data1
-        .iter_user_defined_tags()
-        .map(|t| (t.level, t.tag.as_str()))
+
+    let records: Vec<_> = data1
+        .iter_user_defined_records()
+        .map(|r| {
+            let lines: Vec<_> = r
+                .user_defined_tags
+                .iter()
+                .map(|t| (t.level, t.tag.as_str()))
+                .collect();
+            (r.tag.as_str(), lines)
+        })
         .collect();
 
     assert_eq!(
-        tags,
+        records,
         [
-            (0, "_LOC"),
-            (1, "NAME"),
-            (2, "DATE"),
-            (0, "_PUBLISH"),
-            (1, "_TREE")
+            ("_LOC", vec![(1, "NAME"), (2, "DATE")]),
+            ("_PUBLISH", vec![(1, "_TREE")]),
         ]
     );
 
@@ -110,8 +115,8 @@ fn test_round_trip_extension_tags() {
         data2.iter_multimedia().collect::<Vec<_>>()
     );
     assert_eq!(
-        data1.iter_user_defined_tags().collect::<Vec<_>>(),
-        data2.iter_user_defined_tags().collect::<Vec<_>>()
+        data1.iter_user_defined_records().collect::<Vec<_>>(),
+        data2.iter_user_defined_records().collect::<Vec<_>>()
     );
     assert_eq!(
         data1.header.as_ref().unwrap().user_defined_tags,
@@ -132,6 +137,6 @@ fn test_stream_parser_extension_record_with_xref() {
     let parser = GedcomStreamParser::new(reader).unwrap();
     let data = GedcomData::try_from_records(parser).unwrap();
 
-    let record = &data.iter_user_defined_tags().next().unwrap();
+    let record = &data.iter_user_defined_records().next().unwrap();
     assert_eq!(record.tag, "_LOC");
 }

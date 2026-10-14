@@ -19,15 +19,12 @@
 //! # }
 //! ```
 
-use crate::types::custom::UserDefinedValue;
-use crate::types::note::NoteContent;
-use crate::util::{escape_at_signs, is_pointer_use};
 use crate::{
     arena::Arena,
     types::{
         address::Address,
         age::Age,
-        custom::UserDefinedTag,
+        custom::{UserDefinedRecord, UserDefinedTag, UserDefinedValue},
         date::Date,
         event::{detail::Detail as EventDetail, spouse::Spouse, Event},
         external_id::ExternalId,
@@ -50,7 +47,7 @@ use crate::{
             link::{Link, LinkTarget},
             Multimedia,
         },
-        note::Note,
+        note::{Note, NoteContent},
         repository::Repository,
         restriction::Restriction,
         shared_note::SharedNote,
@@ -64,6 +61,7 @@ use crate::{
         submitter::Submitter,
         GedcomData,
     },
+    util::{escape_at_signs, is_pointer_use},
 };
 use std::fmt::Write;
 use std::io;
@@ -239,9 +237,13 @@ impl GedcomWriter {
             self.write_shared_note(writer, shared_note)?;
         }
 
-        for udt in data.iter_user_defined_tags() {
-            self.write_user_defined_tag(writer, udt)?;
+        for u in data.iter_user_defined_records() {
+            self.write_user_defined_record(writer, u)?;
         }
+
+        // for udt in data.iter_user_defined_records() {
+        // self.write_user_defined_tag(writer, udt)?;
+        // }
 
         // final line; do not add a line terminator after TRLR
         self.write_trailer(writer)?;
@@ -1794,22 +1796,38 @@ impl GedcomWriter {
         Ok(())
     }
 
+    fn write_user_defined_record<W: Write>(
+        &self,
+        writer: &mut W,
+        user_defined_record: &UserDefinedRecord,
+    ) -> Result<(), io::Error> {
+        let value = user_defined_record.value().map(UserDefinedValue::as_str);
+
+        match user_defined_record.xref() {
+            Some(x) => {
+                self.write_line_with_xref(writer, 0, Some(x), &user_defined_record.tag, value)?;
+            }
+            _ => match value {
+                Some(v) => {
+                    self.write_value_or_wrap(writer, 0, &user_defined_record.tag, Some(v))?;
+                }
+                None => self.write_value_or_wrap(writer, 0, &user_defined_record.tag, None)?,
+            },
+        }
+
+        for udt in &user_defined_record.user_defined_tags {
+            self.write_user_defined_tag(writer, udt)?;
+        }
+
+        Ok(())
+    }
+
     /// Writes a user-defined tag record.
     fn write_user_defined_tag<W: Write>(
         &self,
         writer: &mut W,
         custom_tag: &UserDefinedTag,
     ) -> Result<(), io::Error> {
-        if let Some(ref xref) = custom_tag.xref {
-            return self.write_line_with_xref(
-                writer,
-                custom_tag.level,
-                Some(xref),
-                &custom_tag.tag,
-                custom_tag.value().map(UserDefinedValue::as_str),
-            );
-        }
-
         match custom_tag.value().map(UserDefinedValue::as_str) {
             Some(value) => {
                 self.write_value_or_wrap(writer, custom_tag.level, &custom_tag.tag, Some(value))

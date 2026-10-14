@@ -80,10 +80,10 @@ impl fmt::Debug for GedcomDataDebug<'_> {
             );
         }
 
-        if !self.0.user_defined_tags.is_empty() {
+        if !self.0.user_defined_records.is_empty() {
             debug.field(
                 "user_defined_tags",
-                &format!("[{} records]", self.0.user_defined_tags.len()),
+                &format!("[{} records]", self.0.user_defined_records.len()),
             );
         }
 

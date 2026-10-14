@@ -6,7 +6,7 @@ use crate::{
     arena::Arena,
     parser::{parse_subset, Parser},
     tokenizer::{Token, Tokenizer},
-    types::UserDefinedTag,
+    types::custom::UserDefinedTag,
     xref::Pointer,
     GedcomError,
 };

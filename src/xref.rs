@@ -9,7 +9,7 @@ use serde::Serialize;
 use crate::{
     arena::Handle,
     types::{
-        custom::UserDefinedTag, family::Family, individual::Individual, multimedia::Multimedia,
+        custom::UserDefinedRecord, family::Family, individual::Individual, multimedia::Multimedia,
         repository::Repository, shared_note::SharedNote, source::Source, submission::Submission,
         submitter::Submitter,
     },
@@ -143,7 +143,7 @@ pub(crate) enum AnyHandle {
     Source(Handle<Source>),
     Multimedia(Handle<Multimedia>),
     SharedNote(Handle<SharedNote>),
-    UserDefinedTag(Handle<UserDefinedTag>),
+    UserDefinedRecord(Handle<UserDefinedRecord>),
 }
 
 impl AnyHandle {
@@ -157,7 +157,7 @@ impl AnyHandle {
             AnyHandle::Source(_) => Source::RECORD_TYPE,
             AnyHandle::Multimedia(_) => Multimedia::RECORD_TYPE,
             AnyHandle::SharedNote(_) => SharedNote::RECORD_TYPE,
-            AnyHandle::UserDefinedTag(_) => UserDefinedTag::RECORD_TYPE,
+            AnyHandle::UserDefinedRecord(_) => UserDefinedRecord::RECORD_TYPE,
         }
     }
 }

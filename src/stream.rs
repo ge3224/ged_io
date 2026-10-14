@@ -44,7 +44,7 @@ use serde::Serialize;
 use crate::{
     tokenizer::Tokenizer,
     types::{
-        custom::UserDefinedTag, family::Family, header::Header, individual::Individual,
+        custom::UserDefinedRecord, family::Family, header::Header, individual::Individual,
         multimedia::Multimedia, repository::Repository, shared_note::SharedNote, source::Source,
         submission::Submission, submitter::Submitter,
     },
@@ -96,8 +96,8 @@ pub enum GedcomRecord {
     Multimedia(Multimedia),
     /// A shared note record (GEDCOM 7.0 only).
     SharedNote(SharedNote),
-    /// A custom/user-defined record.
-    UserDefinedTags(Vec<UserDefinedTag>),
+    /// A record whose tag the parser does recognize.
+    UserDefinedRecord(UserDefinedRecord),
 }
 
 impl GedcomRecord {
@@ -548,11 +548,8 @@ impl<R: BufRead> GedcomStreamParser<R> {
             Ok(record)
         } else if let Token::CustomTag(tag) = &tokenizer.current_token {
             let tag_clone = tag.clone();
-            let mut udts = UserDefinedTag::drain_subtree(&mut tokenizer, 0, &tag_clone)?;
-            if let Some(first) = udts.first_mut() {
-                first.xref = pointer;
-            }
-            Ok(GedcomRecord::UserDefinedTags(udts))
+            let record = UserDefinedRecord::drain(&mut tokenizer, pointer, &tag_clone)?;
+            Ok(GedcomRecord::UserDefinedRecord(record))
         } else if tokenizer.current_token == Token::EOF {
             Err(GedcomError::ParseError {
                 line: self.line_number,
@@ -793,12 +790,9 @@ mod tests {
         let records: Vec<_> = parser.collect::<Result<Vec<_>, _>>().unwrap();
 
         assert_eq!(records.len(), 2); // Header + Custom
-        if let GedcomRecord::UserDefinedTags(c) = &records[1] {
-            assert_eq!(c[0].tag, "_CUSTOM");
-            assert_eq!(
-                c[0].value(),
-                Some(&UserDefinedValue::Text("MyValue".into()))
-            );
+        if let GedcomRecord::UserDefinedRecord(c) = &records[1] {
+            assert_eq!(c.tag, "_CUSTOM");
+            assert_eq!(c.value(), Some(&UserDefinedValue::Text("MyValue".into())));
         } else {
             panic!("Expected CustomData");
         }

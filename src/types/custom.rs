@@ -1,9 +1,11 @@
 use crate::{
+    arena::Arena,
     tokenizer::{Token, Tokenizer, TokenizerTrait},
     util::is_pointer_use,
     xref::{Pointer, Xref},
     GedcomError,
 };
+
 #[cfg(feature = "json")]
 use serde::Serialize;
 
@@ -40,18 +42,15 @@ impl UserDefinedValue {
 /// A structure whose tag the parser does not recognise (a non-standard tag without the
 /// underscore, such as `MILI`) is kept the same way, with its substructures, so that they are
 /// not mistaken for substructures of the enclosing structure.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 #[cfg_attr(feature = "json", derive(Serialize))]
 pub struct UserDefinedTag {
-    pub xref: Option<Xref>,
     pub tag: String,
     pub level: u8,
     pub(crate) value: Option<UserDefinedValue>,
 }
 
 impl UserDefinedTag {
-    pub(crate) const RECORD_TYPE: &'static str = "UserDefinedTag";
-
     /// Creates a bare `UserDefinedTag` with the given tag name and a fresh
     /// runtime id. No value, no children — the caller is expected to populate
     /// those via direct field access or helper methods.
@@ -60,7 +59,6 @@ impl UserDefinedTag {
     /// stream, use [`UserDefinedTag::drain_subtree`].
     pub fn new(tag: impl Into<String>, level: u8) -> Self {
         Self {
-            xref: None,
             tag: tag.into(),
             level,
             value: None,
@@ -164,14 +162,93 @@ impl UserDefinedTag {
     }
 }
 
-impl Clone for UserDefinedTag {
-    fn clone(&self) -> Self {
+/// A record whose tag the parser does not recognize (e.g. `0 @L1@ _LOC`), kept
+/// with its substructures so it can be written back out. Removing the record
+/// removes its substructures with it.
+#[derive(Debug, PartialEq)]
+#[cfg_attr(feature = "json", derive(Serialize))]
+pub struct UserDefinedRecord {
+    pub(crate) xref: Option<Xref>,
+    /// The record's tag (e.g. `_LOC`).
+    pub tag: String,
+    pub(crate) value: Option<UserDefinedValue>,
+    /// The lines under the record, in file order. Levels start at 1, since the
+    /// record itself is level 0.
+    pub user_defined_tags: Arena<UserDefinedTag>,
+}
+
+impl UserDefinedRecord {
+    pub(crate) const RECORD_TYPE: &'static str = "UserDefinedRecord";
+
+    /// Creates a record with the given xref, tag and line value, and no lines
+    /// under it (add those through `user_defined_tags`). Pass `None` for an
+    /// xref only if nothing will point to the record.
+    #[must_use]
+    pub fn new(
+        xref: Option<Xref>,
+        tag: impl Into<String>,
+        value: Option<UserDefinedValue>,
+    ) -> Self {
         Self {
-            xref: self.xref.clone(),
-            tag: self.tag.clone(),
-            level: self.level,
-            value: self.value.clone(),
+            xref,
+            tag: tag.into(),
+            value,
+            user_defined_tags: Arena::default(),
         }
+    }
+    /// Returns the record's xref (e.g. `"@L1@"`), or `None` if the record has
+    /// none.
+    #[must_use]
+    pub fn xref(&self) -> Option<&str> {
+        self.xref.as_deref()
+    }
+
+    /// Returns the record's line value if it has one.
+    #[must_use]
+    pub fn value(&self) -> Option<&UserDefinedValue> {
+        self.value.as_ref()
+    }
+
+    pub(crate) fn drain(
+        tokenizer: &mut Tokenizer<'_>,
+        xref: Option<Xref>,
+        tag: &str,
+    ) -> Result<Self, GedcomError> {
+        let mut lines = UserDefinedTag::drain_subtree(tokenizer, 0, tag)?.into_iter();
+
+        let Some(first) = lines.next() else {
+            unreachable!("drain_subtree always yields the entry line")
+        };
+
+        let mut record = Self::new(xref, first.tag, first.value);
+
+        for line in lines {
+            record.user_defined_tags.insert(line);
+        }
+
+        Ok(record)
+    }
+
+    pub(crate) fn pointers_mut(&mut self, f: &mut impl FnMut(&mut Pointer)) {
+        if let Some(UserDefinedValue::Record(p)) = &mut self.value {
+            f(p);
+        }
+
+        self.user_defined_tags.for_each_mut(|u| u.pointers_mut(f));
+    }
+
+    pub(crate) fn clear_user_defined_refs_to(&mut self, xref: &str) -> usize {
+        let mut cleared = 0;
+
+        if matches!(&self.value, Some(UserDefinedValue::Record(x)) if x == xref) {
+            self.value = None;
+            cleared += 1;
+        }
+
+        self.user_defined_tags
+            .for_each_mut(|u| cleared += u.clear_user_defined_refs_to(xref));
+
+        cleared
     }
 }
 

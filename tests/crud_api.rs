@@ -1,4 +1,6 @@
-use ged_io::{types::GedcomData, Gedcom, GedcomBuilder, GedcomError, GedcomStreamParser};
+use ged_io::{
+    types::GedcomData, Gedcom, GedcomBuilder, GedcomError, GedcomStreamParser, GedcomWriter,
+};
 
 fn wrap(body: &str) -> String {
     format!("0 HEAD\n1 GEDC\n2 VERS 5.5.1\n1 CHAR UTF-8\n{body}0 TRLR")
@@ -249,6 +251,7 @@ fn clear_user_defined_refs_to_released() {
             "extension record",
             "0 @L1@ _LOC\n1 _PTR @S1@\n0 @S1@ SOUR\n",
         ),
+        ("extension record line", "0 @L1@ _LOC @S1@\n0 @S1@ SOUR\n"),
     ];
 
     let mut failures = Vec::new();
@@ -394,24 +397,24 @@ fn extension_record_xref_is_registered() {
     let mut data = Gedcom::new(sample.chars()).unwrap().parse_data().unwrap();
 
     let l1 = data
-        .find_user_defined_tag_handle("@L1@")
+        .find_user_defined_record_handle("@L1@")
         .expect("@L1@ is an extension record");
     assert_eq!(data.reference_count("@L1@"), 1);
-    let err = data.remove_user_defined_tag(l1).unwrap_err();
+    let err = data.remove_user_defined_record(l1).unwrap_err();
     assert!(
         matches!(err, GedcomError::StillReferenced { xref, references: 1, .. } if xref == "@L1@")
     );
 
     let l2 = data
-        .find_user_defined_tag_handle("@L2@")
+        .find_user_defined_record_handle("@L2@")
         .expect("@L2@ is an extension record");
     assert_eq!(
-        data.remove_user_defined_tag(l2).unwrap().unwrap().tag,
+        data.remove_user_defined_record(l2).unwrap().unwrap().tag,
         "_LOC"
     );
-    assert!(data.find_user_defined_tag_handle("@L2@").is_none());
+    assert!(data.find_user_defined_record_handle("@L2@").is_none());
 
-    assert!(data.find_user_defined_tag_handle("@I1@").is_none());
+    assert!(data.find_user_defined_record_handle("@I1@").is_none());
 
     let duplicate = "0 HEAD\n1 GEDC\n2 VERS 5.5.1\n0 @I1@ INDI\n0 @I1@ _LOC Sampletown\n0 TRLR";
     let err = Gedcom::new(duplicate.chars())
@@ -764,6 +767,18 @@ fn pointer_field_count() {
             "@N2@",
             "@N1@",
         ),
+        (
+            "_LOC child line",
+            "0 @L1@ _LOC\n1 _PTR @S1@\n0 @S1@ SOUR\n",
+            "@L1@",
+            "@S1@",
+        ),
+        (
+            "_LOC record line",
+            "0 @L1@ _LOC @S1@\n0 @S1@ SOUR\n",
+            "@L1@",
+            "@S1@",
+        ),
     ];
 
     for &(name, body, holder, target) in cases {
@@ -793,6 +808,8 @@ fn pointer_field_count() {
             Box::new(data.remove_submission(h).unwrap().unwrap())
         } else if let Some(h) = data.find_repository_handle(holder) {
             Box::new(data.remove_repository(h).unwrap().unwrap())
+        } else if let Some(h) = data.find_user_defined_record_handle(holder) {
+            Box::new(data.remove_user_defined_record(h).unwrap().unwrap())
         } else {
             panic!("{name}: no holder {holder}");
         };
@@ -800,6 +817,20 @@ fn pointer_field_count() {
         assert_eq!(data.reference_count(target), 0, "{name}: remove holder");
         drop(held);
     }
+}
+
+#[test]
+fn remove_extension_record_removes_its_lines() {
+    let mut data = GedcomBuilder::new()
+        .build_from_str(&wrap("0 @L1@ _LOC\n1 _CITY X\n0 @L2@ _LOC\n1 _CITY Y\n"))
+        .unwrap();
+
+    let l1 = data.find_user_defined_record_handle("@L1@").unwrap();
+    data.remove_user_defined_record(l1).unwrap();
+
+    let written = GedcomWriter::new().write_to_string(&data).unwrap();
+    assert!(!written.contains("_CITY X"), "{written}");
+    assert!(written.contains("0 @L2@ _LOC\n1 _CITY Y\n"), "{written}");
 }
 
 const ONE_WAY_CHILD: &str = "\

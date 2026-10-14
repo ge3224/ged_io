@@ -33,7 +33,7 @@ use crate::{
     arena::{Arena, Handle},
     tokenizer::{Token, Tokenizer},
     types::{
-        custom::UserDefinedTag,
+        custom::UserDefinedRecord,
         family::Family,
         header::Header,
         individual::{
@@ -115,7 +115,7 @@ pub struct GedcomData {
     /// so that they will not conflict with future GEDCOM standard tags. Systems that read
     /// user-defined tags must consider that they have meaning only with respect to a system
     /// contained in the HEAD.SOUR context.
-    pub(crate) user_defined_tags: Arena<UserDefinedTag>,
+    pub(crate) user_defined_records: Arena<UserDefinedRecord>,
 }
 
 impl GedcomData {
@@ -226,13 +226,8 @@ impl GedcomData {
                 }
             } else if let Token::CustomTag(tag) = &tokenizer.current_token {
                 let tag_clone = tag.clone();
-                let mut udts = UserDefinedTag::drain_subtree(tokenizer, level, &tag_clone)?;
-                if let Some(first) = udts.first_mut() {
-                    first.xref = pointer;
-                }
-                for udt in udts {
-                    self.add_user_defined_tags(udt)?;
-                }
+                let record = UserDefinedRecord::drain(tokenizer, pointer, &tag_clone)?;
+                self.add_user_defined_record(record)?;
             } else if tokenizer.current_token == Token::EOF {
                 // Accept files without a TRLR.
                 break;
@@ -2392,79 +2387,86 @@ impl GedcomData {
         Ok(Some(rec))
     }
 
-    /// Adds a [`UserDefinedTag`] to the genealogy data and returns its handle.
+    /// Adds a [`UserDefinedRecord`] to the genealogy data and returns its handle.
     ///
     /// # Errors
     ///
     /// Returns an error if the tag carries an xref that is already in use (for
     /// example, a `0 @I1@ _LOC` record in a file that also has `0 @I1@ INDI`).
-    pub fn add_user_defined_tags(
+    pub fn add_user_defined_record(
         &mut self,
-        mut user_defined_tag: UserDefinedTag,
-    ) -> Result<Handle<UserDefinedTag>, GedcomError> {
+        mut user_defined_tag: UserDefinedRecord,
+    ) -> Result<Handle<UserDefinedRecord>, GedcomError> {
         let xref = user_defined_tag.xref.clone();
 
         if let Some(ref xref) = xref {
             if self.xrefs.handle(xref).is_some() {
                 return Err(GedcomError::DuplicateXref {
                     xref: xref.clone(),
-                    record_type: UserDefinedTag::RECORD_TYPE.to_string(),
+                    record_type: UserDefinedRecord::RECORD_TYPE.to_string(),
                 });
             }
         }
 
         user_defined_tag.pointers_mut(&mut |p| self.xrefs.adopt(p));
 
-        let handle = self.user_defined_tags.insert(user_defined_tag);
+        let handle = self.user_defined_records.insert(user_defined_tag);
 
         if let Some(xref) = xref {
             self.xrefs
-                .register(xref, AnyHandle::UserDefinedTag(handle))?;
+                .register(xref, AnyHandle::UserDefinedRecord(handle))?;
         }
 
         Ok(handle)
     }
 
     /// An iterator visiting all user-defined tags in insertion order.
-    pub fn iter_user_defined_tags(&self) -> impl Iterator<Item = &UserDefinedTag> {
-        self.user_defined_tags.iter()
+    pub fn iter_user_defined_records(&self) -> impl Iterator<Item = &UserDefinedRecord> {
+        self.user_defined_records.iter()
     }
 
     #[must_use]
-    pub fn get_user_defined_tag(&self, handle: Handle<UserDefinedTag>) -> Option<&UserDefinedTag> {
-        self.user_defined_tags.get(handle)
+    pub fn get_user_defined_record(
+        &self,
+        handle: Handle<UserDefinedRecord>,
+    ) -> Option<&UserDefinedRecord> {
+        self.user_defined_records.get(handle)
     }
 
     #[must_use]
-    pub fn get_user_defined_tag_mut(
+    pub fn get_user_defined_record_mut(
         &mut self,
-        handle: Handle<UserDefinedTag>,
-    ) -> Option<&mut UserDefinedTag> {
-        self.user_defined_tags.get_mut(handle)
+        handle: Handle<UserDefinedRecord>,
+    ) -> Option<&mut UserDefinedRecord> {
+        self.user_defined_records.get_mut(handle)
     }
 
     /// Returns the handle of the extension record defined under `xref`, or
     /// `None` if no extension record has that xref (for example, `@I1@` names
     /// an individual).
     #[must_use]
-    pub fn find_user_defined_tag_handle(&self, xref: &str) -> Option<Handle<UserDefinedTag>> {
+    pub fn find_user_defined_record_handle(&self, xref: &str) -> Option<Handle<UserDefinedRecord>> {
         match self.xrefs.handle(xref)? {
-            AnyHandle::UserDefinedTag(h) => Some(h),
+            AnyHandle::UserDefinedRecord(h) => Some(h),
             _ => None,
         }
     }
 
-    /// Removes a [`UserDefinedTag`], returning it, or `None` if the handle is stale.
+    /// Removes a [`UserDefinedRecord`], returning it, or `None` if the handle is stale.
     ///
     /// # Errors
     ///
     /// Returns an error if the tag carries an xref that something still points to
     /// (for example, removing `0 @L1@ _LOC` while a `_LOC @L1@` refers to it).
-    pub fn remove_user_defined_tag(
+    pub fn remove_user_defined_record(
         &mut self,
-        handle: Handle<UserDefinedTag>,
-    ) -> Result<Option<UserDefinedTag>, GedcomError> {
-        let Some(xref) = self.user_defined_tags.get(handle).map(|t| t.xref.clone()) else {
+        handle: Handle<UserDefinedRecord>,
+    ) -> Result<Option<UserDefinedRecord>, GedcomError> {
+        let Some(xref) = self
+            .user_defined_records
+            .get(handle)
+            .map(|t| t.xref.clone())
+        else {
             return Ok(None);
         };
 
@@ -2473,7 +2475,7 @@ impl GedcomData {
             if use_count > 0 {
                 return Err(GedcomError::StillReferenced {
                     xref: xref.clone(),
-                    record_type: UserDefinedTag::RECORD_TYPE.to_string(),
+                    record_type: UserDefinedRecord::RECORD_TYPE.to_string(),
                     references: use_count,
                 });
             }
@@ -2481,7 +2483,7 @@ impl GedcomData {
             self.xrefs.remove(xref);
         }
 
-        let Some(mut rec) = self.user_defined_tags.remove(handle) else {
+        let Some(mut rec) = self.user_defined_records.remove(handle) else {
             unreachable!("handle was validated by get above")
         };
 
@@ -2507,7 +2509,7 @@ impl GedcomData {
         println!("  shared notes: {}", self.shared_notes.len());
         println!(
             "  user-defined extensions: {}",
-            self.user_defined_tags.len()
+            self.user_defined_records.len()
         );
         println!("----------------------");
         println!("| Citation Breakdown: |");
@@ -2986,7 +2988,7 @@ impl GedcomData {
             .for_each_mut(|s| cleared += s.clear_user_defined_refs_to(&xref));
         self.shared_notes
             .for_each_mut(|s| cleared += s.clear_user_defined_refs_to(&xref));
-        self.user_defined_tags
+        self.user_defined_records
             .for_each_mut(|u| cleared += u.clear_user_defined_refs_to(&xref));
 
         cleared
@@ -3032,10 +3034,8 @@ impl GedcomData {
                 GedcomRecord::Multimedia(m) => {
                     data.add_multimedia(m)?;
                 }
-                GedcomRecord::UserDefinedTags(udt) => {
-                    for u in udt {
-                        data.add_user_defined_tags(u)?;
-                    }
+                GedcomRecord::UserDefinedRecord(udt) => {
+                    data.add_user_defined_record(udt)?;
                 }
             }
         }
@@ -3056,8 +3056,8 @@ impl PartialEq for GedcomData {
             && self.iter_multimedia().eq(other.iter_multimedia())
             && self.iter_shared_notes().eq(other.iter_shared_notes())
             && self
-                .iter_user_defined_tags()
-                .eq(other.iter_user_defined_tags())
+                .iter_user_defined_records()
+                .eq(other.iter_user_defined_records())
     }
 }
 
@@ -3232,38 +3232,38 @@ mod tests {
     #[test]
     fn test_add_user_defined_tag_returns_handle() {
         let mut data = GedcomData::default();
-        let tag = UserDefinedTag::new("_FOO", 0);
-        let handle = data.add_user_defined_tags(tag).unwrap();
-        let found = data.get_user_defined_tag(handle).unwrap();
+        let tag = UserDefinedRecord::new(None, "_FOO", None);
+        let handle = data.add_user_defined_record(tag).unwrap();
+        let found = data.get_user_defined_record(handle).unwrap();
         assert_eq!(found.tag, "_FOO");
-        assert_eq!(data.user_defined_tags.len(), 1);
+        assert_eq!(data.user_defined_records.len(), 1);
     }
 
     #[test]
     fn test_get_user_defined_tag() {
         let mut data = GedcomData::default();
         let handle = data
-            .add_user_defined_tags(UserDefinedTag::new("_FOO", 0))
+            .add_user_defined_record(UserDefinedRecord::new(None, "_FOO", None))
             .unwrap();
         let found = data
-            .get_user_defined_tag(handle)
+            .get_user_defined_record(handle)
             .expect("tag should be present");
         assert_eq!(found.tag, "_FOO");
-        assert!(data.get_user_defined_tag(handle).is_some());
+        assert!(data.get_user_defined_record(handle).is_some());
     }
 
     #[test]
     fn test_get_user_defined_tag_mut_persists_mutation() {
         let mut data = GedcomData::default();
         let handle = data
-            .add_user_defined_tags(UserDefinedTag::new("_FOO", 0))
+            .add_user_defined_record(UserDefinedRecord::new(None, "_FOO", None))
             .unwrap();
 
-        data.get_user_defined_tag_mut(handle).unwrap().value =
+        data.get_user_defined_record_mut(handle).unwrap().value =
             Some(UserDefinedValue::Text("mutated".to_string()));
 
         assert_eq!(
-            data.get_user_defined_tag(handle)
+            data.get_user_defined_record(handle)
                 .unwrap()
                 .value()
                 .map(UserDefinedValue::as_str),
@@ -3275,43 +3275,43 @@ mod tests {
     fn test_remove_user_define_tag() {
         let mut data = GedcomData::default();
         let handle_a = data
-            .add_user_defined_tags(UserDefinedTag::new("_A", 0))
+            .add_user_defined_record(UserDefinedRecord::new(None, "_A", None))
             .unwrap();
         let handle_b = data
-            .add_user_defined_tags(UserDefinedTag::new("_B", 0))
+            .add_user_defined_record(UserDefinedRecord::new(None, "_B", None))
             .unwrap();
 
         let removed = data
-            .remove_user_defined_tag(handle_a)
+            .remove_user_defined_record(handle_a)
             .unwrap()
             .expect("should remove _A");
         assert_eq!(removed.tag, "_A");
-        assert!(data.get_user_defined_tag(handle_a).is_none());
-        assert!(data.get_user_defined_tag(handle_b).is_some());
-        assert_eq!(data.user_defined_tags.len(), 1);
+        assert!(data.get_user_defined_record(handle_a).is_none());
+        assert!(data.get_user_defined_record(handle_b).is_some());
+        assert_eq!(data.user_defined_records.len(), 1);
 
-        assert!(data.remove_user_defined_tag(handle_a).unwrap().is_none());
+        assert!(data.remove_user_defined_record(handle_a).unwrap().is_none());
     }
 
     #[test]
     fn test_user_defined_tag_round_trip() {
         let mut data = GedcomData::default();
 
-        let mut tag = UserDefinedTag::new("_MILT", 0);
+        let mut tag = UserDefinedRecord::new(None, "_MILT", None);
         tag.value = Some(UserDefinedValue::Text("initial".to_string()));
-        let handle = data.add_user_defined_tags(tag).unwrap();
+        let handle = data.add_user_defined_record(tag).unwrap();
 
         let found = data
-            .get_user_defined_tag(handle)
+            .get_user_defined_record(handle)
             .expect("should find after add");
         assert_eq!(found.tag, "_MILT");
         assert_eq!(found.value().map(UserDefinedValue::as_str), Some("initial"));
 
-        data.get_user_defined_tag_mut(handle).unwrap().value =
+        data.get_user_defined_record_mut(handle).unwrap().value =
             Some(UserDefinedValue::Text("mutated".to_string()));
 
         let removed = data
-            .remove_user_defined_tag(handle)
+            .remove_user_defined_record(handle)
             .unwrap()
             .expect("should remove");
         assert_eq!(removed.tag, "_MILT");
@@ -3320,23 +3320,23 @@ mod tests {
             Some("mutated")
         );
 
-        assert!(data.get_user_defined_tag(handle).is_none());
-        assert!(data.remove_user_defined_tag(handle).unwrap().is_none());
-        assert!(data.user_defined_tags.is_empty());
+        assert!(data.get_user_defined_record(handle).is_none());
+        assert!(data.remove_user_defined_record(handle).unwrap().is_none());
+        assert!(data.user_defined_records.is_empty());
     }
 
     #[test]
     fn test_add_user_defined_tag_preserves_insertion_order() {
         let mut data = GedcomData::default();
-        data.add_user_defined_tags(UserDefinedTag::new("_A", 0))
+        data.add_user_defined_record(UserDefinedRecord::new(None, "_A", None))
             .unwrap();
-        data.add_user_defined_tags(UserDefinedTag::new("_B", 0))
+        data.add_user_defined_record(UserDefinedRecord::new(None, "_B", None))
             .unwrap();
-        data.add_user_defined_tags(UserDefinedTag::new("_C", 0))
+        data.add_user_defined_record(UserDefinedRecord::new(None, "_C", None))
             .unwrap();
 
         let tags: Vec<&str> = data
-            .iter_user_defined_tags()
+            .iter_user_defined_records()
             .map(|t| t.tag.as_str())
             .collect();
         assert_eq!(tags, vec!["_A", "_B", "_C"]);
