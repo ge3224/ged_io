@@ -28,7 +28,7 @@ use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{date::Date, note::Note, place::Place, source::citation::Citation, CitationSource},
-    xref::Pointer,
+    xref::{Pointer, Xref},
     GedcomError,
 };
 
@@ -244,7 +244,7 @@ pub struct LdsOrdinance {
     /// A reference to the family where this sealing was performed.
     ///
     /// Used with `SLGC` to indicate the family to which the child was sealed.
-    pub family_xref: Option<String>,
+    pub family_xref: Option<Xref>,
 
     /// Notes about this ordinance (tag: NOTE).
     pub notes: Arena<Note>,

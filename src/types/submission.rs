@@ -31,7 +31,7 @@ use serde::Serialize;
 pub struct Submission {
     /// Cross-reference identifier for this submission record
     /// Format: `@XREF:SUBN@`
-    pub xref: Xref,
+    pub(crate) xref: Xref,
     /// Name of the family file being submitted
     /// Used to identify the source family file
     /// Tag: `FAMF`
@@ -100,6 +100,12 @@ impl Submission {
         let mut subn = Submission::with_xref(xref);
         subn.parse(tokenizer, level)?;
         Ok(subn)
+    }
+
+    /// Returns the identifier other records use to point to this one (e.g. `"@T1@"`)
+    #[must_use]
+    pub fn xref(&self) -> &str {
+        self.xref.as_str()
     }
 
     pub(crate) fn pointers_mut(&mut self, f: &mut impl FnMut(&mut Pointer)) {

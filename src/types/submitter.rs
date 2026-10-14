@@ -27,7 +27,7 @@ use serde::Serialize;
 #[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Submitter {
     /// Cross-reference to link to this submitter
-    pub xref: Xref,
+    pub(crate) xref: Xref,
     /// Name of the submitter
     pub name: Option<String>,
     /// Physical address of the submitter
@@ -106,6 +106,12 @@ impl Submitter {
         let mut subm = Submitter::with_xref(xref);
         subm.parse(tokenizer, level)?;
         Ok(subm)
+    }
+
+    /// Returns the identifier other records use to point to this one (e.g. `"@U1@"`)
+    #[must_use]
+    pub fn xref(&self) -> &str {
+        self.xref.as_str()
     }
 
     /// Adds a `Multimedia` to the tree

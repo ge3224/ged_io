@@ -52,7 +52,7 @@ use serde::Serialize;
 #[cfg_attr(feature = "json", derive(Serialize))]
 pub struct SharedNote {
     /// The cross-reference identifier for this shared note (e.g., `@N1@`).
-    pub xref: Xref,
+    pub(crate) xref: Xref,
 
     /// The text content of the note.
     ///
@@ -113,6 +113,12 @@ impl SharedNote {
         };
         note.parse(tokenizer, level)?;
         Ok(note)
+    }
+
+    /// Returns the identifier other records use to point to this one (e.g. `"@N1@"`)
+    #[must_use]
+    pub fn xref(&self) -> &str {
+        self.xref.as_str()
     }
 
     /// Creates a simple shared note with just text.

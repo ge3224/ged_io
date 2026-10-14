@@ -33,7 +33,7 @@ use serde::Serialize;
 #[derive(Debug, Default, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Source {
-    pub xref: String,
+    pub(crate) xref: Xref,
     pub data: Data,
     pub abbreviation: Option<String>,
     pub title: Option<String>,
@@ -98,6 +98,12 @@ impl Source {
         let mut sour = Source::with_xref(xref);
         sour.parse(tokenizer, level)?;
         Ok(sour)
+    }
+
+    /// Returns the identifier other records use to point to this one (e.g. `"@S1@"`)
+    #[must_use]
+    pub fn xref(&self) -> &str {
+        self.xref.as_str()
     }
 
     pub fn add_multimedia(&mut self, media: Link) {

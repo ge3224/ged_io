@@ -65,10 +65,10 @@ use crate::{
 /// fn process_record(record: GedcomRecord) {
 ///     match record {
 ///         GedcomRecord::Individual(indi) => {
-///             println!("Individual: {:?}", indi.xref);
+///             println!("Individual: {:?}", indi.xref());
 ///         }
 ///         GedcomRecord::Family(fam) => {
-///             println!("Family: {:?}", fam.xref);
+///             println!("Family: {:?}", fam.xref());
 ///         }
 ///         _ => {}
 ///     }

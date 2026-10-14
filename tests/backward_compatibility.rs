@@ -66,7 +66,7 @@ fn test_default_parsing_behavior_unchanged() {
 
     // Verify individual data
     let individual = data.find_individual("@I1@").unwrap();
-    assert_eq!(individual.xref, "@I1@");
+    assert_eq!(individual.xref(), "@I1@");
     assert_eq!(
         individual.names.first().unwrap().value.as_ref().unwrap(),
         "John /Doe/"
@@ -123,7 +123,7 @@ fn test_individual_access_pattern_unchanged() {
 
     // Old access patterns must still work
     let indi = data.find_individual("@PERSON1@").unwrap();
-    assert_eq!(indi.xref.as_str(), "@PERSON1@");
+    assert_eq!(indi.xref(), "@PERSON1@");
     assert_eq!(
         indi.names.first().unwrap().value.as_ref().unwrap(),
         "John Doe"
@@ -147,7 +147,7 @@ fn test_family_access_pattern_unchanged() {
     let data = gedcom.parse_data().unwrap();
 
     let family = data.find_family("@F1@").unwrap();
-    assert_eq!(family.xref, "@F1@");
+    assert_eq!(family.xref(), "@F1@");
     assert_eq!(family.individual1.as_ref().unwrap(), "@I1@");
     assert_eq!(family.individual2.as_ref().unwrap(), "@I2@");
     assert_eq!(family.children.len(), 1);
@@ -222,14 +222,14 @@ fn test_both_apis_produce_same_results() {
 
     // Individual data should match
     for (old, new) in data_old.iter_individuals().zip(data_new.iter_individuals()) {
-        assert_eq!(old.xref, new.xref);
+        assert_eq!(old.xref(), new.xref());
         assert_eq!(old.names, new.names);
         assert_eq!(old.sex, new.sex);
     }
 
     // Family data should match
     for (old, new) in data_old.iter_families().zip(data_new.iter_families()) {
-        assert_eq!(old.xref, new.xref);
+        assert_eq!(old.xref(), new.xref());
         assert_eq!(old.individual1, new.individual1);
         assert_eq!(old.individual2, new.individual2);
         assert_eq!(old.children, new.children);
@@ -295,12 +295,12 @@ fn test_all_record_types_parsing() {
     assert_eq!(data.count_multimedia(), 1);
 
     // Verify xrefs
-    assert_eq!(data.find_submitter("@SUBM1@").unwrap().xref, "@SUBM1@");
-    assert_eq!(data.find_individual("@I1@").unwrap().xref, "@I1@");
-    assert_eq!(data.find_family("@F1@").unwrap().xref, "@F1@");
-    assert_eq!(data.find_repository("@R1@").unwrap().xref, "@R1@");
-    assert_eq!(data.find_source("@S1@").unwrap().xref, "@S1@");
-    assert_eq!(data.find_multimedia("@M1@").unwrap().xref, "@M1@");
+    assert_eq!(data.find_submitter("@SUBM1@").unwrap().xref(), "@SUBM1@");
+    assert_eq!(data.find_individual("@I1@").unwrap().xref(), "@I1@");
+    assert_eq!(data.find_family("@F1@").unwrap().xref(), "@F1@");
+    assert_eq!(data.find_repository("@R1@").unwrap().xref(), "@R1@");
+    assert_eq!(data.find_source("@S1@").unwrap().xref(), "@S1@");
+    assert_eq!(data.find_multimedia("@M1@").unwrap().xref(), "@M1@");
 }
 
 // =============================================================================
@@ -332,7 +332,7 @@ fn test_vec_iteration_unchanged() {
     // For loop must work
     let mut xrefs = Vec::new();
     for indi in data.iter_individuals() {
-        xrefs.push(indi.xref.clone());
+        xrefs.push(indi.xref());
     }
     assert_eq!(xrefs.len(), 3);
 }

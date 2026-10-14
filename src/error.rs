@@ -1,5 +1,7 @@
 use std::fmt;
 
+use crate::xref::Xref;
+
 /// Represents errors that can occur during GEDCOM parsing.
 ///
 /// This enum provides detailed error information including line numbers
@@ -70,7 +72,7 @@ pub enum GedcomError {
     /// A duplicate cross-reference identifier was found
     DuplicateXref {
         /// The duplicate xref identifier
-        xref: String,
+        xref: Xref,
         /// The type of record that had the duplicate
         record_type: String,
     },
@@ -78,7 +80,7 @@ pub enum GedcomError {
     /// An xref was referenced but no record with that id exists.
     XrefNotFound {
         /// The xref that could not be resolved.
-        xref: String,
+        xref: Xref,
         /// The type of record that was expected (e.g. "Individual", "Family").
         record_type: String,
     },
@@ -94,33 +96,33 @@ pub enum GedcomError {
     /// Attempted to link records that are already linked.
     AlreadyLinked {
         /// The individual's xref.
-        from_xref: String,
+        from_xref: Xref,
         /// The family's xref.
-        to_xref: String,
+        to_xref: Xref,
         /// The kind of link that already exists ("child" or "spouse").
-        link_type: String,
+        link_type: Xref,
     },
 
     /// Attempted to unlink records that are not linked.
     NotLinked {
         /// The individual's xref.
-        from_xref: String,
+        from_xref: Xref,
         /// The family's xref.
-        to_xref: String,
+        to_xref: Xref,
         /// The kind of link that was expected.
-        link_type: String,
+        link_type: Xref,
     },
 
     /// Tried to add a spouse to a family whose individual1/individual2 slots are both filled.
     FamilyHasTwoSpouses {
         /// The family whose spouse slots are both occupied.
-        family_xref: String,
+        family_xref: Xref,
     },
     /// A `remove_*` call was refused because other records still reference
     /// the target. The caller must unlink each blocker and retry.
     StillReferenced {
         /// The xref of the record that could not be removed.
-        xref: String,
+        xref: Xref,
         /// The type of record (e.g. "Individual", "Family").
         record_type: String,
         /// Every site that still points at the target.

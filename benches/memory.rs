@@ -199,11 +199,7 @@ fn bench_lookup_memory(c: &mut Criterion) {
 
         // Benchmark linear search (current implementation)
         group.bench_function("find_individual_linear", |b| {
-            let xrefs: Vec<&str> = data
-                .iter_individuals()
-                .map(|i| i.xref.as_str())
-                .take(10)
-                .collect();
+            let xrefs: Vec<&str> = data.iter_individuals().map(|i| i.xref()).take(10).collect();
 
             b.iter(|| {
                 for xref in &xrefs {
@@ -214,11 +210,7 @@ fn bench_lookup_memory(c: &mut Criterion) {
 
         // Benchmark family lookup
         group.bench_function("get_families_as_spouse", |b| {
-            let xrefs: Vec<&str> = data
-                .iter_individuals()
-                .map(|i| i.xref.as_str())
-                .take(10)
-                .collect();
+            let xrefs: Vec<&str> = data.iter_individuals().map(|i| i.xref()).take(10).collect();
 
             b.iter(|| {
                 for xref in &xrefs {
@@ -266,11 +258,7 @@ fn bench_indexed_vs_linear(c: &mut Criterion) {
             IndexedGedcomData::from(GedcomBuilder::new().build_from_str(&content).unwrap());
 
         // Get some xrefs to look up
-        let xrefs: Vec<&str> = data
-            .iter_individuals()
-            .map(|i| i.xref.as_str())
-            .take(50)
-            .collect();
+        let xrefs: Vec<&str> = data.iter_individuals().map(|i| i.xref()).take(50).collect();
 
         // Benchmark linear lookup (original GedcomData)
         group.bench_function("linear_lookup_50", |b| {

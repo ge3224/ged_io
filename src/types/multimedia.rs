@@ -36,7 +36,7 @@ use serde::Serialize;
 #[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Multimedia {
     /// Optional reference to link to this submitter
-    pub xref: Xref,
+    pub(crate) xref: Xref,
     pub file: Option<Reference>,
     /// The 5.5 spec, page 26, shows FORM as a sub-structure of FILE, but the struct appears as a
     /// sibling in an Ancestry.com export.
@@ -78,6 +78,12 @@ impl Multimedia {
         let mut obje = Multimedia::with_xref(xref);
         obje.parse(tokenizer, level)?;
         Ok(obje)
+    }
+
+    /// Returns the identifier other records use to point to this one (e.g. `"@M1@"`)
+    #[must_use]
+    pub fn xref(&self) -> &str {
+        self.xref.as_str()
     }
 
     /// Returns this record's source citation, if it has one.

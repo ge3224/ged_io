@@ -45,7 +45,7 @@ use serde::Serialize;
 #[derive(Debug, PartialEq)]
 #[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Individual {
-    pub xref: Xref,
+    pub(crate) xref: Xref,
     /// All `NAME` structures for this individual, in source order.
     ///
     /// GEDCOM 5.5.1 and 7.0 allow `{0:M}` `PERSONAL_NAME_STRUCTURE` per
@@ -180,6 +180,12 @@ impl Individual {
         let mut indi = Individual::new(xref);
         indi.parse(tokenizer, level)?;
         Ok(indi)
+    }
+
+    /// Returns the identifier other records use to point to this one (e.g. `"@I1@"`)
+    #[must_use]
+    pub fn xref(&self) -> &str {
+        self.xref.as_str()
     }
 
     pub fn add_family(&mut self, link: FamilyLink) {

@@ -33,9 +33,6 @@ fn test_round_trip_multi_line_shared_note_record() {
             data2.iter_shared_notes().next().unwrap().text,
             "First line\nSecond line"
         );
-        assert_eq!(
-            data2.iter_shared_notes().next().unwrap().xref.as_str(),
-            "@N1@"
-        );
+        assert_eq!(data2.iter_shared_notes().next().unwrap().xref(), "@N1@");
     }
 }

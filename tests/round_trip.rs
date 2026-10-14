@@ -43,8 +43,8 @@ fn test_round_trip_individual() {
 
     assert_eq!(data1.count_individual(), data2.count_individual());
     assert_eq!(
-        data1.find_individual("@I1@").unwrap().xref,
-        data2.find_individual("@I1@").unwrap().xref
+        data1.find_individual("@I1@").unwrap().xref(),
+        data2.find_individual("@I1@").unwrap().xref()
     );
     assert_eq!(
         data1.find_individual("@I1@").unwrap().sex,
@@ -126,7 +126,7 @@ fn test_round_trip_family() {
 
     let fam1 = data1.find_family("@F1@").unwrap();
     let fam2 = data2.find_family("@F1@").unwrap();
-    assert_eq!(fam1.xref, fam2.xref);
+    assert_eq!(fam1.xref(), fam2.xref());
     assert_eq!(fam1.individual1, fam2.individual1);
     assert_eq!(fam1.individual2, fam2.individual2);
     assert_eq!(fam1.children.len(), fam2.children.len());
@@ -179,8 +179,8 @@ fn test_round_trip_source() {
 
     assert_eq!(data1.count_source(), data2.count_source());
     assert_eq!(
-        data1.find_source("@S1@").unwrap().xref,
-        data2.find_source("@S1@").unwrap().xref
+        data1.find_source("@S1@").unwrap().xref(),
+        data2.find_source("@S1@").unwrap().xref()
     );
     assert_eq!(
         data1.find_source("@S1@").unwrap().title,
@@ -271,8 +271,8 @@ fn test_round_trip_repository() {
 
     assert_eq!(data1.count_repository(), data2.count_repository());
     assert_eq!(
-        data1.find_repository("@R1@").unwrap().xref,
-        data2.find_repository("@R1@").unwrap().xref
+        data1.find_repository("@R1@").unwrap().xref(),
+        data2.find_repository("@R1@").unwrap().xref()
     );
     assert_eq!(
         data1.find_repository("@R1@").unwrap().name,
@@ -299,8 +299,8 @@ fn test_round_trip_submitter() {
 
     assert_eq!(data1.count_submitter(), data2.count_submitter());
     assert_eq!(
-        data1.find_submitter("@SUBM1@").unwrap().xref,
-        data2.find_submitter("@SUBM1@").unwrap().xref
+        data1.find_submitter("@SUBM1@").unwrap().xref(),
+        data2.find_submitter("@SUBM1@").unwrap().xref()
     );
     assert_eq!(
         data1.find_submitter("@SUBM1@").unwrap().name,
@@ -327,8 +327,8 @@ fn test_round_trip_multimedia() {
 
     assert_eq!(data1.count_multimedia(), data2.count_multimedia());
     assert_eq!(
-        data1.find_multimedia("@M1@").unwrap().xref,
-        data2.find_multimedia("@M1@").unwrap().xref
+        data1.find_multimedia("@M1@").unwrap().xref(),
+        data2.find_multimedia("@M1@").unwrap().xref()
     );
     assert_eq!(
         data1.find_multimedia("@M1@").unwrap().title,
@@ -728,7 +728,7 @@ fn test_round_trip_complete_gedcom() {
         .zip(data2.iter_individuals())
         .enumerate()
     {
-        assert_eq!(ind1.xref, ind2.xref, "Individual {i} xref mismatch");
+        assert_eq!(ind1.xref(), ind2.xref(), "Individual {i} xref mismatch");
         assert_eq!(ind1.names, ind2.names, "Individual {i} name mismatch");
         assert_eq!(ind1.sex, ind2.sex, "Individual {i} sex mismatch");
     }

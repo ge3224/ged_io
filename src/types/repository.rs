@@ -25,7 +25,7 @@ use serde::Serialize;
 #[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Repository {
     /// Optional reference to link to this repo (e.g., `@R1@`).
-    pub xref: Xref,
+    pub(crate) xref: Xref,
 
     /// Name of the repository (tag: NAME).
     pub name: Option<String>,
@@ -126,6 +126,12 @@ impl Repository {
             name: Some(name.to_string()),
             ..Default::default()
         }
+    }
+
+    /// Returns the identifier other records use to point to this one (e.g. `"@R1@"`)
+    #[must_use]
+    pub fn xref(&self) -> &str {
+        self.xref.as_str()
     }
 
     /// Adds a phone number to the repository.

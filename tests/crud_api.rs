@@ -30,7 +30,7 @@ fn parse_unlink_remove_cycle() {
 
     data.unlink_individual_and_alias("@I1@", "@I2@").unwrap();
     assert_eq!(data.reference_count("@I2@"), 0);
-    assert_eq!(data.remove_individual(h).unwrap().unwrap().xref, "@I2@");
+    assert_eq!(data.remove_individual(h).unwrap().unwrap().xref(), "@I2@");
     assert!(data.remove_individual(h).unwrap().is_none());
     assert!(data.find_individual("@I2@").is_none());
 }
@@ -63,7 +63,7 @@ fn event_level_citation_release_source() {
 
     assert_eq!(data.remove_all_citations_to("@S1@").unwrap(), 1);
     assert_eq!(data.reference_count("@S1@"), 0);
-    assert_eq!(data.remove_source(h).unwrap().unwrap().xref, "@S1@");
+    assert_eq!(data.remove_source(h).unwrap().unwrap().xref(), "@S1@");
     assert!(data.find_source("@S1@").is_none());
 }
 
@@ -91,7 +91,7 @@ fn repo_citations_release_repository() {
     );
 
     assert_eq!(data.remove_all_repo_citations_to("@R1@").unwrap(), 1);
-    assert_eq!(data.remove_repository(h).unwrap().unwrap().xref, "@R1@");
+    assert_eq!(data.remove_repository(h).unwrap().unwrap().xref(), "@R1@");
     assert!(data.find_repository("@R1@").is_none());
 }
 
@@ -321,9 +321,9 @@ fn remove_individual_releases_outbound_pointers() {
     assert_eq!(data.reference_count("@S1@"), 2);
     assert!(data.remove_source(s).is_err());
 
-    assert_eq!(data.remove_individual(i).unwrap().unwrap().xref, "@I1@");
+    assert_eq!(data.remove_individual(i).unwrap().unwrap().xref(), "@I1@");
     assert_eq!(data.reference_count("@S1@"), 0);
-    assert_eq!(data.remove_source(s).unwrap().unwrap().xref, "@S1@");
+    assert_eq!(data.remove_source(s).unwrap().unwrap().xref(), "@S1@");
 }
 
 #[test]
@@ -333,22 +333,22 @@ fn header_link_unlink_submitter_and_submission() {
         1 GEDC\n\
         2 VERS 5.5\n\
         1 SUBM @U1@\n\
-        1 SUBN @N1@\n\
+        1 SUBN @T1@\n\
         0 @U1@ SUBM\n\
-        0 @N1@ SUBN\n\
+        0 @T1@ SUBN\n\
         0 TRLR";
 
     let stream_parser = GedcomStreamParser::new(sample.as_bytes()).unwrap();
     let streamed = GedcomData::try_from_records(stream_parser).unwrap();
     assert_eq!(streamed.reference_count("@U1@"), 1);
-    assert_eq!(streamed.reference_count("@N1@"), 1);
+    assert_eq!(streamed.reference_count("@T1@"), 1);
 
     let mut data = Gedcom::new(sample.chars()).unwrap().parse_data().unwrap();
     let subm = data.find_submitter_handle("@U1@").unwrap();
-    let subn = data.find_submission_handle("@N1@").unwrap();
+    let subn = data.find_submission_handle("@T1@").unwrap();
 
     assert_eq!(data.reference_count("@U1@"), 1);
-    assert_eq!(data.reference_count("@N1@"), 1);
+    assert_eq!(data.reference_count("@T1@"), 1);
     assert!(matches!(
         data.remove_submitter(subm).unwrap_err(),
         GedcomError::StillReferenced { references: 1, .. },
@@ -361,16 +361,16 @@ fn header_link_unlink_submitter_and_submission() {
     assert_eq!(data.reference_count("@U1@"), 1);
 
     data.unlink_header_and_submitter("@U1@").unwrap();
-    data.unlink_header_and_submission("@N1@").unwrap();
+    data.unlink_header_and_submission("@T1@").unwrap();
     assert_eq!(data.reference_count("@U1@"), 0);
-    assert_eq!(data.reference_count("@N1@"), 0);
+    assert_eq!(data.reference_count("@T1@"), 0);
     assert!(matches!(
         data.unlink_header_and_submitter("@U1@").unwrap_err(),
         GedcomError::NotLinked { .. },
     ));
 
     assert!(matches!(
-        data.link_header_and_submitter("@N1@").unwrap_err(),
+        data.link_header_and_submitter("@T1@").unwrap_err(),
         GedcomError::XrefNotFound { .. },
     ));
 
@@ -378,8 +378,11 @@ fn header_link_unlink_submitter_and_submission() {
     assert_eq!(data.reference_count("@U1@"), 1);
     data.unlink_header_and_submitter("@U1@").unwrap();
 
-    assert_eq!(data.remove_submitter(subm).unwrap().unwrap().xref, "@U1@");
-    assert_eq!(data.remove_submission(subn).unwrap().unwrap().xref, "@N1@");
+    assert_eq!(data.remove_submitter(subm).unwrap().unwrap().xref(), "@U1@");
+    assert_eq!(
+        data.remove_submission(subn).unwrap().unwrap().xref(),
+        "@T1@"
+    );
 }
 
 #[test]
@@ -721,14 +724,14 @@ fn pointer_field_count() {
         ),
         (
             "SUBN._FOO",
-            "0 @N1@ SUBN\n1 _FOO @I1@\n0 @I1@ INDI\n",
-            "@N1@",
+            "0 @T1@ SUBN\n1 _FOO @I1@\n0 @I1@ INDI\n",
+            "@T1@",
             "@I1@",
         ),
         (
             "SUBN.SUBM",
-            "0 @N1@ SUBN\n1 SUBM @U1@\n0 @U1@ SUBM\n1 NAME S\n",
-            "@N1@",
+            "0 @T1@ SUBN\n1 SUBM @U1@\n0 @U1@ SUBM\n1 NAME S\n",
+            "@T1@",
             "@U1@",
         ),
         (

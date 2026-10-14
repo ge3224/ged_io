@@ -37,7 +37,7 @@ use serde::Serialize;
 #[derive(Debug)]
 #[cfg_attr(feature = "json", derive(Serialize))]
 pub struct Family {
-    pub xref: Xref,
+    pub(crate) xref: Xref,
     pub individual1: Option<Pointer>, // mapped from HUSB
     pub individual2: Option<Pointer>, // mapped from WIFE
     pub family_events: Arena<Detail>,
@@ -140,6 +140,12 @@ impl Family {
         let mut fam = Family::new(xref);
         fam.parse(tokenizer, level)?;
         Ok(fam)
+    }
+
+    /// Returns the identifier other records use to point to this one (e.g. `"@F1@"`)
+    #[must_use]
+    pub fn xref(&self) -> &str {
+        self.xref.as_str()
     }
 
     pub(crate) fn set_individual1(&mut self, p: Pointer, line: u32) -> Result<(), GedcomError> {

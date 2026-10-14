@@ -92,11 +92,11 @@ fn test_parse_shared_notes() {
     assert_eq!(data.count_shared_note(), 2);
 
     let note1 = data.find_shared_note("@N1@").unwrap();
-    assert_eq!(note1.xref, "@N1@");
+    assert_eq!(note1.xref(), "@N1@");
     assert!(note1.text.contains("Gordon surname"));
 
     let note2 = data.find_shared_note("@N2@").unwrap();
-    assert_eq!(note2.xref, "@N2@");
+    assert_eq!(note2.xref(), "@N2@");
     assert_eq!(note2.text, "Another shared note.");
 }
 
