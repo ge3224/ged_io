@@ -837,7 +837,7 @@ fn test_parse_slgc_ordinance() {
         slgc.ordinance_type,
         Some(ged_io::types::lds::LdsOrdinanceType::SealingChild)
     );
-    assert_eq!(slgc.family_xref, Some("@F1@".to_string()));
+    assert!(slgc.family.as_ref().is_some_and(|p| p == "@F1@"));
     assert!(slgc.is_completed());
 }
 

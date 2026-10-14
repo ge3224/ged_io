@@ -28,7 +28,7 @@ use crate::{
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
     types::{date::Date, note::Note, place::Place, source::citation::Citation, CitationSource},
-    xref::{Pointer, Xref},
+    xref::Pointer,
     GedcomError,
 };
 
@@ -244,7 +244,7 @@ pub struct LdsOrdinance {
     /// A reference to the family where this sealing was performed.
     ///
     /// Used with `SLGC` to indicate the family to which the child was sealed.
-    pub family_xref: Option<Xref>,
+    pub family: Option<Pointer>,
 
     /// Notes about this ordinance (tag: NOTE).
     pub notes: Arena<Note>,
@@ -331,6 +331,10 @@ impl LdsOrdinance {
             p.pointers_mut(f);
         }
 
+        if let Some(p) = &mut self.family {
+            f(p);
+        }
+
         self.notes.for_each_mut(|n| n.pointers_mut(f));
         self.source_citations.for_each_mut(|p| p.pointers_mut(f));
     }
@@ -400,7 +404,7 @@ impl Parser for LdsOrdinance {
                         Ok(())
                     })?;
                 }
-                "FAMC" => self.family_xref = Some(tokenizer.take_line_value()?),
+                "FAMC" => self.family = Some(tokenizer.take_pointer()?),
                 "NOTE" => {
                     self.notes.insert(Note::new(tokenizer, level + 1)?);
                 }

@@ -1919,8 +1919,8 @@ impl GedcomWriter {
             }
         }
 
-        if let Some(ref famc) = ordinance.family_xref {
-            self.write_line(writer, level + 1, "FAMC", Some(famc))?;
+        if let Some(ref famc) = ordinance.family {
+            self.write_line(writer, level + 1, "FAMC", Some(famc.as_str()))?;
         }
 
         for note in &ordinance.notes {
