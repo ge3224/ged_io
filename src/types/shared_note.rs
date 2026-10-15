@@ -33,6 +33,8 @@ use crate::{
 #[cfg(feature = "json")]
 use serde::Serialize;
 
+mod crud;
+
 /// A shared note record (SNOTE).
 ///
 /// A catch-all location for information that does not fully fit within other structures.
