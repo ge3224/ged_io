@@ -11,8 +11,11 @@ use crate::{
     xref::Pointer,
     GedcomError,
 };
+
 #[cfg(feature = "json")]
 use serde::Serialize;
+
+mod crud;
 
 /// Data repository, the `REPO` tag
 ///
