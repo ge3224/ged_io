@@ -14,6 +14,8 @@ use crate::{
     GedcomError,
 };
 
+mod crud;
+
 #[cfg(feature = "json")]
 use serde::Serialize;
 
