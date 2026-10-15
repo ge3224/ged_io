@@ -19,8 +19,11 @@ use crate::{
     xref::Pointer,
     GedcomError,
 };
+
 #[cfg(feature = "json")]
 use serde::Serialize;
+
+mod crud;
 
 /// Header (tag: HEAD) containing GEDCOM metadata.
 ///
