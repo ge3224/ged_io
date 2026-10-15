@@ -24,6 +24,8 @@ use crate::{
 #[cfg(feature = "json")]
 use serde::Serialize;
 
+mod crud;
+
 /// Source for genealogy facts
 ///
 /// A source record is a place where you describe the source material
