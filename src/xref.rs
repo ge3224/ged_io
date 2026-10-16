@@ -20,24 +20,41 @@ use crate::{
 /// A pointer from one record to another (for example, the `@I1@` in a family's
 /// `CHIL @I1@` line). Get one from [`GedcomData::pointer`](crate::types::GedcomData::pointer).
 /// While any copy exists, the record it points to counts as referenced and can't be removed.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Pointer(Arc<str>);
+#[derive(Clone, Debug)]
+pub struct Pointer(Inner);
+
+#[derive(Clone, Debug)]
+enum Inner {
+    Detached(Box<str>),
+    Anchored(Arc<str>),
+}
 
 impl Pointer {
     pub(crate) fn detached(x: &str) -> Self {
-        Pointer(Arc::from(x))
+        Pointer(Inner::Detached(Box::from(x)))
     }
 
     /// Returns the xref this pointer points to (for example, `"@I1@"`).
     #[must_use]
     pub fn as_str(&self) -> &str {
-        &self.0
+        match &self.0 {
+            Inner::Detached(d) => d,
+            Inner::Anchored(a) => a,
+        }
     }
 }
 
+impl PartialEq for Pointer {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_str() == other.as_str()
+    }
+}
+
+impl Eq for Pointer {}
+
 impl PartialEq<str> for Pointer {
     fn eq(&self, other: &str) -> bool {
-        &*self.0 == other
+        self.as_str() == other
     }
 }
 
@@ -49,6 +66,14 @@ impl Serialize for Pointer {
     {
         serializer.serialize_str(self.as_str())
     }
+}
+
+#[allow(dead_code)]
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) enum Origin {
+    Mine,
+    Detached,
+    Foreign,
 }
 
 /// A GEDCOM cross-reference identifier — the `@`-delimited token (e.g.
@@ -99,7 +124,7 @@ impl Xrefs {
 
     pub(crate) fn pointer(&mut self, xref: &str) -> Pointer {
         if let Some(a) = self.map.get(xref).and_then(|n| n.anchor.as_ref()) {
-            return Pointer(Arc::clone(a));
+            return Pointer(Inner::Anchored(Arc::clone(a)));
         }
 
         let node = self.map.entry(xref.to_owned()).or_insert_with(|| XrefNode {
@@ -107,9 +132,9 @@ impl Xrefs {
             anchor: None,
         });
 
-        Pointer(Arc::clone(
+        Pointer(Inner::Anchored(Arc::clone(
             node.anchor.get_or_insert_with(|| Arc::from(xref)),
-        ))
+        )))
     }
 
     pub(crate) fn adopt(&mut self, r: &mut Pointer) {
@@ -118,12 +143,25 @@ impl Xrefs {
         }
 
         if let Some(a) = self.map.get(r.as_str()).and_then(|n| n.anchor.as_ref()) {
-            if Arc::ptr_eq(a, &r.0) {
-                return;
+            if let Inner::Anchored(p) = &r.0 {
+                if Arc::ptr_eq(a, p) {
+                    return;
+                }
             }
         }
 
         *r = self.pointer(r.as_str());
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn origin(&self, p: &Pointer) -> Origin {
+        match &p.0 {
+            Inner::Detached(_) => Origin::Detached,
+            Inner::Anchored(a) => match self.map.get(&**a).and_then(|n| n.anchor.as_ref()) {
+                Some(mine) if Arc::ptr_eq(mine, a) => Origin::Mine,
+                _ => Origin::Foreign,
+            },
+        }
     }
 }
 
@@ -159,5 +197,46 @@ impl AnyHandle {
             AnyHandle::SharedNote(_) => SharedNote::RECORD_TYPE,
             AnyHandle::UserDefinedRecord(_) => UserDefinedRecord::RECORD_TYPE,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn detached_and_anchored_compare_equal() {
+        let mut xrefs = Xrefs::default();
+        let anchored = xrefs.pointer("@I1@");
+        let detached = Pointer::detached("@I1@");
+
+        assert_eq!(anchored, detached);
+        assert_ne!(anchored, Pointer::detached("@I2@"));
+    }
+
+    #[test]
+    fn adopt_makes_detached_count() {
+        let mut xrefs = Xrefs::default();
+        let mut p = Pointer::detached("@I1@");
+        assert_eq!(xrefs.use_count("@I1@"), 0);
+
+        xrefs.adopt(&mut p);
+        assert_eq!(xrefs.use_count("@I1@"), 1);
+    }
+
+    #[test]
+    fn origin_sorts_pointers() {
+        let mut mine = Xrefs::default();
+        let mut other = Xrefs::default();
+
+        let mine_p = mine.pointer("@I1@");
+        let detached_p = Pointer::detached("@I1@");
+        let foreign_p = other.pointer("@I1@");
+        let unknown_p = other.pointer("@I2@");
+
+        assert_eq!(mine.origin(&mine_p), Origin::Mine);
+        assert_eq!(mine.origin(&detached_p), Origin::Detached);
+        assert_eq!(mine.origin(&foreign_p), Origin::Foreign);
+        assert_eq!(mine.origin(&unknown_p), Origin::Foreign);
     }
 }
