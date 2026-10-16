@@ -23,6 +23,8 @@ use crate::{
 #[cfg(feature = "json")]
 use serde::Serialize;
 
+mod crud;
+
 /// Family fact, representing a relationship between `Individual`s
 ///
 /// This data representation understands that HUSB & WIFE are just poorly-named

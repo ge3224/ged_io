@@ -9,6 +9,8 @@ use crate::{
 #[cfg(feature = "json")]
 use serde::Serialize;
 
+mod crud;
+
 /// The payload of a user-defined tag: a pointer to a record, a `@VOID@`
 /// placeholder, or plain text.
 #[derive(Debug, PartialEq, Clone)]

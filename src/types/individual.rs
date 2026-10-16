@@ -36,6 +36,8 @@ use crate::{
 #[cfg(feature = "json")]
 use serde::Serialize;
 
+mod crud;
+
 /// A record for an individual (tag: `INDI`) — a compilation of facts or
 /// hypothesized facts about a person, drawn from one or more sources. Source
 /// citations and notes on each fact document where it was found. Defined in

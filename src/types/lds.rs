@@ -27,7 +27,12 @@ use crate::{
     arena::Arena,
     parser::{parse_subset, Parser},
     tokenizer::Tokenizer,
-    types::{date::Date, note::Note, place::Place, source::citation::Citation, CitationSource},
+    types::{
+        date::Date,
+        note::Note,
+        place::Place,
+        source::citation::{Citation, CitationSource},
+    },
     xref::Pointer,
     GedcomError,
 };
