@@ -1,7 +1,7 @@
 use crate::{
     arena::Handle,
     types::{custom::UserDefinedRecord, GedcomData},
-    xref::{AnyHandle, Pointer},
+    xref::{AnyHandle, Origin, Pointer},
     GedcomError,
 };
 
@@ -10,8 +10,12 @@ impl GedcomData {
     ///
     /// # Errors
     ///
-    /// Returns an error if the tag carries an xref that is already in use (for
-    /// example, a `0 @I1@ _LOC` record in a file that also has `0 @I1@ INDI`).
+    /// Returns an [`GedcomError::DuplicateXref`] if the records's
+    /// [`Xref`](crate::xref::Xref) is already in use by another record in the
+    /// dataset.
+    ///
+    /// Returns a [`GedcomError::ForeignPointer`] if the pointer to xref belongs to
+    /// another document.
     pub fn add_user_defined_record(
         &mut self,
         mut user_defined_tag: UserDefinedRecord,
@@ -25,6 +29,17 @@ impl GedcomData {
                     record_type: UserDefinedRecord::RECORD_TYPE.to_string(),
                 });
             }
+        }
+
+        let mut foreign = None;
+        user_defined_tag.pointers_mut(&mut |p| {
+            if foreign.is_none() && self.xrefs.origin(p) == Origin::Foreign {
+                foreign = Some(p.as_str().to_owned());
+            }
+        });
+
+        if let Some(xref) = foreign {
+            return Err(GedcomError::ForeignPointer { xref });
         }
 
         user_defined_tag.pointers_mut(&mut |p| self.xrefs.adopt(p));

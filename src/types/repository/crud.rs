@@ -1,7 +1,7 @@
 use crate::{
     arena::Handle,
     types::{repository::Repository, GedcomData},
-    xref::{AnyHandle, Pointer},
+    xref::{AnyHandle, Origin, Pointer},
     GedcomError,
 };
 
@@ -10,7 +10,12 @@ impl GedcomData {
     ///
     /// # Errors
     ///
-    /// Returns an error if the xref is already in use.
+    /// Returns an [`GedcomError::DuplicateXref`] if the repository's
+    /// [`Xref`](crate::xref::Xref) is already in use by another record in the
+    /// dataset.
+    ///
+    /// Returns a [`GedcomError::ForeignPointer`] if the pointer to xref belongs to
+    /// another document.
     pub fn add_repository(
         &mut self,
         mut repository: Repository,
@@ -22,6 +27,17 @@ impl GedcomData {
                 xref,
                 record_type: Repository::RECORD_TYPE.to_string(),
             });
+        }
+
+        let mut foreign = None;
+        repository.pointers_mut(&mut |p| {
+            if foreign.is_none() && self.xrefs.origin(p) == Origin::Foreign {
+                foreign = Some(p.as_str().to_owned());
+            }
+        });
+
+        if let Some(xref) = foreign {
+            return Err(GedcomError::ForeignPointer { xref });
         }
 
         repository.pointers_mut(&mut |p| self.xrefs.adopt(p));

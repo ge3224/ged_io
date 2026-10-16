@@ -68,7 +68,6 @@ impl Serialize for Pointer {
     }
 }
 
-#[allow(dead_code)]
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum Origin {
     Mine,
@@ -153,7 +152,6 @@ impl Xrefs {
         *r = self.pointer(r.as_str());
     }
 
-    #[allow(dead_code)]
     pub(crate) fn origin(&self, p: &Pointer) -> Origin {
         match &p.0 {
             Inner::Detached(_) => Origin::Detached,

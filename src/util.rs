@@ -5,9 +5,7 @@
 //! - Memory-efficient string utilities
 //! - String interning for common GEDCOM tags
 
-#![allow(dead_code)]
 #![allow(clippy::too_many_lines)]
-#![allow(clippy::trivially_copy_pass_by_ref)]
 
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};

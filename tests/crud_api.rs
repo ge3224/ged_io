@@ -1,5 +1,7 @@
 use ged_io::{
-    types::GedcomData, Gedcom, GedcomBuilder, GedcomError, GedcomStreamParser, GedcomWriter,
+    types::{family::Family, individual::Individual, GedcomData},
+    xref::Pointer,
+    Gedcom, GedcomBuilder, GedcomError, GedcomStreamParser, GedcomWriter,
 };
 
 fn wrap(body: &str) -> String {
@@ -825,6 +827,43 @@ fn pointer_field_count() {
 
         assert_eq!(data.reference_count(target), 0, "{name}: remove holder");
         drop(held);
+    }
+}
+
+type AddWith = fn(&mut GedcomData, Pointer) -> Result<(), GedcomError>;
+
+#[test]
+fn guard_against_foreign_pointers() {
+    let cases: &[(&str, AddWith)] = &[
+        ("family.children", |d, p| {
+            let mut f = Family::new("@F1@");
+            f.children.insert(p);
+            d.add_family(f).map(|_| ())
+        }),
+        ("individual.aliases", |d, p| {
+            let mut i = Individual::new("@I9@");
+            i.aliases.insert(p);
+            d.add_individual(i).map(|_| ())
+        }),
+        // submission, submitter, source, multimedia, repository, shared_note,
+        // user_defined_record: no public way to place a pointer until step 7's
+        // views.
+    ];
+
+    let body = wrap("0 @I1@ INDI\n");
+
+    for &(name, add) in cases {
+        let mut mine = GedcomBuilder::new().build_from_str(&body).unwrap();
+        let mut foreign = GedcomBuilder::new().build_from_str(&body).unwrap();
+
+        let p = foreign.pointer("@I1@").unwrap();
+
+        let err = add(&mut mine, p).unwrap_err();
+        assert!(
+            matches!(&err, GedcomError::ForeignPointer { xref } if xref == "@I1@"),
+            "{name}: {err}"
+        );
+        assert_eq!(mine.reference_count("@I1@"), 0, "{name}");
     }
 }
 

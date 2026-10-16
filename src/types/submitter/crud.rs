@@ -1,7 +1,7 @@
 use crate::{
     arena::Handle,
     types::{submitter::Submitter, GedcomData},
-    xref::{AnyHandle, Pointer},
+    xref::{AnyHandle, Origin, Pointer},
     GedcomError,
 };
 
@@ -11,6 +11,9 @@ impl GedcomData {
     /// # Errors
     ///
     /// Returns [`GedcomError::DuplicateXref`] if the xref is already in use.
+    ///
+    /// Returns a [`GedcomError::ForeignPointer`] if the pointer to xref belongs to
+    /// another document.
     pub fn add_submitter(
         &mut self,
         mut submitter: Submitter,
@@ -22,6 +25,17 @@ impl GedcomData {
                 xref,
                 record_type: Submitter::RECORD_TYPE.to_string(),
             });
+        }
+
+        let mut foreign = None;
+        submitter.pointers_mut(&mut |p| {
+            if foreign.is_none() && self.xrefs.origin(p) == Origin::Foreign {
+                foreign = Some(p.as_str().to_owned());
+            }
+        });
+
+        if let Some(xref) = foreign {
+            return Err(GedcomError::ForeignPointer { xref });
         }
 
         submitter.pointers_mut(&mut |p| self.xrefs.adopt(p));

@@ -8,7 +8,7 @@ use crate::{
         },
         GedcomData,
     },
-    xref::{AnyHandle, Pointer, Xref},
+    xref::{AnyHandle, Origin, Pointer, Xref},
     GedcomError,
 };
 
@@ -21,6 +21,9 @@ impl GedcomData {
     ///
     /// Returns an [`GedcomError::DuplicateXref`] if the family's [`Xref`] is
     /// already in use by another record in the dataset.
+    ///
+    /// Returns a [`GedcomError::ForeignPointer`] if the pointer to xref belongs to
+    /// another document.
     pub fn add_family(&mut self, mut family: Family) -> Result<Handle<Family>, GedcomError> {
         let xref = family.xref.clone();
 
@@ -29,6 +32,17 @@ impl GedcomData {
                 xref,
                 record_type: Family::RECORD_TYPE.to_string(),
             });
+        }
+
+        let mut foreign = None;
+        family.pointers_mut(&mut |p| {
+            if foreign.is_none() && self.xrefs.origin(p) == Origin::Foreign {
+                foreign = Some(p.as_str().to_owned());
+            }
+        });
+
+        if let Some(xref) = foreign {
+            return Err(GedcomError::ForeignPointer { xref });
         }
 
         family.pointers_mut(&mut |p| self.xrefs.adopt(p));

@@ -16,7 +16,7 @@ use crate::{
         submitter::Submitter,
         GedcomData,
     },
-    xref::{AnyHandle, Pointer, Xref},
+    xref::{AnyHandle, Origin, Pointer, Xref},
     GedcomError,
 };
 
@@ -29,6 +29,9 @@ impl GedcomData {
     ///
     /// Returns [`GedcomError::DuplicateXref`] if the individual's xref is
     /// already in use by another individual in this dataset.
+    ///
+    /// Returns a [`GedcomError::ForeignPointer`] if the pointer to xref belongs to
+    /// another document.
     pub fn add_individual(
         &mut self,
         mut individual: Individual,
@@ -40,6 +43,17 @@ impl GedcomData {
                 xref,
                 record_type: Individual::RECORD_TYPE.to_string(),
             });
+        }
+
+        let mut foreign = None;
+        individual.pointers_mut(&mut |p| {
+            if foreign.is_none() && self.xrefs.origin(p) == Origin::Foreign {
+                foreign = Some(p.as_str().to_owned());
+            }
+        });
+
+        if let Some(xref) = foreign {
+            return Err(GedcomError::ForeignPointer { xref });
         }
 
         individual.pointers_mut(&mut |p| self.xrefs.adopt(p));
