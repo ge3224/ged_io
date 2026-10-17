@@ -469,3 +469,25 @@ impl GedcomData {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::{
+        types::{family::Family, individual::Individual, GedcomData},
+        GedcomError,
+    };
+
+    #[test]
+    fn add_family_refuses_foreign_pointer() {
+        let mut foreign = GedcomData::default();
+        foreign.add_individual(Individual::new("@I1@")).unwrap();
+
+        let mut f = Family::new("@F1@");
+        f.children.insert(foreign.pointer("@I1@").unwrap());
+
+        let mut data = GedcomData::default();
+        let err = data.add_family(f).unwrap_err();
+        assert!(matches!(&err, GedcomError::ForeignPointer { xref } if xref == "@I1@"));
+        assert_eq!(data.count_family(), 0);
+    }
+}

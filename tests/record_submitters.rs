@@ -38,7 +38,7 @@ fn test_round_trip_record_submitter_pointers() {
             .iter_families()
             .next()
             .unwrap()
-            .submitters
+            .submitters()
             .iter()
             .map(Pointer::as_str)
             .collect::<Vec<_>>(),

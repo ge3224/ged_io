@@ -840,9 +840,8 @@ fn guard_against_foreign_pointers() {
             d.get_family_mut(h).unwrap().children().add(p).map(|_| ())
         }),
         ("family.submitters", |d, p| {
-            let mut f = Family::new("@F1@");
-            f.submitters.insert(p); // moves in-crate once submitters closes
-            d.add_family(f).map(|_| ())
+            let h = d.add_family(Family::new("@F1@"))?;
+            d.get_family_mut(h).unwrap().submitters().add(p).map(|_| ())
         }),
         ("individual.aliases", |d, p| {
             let mut i = Individual::new("@I9@");

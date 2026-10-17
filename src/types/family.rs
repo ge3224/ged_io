@@ -96,7 +96,7 @@ pub struct Family {
     /// this family.
     pub external_ids: Arena<ExternalId>,
     /// Submitters who contributed this record (tag: SUBM, GEDCOM 5.5.1).
-    pub submitters: Arena<Pointer>,
+    pub(crate) submitters: Arena<Pointer>,
 }
 
 impl Family {
@@ -179,6 +179,12 @@ impl Family {
     #[must_use]
     pub fn children(&self) -> &Arena<Pointer> {
         &self.children
+    }
+
+    /// The family's submitters (`SUBM`), in insertion order.
+    #[must_use]
+    pub fn submitters(&self) -> &Arena<Pointer> {
+        &self.submitters
     }
 
     pub(crate) fn add_child(&mut self, r: Pointer) {

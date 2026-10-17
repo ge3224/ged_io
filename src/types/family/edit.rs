@@ -23,6 +23,11 @@ impl<'a> FamilyMut<'a> {
     pub fn children(&mut self) -> PointerList<'_> {
         PointerList::new(&mut self.family.children, &mut *self.xrefs)
     }
+
+    /// Opens the family's submitters (`SUBM`) for editing.
+    pub fn submitters(&mut self) -> PointerList<'_> {
+        PointerList::new(&mut self.family.submitters, &mut *self.xrefs)
+    }
 }
 
 impl Deref for FamilyMut<'_> {
