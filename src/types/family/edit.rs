@@ -1,6 +1,9 @@
 use std::ops::{Deref, DerefMut};
 
-use crate::{types::family::Family, xref::Xrefs};
+use crate::{
+    types::family::Family,
+    xref::{PointerList, Xrefs},
+};
 
 /// A [`Family`] open for editing, returned by
 /// [`GedcomData::get_family_mut`](crate::types::GedcomData::get_family_mut) and
@@ -8,13 +11,17 @@ use crate::{types::family::Family, xref::Xrefs};
 /// Read and write fields through it as you would a `&mut Family`.
 pub struct FamilyMut<'a> {
     family: &'a mut Family,
-    #[allow(dead_code)] // FIXME(family-views): read by the views in step 6
     xrefs: &'a mut Xrefs,
 }
 
 impl<'a> FamilyMut<'a> {
     pub(crate) fn new(family: &'a mut Family, xrefs: &'a mut Xrefs) -> Self {
         FamilyMut { family, xrefs }
+    }
+
+    /// Opens the family's children (`CHIL`) for editing.
+    pub fn children(&mut self) -> PointerList<'_> {
+        PointerList::new(&mut self.family.children, &mut *self.xrefs)
     }
 }
 

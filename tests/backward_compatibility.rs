@@ -150,8 +150,8 @@ fn test_family_access_pattern_unchanged() {
     assert_eq!(family.xref(), "@F1@");
     assert_eq!(family.individual1.as_ref().unwrap(), "@I1@");
     assert_eq!(family.individual2.as_ref().unwrap(), "@I2@");
-    assert_eq!(family.children.len(), 1);
-    assert_eq!(family.children.iter().next().unwrap(), "@I3@");
+    assert_eq!(family.children().len(), 1);
+    assert_eq!(family.children().iter().next().unwrap(), "@I3@");
 }
 
 // =============================================================================
@@ -232,7 +232,7 @@ fn test_both_apis_produce_same_results() {
         assert_eq!(old.xref(), new.xref());
         assert_eq!(old.individual1, new.individual1);
         assert_eq!(old.individual2, new.individual2);
-        assert_eq!(old.children, new.children);
+        assert_eq!(old.children(), new.children());
     }
 }
 

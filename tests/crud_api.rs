@@ -836,8 +836,12 @@ type AddWith = fn(&mut GedcomData, Pointer) -> Result<(), GedcomError>;
 fn guard_against_foreign_pointers() {
     let cases: &[(&str, AddWith)] = &[
         ("family.children", |d, p| {
+            let h = d.add_family(Family::new("@F1@"))?;
+            d.get_family_mut(h).unwrap().children().add(p).map(|_| ())
+        }),
+        ("family.submitters", |d, p| {
             let mut f = Family::new("@F1@");
-            f.children.insert(p);
+            f.submitters.insert(p); // moves in-crate once submitters closes
             d.add_family(f).map(|_| ())
         }),
         ("individual.aliases", |d, p| {
@@ -907,13 +911,22 @@ fn pointers_count_by_field_edits() {
     ));
 
     let r = data.pointer("@I1@").unwrap();
-    data.get_family_mut(f).unwrap().children.insert(r.clone());
+    data.get_family_mut(f)
+        .unwrap()
+        .children()
+        .add(r.clone())
+        .unwrap();
     assert_eq!(data.reference_count("@I1@"), 3);
 
     drop(r);
     assert_eq!(data.reference_count("@I1@"), 2);
 
-    data.get_family_mut(f).unwrap().children.retain(|_| false);
+    let mut fam = data.get_family_mut(f).unwrap();
+    let mut kids = fam.children();
+    let hs: Vec<_> = kids.iter().map(|(h, _)| h).collect();
+    for h in hs {
+        kids.remove(h);
+    }
     assert_eq!(data.reference_count("@I1@"), 0);
     assert!(data.remove_individual(i).unwrap().is_some());
 }

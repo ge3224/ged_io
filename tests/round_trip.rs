@@ -129,7 +129,7 @@ fn test_round_trip_family() {
     assert_eq!(fam1.xref(), fam2.xref());
     assert_eq!(fam1.individual1, fam2.individual1);
     assert_eq!(fam1.individual2, fam2.individual2);
-    assert_eq!(fam1.children.len(), fam2.children.len());
+    assert_eq!(fam1.children().len(), fam2.children().len());
 }
 
 #[test]
@@ -841,8 +841,8 @@ fn test_round_trip_family_no_children() {
 
     let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();
 
-    assert_eq!(data1.find_family("@F1@").unwrap().children.len(), 0);
-    assert_eq!(data2.find_family("@F1@").unwrap().children.len(), 0);
+    assert_eq!(data1.find_family("@F1@").unwrap().children().len(), 0);
+    assert_eq!(data2.find_family("@F1@").unwrap().children().len(), 0);
 }
 
 #[test]
@@ -866,12 +866,12 @@ fn test_round_trip_multiple_children() {
     let data2 = GedcomBuilder::new().build_from_str(&written).unwrap();
 
     assert_eq!(
-        data1.find_family("@F1@").unwrap().children.len(),
-        data2.find_family("@F1@").unwrap().children.len()
+        data1.find_family("@F1@").unwrap().children().len(),
+        data2.find_family("@F1@").unwrap().children().len()
     );
     assert_eq!(
-        data1.find_family("@F1@").unwrap().children,
-        data2.find_family("@F1@").unwrap().children
+        data1.find_family("@F1@").unwrap().children(),
+        data2.find_family("@F1@").unwrap().children()
     );
 }
 

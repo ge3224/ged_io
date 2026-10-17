@@ -26,6 +26,8 @@ use serde::Serialize;
 mod crud;
 mod edit;
 
+pub use edit::FamilyMut;
+
 /// Family fact, representing a relationship between `Individual`s
 ///
 /// This data representation understands that HUSB & WIFE are just poorly-named
@@ -44,7 +46,7 @@ pub struct Family {
     pub individual1: Option<Pointer>, // mapped from HUSB
     pub individual2: Option<Pointer>, // mapped from WIFE
     pub family_events: Arena<Detail>,
-    pub children: Arena<Pointer>,
+    pub(crate) children: Arena<Pointer>,
     pub num_children: Option<String>,
     pub change_date: Option<ChangeDate>,
     pub events: Arena<Detail>,
@@ -171,6 +173,12 @@ impl Family {
         }
         self.individual2 = Some(p);
         Ok(())
+    }
+
+    /// The family's children (`CHIL`), in insertion order.
+    #[must_use]
+    pub fn children(&self) -> &Arena<Pointer> {
+        &self.children
     }
 
     pub(crate) fn add_child(&mut self, r: Pointer) {
