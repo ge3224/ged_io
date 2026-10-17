@@ -24,6 +24,7 @@ use crate::{
 use serde::Serialize;
 
 mod crud;
+mod edit;
 
 /// Family fact, representing a relationship between `Individual`s
 ///

@@ -129,7 +129,7 @@ pub enum GedcomError {
         references: usize,
     },
     /// An `add_*` call was refused because the record holds a pointer that
-    /// belongs to another document. Import it with `import_pointer` first.
+    /// belongs to another document.
     ForeignPointer {
         /// The xref the foreign pointer points to.
         xref: Xref,
@@ -215,10 +215,9 @@ impl fmt::Display for GedcomError {
                 f,
                 "{record_type} record '{xref}' is still referenced by {references} other record(s)"
             ),
-            GedcomError::ForeignPointer { xref } => write!(
-                f,
-                "pointer to '{xref}' belongs to another document; import it first"
-            ),
+            GedcomError::ForeignPointer { xref } => {
+                write!(f, "pointer to '{xref}' belongs to another document")
+            }
         }
     }
 }

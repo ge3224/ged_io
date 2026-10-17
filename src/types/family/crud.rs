@@ -1,7 +1,7 @@
 use crate::{
     arena::{Arena, Handle},
     types::{
-        family::Family,
+        family::{edit::FamilyMut, Family},
         individual::{
             family_link::{FamilyLink, FamilyLinkType},
             Individual,
@@ -74,14 +74,13 @@ impl GedcomData {
         self.families.get(handle)
     }
 
-    /// Retrieves a mutable reference to a [`Family`] record referred to by
-    /// `handle`. Useful when yo've kept the `handle` retuned by
-    /// [`Self::add_family`]. Returns `None` if `handle` is no longer valid
-    /// (e.g., the `Family` record has already been removed). See also
-    /// [`Self::find_family_mut`] for retrieving top-tier records like `Family`.
+    /// Opens the [`Family`] for editing, or `None` if `handle` is stale.
+    /// Pointers from another document are refused. See also
+    /// [`Self::find_family_mut`].
     #[must_use]
-    pub fn get_family_mut(&mut self, handle: Handle<Family>) -> Option<&mut Family> {
-        self.families.get_mut(handle)
+    pub fn get_family_mut(&mut self, handle: Handle<Family>) -> Option<FamilyMut<'_>> {
+        let family = self.families.get_mut(handle)?;
+        Some(FamilyMut::new(family, &mut self.xrefs))
     }
 
     /// Finds a reference to a [`Family`] by its cross-reference ID [`Xref`].
@@ -95,15 +94,14 @@ impl GedcomData {
         }
     }
 
-    /// Finds a mutable reference to a [`Family`] by its cross-reference ID
-    /// [`Xref`]. Returns `None` if `xref` is not registered in the dataset. See
-    /// also [`Self::get_family_mut`] for retrieving a mutable reference to a
-    /// `Family` by its corresponding [`Handle`].
-    pub fn find_family_mut(&mut self, xref: &str) -> Option<&mut Family> {
-        match self.xrefs.handle(xref)? {
-            AnyHandle::Family(f) => self.families.get_mut(f),
-            _ => None,
-        }
+    /// Opens the [`Family`] with this `xref` for editing, or `None` if no family
+    /// has it. Pointers from another document are refused. See also
+    /// [`Self::get_family_mut`].
+    pub fn find_family_mut(&mut self, xref: &str) -> Option<FamilyMut<'_>> {
+        let AnyHandle::Family(h) = self.xrefs.handle(xref)? else {
+            return None;
+        };
+        self.get_family_mut(h)
     }
 
     /// Finds the [`Handle`] of a [`Family`] by its cross-reference ID [`Xref`].
