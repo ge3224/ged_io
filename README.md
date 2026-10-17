@@ -1,5 +1,12 @@
 # ged_io
 
+> [!WARNING]
+> **This project is archived and no longer actively maintained.**
+>
+> Development has moved to [oxidged](https://github.com/trois-six/oxidged), a more complete and spec-conformant GEDCOM parser/writer with full 7.0/7.1 support, producer profiles, and lossless parsing.
+>
+> This repository remains available as-is for historical reference.
+
 **A fast, full-featured GEDCOM parser and writer for Rust**
 
 [![Crates.io](https://img.shields.io/crates/v/ged_io.svg)](https://crates.io/crates/ged_io)
